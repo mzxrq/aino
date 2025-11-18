@@ -1,0 +1,1 @@
+export default function AnomalyChart() { return <h1>Chart</h1> }
