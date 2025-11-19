@@ -223,7 +223,8 @@ export default function AnomalyChart() {
         setSidebarData({
           market: chartData.market || 'Unknown',
           companyName: chartData.companyName || 'N/A',
-          displayTicker: ticker,
+          // --- FIXED: Use displayTicker from backend ---
+          displayTicker: chartData.displayTicker || ticker, 
           open: chartData.open[lastIdx],
           high: chartData.high[lastIdx],
           low: chartData.low[lastIdx],
@@ -278,7 +279,8 @@ export default function AnomalyChart() {
       <aside className="chart-sidebar">
         <div className="sidebar-header">
           <h3>{sidebarData ? sidebarData.displayTicker : ticker}</h3>
-          {sidebarData && <p className="company-name">{sidebarData.companyName}</p>}
+          {sidebarData && <p className="company-name"><strong>{sidebarData.companyName}</strong></p>}
+          {sidebarData && <p className="market-name"><strong>Market:</strong> {sidebarData.market}</p>}
         </div>
         <div className="sidebar-data">
           {sidebarData ? (
