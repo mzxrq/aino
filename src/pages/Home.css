@@ -40,11 +40,16 @@
     max-width: 500px;
 }
 
-.hero-buttons {
-    display: flex;
-    gap: 15px;
-    margin-top: 20px;
+.hero-buttons .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;           /* Prevent full width */
+    min-width: 140px;      /* Optional: consistent size */
+    max-width: fit-content;/* Shrink to content */
+    white-space: nowrap;   /* Keep text on one line */
 }
+
 
 .btn {
     padding: 12px 20px;
@@ -62,6 +67,11 @@
 
 .btn-primary:hover {
     background: #0056b3;
+}
+
+.btn-primary,
+.btn-line {
+    flex: none; /* Prevent flex-grow */
 }
 
 .btn-line {

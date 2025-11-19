@@ -1,0 +1,99 @@
+/* --- src/components/Navbar.css --- */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 4rem;
+  background-color: #1E1E1E; /* <-- CHANGED */
+  border-bottom: 1px solid #333; /* <-- CHANGED */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  font-family: 'Inter', sans-serif;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #FFFFFF; /* <-- CHANGED */
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: #9CA3AF; /* <-- CHANGED */
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--primary-btn, #0052CC);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* <-- ADD GAP */
+}
+
+/* --- ADD THESE NEW STYLES --- */
+.nav-profile {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #E0E0E0; /* <-- CHANGED */
+  font-weight: 500;
+}
+
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #555; /* <-- CHANGED */
+  transition: transform 0.2s;
+}
+
+.nav-profile:hover .nav-avatar {
+  transform: scale(1.1);
+}
+/* --- END OF NEW STYLES --- */
+
+/* --- Global Button Styles (can move to index.css) --- */
+.btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background-color: var(--primary-btn, #0052CC);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #0041a3;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid #444; /* <-- CHANGED */
+  color: #E0E0E0; /* <-- CHANGED */
+}
+
+.btn-outline:hover {
+  background-color: #333; /* <-- CHANGED */
+}

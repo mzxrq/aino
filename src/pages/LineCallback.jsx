@@ -1,38 +1,58 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// This is a placeholder for your /auth/callback page
-// In a real app, it would send the 'code' to Anupap's backend
-export default function LineCallback() {
-  const [status, setStatus] = useState("Processing login...");
+const LineCallback = () => {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [status, setStatus] = useState("Processing login...");
 
   useEffect(() => {
-    // 1. Simulate a backend call
-    setStatus("Simulating backend token exchange...");
-    
-    // 2. This is what Anupap's API will send back
-    const mockUserData = {
-      displayName: "Chaiyapat T.",
-      userId: "U123456789",
-      pictureUrl: "https://placehold.co/100x100"
-    };
-    const mockToken = "fake-jwt-token-12345";
-    
-    // 3. Simulate success
-    setTimeout(() => {
-      login(mockUserData, mockToken); // Save user to context
-      setStatus("Login Successful! Redirecting...");
-      navigate('/chart'); // Send user to the chart page
-    }, 2000);
+    const code = searchParams.get('code');
 
-  }, [login, navigate]);
+    if (code) {
+      // --- CALL YOUR BACKEND HERE ---
+      // Note: Ensure Anupap has the backend running on port 5000
+      fetch('http://127.0.0.1:5000/auth/line/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+      })
+      .then(res => {
+        if (!res.ok) {
+          // Handle non-200 responses (e.g., 500, 404)
+          throw new Error(`Server responded with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.error) {
+          // Handle errors returned from the backend API
+          setStatus("Login Failed: " + data.error);
+        } else {
+          // Success! Save user data and token to Context
+          // Assuming backend returns: { user: {...}, token: "..." }
+          login(data.user, data.token); 
+          navigate('/profile'); // Redirect to Profile page
+        }
+      })
+      .catch(err => {
+        // Handle network errors (e.g., backend is down)
+        console.error(err);
+        setStatus("Error connecting to server. Is it running?");
+      });
+    } else {
+      setStatus("No authorization code received from LINE. Please try again.");
+    }
+    // Added login and navigate to dependency array
+  }, [searchParams, navigate, login]);
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '100px', fontFamily: 'Inter' }}>
-      <h1>{status}</h1>
+    <div style={{ textAlign: 'center', marginTop: '50px' }}>
+      <h2>{status}</h2>
     </div>
   );
-}
+};
+
+export default LineCallback;

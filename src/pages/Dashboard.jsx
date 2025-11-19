@@ -1,24 +1,132 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import './Dashboard.css'; // We'll create this
 
-// Placeholder for your Dashboard/Subscriptions page
+// Mock data for subscriptions - WE ARE REMOVING THIS
+// const MOCK_SUBSCRIPTIONS = [ ... ];
+
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
+  
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!user) {
-    return <h1>Please log in to see your dashboard.</h1>;
+  useEffect(() => {
+    // Redirect to login if user data or token isn't loaded
+    if (!user || !token) {
+      navigate('/login');
+      return;
+    }
+
+    // --- Fetch Subscriptions ---
+    const fetchSubscriptions = async () => {
+      setIsLoading(true);
+      
+      try {
+        // --- THIS IS THE NEW API CALL ---
+        const response = await fetch('http://host.docker.internal:5000/subscriptions', {
+          headers: {
+            // Send the token to prove who we are
+            'Authorization': `Bearer ${token}` 
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Assuming Anupap's API returns a list: [ { id: '...', ticker: '...' }, ... ]
+        setSubscriptions(data); 
+        
+      } catch (err) {
+        console.error("Failed to fetch subscriptions:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchSubscriptions();
+  }, [user, token, navigate]); // Run this effect if user or token changes
+
+  const handleUnsubscribe = async (subscriptionId) => {
+    alert(`Unsubscribing from ${subscriptionId}...`);
+    
+    try {
+      // --- NEW: API call to delete ---
+      const response = await fetch(`http://host.docker.internal:5000/subscriptions/${subscriptionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to unsubscribe');
+      }
+
+      // If successful, remove it from the list in the UI
+      setSubscriptions(subs => subs.filter(s => s.id !== subscriptionId));
+
+    } catch (err) {
+      console.error("Unsubscribe error:", err);
+      alert("Failed to unsubscribe. Please try again.");
+    }
+  };
+
+  if (isLoading || !user) {
+    return <div className="dashboard-container"><h1>Loading Dashboard...</h1></div>;
   }
 
   return (
-    <div style={{ padding: '2rem 4rem' }}>
+    <div className="dashboard-container">
       <h1>My Dashboard</h1>
-      <p>Welcome, {user.displayName}!</p>
+      <p>Welcome, {user.displayName}! Here are your stock subscriptions.</p>
+      
+      <div className="search-bar-container">
+        <input type="text" placeholder="Search for a new ticker (e.g., AAPL)" />
+        <Link to="/chart" className="btn btn-primary">Search</Link>
+      </div>
+
       <h2>My Subscriptions</h2>
-      <ul>
-        <li>AAPL (Daily) - Status: Safe</li>
-        <li>9020.T (Weekly) - Status: ANOMALY</li>
-      </ul>
-      {/* This is where you would build the list from your wireframe */}
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Stock Ticker</th>
+              <th>Frequency</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {subscriptions.map(sub => (
+              <tr key={sub.id}>
+                <td>
+                  <Link to={`/chart?ticker=${sub.ticker}`}>{sub.ticker}</Link>
+                </td>
+                <td>{sub.frequency}</td>
+                <td>
+                  <span className={`status-badge status-${sub.status.toLowerCase()}`}>
+                    {sub.status}
+                  </span>
+                </td>
+                <td>
+                  <button 
+                    onClick={() => handleUnsubscribe(sub.id)} // <-- Pass sub.id
+                    className="btn btn-danger"
+                  >
+                    Unsubscribe
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
