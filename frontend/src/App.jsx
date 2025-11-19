@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import AnomalyChart from './pages/AnomalyChart';
 import LineCallback from './pages/LineCallback';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile'; // <-- IMPORT NEW PAGE
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/chart" element={<AnomalyChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} /> {/* <-- ADD NEW ROUTE */}
             
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />

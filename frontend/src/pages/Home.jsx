@@ -9,7 +9,7 @@ export default function Home() {
 
       {/* --- Hero Section --- */}
       <section className="hero-section">
-        {/* Left: Text Content */}
+
         <div className="hero-content">
           <h1 className="hero-title">
             Securities Trading <br />
@@ -18,7 +18,7 @@ export default function Home() {
           <p className="hero-subtitle">
             Harness the power of Unsupervised AI to identify unusual trading patterns across multiple stock markets.
           </p>
-          <div className="hero-buttons">
+          <div className="hero-buttons" style={{ display: 'flex', gap: '8px' }}>
             <Link to="/chart" className="btn btn-primary">View Demo Chart</Link>
             <Link to="/login" className="btn btn-line">Login with LINE</Link>
           </div>
