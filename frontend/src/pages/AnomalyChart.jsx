@@ -29,7 +29,7 @@ export default function AnomalyChart() {
   const [interval, setInterval] = useState("5m"); 
   const [chartType, setChartType] = useState("line"); 
   const [showVolume, setShowVolume] = useState(true); 
-  const [showBollinger, setShowBollinger] = useState(true); // <--- NEW TOGGLE STATE
+  const [showBollinger, setShowBollinger] = useState(true); 
   
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subLoading, setSubLoading] = useState(false);
@@ -41,10 +41,8 @@ export default function AnomalyChart() {
   const ML_API_URL = 'http://127.0.0.1:5000';
   const NODE_API_URL = 'http://127.0.0.1:5050';
 
-  // Helper: Check for "Intraday"
   const isHighFrequency = (intv) => intv.endsWith('m') || intv.endsWith('h');
 
-  // Helper: Force Line chart for messy intraday data
   const shouldForceLine = (p, i) => {
     if (['1d', '5d', '1mo'].includes(p) && isHighFrequency(i)) {
       return true;
@@ -54,13 +52,12 @@ export default function AnomalyChart() {
 
   const getRangeBreaks = (symbol, interval) => {
     const breaks = [{ bounds: ["sat", "mon"] }];
-    // Only apply hour-breaks for intraday charts
     if (isHighFrequency(interval)) {
       if (symbol.toUpperCase().endsWith('.T')) {
-        breaks.push({ bounds: [15, 9], pattern: "hour" }); // Japan Overnight
-        breaks.push({ bounds: [11.5, 12.5], pattern: "hour" }); // Japan Lunch
+        breaks.push({ bounds: [15, 9], pattern: "hour" }); 
+        breaks.push({ bounds: [11.5, 12.5], pattern: "hour" }); 
       } else {
-         breaks.push({ bounds: [16, 9.5], pattern: "hour" }); // US Overnight
+         breaks.push({ bounds: [16, 9.5], pattern: "hour" }); 
       }
     }
     return breaks;
@@ -68,7 +65,6 @@ export default function AnomalyChart() {
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod);
-    
     const validIntervals = ALLOWED_INTERVALS[newPeriod];
     let newInterval = interval;
 
@@ -84,7 +80,6 @@ export default function AnomalyChart() {
     }
   };
 
-  // Effect: Force line chart if needed when interval changes
   useEffect(() => {
     if (shouldForceLine(period, interval)) {
       setChartType('line');
@@ -130,25 +125,22 @@ export default function AnomalyChart() {
             });
         }
 
-        // 2. Bollinger Bands & SMA (Conditional)
+        // 2. Bollinger Bands & SMA
         if (showBollinger && chartData.bollinger_bands) {
             traces.push(
-              // Lower Band (Hidden line, used for fill boundary)
               { 
                 type: 'scatter', mode: 'lines', 
                 x: chartData.dates, y: chartData.bollinger_bands.lower, 
-                line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, // Invisible line
+                line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, 
                 showlegend: false, hoverinfo: 'skip', xaxis: 'x', yaxis: 'y' 
               },
-              // Upper Band (Fills down to Lower Band)
               { 
                 type: 'scatter', mode: 'lines', 
                 x: chartData.dates, y: chartData.bollinger_bands.upper, 
-                line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, // Invisible line
-                fill: 'tonexty', fillcolor: 'rgba(86, 119, 164, 0.1)', // The actual shaded area
+                line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, 
+                fill: 'tonexty', fillcolor: 'rgba(86, 119, 164, 0.1)', 
                 name: 'Bollinger Bands', hoverinfo: 'skip', xaxis: 'x', yaxis: 'y' 
               },
-              // SMA Line
               { 
                 type: 'scatter', mode: 'lines', 
                 x: chartData.dates, y: chartData.bollinger_bands.sma, 
@@ -191,7 +183,6 @@ export default function AnomalyChart() {
 
         setData(traces);
 
-        // Layout
         const rangebreaks = getRangeBreaks(ticker, interval);
         const layoutConfig = {
           title: `${ticker} - ${interval.toUpperCase()} (${period.toUpperCase()})`,
@@ -199,11 +190,9 @@ export default function AnomalyChart() {
           paper_bgcolor: 'rgba(0, 0, 0, 0)', plot_bgcolor: 'rgba(0, 0, 0, 0)', 
           hovermode: 'x unified', 
           hoverlabel: { bgcolor: 'rgba(30, 30, 30, 0.9)', font: { size: 13, color: '#ffffff' }, bordercolor: '#555' },
-          
           yaxis: { domain: [0.36, 1.0], title: 'Price' },
           yaxis3: { domain: [0.18, 0.33], title: 'Vol', showticklabels: false },
           yaxis2: { domain: [0.00, 0.15], title: 'Score' },
-          
           xaxis: { showticklabels: false, rangebreaks: rangebreaks, anchor: 'y2' },
           xaxis_rangeslider_visible: false,
           legend: { orientation: 'h', y: -0.1, x: 0.5, xanchor: 'center' },
@@ -241,9 +230,9 @@ export default function AnomalyChart() {
     };
 
     fetchData();
-  }, [ticker, period, interval, chartType, showVolume, showBollinger]); // Added showBollinger dependency
+  }, [ticker, period, interval, chartType, showVolume, showBollinger]); 
 
-  // Subscription Logic
+  // Subscription Logic (unchanged)
   useEffect(() => {
     const checkSubscription = async () => {
       if (!isLoggedIn || !user) return;
@@ -328,10 +317,7 @@ export default function AnomalyChart() {
                     Candles
                 </button>
                 <button className={`toolbar-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')}>Line</button>
-                
-                {/* --- NEW BUTTON: BB TOGGLE --- */}
                 <button className={`toolbar-btn ${showBollinger ? 'active' : ''}`} onClick={() => setShowBollinger(!showBollinger)}>BB</button>
-                
                 <button className={`toolbar-btn ${showVolume ? 'active' : ''}`} onClick={() => setShowVolume(!showVolume)}>Vol</button>
             </div>
         </div>
