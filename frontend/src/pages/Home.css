@@ -1,6 +1,6 @@
 /* Container */
 .home-container {
-    width: 100%;
+    width: auto;
     padding: 20px;
     font-family: 'Arial', sans-serif;
 }
@@ -61,7 +61,7 @@
 }
 
 .btn-primary {
-    background: #007bff;
+    background: #1969be;
     color: #fff;
 }
 

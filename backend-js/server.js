@@ -1,6 +1,5 @@
 const express = require("express");
 const { connectDB } = require("./config/db");
-const subscriberRoutes = require("./routes/subscriberRoutes");
 const cors = require("cors");
 
 require("dotenv").config();
@@ -8,13 +7,17 @@ require("dotenv").config();
 const app = express();
 app.use(cors());
 
-const PORT = process.env.PORT || 5000;
-
 // Middleware
 app.use(express.json());
 
 // Routes
-app.use("/subscribe", subscriberRoutes);
+const subscriberRoutes = require("./routes/subscriberRoutes");
+app.use("/subscribers", subscriberRoutes);
+
+const authRoutes = require("./routes/authRoutes");
+app.use("/auth", authRoutes);
+
+const PORT = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Home Page!");

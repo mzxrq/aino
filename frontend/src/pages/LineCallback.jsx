@@ -5,48 +5,44 @@ import { useAuth } from '../context/AuthContext';
 const LineCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [status, setStatus] = useState("Processing login...");
+  const { setToken } = useAuth();
+  const [status, setStatus] = useState('Processing login...');
+
+  const LINE_BACKEND = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const code = searchParams.get('code');
+    if (!code) {
+      setStatus('No code received from LINE.');
+      return;
+    }
 
-    if (code) {
-      // --- CALL YOUR BACKEND HERE ---
-      // Note: Ensure Anupap has the backend running on port 5000
-      fetch('http://127.0.0.1:5000/auth/line/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code })
-      })
-      .then(res => {
-        if (!res.ok) {
-          // Handle non-200 responses (e.g., 500, 404)
-          throw new Error(`Server responded with status: ${res.status}`);
-        }
-        return res.json();
+    setStatus('Contacting backend to exchange code...');
+    fetch(`${LINE_BACKEND}/auth/line/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'LINE callback failed');
+        return data;
       })
       .then(data => {
-        if (data.error) {
-          // Handle errors returned from the backend API
-          setStatus("Login Failed: " + data.error);
-        } else {
-          // Success! Save user data and token to Context
-          // Assuming backend returns: { user: {...}, token: "..." }
-          login(data.user, data.token); 
-          navigate('/profile'); // Redirect to Profile page
+        // backend should return { user, token }
+        if (data.token) {
+          setToken(data.token);
+        } else if (data.user) {
+          // fallback if no token provided
+          // cannot persist session without JWT; just navigate
         }
+        navigate('/profile');
       })
       .catch(err => {
-        // Handle network errors (e.g., backend is down)
         console.error(err);
-        setStatus("Error connecting to server. Is it running?");
+        setStatus('Error: ' + (err.message || err));
       });
-    } else {
-      setStatus("No authorization code received from LINE. Please try again.");
-    }
-    // Added login and navigate to dependency array
-  }, [searchParams, navigate, login]);
+  }, [searchParams, navigate, setToken]);
 
   return (
     <div style={{ textAlign: 'center', marginTop: '50px' }}>

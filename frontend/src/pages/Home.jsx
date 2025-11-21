@@ -16,7 +16,7 @@ export default function Home() {
             <span>Anomalies</span> Detection
           </h1>
           <p className="hero-subtitle">
-            Harness the power of Unsupervised AI to identify unusual trading patterns across multiple stock markets.
+            {/* Harness the power of Unsupervised AI to identify unusual trading patterns across multiple stock markets. */}
           </p>
           <div className="hero-buttons" style={{ display: 'flex', gap: '8px' }}>
             <Link to="/chart" className="btn btn-primary">View Demo Chart</Link>

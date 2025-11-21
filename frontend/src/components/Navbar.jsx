@@ -10,7 +10,7 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <Link to="/" className="logo">STAD</Link>
+        <Link to="/" className="logo">Placeholder</Link>
       </div>
 
       <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>
@@ -19,7 +19,8 @@ export default function Navbar() {
 
       <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
         <Link to="/" className="nav-link">Search Tickers</Link>
-        <Link to="/market" className="nav-link">Market List</Link>
+        <Link to="/chart" className="nav-link">Chart</Link>
+        <Link to="/list" className="nav-link">Market List</Link>
         {isLoggedIn && (
           <Link to="/dashboard" className="nav-link">Dashboard</Link>
         )}
@@ -29,7 +30,7 @@ export default function Navbar() {
         {isLoggedIn ? (
           <button onClick={logout} className="btn btn-outline">Logout</button>
         ) : (
-          <Link to="/login" className="btn btn-primary">Login with ✔</Link>
+          <Link to="/login" className="btn btn-login">Login</Link>
         )}
       </div>
     </nav>
