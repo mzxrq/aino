@@ -30,7 +30,6 @@ __pycache__/
 *.pyd
 *.pyi
 *.pyd
-*.pkl
 *.pickle
 *.egg-info/
 .eggs/
