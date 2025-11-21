@@ -1,10 +1,11 @@
 .navbar {
-  display: flex;
+  display: inline-flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
-  padding: 10px 20px;
-  border-radius: 8px;
+  background: #1E1E1E;
+  margin: 1em;
+  padding: 15px 25px;
+  border-radius: 50px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   position: relative;
 }
@@ -13,7 +14,7 @@
   font-weight: bold;
   font-size: 18px;
   text-decoration: none;
-  color: #333;
+  color: #ffffff;
 }
 
 .nav-links {
@@ -23,7 +24,7 @@
 
 .nav-link {
   text-decoration: none;
-  color: #333;
+  color: #ffffff;
   font-size: 14px;
 }
 
@@ -34,7 +35,7 @@
   cursor: pointer;
 }
 
-.btn-primary {
+.btn-login {
   background: #28a745;
   color: #fff;
   border: none;
@@ -42,7 +43,7 @@
 
 .btn-outline {
   background: transparent;
-  border: 1px solid #333;
+  border: 1px solid #aca2a2;
   color: #333;
 }
 
@@ -50,6 +51,7 @@
   display: none;
   font-size: 20px;
   background: none;
+  color: #fff;
   border: none;
   cursor: pointer;
 }
@@ -60,12 +62,17 @@
     display: none;
     flex-direction: column;
     position: absolute;
-    top: 60px;
-    left: 0;
-    width: 100%;
-    background: #fff;
-    padding: 10px;
+    /* place dropdown just below the navbar and respect navbar margins */
+    top: calc(100% + 8px);
+    left: 3em;
+    right: 3em;
+    width: auto;
+    text-align: center;
+    background: #1E1E1E;
+    border-radius: 20px;
+    padding: 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
   }
 
   .nav-links.open {

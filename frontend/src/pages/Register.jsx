@@ -1,0 +1,50 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './Login.css';
+import { useAuth } from '../context/AuthContext';
+
+export default function Register() {
+    const { registerWithCredentials } = useAuth();
+    const navigate = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const submit = async (e) => {
+        e.preventDefault();
+        setError('');
+        try {
+            await registerWithCredentials(email, password);
+            navigate('/profile');
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="login-container">
+            <div className="login-box">
+                <h1 className="login-title">Register</h1>
+                <form onSubmit={submit} className="login-form">
+                    <input
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        required
+                        onChange={e => setEmail(e.target.value)}
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        required
+                        onChange={e => setPassword(e.target.value)}
+                    />
+                    <button type="submit" className="btn-primary">Create account</button>
+                </form>
+
+                {error && <p style={{ color: 'red' }}>{error}</p>}
+            </div>
+        </div>
+    );
+}
