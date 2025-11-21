@@ -91,7 +91,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
-from auth import create_access_token, get_current_user
-
+from routes.predict import router as predict_router
 from routes.line import router as line_router
+app.include_router(predict_router)
 app.include_router(line_router)
