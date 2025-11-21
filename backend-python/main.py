@@ -24,6 +24,7 @@ def check_model_files():
         else:
             print(f"{market} model found at {path}")
 
+check_model_files()
 
 # FastAPI Setup
 # main.py
