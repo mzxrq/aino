@@ -96,3 +96,16 @@ from routes.predict import router as predict_router
 from routes.line import router as line_router
 app.include_router(predict_router)
 app.include_router(line_router)
+
+
+# Temporary debug endpoint: list all registered routes (path + methods)
+@app.get("/__routes")
+def list_routes():
+    routes = []
+    for r in app.routes:
+        try:
+            methods = list(r.methods) if hasattr(r, 'methods') and r.methods else []
+        except Exception:
+            methods = []
+        routes.append({"path": getattr(r, 'path', str(r)), "methods": methods})
+    return {"routes": routes}

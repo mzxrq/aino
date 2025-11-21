@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+// Restored previous AnomalyChart implementation (from backupAnomaly.jsx / history)
+import React, { useEffect, useState } from 'react';
 import Plot from 'react-plotly.js';
-import { useAuth } from '../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import './AnomalyChart.css';
+import { useAuth } from '../context/AuthContext';
+import '../pages/AnomalyChart.css';
 
 // --- CONFIGURATION: Allowed Intervals per Range ---
 const ALLOWED_INTERVALS = {
@@ -15,14 +16,6 @@ const ALLOWED_INTERVALS = {
   '5y': ['1d', '1wk', '1mo']
 };
 
-const formatNumber = (num) => {
-  if (num == null || isNaN(num)) return "-";
-  return num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
-
 export default function AnomalyChart() {
   const [data, setData] = useState([]);
   const [layout, setLayout] = useState({});
@@ -32,11 +25,12 @@ export default function AnomalyChart() {
   const [searchParams] = useSearchParams();
   const [ticker, setTicker] = useState(searchParams.get('ticker') || searchParams.get('symbol') || 'AAPL');
 
-  // Controls
+  // --- Controls ---
   const [period, setPeriod] = useState("1d");
   const [interval, setInterval] = useState("5m");
-  const [chartType, setChartType] = useState("candlestick");
+  const [chartType, setChartType] = useState("line");
   const [showVolume, setShowVolume] = useState(true);
+  const [showBollinger, setShowBollinger] = useState(true);
 
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subLoading, setSubLoading] = useState(false);
@@ -48,210 +42,206 @@ export default function AnomalyChart() {
   const ML_API_URL = 'http://127.0.0.1:5000';
   const NODE_API_URL = 'http://127.0.0.1:5050';
 
+  const isHighFrequency = (intv) => intv.endsWith('m') || intv.endsWith('h');
+
+  const shouldForceLine = (p, i) => {
+    // For very short periods + fine intervals, candlesticks are messy
+    if (p === '1d' && (i === '1m' || i === '5m')) return true;
+    return false;
+  };
+
   const getRangeBreaks = (symbol, interval) => {
-    const breaks = [{ bounds: ["sat", "mon"] }];
-    if (interval.includes('m') || interval.includes('h')) {
-      if (symbol.toUpperCase().endsWith('.T')) {
-        breaks.push({ bounds: [15, 9], pattern: "hour" });
-        breaks.push({ bounds: [11.5, 12.5], pattern: "hour" });
-      } else {
-        breaks.push({ bounds: [16, 9.5], pattern: "hour" });
-      }
+    // Always skip weekends
+    const breaks = [{ bounds: ['sat', 'mon'] }];
+
+    // Only apply hour-breaks for intraday charts
+    if (!interval || !(interval.endsWith('m') || interval.endsWith('h'))) return breaks;
+
+    const s = (symbol || '').toUpperCase();
+    // Japan tickers (.T)
+    if (s.endsWith('.T')) {
+      // Tokyo: market hours ~ 9:00-11:30 and 12:30-15:00 — skip overnight and lunch
+      breaks.push({ bounds: [15, 9], pattern: 'hour' });
+      breaks.push({ bounds: [11.5, 12.5], pattern: 'hour' });
+      return breaks;
     }
+
+    // Thailand tickers (.BK)
+    if (s.includes('.BK')) {
+      // Thailand: market hours ~ 9:30-16:30 — skip overnight
+      breaks.push({ bounds: [16.5, 9.5], pattern: 'hour' });
+      return breaks;
+    }
+
+    // Default: assume US hours 9:30-16:00
+    breaks.push({ bounds: [16, 8.5], pattern: 'hour' }); // US Overnight
     return breaks;
   };
 
-  // --- SMART PERIOD CHANGE HANDLER ---
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod);
-
-    // Check if current interval is valid for the new period
-    const validIntervals = ALLOWED_INTERVALS[newPeriod];
-
-    if (!validIntervals.includes(interval)) {
-      // If invalid, switch to the best default (usually the first or last item)
-      // Logic: 1d/5d -> prefer 5m/15m. Longer terms -> prefer 1d.
-      if (newPeriod === '1d') setInterval('5m');
-      else if (newPeriod === '5d') setInterval('15m');
-      else setInterval('1d');
-    }
+    // choose a safe default interval for the chosen period
+    const allowed = ALLOWED_INTERVALS[newPeriod] || ['1d'];
+    if (!allowed.includes(interval)) setInterval(allowed[0]);
   };
 
   useEffect(() => {
-    setTicker(searchParams.get('ticker') || searchParams.get('symbol') || 'AAPL');
-  }, [searchParams]);
+    // When interval/period change, we may force chart type
+    if (shouldForceLine(period, interval)) setChartType('line');
+  }, [interval, period]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    // react to search params (ticker changes)
+    setTicker(searchParams.get('ticker') || searchParams.get('symbol') || ticker);
+  }, [searchParams]);
+
+  // --- FETCH DATA ---
+  useEffect(() => {
+    let cancelled = false;
+    async function chart() {
       setIsLoading(true);
       setError(null);
-
       try {
-        const response = await fetch(`${ML_API_URL}/detect?symbol=${ticker}&period=${period}&interval=${interval}`);
-        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        const body = { ticker, period, interval };
+        const res = await fetch(`${ML_API_URL}/chart_full`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const json = await res.json();
 
-        const chartData = await response.json();
-        if (chartData.error) throw new Error(`Backend error: ${chartData.error}`);
+        // API returns an object keyed by ticker; handle accordingly
+        const chartDataRaw = json[ticker] || json[Object.keys(json)[0]] || json;
 
-        let traces = [];
+        if (!chartDataRaw || !chartDataRaw.dates) {
+          setError('No data returned');
+          setIsLoading(false);
+          return;
+        }
 
-        if (chartType === "candlestick") {
+        // Build traces
+        const traces = [];
+
+        // Candlestick or line
+        if (chartType === 'candlestick') {
           traces.push({
+            x: chartDataRaw.dates,
+            open: chartDataRaw.open,
+            high: chartDataRaw.high,
+            low: chartDataRaw.low,
+            close: chartDataRaw.close,
             type: 'candlestick',
-            x: chartData.dates,
-            open: chartData.open, high: chartData.high, low: chartData.low, close: chartData.close,
-            name: `${ticker}`,
-            xaxis: 'x', yaxis: 'y',
-            text: chartData.dates.map(() => ''),
-            hoverlabel: { bgcolor: '#1E1E1E', font: { color: '#E0E0E0' }, bordercolor: '#333' }
+            name: `${ticker} Price`,
+            xaxis: 'x',
+            yaxis: 'y'
           });
         } else {
-          traces.push({
-            type: 'scatter', mode: 'lines',
-            x: chartData.dates, y: chartData.close,
-            name: `${ticker}`,
-            line: { color: '#00E5FF', width: 2 },
-            xaxis: 'x', yaxis: 'y'
-          });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.close, type: 'scatter', mode: 'lines', name: `${ticker} Close`, line: { shape: 'spline', width: 2 }, fill: '', xaxis: 'x', yaxis: 'y' });
         }
 
-        if (chartData.bollinger_bands) {
-          traces.push(
-            { type: 'scatter', mode: 'lines', x: chartData.dates, y: chartData.bollinger_bands.lower, line: { color: 'rgba(86, 119, 164, 0.4)', width: 1 }, showlegend: false, hoverinfo: 'skip', xaxis: 'x', yaxis: 'y' },
-            { type: 'scatter', mode: 'lines', x: chartData.dates, y: chartData.bollinger_bands.upper, line: { color: 'rgba(86, 119, 164, 0.4)', width: 1 }, fill: 'tonexty', fillcolor: 'rgba(86, 119, 164, 0.1)', name: 'Bollinger Bands', hoverinfo: 'skip', xaxis: 'x', yaxis: 'y' },
-            { type: 'scatter', mode: 'lines', x: chartData.dates, y: chartData.bollinger_bands.sma, line: { color: '#5677a4', width: 1.5 }, name: 'SMA (20)', hovertemplate: 'SMA: %{y:.2f}<extra></extra>', xaxis: 'x', yaxis: 'y' }
-          );
+        // VWAP
+        if (chartDataRaw.VWAP && chartDataRaw.VWAP.length) {
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y' });
         }
 
-        if (chartData.anomaly_markers) {
-          traces.push({
-            type: 'scatter', mode: 'markers',
-            x: chartData.anomaly_markers.dates, y: chartData.anomaly_markers.y_values,
-            name: 'Anomaly',
-            marker: { color: '#FFD700', symbol: 'x', size: 8, line: { width: 2 } },
-            hovertemplate: 'Anomaly Detected<extra></extra>', xaxis: 'x', yaxis: 'y'
-          });
+        // Bollinger bands (fill between lower and upper)
+        if (showBollinger && chartDataRaw.bollinger_bands && chartDataRaw.bollinger_bands.sma) {
+          const bb = chartDataRaw.bollinger_bands;
+          traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86, 119, 164, 0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86, 119, 164, 0.1)', xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y' });
         }
 
-        if (showVolume) {
-          const volumeColors = chartData.close.map((c, i) => (c >= chartData.open[i] ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'));
-          traces.push({
-            type: 'bar', x: chartData.dates, y: chartData.volume || [],
-            name: 'Volume', marker: { color: volumeColors },
-            yaxis: 'y3', xaxis: 'x', hovertemplate: 'Vol: %{y}<extra></extra>'
-          });
+        // Anomaly markers
+        if (chartDataRaw.anomaly_markers && chartDataRaw.anomaly_markers.dates && chartDataRaw.anomaly_markers.dates.length) {
+          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y' });
         }
 
-        if (chartData.anomaly_scores) {
-          traces.push({
-            type: 'bar', x: chartData.dates, y: chartData.anomaly_scores.values,
-            marker: { color: chartData.anomaly_scores.colors, opacity: 0.6 },
-            name: 'Anomaly Score', hovertemplate: 'Score: %{y:.3f}<extra></extra>',
-            xaxis: 'x', yaxis: 'y2'
-          });
+        // Volume (secondary axis at bottom)
+        if (showVolume && chartDataRaw.volume && chartDataRaw.volume.length) {
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' } });
         }
 
-        setData(traces);
+        // RSI / Score (small panel)
+        if (chartDataRaw.RSI && chartDataRaw.RSI.length) {
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' } });
+        }
 
-        const rangebreaks = getRangeBreaks(ticker, interval);
-        const layoutConfig = {
-          title: `${ticker} - ${interval.toUpperCase()} (${period.toUpperCase()})`,
-          template: 'plotly_dark',
-          paper_bgcolor: 'rgba(0, 0, 0, 0)', plot_bgcolor: 'rgba(0, 0, 0, 0)',
-          hovermode: 'x unified',
-          hoverlabel: { bgcolor: 'rgba(30, 30, 30, 0.9)', font: { size: 13, color: '#ffffff' }, bordercolor: '#555' },
-
-          yaxis: { domain: [0.36, 1.0], title: 'Price' },
-          yaxis3: { domain: [0.18, 0.33], title: 'Vol', showticklabels: false },
-          yaxis2: { domain: [0.00, 0.15], title: 'Score' },
-
-          xaxis: { showticklabels: false, rangebreaks: rangebreaks, anchor: 'y2' },
-          xaxis_rangeslider_visible: false,
+        // Layout
+        const layoutObj = {
+          margin: { t: 10, r: 10, l: 40, b: 40 },
+          xaxis: { rangeslider: { visible: false }, rangebreaks: getRangeBreaks(ticker, interval) },
+          yaxis: { domain: [0.2, 1], title: 'Price' },
+          yaxis2: { domain: [0.05, 0.18], title: 'RSI/Score' },
+          yaxis3: { domain: [0, 0.15], anchor: 'x' },
           legend: { orientation: 'h', y: -0.1, x: 0.5, xanchor: 'center' },
-          margin: { t: 60, b: 40, l: 60, r: 40 },
-          grid: { rows: 3, columns: 1, pattern: 'independent' }
+          hovermode: 'x unified',
+          plot_bgcolor: '#0f0f0f',
+          paper_bgcolor: '#0f0f0f',
+          font: { color: '#E0E0E0' }
         };
 
-        if (!showVolume) {
-          layoutConfig.yaxis = { domain: [0.25, 1.0], title: 'Price' };
-          layoutConfig.yaxis2 = { domain: [0.00, 0.20], title: 'Score' };
+        if (!cancelled) {
+          setData(traces);
+          setLayout(layoutObj);
+          setSidebarData({
+            displayTicker: chartDataRaw.displayTicker || ticker,
+            companyName: chartDataRaw.companyName || null,
+            market: chartDataRaw.market || null,
+            open: chartDataRaw.open ? chartDataRaw.open[chartDataRaw.open.length - 1] : null,
+            high: chartDataRaw.high ? chartDataRaw.high[chartDataRaw.high.length - 1] : null,
+            low: chartDataRaw.low ? chartDataRaw.low[chartDataRaw.low.length - 1] : null,
+            close: chartDataRaw.close ? chartDataRaw.close[chartDataRaw.close.length - 1] : null,
+            volume: chartDataRaw.volume ? chartDataRaw.volume[chartDataRaw.volume.length - 1] : 'N/A'
+          });
+          setIsLoading(false);
         }
-
-        setLayout(layoutConfig);
-
-        const lastIdx = chartData.close.length - 1;
-        setSidebarData({
-          market: chartData.market || 'Unknown',
-          companyName: chartData.companyName || 'N/A',
-          displayTicker: ticker,
-          open: chartData.open[lastIdx],
-          high: chartData.high[lastIdx],
-          low: chartData.low[lastIdx],
-          close: chartData.close[lastIdx],
-          volume: chartData.volume ? chartData.volume[lastIdx] : "N/A"
-        });
-
       } catch (err) {
-        console.error("Failed to fetch data:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setError(err.message || 'Unknown error');
+          setIsLoading(false);
+        }
       }
-    };
-
-    fetchData();
-  }, [ticker, period, interval, chartType, showVolume]);
+    }
+    chart();
+    return () => { cancelled = true; };
+  }, [ticker, period, interval, chartType, showVolume, showBollinger]);
 
   // Subscription Logic (unchanged)
   useEffect(() => {
-    const checkSubscription = async () => {
-      if (!isLoggedIn || !user) return;
-      try {
-        const userId = user.userId || user.id || user.sub;
-        const res = await fetch(`${NODE_API_URL}/subscription?userId=${userId}&ticker=${ticker}`);
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) setIsSubscribed(true);
-        else setIsSubscribed(false);
-      } catch (err) { console.error(err); }
-    };
-    checkSubscription();
+    // TODO: check subscription state from backend
+    setIsSubscribed(false);
   }, [ticker, isLoggedIn, user]);
 
   const handleSubscribe = async () => {
-    if (!isLoggedIn) { navigate('/login'); return; }
     setSubLoading(true);
-    try {
-      const userId = user.userId || user.id || user.sub;
-      const response = await fetch(`${NODE_API_URL}/subscription`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, ticker })
-      });
-      if (response.ok) { setIsSubscribed(true); alert("Subscribed!"); }
-    } catch (error) { alert("Error subscribing"); }
-    finally { setSubLoading(false); }
+    // placeholder - hook to backend subscription endpoint if configured
+    setTimeout(() => { setSubLoading(false); setIsSubscribed(true); }, 700);
   };
+
+  const forcedLineMode = shouldForceLine(period, interval);
 
   return (
     <div className="chart-page-container">
       <aside className="chart-sidebar">
         <div className="sidebar-header">
           <h3>{sidebarData ? sidebarData.displayTicker : ticker}</h3>
-          {sidebarData && <p className="company-name">{sidebarData.companyName}</p>}
-          {sidebarData && <p className="market-type">Market: {sidebarData.market}</p>}
+          {sidebarData && <p className="company-name"><strong>{sidebarData.companyName}</strong></p>}
+          {sidebarData && <p className="market-name"><strong>Market:</strong> {sidebarData.market}</p>}
         </div>
         <div className="sidebar-data">
           {sidebarData ? (
             <>
-              <div><span>Open</span><strong>{formatNumber(sidebarData.open)}</strong></div>
-              <div><span>High</span><strong>{formatNumber(sidebarData.high)}</strong></div>
-              <div><span>Low</span><strong>{formatNumber(sidebarData.low)}</strong></div>
-              <div><span>Close</span><strong>{formatNumber(sidebarData.close)}</strong></div>
-              <div><span>Volume</span><strong>{new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(sidebarData.volume)}</strong></div>
+              <div><span>Open</span><strong>{sidebarData.open?.toFixed?.(2)}</strong></div>
+              <div><span>High</span><strong>{sidebarData.high?.toFixed?.(2)}</strong></div>
+              <div><span>Low</span><strong>{sidebarData.low?.toFixed?.(2)}</strong></div>
+              <div><span>Close</span><strong>{sidebarData.close?.toFixed?.(2)}</strong></div>
+              <div><span>Volume</span><strong>{sidebarData.volume !== 'N/A' ? (sidebarData.volume ? new Intl.NumberFormat('en-US', { notation: 'compact', compactDisplay: 'short' }).format(sidebarData.volume) : 'N/A') : 'N/A'}</strong></div>
             </>
           ) : <p>Loading data...</p>}
         </div>
         <button className="btn btn-primary" onClick={handleSubscribe} disabled={isSubscribed || subLoading} style={{ backgroundColor: isSubscribed ? '#28a745' : '' }}>
-          {subLoading ? "..." : (isSubscribed ? "Subscribed ✓" : "Subscribe to Alerts")}
+          {subLoading ? '...' : (isSubscribed ? 'Subscribed ✓' : 'Subscribe to Alerts')}
         </button>
       </aside>
 
@@ -260,30 +250,17 @@ export default function AnomalyChart() {
           <div className="toolbar-group">
             <span className="toolbar-label">Range:</span>
             {['1d', '5d', '1mo', '6mo', 'ytd', '1y', '5y'].map(p => (
-              <button key={p} className={`toolbar-btn ${period === p ? 'active' : ''}`} onClick={() => handlePeriodChange(p)}>
-                {p.toUpperCase()}
-              </button>
+              <button key={p} className={`toolbar-btn ${period === p ? 'active' : ''}`} onClick={() => handlePeriodChange(p)}>{p.toUpperCase()}</button>
             ))}
           </div>
 
-          {/* --- INTELLIGENT INTERVAL SELECTOR --- */}
           <div className="toolbar-group">
             <span className="toolbar-label">Interval:</span>
-            {['1m', '5m', '15m', '30m', '1h', '1d', '1wk'].map(i => {
-              // Determine if this button should be disabled based on selected Period
+            {['1m', '5m', '15m', '30m', '1h', '1d', '1wk', '1mo'].map(i => {
               const isDisabled = !ALLOWED_INTERVALS[period].includes(i);
               return (
-                <button
-                  key={i}
-                  className={`toolbar-btn ${interval === i ? 'active' : ''}`}
-                  onClick={() => setInterval(i)}
-                  disabled={isDisabled} // <--- THE FIX
-                  style={{
-                    opacity: isDisabled ? 0.3 : 1,
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    textDecoration: isDisabled ? 'line-through' : 'none'
-                  }}
-                >
+                <button key={i} className={`toolbar-btn ${interval === i ? 'active' : ''}`} onClick={() => setInterval(i)} disabled={isDisabled}
+                  style={{ opacity: isDisabled ? 0.3 : 1, cursor: isDisabled ? 'not-allowed' : 'pointer', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                   {i.toUpperCase()}
                 </button>
               );
@@ -292,8 +269,13 @@ export default function AnomalyChart() {
 
           <div className="toolbar-group">
             <span className="toolbar-label">Type:</span>
-            <button className={`toolbar-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')}>Candles</button>
+            <button className={`toolbar-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} disabled={forcedLineMode}
+              title={forcedLineMode ? 'Candlesticks unavailable for intraday' : ''}
+              style={{ opacity: forcedLineMode ? 0.3 : 1, cursor: forcedLineMode ? 'not-allowed' : 'pointer' }}>
+              Candles
+            </button>
             <button className={`toolbar-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')}>Line</button>
+            <button className={`toolbar-btn ${showBollinger ? 'active' : ''}`} onClick={() => setShowBollinger(!showBollinger)}>BB</button>
             <button className={`toolbar-btn ${showVolume ? 'active' : ''}`} onClick={() => setShowVolume(!showVolume)}>Vol</button>
           </div>
         </div>

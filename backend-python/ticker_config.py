@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 from pydantic import BaseModel
 from pathlib import Path
 import joblib as jo
@@ -14,8 +14,11 @@ class FraudRequest(BaseModel):
     Examples accepted in JSON body:
     - { "ticker": "AAPL" }
     - { "ticker": ["AAPL", "TSLA"] }
+    - { "ticker": "AAPL", "period": "1mo", "interval": "15m" }
     """
     ticker: Union[str, List[str]]
+    period: Optional[str] = None
+    interval: Optional[str] = None
 
 # ---------------------------
 # JSON structure function
@@ -58,11 +61,12 @@ def compute_RSI(data, window=14):
     return rsi
 
 
-def preprocess_market_data(tickers):
+def preprocess_market_data(tickers, period: str = "1mo", interval: str = "15m"):
     dfs = []
 
     for ticker in tickers:
-        data = yf.download(ticker, interval="15m", period="1mo", progress=False)
+        # Use requested period/interval (falls back to sensible defaults)
+        data = yf.download(ticker, interval=interval or "15m", period=period or "1mo", progress=False)
 
         if data.empty:
             print(f"No data found for {ticker}. Skipping.")
@@ -103,43 +107,43 @@ def preprocess_market_data(tickers):
         out["return_3"] = out["Close"].pct_change(3)
         out["return_6"] = out["Close"].pct_change(6)
 
-        # --- Rolling Mean / STD ---
-        out["roll_mean_20"] = out["Close"].rolling(20).mean()
-        out["roll_std_20"] = out["Close"].rolling(20).std()
-        out["zscore_20"] = (out["Close"] - out["roll_mean_20"]) / out["roll_std_20"]
+        # --- Rolling Mean / STD (use min_periods to avoid dropping early rows) ---
+        out["roll_mean_20"] = out["Close"].rolling(window=20, min_periods=1).mean()
+        out["roll_std_20"] = out["Close"].rolling(window=20, min_periods=1).std()
+        out["zscore_20"] = (out["Close"] - out["roll_mean_20"]) / out["roll_std_20"].replace(0, np.nan)
 
-        # --- ATR (Average True Range) ---
+        # --- ATR (Average True Range) with safe min periods ---
         out["H-L"] = out["High"] - out["Low"]
         out["H-PC"] = (out["High"] - out["Close"].shift()).abs()
         out["L-PC"] = (out["Low"] - out["Close"].shift()).abs()
         out["TR"] = out[["H-L","H-PC","L-PC"]].max(axis=1)
-        out["ATR_14"] = out["TR"].rolling(14).mean()
+        out["ATR_14"] = out["TR"].rolling(window=14, min_periods=1).mean()
 
         # --- Bollinger Bands Width ---
         out["bb_upper"] = out["roll_mean_20"] + 2*out["roll_std_20"]
         out["bb_lower"] = out["roll_mean_20"] - 2*out["roll_std_20"]
         out["bb_width"] = out["bb_upper"] - out["bb_lower"]
 
-        # --- RSI (14) ---
+        # --- RSI (14) using ewm for stability ---
         delta = out["Close"].diff()
         gain = delta.clip(lower=0)
         loss = -delta.clip(upper=0)
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
-        rs = avg_gain / avg_loss
+        avg_gain = gain.ewm(alpha=1/14, adjust=False, min_periods=1).mean()
+        avg_loss = loss.ewm(alpha=1/14, adjust=False, min_periods=1).mean()
+        rs = avg_gain / avg_loss.replace(0, np.nan)
         out["RSI"] = 100 - (100 / (1 + rs))
 
         # --- MACD ---
-        out["EMA12"] = out["Close"].ewm(span=12).mean()
-        out["EMA26"] = out["Close"].ewm(span=26).mean()
+        out["EMA12"] = out["Close"].ewm(span=12, adjust=False).mean()
+        out["EMA26"] = out["Close"].ewm(span=26, adjust=False).mean()
         out["MACD"] = out["EMA12"] - out["EMA26"]
-        out["Signal"] = out["MACD"].ewm(span=9).mean()
+        out["Signal"] = out["MACD"].ewm(span=9, adjust=False).mean()
         out["MACD_hist"] = out["MACD"] - out["Signal"]
 
-        # --- VWAP ---
+        # --- VWAP (guard divide-by-zero) ---
         out['cum_vol'] = out['Volume'].cumsum()
         out['cum_vol_price'] = (out['Volume'] * out['Close']).cumsum()
-        out['VWAP'] = out['cum_vol_price'] / out['cum_vol']
+        out['VWAP'] = out['cum_vol_price'] / out['cum_vol'].replace(0, np.nan)
 
         # --- Candle Features ---
         out["body"] = (out["Close"] - out["Open"]).abs()
@@ -147,7 +151,29 @@ def preprocess_market_data(tickers):
         out["lower_wick"] = out[["Open", "Close"]].min(axis=1) - out["Low"]
         out["wick_ratio"] = (out["upper_wick"] + out["lower_wick"]) / out["body"].replace(0, np.nan)
 
-        out = out.dropna(how="any").reset_index(drop=True)
+        # Do not drop rows with NaNs for indicators — keep OHLC rows so frontend can plot them.
+        out = out.reset_index(drop=True)
+
+        # Convert index timestamps to exchange-local timezone for consistent plotting
+        try:
+            # If the Date column has tz info, convert; otherwise assume UTC then convert
+            if pd.api.types.is_datetime64tz_dtype(out['Date'].dtype):
+                dt_index = out['Date']
+            else:
+                # localize naive datetimes to UTC
+                dt_index = pd.to_datetime(out['Date'], utc=True)
+
+            # Heuristic timezone by ticker suffix
+            tz = 'US/Eastern'
+            if ticker.endswith('.T'):
+                tz = 'Asia/Tokyo'
+            elif '.BK' in ticker:
+                tz = 'Asia/Bangkok'
+
+            out['Date'] = pd.to_datetime(dt_index).dt.tz_convert(tz).dt.tz_localize(None)
+        except Exception:
+            # If anything fails, keep original Date as datetime without tz conversion
+            out['Date'] = pd.to_datetime(out['Date'])
 
         if not out.empty:
             dfs.append(out)

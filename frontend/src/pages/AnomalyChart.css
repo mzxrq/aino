@@ -82,6 +82,17 @@
   font-size: 1rem;
 }
 
+.btn-primary {
+  background-color: #2962FF;
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
 /* --- Main Chart Area --- */
 .chart-main {
   flex: 1; /* Takes up all remaining width */
