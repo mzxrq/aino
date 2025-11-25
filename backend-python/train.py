@@ -35,9 +35,15 @@ def trained_model(market, path):
     )
 
     model.fit(X_train)
+    # Ensure destination directory exists
+    import os as _os
+    _dir = _os.path.dirname(path)
+    if _dir:
+        _os.makedirs(_dir, exist_ok=True)
 
     joblib.dump(model, path)
     print(f"{market} model trained and saved at {path}")
+    return model
 
 def _ensure_ohlcv_exists(df, ticker):
     """Ensure dataframe has Open/High/Low/Close/Volume. Create missing fields if needed."""
@@ -63,10 +69,12 @@ def _ensure_ohlcv_exists(df, ticker):
 
     return df
 
-def load_dataset(tickers):
+def load_dataset(tickers,period: str = "1mo", interval: str = "15m"):
     dataframes = []
+
     for ticker in tickers:
-        data = yf.download(ticker, period="1mo", interval="15m", auto_adjust=False)
+        # Download data
+        data = yf.download(ticker, period=period, interval=interval, auto_adjust=False)
 
         if data.empty:
             print(f"No data found for {ticker}. Skipping.")
@@ -79,25 +87,50 @@ def load_dataset(tickers):
         else:
             data.columns = data.columns.map(str)
 
-        df = data.reset_index().rename(columns={data.columns[0]: "Date"})
+        df = data.reset_index()
+        # Rename the first column (the former index) to Datetime
+        df.rename(columns={df.columns[0]: "Datetime"}, inplace=True)
         df["Ticker"] = ticker
 
-        # Apply OHLCV fix BEFORE skipping
+        # Ensure OHLCV exists
         try:
             df = _ensure_ohlcv_exists(df, ticker)
         except KeyError as e:
             print(str(e))
             continue
 
-        df["Date"] = pd.to_datetime(df["Date"], utc=True)
+        # --- TIMEZONE HANDLING ---
+        # Determine original market timezone by ticker suffix
+        tz = 'US/Eastern'  # default US
+        if ticker.endswith('.T'):
+            tz = 'Asia/Tokyo'
+        elif '.BK' in ticker:
+            tz = 'Asia/Bangkok'
+
+        # Convert 'Datetime' to datetime type
+        df["Datetime"] = pd.to_datetime(df["Datetime"], errors='coerce')
+
+        # Only localize if naive; catch errors if series is mixed
+        try:
+            if df["Datetime"].dt.tz is None:
+                df["Datetime"] = df["Datetime"].dt.tz_localize(tz)
+            # Convert all datetimes to Tokyo time
+            df["Datetime"] = df["Datetime"].dt.tz_convert('Asia/Tokyo')
+        except Exception:
+            # If timezone operations fail, drop tz info and localize safely
+            df["Datetime"] = pd.to_datetime(df["Datetime"]).dt.tz_localize(tz, ambiguous='infer', nonexistent='shift_forward')
+            df["Datetime"] = df["Datetime"].dt.tz_convert('Asia/Tokyo')
+
+        # Drop any rows with NaT or NaN and reset index
         df = df.dropna().reset_index(drop=True)
 
         dataframes.append(df)
-        time.sleep(10)
+        time.sleep(10)  # polite pause to avoid hitting API limits
 
-    dataframe = pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
-    print(f"\n--- Data Load Complete ---\nTotal rows loaded: {len(dataframe)}")
-    return dataframe
+    # Concatenate all ticker DataFrames
+    process_data = pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
+    print(f"\n--- Data Load Complete ---\nTotal rows loaded: {len(process_data)}")
+    return process_data
 
 def data_preprocessing(data) :
 

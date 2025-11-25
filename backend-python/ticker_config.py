@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Union, Dict
+from typing import List, Optional, Union, Dict
 from pydantic import BaseModel
 from pathlib import Path
 import joblib as jo
@@ -7,6 +7,8 @@ import numpy as np
 import yfinance as yf
 import sys
 import os
+
+from train import load_dataset, data_preprocessing
 
 class FraudRequest(BaseModel):
     """Accept either a single ticker string or a list of tickers.
@@ -16,6 +18,8 @@ class FraudRequest(BaseModel):
     - { "ticker": ["AAPL", "TSLA"] }
     """
     ticker: Union[str, List[str]]
+    period: Optional[str] = None
+    interval: Optional[str] = None
 
 # ---------------------------
 # JSON structure function
@@ -58,110 +62,15 @@ def compute_RSI(data, window=14):
     return rsi
 
 
-def preprocess_market_data(tickers):
-    dfs = []
+def preprocess_market_data(tickers ,period: str = "1mo", interval: str = "15m"):
+    df = load_dataset(tickers, period=period, interval=interval)
+    process_data = data_preprocessing(df)
 
-    for ticker in tickers:
-        data = yf.download(ticker, interval="15m", period="1mo", progress=False)
+    return process_data
 
-        if data.empty:
-            print(f"No data found for {ticker}. Skipping.")
-            continue
-
-        # -------------------------------------------------
-        # 1. Load Your 15-minute Data
-        # -------------------------------------------------
-
-        # Flatten MultiIndex columns if present
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = [col[0] if isinstance(col, tuple) else col for col in data.columns.values]
-        else:
-            data.columns = data.columns.map(str)
-
-        # Identify Close and Volume columns
-        close_col = next((c for c in data.columns if "Close" in c), None)
-        volume_col = next((c for c in data.columns if "Volume" in c), None)
-
-        if close_col is None or volume_col is None:
-            print(f"Required columns not found for {ticker}. Skipping.")
-            continue
-
-        # Bring index into a Date column
-        data = data.reset_index()
-        data.rename(columns={data.columns[0]: "Date"}, inplace=True)
-
-        # Keep only the requested three columns and the ticker, drop NA rows    
-        out = data.copy()
-        out["Ticker"] = ticker
-
-        # -------------------------------------------------
-        # 2. Feature Engineering
-        # -------------------------------------------------
-
-        # --- Returns ---
-        out["return_1"] = out["Close"].pct_change()
-        out["return_3"] = out["Close"].pct_change(3)
-        out["return_6"] = out["Close"].pct_change(6)
-
-        # --- Rolling Mean / STD ---
-        out["roll_mean_20"] = out["Close"].rolling(20).mean()
-        out["roll_std_20"] = out["Close"].rolling(20).std()
-        out["zscore_20"] = (out["Close"] - out["roll_mean_20"]) / out["roll_std_20"]
-
-        # --- ATR (Average True Range) ---
-        out["H-L"] = out["High"] - out["Low"]
-        out["H-PC"] = (out["High"] - out["Close"].shift()).abs()
-        out["L-PC"] = (out["Low"] - out["Close"].shift()).abs()
-        out["TR"] = out[["H-L","H-PC","L-PC"]].max(axis=1)
-        out["ATR_14"] = out["TR"].rolling(14).mean()
-
-        # --- Bollinger Bands Width ---
-        out["bb_upper"] = out["roll_mean_20"] + 2*out["roll_std_20"]
-        out["bb_lower"] = out["roll_mean_20"] - 2*out["roll_std_20"]
-        out["bb_width"] = out["bb_upper"] - out["bb_lower"]
-
-        # --- RSI (14) ---
-        delta = out["Close"].diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
-        rs = avg_gain / avg_loss
-        out["RSI"] = 100 - (100 / (1 + rs))
-
-        # --- MACD ---
-        out["EMA12"] = out["Close"].ewm(span=12).mean()
-        out["EMA26"] = out["Close"].ewm(span=26).mean()
-        out["MACD"] = out["EMA12"] - out["EMA26"]
-        out["Signal"] = out["MACD"].ewm(span=9).mean()
-        out["MACD_hist"] = out["MACD"] - out["Signal"]
-
-        # --- VWAP ---
-        out['cum_vol'] = out['Volume'].cumsum()
-        out['cum_vol_price'] = (out['Volume'] * out['Close']).cumsum()
-        out['VWAP'] = out['cum_vol_price'] / out['cum_vol']
-
-        # --- Candle Features ---
-        out["body"] = (out["Close"] - out["Open"]).abs()
-        out["upper_wick"] = out["High"] - out[["Open", "Close"]].max(axis=1)
-        out["lower_wick"] = out[["Open", "Close"]].min(axis=1) - out["Low"]
-        out["wick_ratio"] = (out["upper_wick"] + out["lower_wick"]) / out["body"].replace(0, np.nan)
-
-        out = out.dropna(how="any").reset_index(drop=True)
-
-        if not out.empty:
-            dfs.append(out)
-
-    # Concatenate all ticker data into one DataFrame
-    dataframe = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-    # Ensure Date is datetime
-    dataframe["Date"] = pd.to_datetime(dataframe["Date"])
-
-    return dataframe
-
-def detect_fraud(data):
+def detect_fraud(data,period: str = "1mo", interval: str = "15m") :
     # Step 1: Preprocess the data
-    processed_data = preprocess_market_data(data)
+    processed_data = preprocess_market_data(data, period=period, interval=interval)
 
     feature_cols = [
     "return_1","return_3","return_6",
