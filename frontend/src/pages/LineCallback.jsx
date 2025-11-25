@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const LineCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setToken } = useAuth();
+  const { setToken, login } = useAuth();
   const [status, setStatus] = useState('Processing login...');
 
   const LINE_BACKEND = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -33,8 +33,13 @@ const LineCallback = () => {
         if (data.token) {
           setToken(data.token);
         } else if (data.user) {
-          // fallback if no token provided
-          // cannot persist session without JWT; just navigate
+          // Backend returned only a user object (no JWT).
+          // Use context login() to persist user to localStorage.
+          try {
+            login(data.user);
+          } catch (err) {
+            console.warn('Failed to set user via login fallback', err);
+          }
         }
         navigate('/profile');
       })

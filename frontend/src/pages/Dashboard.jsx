@@ -7,15 +7,15 @@ import './Dashboard.css'; // We'll create this
 // const MOCK_SUBSCRIPTIONS = [ ... ];
 
 export default function Dashboard() {
-  const { user, token } = useAuth();
+  const { user, token, isLoggedIn } = useAuth();
   const navigate = useNavigate();
-  
+
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect to login if user data or token isn't loaded
-    if (!user || !token) {
+    // Redirect to login if user data isn't loaded
+    if (!user) {
       navigate('/login');
       return;
     }
@@ -23,47 +23,48 @@ export default function Dashboard() {
     // --- Fetch Subscriptions ---
     const fetchSubscriptions = async () => {
       setIsLoading(true);
-      
+
       try {
         // --- THIS IS THE NEW API CALL ---
-        const response = await fetch('http://host.docker.internal:5000/subscriptions', {
-          headers: {
-            // Send the token to prove who we are
-            'Authorization': `Bearer ${token}` 
-          }
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch('http://localhost:5050/subscribers', {
+          headers
         });
 
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Assuming Anupap's API returns a list: [ { id: '...', ticker: '...' }, ... ]
-        setSubscriptions(data); 
-        
+        setSubscriptions(data);
+
       } catch (err) {
         console.error("Failed to fetch subscriptions:", err);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchSubscriptions();
   }, [user, token, navigate]); // Run this effect if user or token changes
 
   const handleUnsubscribe = async (subscriptionId) => {
     alert(`Unsubscribing from ${subscriptionId}...`);
-    
+
     try {
       // --- NEW: API call to delete ---
-      const response = await fetch(`http://host.docker.internal:5000/subscriptions/${subscriptionId}`, {
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`http://localhost:5050/subscriptions/${subscriptionId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to unsubscribe');
       }
@@ -85,7 +86,7 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <h1>My Dashboard</h1>
       <p>Welcome, {user.displayName}! Here are your stock subscriptions.</p>
-      
+
       <div className="search-bar-container">
         <input type="text" placeholder="Search for a new ticker (e.g., AAPL)" />
         <Link to="/chart" className="btn btn-primary">Search</Link>
@@ -115,7 +116,7 @@ export default function Dashboard() {
                   </span>
                 </td>
                 <td>
-                  <button 
+                  <button
                     onClick={() => handleUnsubscribe(sub.id)} // <-- Pass sub.id
                     className="btn btn-danger"
                   >

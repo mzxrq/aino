@@ -215,6 +215,14 @@ export default function AnomalyChart() {
 
   const handleSubscribe = async () => {
     setSubLoading(true);
+
+    const body = { lineId: user?.lineId || 'anonymous', ticker };
+    const res = await fetch(`${ML_API_URL}/subscribers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
     // placeholder - hook to backend subscription endpoint if configured
     setTimeout(() => { setSubLoading(false); setIsSubscribed(true); }, 700);
   };

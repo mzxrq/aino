@@ -10,6 +10,7 @@ import Navbar from './components/Navbar';
 // 3. Import Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import AnomalyChart from './pages/AnomalyChart';
 import LineCallback from './pages/LineCallback';
 import Dashboard from './pages/Dashboard';
@@ -29,6 +30,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/chart" element={<AnomalyChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} /> {/* <-- ADD NEW ROUTE */}

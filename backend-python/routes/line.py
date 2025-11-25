@@ -6,10 +6,26 @@ from pymongo import MongoClient
 from auth import LoginRequest, create_access_token, get_current_user
 import os
 import dotenv
+import logging
 
+logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
-db = MongoClient(os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017"))[os.getenv("DB_NAME", "stock_anomaly_db")]
+# MongoDB connection with authentication support
+MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+
+# Try to connect with authentication if credentials provided
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # Force connection attempt to validate credentials
+    client.admin.command('ping')
+    db = client[DB_NAME]
+    logger.info("✓ MongoDB connected successfully")
+except Exception as e:
+    logger.warning(f"MongoDB connection failed ({e}). LINE callback will use file-based fallback.")
+    db = None
+
 ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "720")
 
 router = APIRouter()
@@ -43,7 +59,7 @@ async def login_line(request: LoginRequest):
         profile_res = await client.get(profile_url, headers=profile_headers)
         profile_json = profile_res.json() # This is the user data from LINE
 
-        # 3. --- MODIFIED: Save to MongoDB ---
+        # 3. --- MODIFIED: Save to MongoDB (with fallback) ---
         line_user_id = profile_json.get("userId")
         
         # Prepare user document based on your schema
@@ -57,11 +73,18 @@ async def login_line(request: LoginRequest):
         }
         
         # Upsert: Find user by line_user_id and update them, or create if they don't exist
-        db.users.update_one(
-            {"line_user_id": line_user_id},
-            {"$set": user_document, "$setOnInsert": {"created_at": datetime.utcnow()}},
-            upsert=True,
-        )
+        if db is not None:
+            try:
+                db.users.update_one(
+                    {"line_user_id": line_user_id},
+                    {"$set": user_document, "$setOnInsert": {"created_at": datetime.utcnow()}},
+                    upsert=True,
+                )
+                logger.info(f"User {line_user_id} saved to MongoDB")
+            except Exception as e:
+                logger.warning(f"Failed to save user to MongoDB: {e}. Continuing without persistence.")
+        else:
+            logger.info(f"MongoDB unavailable. User {line_user_id} session will not persist.")
 
         # 4. --- MODIFIED: Create and return JWT Token ---
         token_expires = timedelta(minutes=int(ACCESS_TOKEN_EXPIRE_MINUTES))
