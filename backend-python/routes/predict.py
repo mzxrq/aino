@@ -5,12 +5,8 @@ from pydantic import BaseModel
 import yfinance as yf
 
 from fastapi import APIRouter
-<<<<<<< HEAD
 from ticker_config import FraudRequest, group_by_ticker_to_json, detect_fraud
 from ticker_config import preprocess_market_data
-=======
-from ticker_config import FraudRequest, group_by_ticker_to_json, detect_fraud, preprocess_market_data
->>>>>>> ba0e010941d3a37e000b8097932a7dbe7d69a3f2
 
 
 router = APIRouter()
@@ -35,20 +31,12 @@ def detect_fraud_endpoint(request: FraudRequest):
 
     return prediction_json
 
-<<<<<<< HEAD
-=======
-
->>>>>>> ba0e010941d3a37e000b8097932a7dbe7d69a3f2
 def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) -> Dict[str, Any]:
     """Build a frontend-friendly JSON for a single ticker from processed dataframe and anomalies."""
     if df is None or df.empty:
         return {}
 
-<<<<<<< HEAD
     dates = df['Datetime'].astype(str).tolist()
-=======
-    dates = df['Date'].astype(str).tolist()
->>>>>>> ba0e010941d3a37e000b8097932a7dbe7d69a3f2
     def _safe_list(s):
         if s is None:
             return []
@@ -75,13 +63,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
     # Anomaly markers (x dates and y values)
     anomaly_markers = {'dates': [], 'y_values': []}
     if anomalies is not None and not anomalies.empty:
-<<<<<<< HEAD
         # align anomalies to the same Datetime strings
         anomaly_markers['dates'] = anomalies['Datetime'].astype(str).tolist()
-=======
-        # align anomalies to the same date strings
-        anomaly_markers['dates'] = anomalies['Date'].astype(str).tolist()
->>>>>>> ba0e010941d3a37e000b8097932a7dbe7d69a3f2
         # prefer using Close as y value if present
         if 'Close' in anomalies.columns:
             anomaly_markers['y_values'] = anomalies['Close'].tolist()
@@ -154,7 +137,6 @@ def chart_full_endpoint(request: FraudRequest):
         ticker_anoms = anomalies[anomalies['Ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
         result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
 
-<<<<<<< HEAD
     return result
 
 @router.post('/chart_full', response_model=Dict[str, Any])
@@ -183,6 +165,4 @@ def chart_full_endpoint(request: FraudRequest):
         ticker_anoms = anomalies[anomalies['Ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
         result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
 
-=======
->>>>>>> ba0e010941d3a37e000b8097932a7dbe7d69a3f2
     return result
