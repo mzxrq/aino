@@ -117,4 +117,3 @@ def detect_fraud(data,period: str = "1mo", interval: str = "15m") :
     processed_data = processed_data[processed_data["Prediction"] != "No Anomaly"]
 
     return processed_data
-
