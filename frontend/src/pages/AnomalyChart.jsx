@@ -216,16 +216,40 @@ export default function AnomalyChart() {
   const handleSubscribe = async () => {
     setSubLoading(true);
 
-    const body = { lineId: user?.lineId || 'anonymous', ticker };
-    const res = await fetch(`${ML_API_URL}/subscribers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const body = { lineID: user?.lineId || 'anonymous', tickers : [ticker] };
 
-    // placeholder - hook to backend subscription endpoint if configured
-    setTimeout(() => { setSubLoading(false); setIsSubscribed(true); }, 700);
+    try {
+      // Send a POST request to the backend
+      const res = await fetch(`${NODE_API_URL}/subscribers/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      // Check if the response is successful (status 2xx)
+      if (!res.ok) {
+        throw new Error('Failed to subscribe');
+      }
+
+      // Assuming the response is a success message or updated data
+      const responseData = await res.json();
+
+      // Handle successful subscription (you can update this as per the API response)
+      setIsSubscribed(true);
+
+      // Optionally, you can do something with `responseData`, such as updating state
+      console.log('Subscription success:', responseData);
+
+    } catch (error) {
+      // Handle error from the backend request
+      console.error('Subscription error:', error.message);
+      setIsSubscribed(false); // Update UI to indicate failure
+    } finally {
+      // Ensure loading state is updated regardless of success/failure
+      setSubLoading(false);
+    }
   };
+
 
   const forcedLineMode = shouldForceLine(period, interval);
 
