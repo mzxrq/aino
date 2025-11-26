@@ -35,20 +35,6 @@ router = APIRouter()
 def read_root():
     return {"message": "Welcome to the Fraud Detection API"}
 
-
-@router.get("/{ticker}", response_model=Dict[str, Any])
-def search_ticker(ticker: str):
-    """Simple endpoint to search for a ticker's company name using yfinance."""
-    try:
-        yf_t = yf.Ticker(ticker)
-        info = yf_t.info if hasattr(yf_t, 'info') else {}
-        company_name = info.get('shortName') or info.get('longName')
-        if not company_name:
-            return {"error": "Ticker not found or no company name available."}
-        return {"ticker": ticker, "companyName": company_name}
-    except Exception as e:
-        return {"error": f"An error occurred while fetching ticker info: {e}"}
-
 @router.post("/chart", response_model=Dict[str, Any])
 def detect_fraud_endpoint(request: FraudRequest):
     # Normalize request.ticker to a list of tickers
