@@ -198,3 +198,60 @@ def chart_full_endpoint(request: FraudRequest):
         result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
 
     return result
+
+# Sample stock data
+# Stocks categorized by region (no price)
+us_stocks = [
+    {"ticker": "AAPL",  "name": "Apple Inc."},
+    {"ticker": "MSFT",  "name": "Microsoft Corporation"},
+    {"ticker": "NVDA",  "name": "NVIDIA Corporation"},
+    {"ticker": "GOOGL", "name": "Alphabet Inc."},
+    {"ticker": "AMZN",  "name": "Amazon.com, Inc."},
+    {"ticker": "TSLA",  "name": "Tesla, Inc."},
+    {"ticker": "META",  "name": "Meta Platforms, Inc."},
+    {"ticker": "AVGO",  "name": "Broadcom Inc."},
+    {"ticker": "JNJ",   "name": "Johnson & Johnson"},
+    {"ticker": "JNJ",   "name": "Johnson & Johnson"}  # example stable large‑cap, can replace
+]
+
+th_stocks = [
+    {"ticker": "DELTA.BK",   "name": "Delta Electronics (Thailand)"},
+    {"ticker": "ADVANC.BK",   "name": "Advanced Info Service PCL"},
+    {"ticker": "PTT.BK",      "name": "PTT Public Company Limited"},
+    {"ticker": "GULF.BK",     "name": "Gulf Energy Development Public Company Limited"},
+    {"ticker": "AOT.BK",      "name": "Airports of Thailand PCL"},
+    {"ticker": "KBANK.BK",    "name": "Kasikornbank PCL"},
+    {"ticker": "SCB.BK",      "name": "Siam Commercial Bank PCL"},
+    {"ticker": "PTTEP.BK",    "name": "PTT Exploration and Production PCL"},
+    {"ticker": "CPALL.BK",    "name": "CP ALL Public Company Limited"},
+    {"ticker": "TRUE.BK",     "name": "True Corporation PCL"}
+]
+
+
+jp_stocks = [
+    {"ticker": "7203.T",  "name": "Toyota Motor Corporation"},
+    {"ticker": "9984.T",  "name": "SoftBank Group Corp."},
+    {"ticker": "SONY",    "name": "Sony Group Corporation"},
+    {"ticker": "8306.T",  "name": "Mitsubishi UFJ Financial Group, Inc."},
+    {"ticker": "6501.T",  "name": "Hitachi, Ltd."},
+    {"ticker": "9983.T",  "name": "Fast Retailing Co., Ltd."},
+    {"ticker": "7974.T",  "name": "Nintendo Co., Ltd."},
+    {"ticker": "8316.T",  "name": "Sumitomo Mitsui Financial Group, Inc."},
+    {"ticker": "6861.T",  "name": "Keyence Corporation"},
+    {"ticker": "8035.T",  "name": "Tokyo Electron Limited"}
+]
+
+
+# Combined dictionary
+stocks = us_stocks + th_stocks + jp_stocks
+
+
+# Search by substring (1 letter is fine)
+@router.get("/chart/ticker/{query}")
+def search_ticker(query: str):
+    query_upper = query.upper()
+    results = [
+        stock for stock in stocks
+        if query_upper in stock["ticker"] or query_upper in stock["name"].upper()
+    ]
+    return results

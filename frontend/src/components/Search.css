@@ -1,0 +1,65 @@
+.search-container {
+  position: relative;
+  width: 200px; /* width of the input */
+}
+
+/* Input keeps original width */
+.search-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  transition: border 0.2s;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Dropdown is wider and positioned */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%); /* center dropdown below input */
+  width: 350px; /* wider than input */
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-top: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  z-index: 1000;
+
+  max-height: none; /* no max height, so no scroll */
+  overflow-y: visible; /* no scrollbar */
+}
+
+/* Each item with padding and hover */
+.search-item {
+  padding: 8px 12px;
+  transition: background 0.2s;
+  white-space: nowrap; /* prevent wrapping for neatness */
+}
+
+.search-item:hover {
+  background: #f0f8ff;
+}
+
+/* Link styling inside dropdown */
+.search-link {
+  text-decoration: none;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+}
+
+.search-link .ticker {
+  font-weight: bold;
+}
+
+.search-link .name {
+  font-size: 0.9em;
+  color: #555;
+}
