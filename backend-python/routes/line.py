@@ -96,7 +96,7 @@ async def login_line(request: LoginRequest):
         return {"user": profile_json, "token": router_token}
 
 # --- NEW ENDPOINT: Required for session persistence ---
-@router.get("/users/me")
+@router.get("/profile")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     """
     Returns the user data for the currently authenticated user.

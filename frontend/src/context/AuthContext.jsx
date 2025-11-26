@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
       // If we have a token, try to fetch a fresh profile from backend.
       if (t) {
         try {
-          const res = await fetch(`${LINE_API}/users/me`, {
+          const res = await fetch(`${LINE_API}/profile`, {
             headers: { Authorization: `Bearer ${t}` }
           });
           if (!res.ok) {
@@ -69,7 +69,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
   };
 
-  // Save token and immediately fetch /users/me to populate user
+  // Save token and immediately fetch /profile to populate user
   const setToken = async (tkn) => {
     if (!tkn) {
       logout();
@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
     setTokenState(tkn);
     localStorage.setItem('token', tkn);
     try {
-      const res = await fetch(`${LINE_API}/users/me`, {
+      const res = await fetch(`${LINE_API}/profile`, {
         headers: { Authorization: `Bearer ${tkn}` }
       });
       if (!res.ok) {
