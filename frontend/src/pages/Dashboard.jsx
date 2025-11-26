@@ -1,80 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import './Dashboard.css'; // We'll create this
-
-// Mock data for subscriptions - WE ARE REMOVING THIS
-// const MOCK_SUBSCRIPTIONS = [ ... ];
+import './Dashboard.css';
 
 export default function Dashboard() {
   const { user, token, isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
+  const NODE_API_URL = "http://localhost:5050";
+
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect to login if user data isn't loaded
     if (!user) {
       navigate('/login');
       return;
     }
 
-    // --- Fetch Subscriptions ---
     const fetchSubscriptions = async () => {
       setIsLoading(true);
-
       try {
-        // --- THIS IS THE NEW API CALL ---
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const url = token ? 'http://localhost:5050/subscriptions/me' : 'http://localhost:5050/subscriptions';
+        const url = `${NODE_API_URL}/dashboard/${user.userId}`;
         const response = await fetch(url, { headers });
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
         const data = await response.json();
 
-        // Assuming Anupap's API returns a list: [ { id: '...', ticker: '...' }, ... ]
-        setSubscriptions(data);
+        // Normalize to array (API might return object with `tickers` array)
+        const tickersArray = Array.isArray(data) ? data : data.tickers || [];
+        setSubscriptions(tickersArray);
 
       } catch (err) {
         console.error("Failed to fetch subscriptions:", err);
+        setSubscriptions([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchSubscriptions();
-  }, [user, token, navigate]); // Run this effect if user or token changes
+  }, [user, token, navigate]);
 
-  const handleUnsubscribe = async (subscriptionId) => {
-    alert(`Unsubscribing from ${subscriptionId}...`);
+  const handleUnsubscribe = async (ticker) => {
+    if (!window.confirm(`Unsubscribe from ${ticker}?`)) return;
 
     try {
-      // --- NEW: API call to delete ---
-      const headers = {};
+      const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch(`http://localhost:5050/subscriptions/${subscriptionId}`, {
+      const response = await fetch(`http://localhost:5050/subscriptions/`, {
         method: 'DELETE',
-        headers
+        headers,
+        body: JSON.stringify({ lineID: user.userId, tickers: [ticker] })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to unsubscribe');
-      }
+      if (!response.ok) throw new Error('Failed to unsubscribe');
 
-      // If successful, remove it from the list in the UI (match id or Mongo _id)
-      setSubscriptions(subs => subs.filter(s => {
-        if (!s) return false;
-        if (s.id && s.id === subscriptionId) return false;
-        if (s._id && (s._id === subscriptionId || (s._id.$oid && s._id.$oid === subscriptionId))) return false;
-        return true;
-      }));
+      setSubscriptions(subs => subs.filter(t => t !== ticker));
 
     } catch (err) {
       console.error("Unsubscribe error:", err);
@@ -102,39 +89,40 @@ export default function Dashboard() {
           <thead>
             <tr>
               <th>Stock Ticker</th>
-              <th>Frequency</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {subscriptions.map(sub => {
-              const status = (sub && sub.status) ? String(sub.status) : 'Unknown';
-              const frequency = (sub && sub.frequency) ? sub.frequency : 'N/A';
-              const ticker = (sub && sub.ticker) ? sub.ticker : (sub && sub.symbol) ? sub.symbol : 'UNKNOWN';
-              const id = sub && (sub.id || (sub._id && sub._id.toString())) ? (sub.id || (sub._id && sub._id.toString())) : undefined;
-              return (
-                <tr key={id || ticker}>
+            {subscriptions.length > 0 ? (
+              subscriptions.map(ticker => (
+                <tr key={ticker}>
                   <td>
-                    <button className="link-button" onClick={() => navigate('/chart', { state: { ticker } })}>{ticker}</button>
+                    <button
+                      className="link-button"
+                      onClick={() => navigate('/chart', { state: { ticker } })}
+                    >
+                      {ticker}
+                    </button>
                   </td>
-                  <td>{frequency}</td>
                   <td>
-                    <span className={`status-badge status-${status.toLowerCase()}`}>
-                      {status}
-                    </span>
+                    <span className="status-badge status-unknown">Unknown</span>
                   </td>
                   <td>
                     <button
-                      onClick={() => { if (id) handleUnsubscribe(id); else alert('Cannot unsubscribe: missing id'); }}
+                      onClick={() => handleUnsubscribe(ticker)}
                       className="btn btn-danger"
                     >
                       Unsubscribe
                     </button>
                   </td>
                 </tr>
-              );
-            })}
+              ))
+            ) : (
+              <tr>
+                <td colSpan="3">No subscriptions found</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

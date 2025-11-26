@@ -73,4 +73,33 @@ const getMySubscriptions = async (req, res) => {
   }
 };
 
-module.exports = { addOrUpdate, removeTickers, getOne, getAll, getMySubscriptions, deleteById };
+const status = async (req, res) => {
+    const { lineID, ticker } = req.body;
+
+    if (!lineID || !ticker) {
+        return res.status(400).json({
+            subscribed: false,
+            message: "lineID and ticker are required"
+        });
+    }
+
+    try {
+        // find user by lineID
+        const doc = await subscriberService.getSubscriber(lineID);
+
+        if (!doc) {
+            return res.status(200).json({ subscribed: false });
+        }
+
+        // check if ticker exists in user's array
+        const subscribed = Array.isArray(doc.tickers) && doc.tickers.includes(ticker);
+
+        return res.status(200).json({ subscribed });
+    } catch (error) {
+        console.error("Error checking subscription:", error);
+        return res.status(500).json({ subscribed: false });
+    }
+};
+
+
+module.exports = { addOrUpdate, removeTickers, getOne, getAll, getMySubscriptions, deleteById, status };
