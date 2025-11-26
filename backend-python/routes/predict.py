@@ -8,6 +8,25 @@ from fastapi import APIRouter
 from ticker_config import FraudRequest, group_by_ticker_to_json, detect_fraud
 from ticker_config import preprocess_market_data
 
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+
+# Try to connect with authentication if credentials provided
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # Force connection attempt to validate credentials
+    client.admin.command('ping')
+    db = client[DB_NAME]
+except Exception as e:
+    db = None
+    print(f"Failed to connect to MongoDB: {e}")
+
 
 router = APIRouter()
 
@@ -66,8 +85,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         # align anomalies to the same Datetime strings
         anomaly_markers['dates'] = anomalies['Datetime'].astype(str).tolist()
         # prefer using Close as y value if present
-        if 'Close' in anomalies.columns:
-            anomaly_markers['y_values'] = anomalies['Close'].tolist()
+        if 'price' in anomalies.columns:
+            anomaly_markers['y_values'] = anomalies['price'].tolist()
         else:
             anomaly_markers['y_values'] = [None] * len(anomaly_markers['dates'])
 
@@ -131,10 +150,11 @@ def chart_full_endpoint(request: FraudRequest):
         return result
 
     # Compute anomalies using existing detect_fraud (returns only anomalous rows)
-    anomalies = detect_fraud(tickers)
+    anomalies = db.anomalies.find({"ticker": {"$in": tickers}})
+    anomalies = pd.DataFrame(list(anomalies), columns=['ticker', 'Datetime', 'price'])
 
     for ticker, group in full_df.groupby('Ticker'):
-        ticker_anoms = anomalies[anomalies['Ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
+        ticker_anoms = anomalies[anomalies['ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
         result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
 
     return result
@@ -159,10 +179,11 @@ def chart_full_endpoint(request: FraudRequest):
         return result
 
     # Compute anomalies using existing detect_fraud (returns only anomalous rows)
-    anomalies = detect_fraud(tickers,request.period,request.interval)
+    anomalies = db.anomalies.find({"ticker": {"$in": tickers}})
+    anomalies = pd.DataFrame(list(anomalies), columns=['ticker', 'Datetime', 'price'])
 
     for ticker, group in full_df.groupby('Ticker'):
-        ticker_anoms = anomalies[anomalies['Ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
+        ticker_anoms = anomalies[anomalies['ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
         result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
 
     return result

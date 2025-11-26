@@ -1,14 +1,33 @@
+from fastapi import logger
 import pandas as pd
 from typing import List, Union, Dict, Optional
 from pydantic import BaseModel
 from pathlib import Path
 import joblib as jo
 import numpy as np
+from pymongo import MongoClient
 import yfinance as yf
 import sys
 import os
+import logging
 
 from train import load_dataset, data_preprocessing
+
+from dotenv import load_dotenv
+load_dotenv()
+
+# MongoDB connection with authentication support
+MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+
+# Try to connect with authentication if credentials provided
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # Force connection attempt to validate credentials
+    client.admin.command('ping')
+    db = client[DB_NAME]
+except Exception as e:
+    db = None
 
 class FraudRequest(BaseModel):
     """Accept either a single ticker string or a list of tickers.
@@ -109,11 +128,21 @@ def detect_fraud(data,period: str = "1mo", interval: str = "15m") :
             pred_i = np.array([1] * len(Xi))
 
         preds[idx] = pred_i
-
     # Map numeric predictions to labels using the classes dict
     processed_data["Prediction"] = [classes[int(i)] for i in preds]
 
     # Keep only anomalous rows (not 'No Anomaly')
     processed_data = processed_data[processed_data["Prediction"] != "No Anomaly"]
 
+    # Insert to anomaly collection in MongoDB
+    if db is not None:
+        try:
+            for _, row in processed_data.iterrows():
+                db.anomalies.insert_one({
+                    "ticker": row["Ticker"],
+                    "Datetime": row["Datetime"],
+                    "price": row["Close"],
+                })
+        except Exception as e:
+            sys.exception(f"Failed to insert anomalies into MongoDB: {e}")
     return processed_data
