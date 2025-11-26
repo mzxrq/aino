@@ -35,6 +35,30 @@
   cursor: pointer;
 }
 
+.theme-toggle {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+/* Light/dark aware styles */
+body.dark .navbar {
+  background: #061025;
+}
+
+body.dark .nav-link,
+body.dark .logo {
+  color: #E6EEF8;
+}
+
+body.dark .btn-login {
+  background: #0ea5a4;
+  color: white;
+}
+
 .btn-login {
   background: #28a745;
   color: #fff;

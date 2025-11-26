@@ -1,7 +1,7 @@
 // Restored previous AnomalyChart implementation (from backupAnomaly.jsx / history)
 import React, { useEffect, useState } from 'react';
 import Plot from 'react-plotly.js';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../pages/AnomalyChart.css';
 
@@ -23,7 +23,9 @@ export default function AnomalyChart() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [searchParams] = useSearchParams();
-  const [ticker, setTicker] = useState(searchParams.get('ticker') || searchParams.get('symbol') || 'AAPL');
+  const location = useLocation();
+  const initialTicker = (location && location.state && location.state.ticker) || searchParams.get('ticker') || searchParams.get('symbol') || 'AAPL';
+  const [ticker, setTicker] = useState(initialTicker);
 
   // --- Controls ---
   const [period, setPeriod] = useState("1d");
@@ -91,9 +93,12 @@ export default function AnomalyChart() {
   }, [interval, period]);
 
   useEffect(() => {
-    // react to search params (ticker changes)
-    setTicker(searchParams.get('ticker') || searchParams.get('symbol') || ticker);
-  }, [searchParams]);
+    // react to search params or navigation state (ticker changes)
+    const stateTicker = (location && location.state && location.state.ticker) || null;
+    const paramTicker = searchParams.get('ticker') || searchParams.get('symbol');
+    if (stateTicker) setTicker(stateTicker);
+    else if (paramTicker) setTicker(paramTicker);
+  }, [searchParams, location]);
 
   // --- FETCH DATA ---
   useEffect(() => {
@@ -216,7 +221,7 @@ export default function AnomalyChart() {
   const handleSubscribe = async () => {
     setSubLoading(true);
 
-    const body = { lineID: user?.lineId || 'anonymous', tickers : [ticker] };
+    const body = { lineID: user?.lineId || 'anonymous', tickers: [ticker] };
 
     try {
       // Send a POST request to the backend

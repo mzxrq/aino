@@ -1,47 +1,142 @@
 const { getDb } = require("../config/db");
+const fs = require('fs');
+const path = require('path');
 
-const addOrUpdateSubscriber = async (lineID, tickers) => {
-  const db = getDb();
-  const collection = db.collection("subscribers");
+const SUBS_FILE = path.join(__dirname, '..', 'subscriptions.json');
 
-  const existingSubscriber = await collection.findOne({ lineID });
+async function readSubscriptionsFile() {
+  try {
+    const raw = fs.readFileSync(SUBS_FILE, 'utf8');
+    return JSON.parse(raw || '[]');
+  } catch (err) {
+    return [];
+  }
+}
 
-  if (existingSubscriber) {
-    // Merge tickers, avoid duplicates
-    const updatedTickers = Array.from(new Set([...existingSubscriber.tickers, ...tickers]));
-    await collection.updateOne({ lineID }, { $set: { tickers: updatedTickers } });
-    return { message: "Subscriber tickers updated", tickers: updatedTickers };
-  } else {
-    await collection.insertOne({ lineID, tickers });
-    return { message: "Subscriber added", tickers };
+async function writeSubscriptionsFile(data) {
+  fs.writeFileSync(SUBS_FILE, JSON.stringify(data, null, 2));
+}
+
+const addOrUpdateSubscriber = async (lineID, tickers, userId = null) => {
+  try {
+    const db = getDb();
+    const collection = db.collection("subscribers");
+
+    const query = userId ? { userId } : { lineID };
+    const existingSubscriber = await collection.findOne(query);
+
+    if (existingSubscriber) {
+      // Merge tickers, avoid duplicates
+      const updatedTickers = Array.from(new Set([...(existingSubscriber.tickers || []), ...tickers]));
+      await collection.updateOne(query, { $set: { tickers: updatedTickers, lineID, userId } });
+      return { message: "Subscriber tickers updated", tickers: updatedTickers };
+    } else {
+      await collection.insertOne({ lineID, tickers, userId });
+      return { message: "Subscriber added", tickers };
+    }
+  } catch (err) {
+    // fallback to file
+    const subs = await readSubscriptionsFile();
+    let existing = subs.find(s => (userId && s.userId === userId) || (!userId && s.lineID === lineID));
+    if (existing) {
+      const updatedTickers = Array.from(new Set([...(existing.tickers || []), ...tickers]));
+      subs.forEach(s => {
+        if ((userId && s.userId === userId) || (!userId && s.lineID === lineID)) {
+          s.tickers = updatedTickers;
+          s.lineID = lineID;
+          s.userId = userId;
+        }
+      });
+      await writeSubscriptionsFile(subs);
+      return { message: 'Subscriber tickers updated', tickers: updatedTickers };
+    } else {
+      const newSub = { id: Date.now().toString(), lineID, tickers, userId };
+      subs.push(newSub);
+      await writeSubscriptionsFile(subs);
+      return { message: 'Subscriber added', tickers };
+    }
   }
 };
 
-const deleteTickers = async (lineID, tickers) => {
-  const db = getDb();
-  const collection = db.collection("subscribers");
+const deleteTickers = async (lineID, tickers, userId = null) => {
+  try {
+    const db = getDb();
+    const collection = db.collection("subscribers");
 
-  const existingSubscriber = await collection.findOne({ lineID });
-  if (!existingSubscriber) throw new Error("Subscriber not found");
+    const query = userId ? { userId } : { lineID };
+    const existingSubscriber = await collection.findOne(query);
+    if (!existingSubscriber) throw new Error("Subscriber not found");
 
-  const updatedTickers = existingSubscriber.tickers.filter(t => !tickers.includes(t));
-  await collection.updateOne({ lineID }, { $set: { tickers: updatedTickers } });
+    const updatedTickers = (existingSubscriber.tickers || []).filter(t => !tickers.includes(t));
+    await collection.updateOne(query, { $set: { tickers: updatedTickers } });
 
-  return { message: "Tickers removed", tickers: updatedTickers };
+    return { message: "Tickers removed", tickers: updatedTickers };
+  } catch (err) {
+    const subs = await readSubscriptionsFile();
+    const idx = subs.findIndex(s => (userId && s.userId === userId) || (!userId && s.lineID === lineID));
+    if (idx === -1) throw new Error('Subscriber not found');
+    const existing = subs[idx];
+    const updatedTickers = (existing.tickers || []).filter(t => !tickers.includes(t));
+    subs[idx].tickers = updatedTickers;
+    await writeSubscriptionsFile(subs);
+    return { message: 'Tickers removed', tickers: updatedTickers };
+  }
 };
 
 const getSubscriber = async (lineID) => {
-  const db = getDb();
-  const collection = db.collection("subscribers");
-  const subscriber = await collection.findOne({ lineID });
-  if (!subscriber) throw new Error("Subscriber not found");
-  return subscriber;
+  try {
+    const db = getDb();
+    const collection = db.collection("subscribers");
+    const subscriber = await collection.findOne({ lineID });
+    if (!subscriber) throw new Error("Subscriber not found");
+    return subscriber;
+  } catch (err) {
+    const subs = await readSubscriptionsFile();
+    const sub = subs.find(s => s.lineID === lineID);
+    if (!sub) throw new Error('Subscriber not found');
+    return sub;
+  }
 };
 
-const getAllSubscribers = async () => {
-  const db = getDb();
-  const collection = db.collection("subscribers");
-  return await collection.find({}).toArray();
+const getAllSubscribers = async (userId = null) => {
+  try {
+    const db = getDb();
+    const collection = db.collection("subscribers");
+    if (userId) return await collection.find({ userId }).toArray();
+    return await collection.find({}).toArray();
+  } catch (err) {
+    const subs = await readSubscriptionsFile();
+    if (userId) return subs.filter(s => s.userId === userId);
+    return subs;
+  }
 };
 
 module.exports = { addOrUpdateSubscriber, deleteTickers, getSubscriber, getAllSubscribers };
+// delete subscriber by internal id (file id or Mongo _id)
+async function deleteSubscriberById(id) {
+  try {
+    const db = getDb();
+    const collection = db.collection('subscribers');
+    const { ObjectId } = require('mongodb');
+    // try as ObjectId first
+    let query;
+    try {
+      query = { _id: new ObjectId(id) };
+    } catch (err) {
+      query = { id };
+    }
+    const r = await collection.deleteOne(query);
+    if (r.deletedCount === 0) throw new Error('Not found');
+    return { message: 'Subscriber removed' };
+  } catch (err) {
+    // fallback to file
+    const subs = await readSubscriptionsFile();
+    const idx = subs.findIndex(s => s.id === id);
+    if (idx === -1) throw new Error('Not found');
+    subs.splice(idx, 1);
+    await writeSubscriptionsFile(subs);
+    return { message: 'Subscriber removed' };
+  }
+}
+
+module.exports.deleteSubscriberById = deleteSubscriberById;
