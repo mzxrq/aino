@@ -17,6 +17,9 @@ app.use("/subscribers", subscriberRoutes);
 const authRoutes = require("./routes/authRoutes");
 app.use("/auth", authRoutes);
 
+const dashboardRoute = require("./routes/dashboardRoute");
+app.use("/dashboard", dashboardRoute);
+
 const PORT = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
