@@ -1,8 +1,9 @@
 import pandas as pd
 import yfinance as yf
+import requests
+from urllib.parse import quote
 from typing import List, Union, Dict, Any
 from pydantic import BaseModel
-import yfinance as yf
 
 from fastapi import APIRouter
 from ticker_config import FraudRequest, group_by_ticker_to_json, detect_fraud
@@ -34,6 +35,20 @@ router = APIRouter()
 def read_root():
     return {"message": "Welcome to the Fraud Detection API"}
 
+
+@router.get("/{ticker}", response_model=Dict[str, Any])
+def search_ticker(ticker: str):
+    """Simple endpoint to search for a ticker's company name using yfinance."""
+    try:
+        yf_t = yf.Ticker(ticker)
+        info = yf_t.info if hasattr(yf_t, 'info') else {}
+        company_name = info.get('shortName') or info.get('longName')
+        if not company_name:
+            return {"error": "Ticker not found or no company name available."}
+        return {"ticker": ticker, "companyName": company_name}
+    except Exception as e:
+        return {"error": f"An error occurred while fetching ticker info: {e}"}
+
 @router.post("/chart", response_model=Dict[str, Any])
 def detect_fraud_endpoint(request: FraudRequest):
     # Normalize request.ticker to a list of tickers
@@ -49,6 +64,45 @@ def detect_fraud_endpoint(request: FraudRequest):
     prediction_json = group_by_ticker_to_json(prediction)
 
     return prediction_json
+
+
+@router.get("/chart", response_model=Dict[str, Any])
+def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
+    """GET endpoint to return chart data for a single ticker.
+
+    Query parameters:
+    - `ticker` (required): ticker symbol, e.g. AAPL
+    - `period` (optional): yfinance period, default `1mo`
+    - `interval` (optional): yfinance interval, default `15m`
+    """
+    if not ticker:
+        return {"error": "query parameter 'ticker' is required"}
+
+    tickers = [ticker]
+
+    try:
+        full_df = preprocess_market_data(tickers, period=period or "1mo", interval=interval or "15m")
+    except Exception as e:
+        return {"error": f"failed to fetch market data: {e}"}
+
+    result: Dict[str, Any] = {}
+    if full_df.empty:
+        result[ticker] = {}
+        return result
+
+    # Fetch stored anomalies from DB if available
+    try:
+        anomalies_cursor = db.anomalies.find({"ticker": {"$in": tickers}}) if db is not None else []
+        anomalies = pd.DataFrame(list(anomalies_cursor), columns=['ticker', 'Datetime', 'price'])
+    except Exception:
+        anomalies = pd.DataFrame()
+
+    # Build response for the requested ticker
+    for t, group in full_df.groupby('Ticker'):
+        ticker_anoms = anomalies[anomalies['ticker'] == t] if not anomalies.empty else pd.DataFrame()
+        result[t] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+
+    return result
 
 def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) -> Dict[str, Any]:
     """Build a frontend-friendly JSON for a single ticker from processed dataframe and anomalies."""
@@ -129,35 +183,6 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'companyName': companyName
     }
 
-
-@router.post('/chart_full', response_model=Dict[str, Any])
-def chart_full_endpoint(request: FraudRequest):
-    """Return full time-series and anomaly markers for requested tickers.
-
-    Useful for frontend charting — always returns arrays even when no anomalies.
-    """
-    tickers = request.ticker if isinstance(request.ticker, list) else [request.ticker]
-
-    # Preprocess market data (this returns the full dataframe across tickers)
-    # Honor optional `period` and `interval` from the request so frontend can request smaller/resampled datasets
-    full_df = preprocess_market_data(tickers, period=request.period or "1mo", interval=request.interval or "15m")
-
-    result: Dict[str, Any] = {}
-    if full_df.empty:
-        # Return empty mapping per ticker
-        for t in tickers:
-            result[t] = {}
-        return result
-
-    # Compute anomalies using existing detect_fraud (returns only anomalous rows)
-    anomalies = db.anomalies.find({"ticker": {"$in": tickers}})
-    anomalies = pd.DataFrame(list(anomalies), columns=['ticker', 'Datetime', 'price'])
-
-    for ticker, group in full_df.groupby('Ticker'):
-        ticker_anoms = anomalies[anomalies['ticker'] == ticker] if not anomalies.empty else pd.DataFrame()
-        result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
-
-    return result
 
 @router.post('/chart_full', response_model=Dict[str, Any])
 def chart_full_endpoint(request: FraudRequest):
