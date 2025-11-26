@@ -19,14 +19,10 @@ app.use("/subscriptions", subscriberRoutes);
 const authRoutes = require("./routes/authRoutes");
 app.use("/auth", authRoutes);
 
-<<<<<<< HEAD
 const dashboardRoute = require("./routes/dashboardRoute");
 app.use("/dashboard", dashboardRoute);
 
 const PORT = process.env.PORT || 5000;
-=======
-const PORT = process.env.PORT || 5050;
->>>>>>> b43d62d3a69160101e7f63e78f75bb13a0196bd1
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Home Page!");
