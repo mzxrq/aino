@@ -213,7 +213,7 @@ def _scheduler_loop(stop_event):
 async def _on_startup():
     global scheduler_thread, scheduler_stop_event
     schedule.clear()
-    schedule.every(1).minutes.do(job)
+    # schedule.every(1).minutes.do(job)
 
     scheduler_stop_event.clear()
     scheduler_thread = threading.Thread(target=_scheduler_loop, args=(scheduler_stop_event,), daemon=True)
