@@ -5,7 +5,8 @@ const addOrUpdate = async (req, res) => {
     const { lineID, tickers } = req.body;
     if (!lineID || !tickers) return res.status(400).json({ message: "lineID and tickers are required" });
 
-    const result = await subscriberService.addOrUpdateSubscriber(lineID, tickers);
+    const userId = req.userId || null;
+    const result = await subscriberService.addOrUpdateSubscriber(lineID, tickers, userId);
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
@@ -18,7 +19,8 @@ const removeTickers = async (req, res) => {
     const { lineID, tickers } = req.body;
     if (!lineID || !tickers) return res.status(400).json({ message: "lineID and tickers are required" });
 
-    const result = await subscriberService.deleteTickers(lineID, tickers);
+    const userId = req.userId || null;
+    const result = await subscriberService.deleteTickers(lineID, tickers, userId);
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
@@ -36,9 +38,22 @@ const getOne = async (req, res) => {
   }
 };
 
+const deleteById = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ message: 'Missing id' });
+    const result = await subscriberService.deleteSubscriberById(id);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(404).json({ message: error.message });
+  }
+};
+
 const getAll = async (req, res) => {
   try {
-    const subscribers = await subscriberService.getAllSubscribers();
+    const userId = req.userId || null;
+    const subscribers = await subscriberService.getAllSubscribers(userId);
     res.status(200).json(subscribers);
   } catch (error) {
     console.error(error);
@@ -46,4 +61,16 @@ const getAll = async (req, res) => {
   }
 };
 
-module.exports = { addOrUpdate, removeTickers, getOne, getAll };
+const getMySubscriptions = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    const subscribers = await subscriberService.getAllSubscribers(userId);
+    res.status(200).json(subscribers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+module.exports = { addOrUpdate, removeTickers, getOne, getAll, getMySubscriptions, deleteById };

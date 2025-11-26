@@ -29,9 +29,8 @@ export default function Dashboard() {
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await fetch('http://localhost:5050/subscribers', {
-          headers
-        });
+        const url = token ? 'http://localhost:5050/subscriptions/me' : 'http://localhost:5050/subscriptions';
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
@@ -69,8 +68,13 @@ export default function Dashboard() {
         throw new Error('Failed to unsubscribe');
       }
 
-      // If successful, remove it from the list in the UI
-      setSubscriptions(subs => subs.filter(s => s.id !== subscriptionId));
+      // If successful, remove it from the list in the UI (match id or Mongo _id)
+      setSubscriptions(subs => subs.filter(s => {
+        if (!s) return false;
+        if (s.id && s.id === subscriptionId) return false;
+        if (s._id && (s._id === subscriptionId || (s._id.$oid && s._id.$oid === subscriptionId))) return false;
+        return true;
+      }));
 
     } catch (err) {
       console.error("Unsubscribe error:", err);
@@ -104,27 +108,33 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {subscriptions.map(sub => (
-              <tr key={sub.id}>
-                <td>
-                  <Link to={`/chart?ticker=${sub.ticker}`}>{sub.ticker}</Link>
-                </td>
-                <td>{sub.frequency}</td>
-                <td>
-                  <span className={`status-badge status-${sub.status.toLowerCase()}`}>
-                    {sub.status}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    onClick={() => handleUnsubscribe(sub.id)} // <-- Pass sub.id
-                    className="btn btn-danger"
-                  >
-                    Unsubscribe
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {subscriptions.map(sub => {
+              const status = (sub && sub.status) ? String(sub.status) : 'Unknown';
+              const frequency = (sub && sub.frequency) ? sub.frequency : 'N/A';
+              const ticker = (sub && sub.ticker) ? sub.ticker : (sub && sub.symbol) ? sub.symbol : 'UNKNOWN';
+              const id = sub && (sub.id || (sub._id && sub._id.toString())) ? (sub.id || (sub._id && sub._id.toString())) : undefined;
+              return (
+                <tr key={id || ticker}>
+                  <td>
+                    <button className="link-button" onClick={() => navigate('/chart', { state: { ticker } })}>{ticker}</button>
+                  </td>
+                  <td>{frequency}</td>
+                  <td>
+                    <span className={`status-badge status-${status.toLowerCase()}`}>
+                      {status}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => { if (id) handleUnsubscribe(id); else alert('Cannot unsubscribe: missing id'); }}
+                      className="btn btn-danger"
+                    >
+                      Unsubscribe
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
