@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pandas
+numpy
+pymongo
+python-dotenv
+requests
+schedule
+yfinance
+scikit-learn
+joblib
