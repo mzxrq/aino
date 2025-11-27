@@ -1,64 +1,67 @@
-use stock_anomaly_db
+use stock_anomaly_db;
 
-// Sample database for development and testing purposes
-// Users collection
+// ------------------------------
+// Users Collection
+// ------------------------------
 db.users.insertMany([
-    {
-        "id": "1764051216206",
-        "email": "mmxhibi@gmail.com",
-        "password": "$2b$10$qkooJifsJ3OVqyhsWY0RL..Ybd5KO.Ntys0sb5mH5eaf/NKwlm.Uy"
-    },
-    {
-        "id": "1764061967921",
-        "email": "pa.chaiyapat_st@tni.ac.th",
-        "password": "$2b$10$6AV3tAwWx6/iiDpb5tAo.OfUqkXLxUkQMF.6i8hZIkMCds/VSgnVa"
-    }
+  {
+    id: "1764051216206",
+    email: "mmxhibi@gmail.com",
+    password: "$2b$10$qkooJifsJ3OVqyhsWY0RL..Ybd5KO.Ntys0sb5mH5eaf/NKwlm.Uy"
+  },
+  {
+    id: "1764061967921",
+    email: "pa.chaiyapat_st@tni.ac.th",
+    password: "$2b$10$6AV3tAwWx6/iiDpb5tAo.OfUqkXLxUkQMF.6i8hZIkMCds/VSgnVa"
+  }
 ]);
 
-// Subscribers collection
+// ------------------------------
+// Subscribers Collection
+// ------------------------------
 db.subscribers.insertMany([
-    {
-        "lineId": "U1234567890abcdef1234567890abcdef",
-        "tickers": [
-            "AAPL",
-            "GOOGL",
-            "MSFT"
-        ]
-    },
-    {
-        "lineId": "Uabcdef1234567890abcdef1234567890",
-        "tickers": [
-            "TSLA",
-            "AMZN"
-        ]
-    }
-]); 
+  {
+    lineId: "U1234567890abcdef1234567890abcdef",
+    tickers: ["AAPL", "GOOGL", "MSFT"],
+    userId: "1764051216206"
+  },
+  {
+    lineId: "Uabcdef1234567890abcdef1234567890",
+    tickers: ["TSLA", "AMZN"],
+    userId: "1764061967921"
+  }
+]);
 
-// Tickers collection
+// ------------------------------
+// Tickers Collection
+// ------------------------------
 db.tickers.insertMany([
-    {
-        "symbol": "AAPL",
-        "frequency": 2,
-        "status": "ACTIVE"
-    },
-    {
-        "symbol": "TSLA",
-        "frequency": 4,
-        "status": "ACTIVE"
-    },
+  {
+    ticker: "AAPL",
+    status: "ACTIVE"
+  },
+  {
+    ticker: "TSLA",
+    status: "ACTIVE"
+  }
 ]);
 
-// Anomalies collection
+// ------------------------------
+// Anomalies Collection
+// ------------------------------
 db.anomalies.insertMany([
-    {
-        "symbol": "AAPL",
-        "timestamp": ISODate("2024-01-01T10:00:00Z"),
-        "price": 150.00,
-    },
-    {
-        "symbol": "TSLA",
-        "timestamp": ISODate("2024-01-02T11:00:00Z"),
-        "price": 700.00,
-    }
+  {
+    _id: ObjectId("6927c3e7709fdd0e395721fd"),
+    ticker: "TSLA",
+    Datetime: ISODate("2025-11-24T14:30:00.000Z"),
+    Close: 408.1600036621094,
+    sent: true
+  },
+  {
+    _id: ObjectId("6927c5fbe3927a8cc563e432"),
+    ticker: "JNJ",
+    Datetime: ISODate("2025-11-20T00:00:00.000Z"),
+    Close: 54560,
+    sent: true
+  }
 ]);
-
