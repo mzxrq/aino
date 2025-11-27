@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 import pandas as pd
+import logging
 
 # Ensure local imports resolve
 sys.path.insert(0, os.path.dirname(__file__) or '.')
@@ -25,14 +26,37 @@ from ticker_config import detect_fraud
 from dotenv import load_dotenv
 load_dotenv()
 
+# --- Logging ---
+logger = logging.getLogger("stock-dashboard.backend-python")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+# Environment
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
-MONGO_CONNECTION_STRING = os.getenv("MONGO_CONNECTION_STRING")
+MONGO_CONNECTION_STRING = os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
+DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+
+if not CHANNEL_ACCESS_TOKEN:
+    logger.warning("CHANNEL_ACCESS_TOKEN not set — LINE messages will be skipped or fail.")
+
+if not os.getenv("MONGO_CONNECTION_STRING"):
+    logger.warning("MONGO_CONNECTION_STRING not set — defaulting to mongodb://localhost:27017")
 
 # --------------------------
 # DATABASE
 # --------------------------
-client = MongoClient(MONGO_CONNECTION_STRING)
-db = client.Test  # MongoDB database
+try:
+    client = MongoClient(MONGO_CONNECTION_STRING)
+    db = client[DB_NAME]
+    logger.info(f"Connected to MongoDB at {MONGO_CONNECTION_STRING}; using DB '{DB_NAME}'")
+except Exception as e:
+    logger.exception(f"Failed to create MongoClient: {e}")
+    # Fall back to an in-memory placeholder to avoid crashes during development
+    client = None
+    db = None
 
 # --------------------------
 # FASTAPI
@@ -58,9 +82,13 @@ app.add_middleware(
 def check_model_files():
     for market, path in MODEL_PATHS.items():
         if not os.path.exists(path):
-            trained_model(market, path)
+            logger.info(f"Model for {market} missing — training: {path}")
+            try:
+                trained_model(market, path)
+            except Exception:
+                logger.exception(f"Failed to train model for {market}")
         else:
-            print(f"{market} model found at {path}")
+            logger.info(f"{market} model found at {path}")
 
 
 # Route imports
@@ -70,141 +98,24 @@ app.include_router(line.router)
 from routes import predict
 app.include_router(predict.router)
 
-# --------------------------
-# LINE MESSAGE
-# --------------------------
-MAX_BUBBLES = 10
 
-def send_test_message(anomaly):
-    url = "https://api.line.me/v2/bot/message/push"
-    user_ids = db.subscriptions.distinct("lineId")
-
-    for uid in user_ids:
-        user_doc = db.subscriptions.find_one({"lineId": uid})
-        if not user_doc or "tickers" not in user_doc:
-            continue
-        user_tickers = set(user_doc["tickers"])
-        user_anomaly = anomaly[anomaly['Ticker'].isin(user_tickers)]
-        if user_anomaly.empty:
-            print(f"Skipping user {uid}: no matching anomalies")
-            continue
-
-        bubbles = []
-        for _, row in user_anomaly.iterrows():
-            # ensure datetime formatting is robust
-            dt_raw = row.get('Datetime') if hasattr(row, 'get') else None
-            try:
-                dt_str = pd.to_datetime(dt_raw).strftime('%Y-%m-%d %H:%M:%S') if dt_raw is not None else ''
-            except Exception:
-                dt_str = str(dt_raw)
-            bubble = {
-                "type": "bubble",
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": row.get('Ticker', ''), "weight": "bold", "size": "lg"},
-                        {"type": "text", "text": f"Date: {dt_str}"},
-                        {"type": "text", "text": f"Close: {row.get('Close', '')}"}
-                    ]
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "spacing": "sm",
-                    "contents": [
-                        {
-                            "type": "button",
-                            "style": "primary",
-                            "action": {
-                                "type": "uri",
-                                "label": "Open App",
-                                "uri": f"https://your-app-url.com/ticker/{row['Ticker']}"
-                            }
-                        },
-                        {
-                            "type": "button",
-                            "style": "secondary",
-                            "action": {
-                                "type": "uri",
-                                "label": "View Chart",
-                                "uri": f"https://finance.yahoo.com/quote/{row['Ticker']}"
-                            }
-                        }
-                    ]
-                }
-            }
-            bubbles.append(bubble)
-
-        for i in range(0, len(bubbles), MAX_BUBBLES):
-            batch = bubbles[i:i + MAX_BUBBLES]
-            flex_message = {
-                "type": "flex",
-                "altText": "Detected Stock Anomalies",
-                "contents": {"type": "carousel", "contents": batch}
-            }
-
-            payload = {"to": uid, "messages": [flex_message]}
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
-            }
-
-            try:
-                response = requests.post(url, headers=headers, data=json.dumps(payload))
-                response.raise_for_status()
-                print(f"✅ Flex message sent to {uid}, batch {i//MAX_BUBBLES + 1}")
-            except requests.exceptions.RequestException as e:
-                print(f"❌ Failed to send to {uid}: {e}")
-                if response is not None:
-                    print(f"API Response: {response.text}")
-
-# --------------------------
-# JOB
-# --------------------------
-def job():
-    print("Running scheduled job")
-    distinct_tickers = db.subscriptions.distinct("tickers")
-
-    for item in distinct_tickers:
-        # item may be a single ticker string or a list of tickers
-        if isinstance(item, (list, tuple)):
-            tickers_list = list(item)
-        else:
-            tickers_list = [item]
-
-        print(f"Checking anomalies for tickers: {tickers_list}")
-        try:
-            anomaly = detect_fraud(tickers_list, period="7d", interval="15m")
-        except Exception as e:
-            print(f"Error running detect_fraud for {tickers_list}: {e}")
-            continue
-
-        if anomaly is None or (hasattr(anomaly, 'empty') and anomaly.empty):
-            print(f"No anomalies detected for {tickers_list}")
-            continue
-
-        send_test_message(anomaly)
-
-    return schedule.CancelJob
 
 # --------------------------
 # SCHEDULER LOOP
 # --------------------------
-scheduler_thread = None
-scheduler_stop_event = threading.Event()
+from scheduler import combined_market_runner, scheduler_stop_event
 
 def _scheduler_loop(stop_event):
-    print("[scheduler] loop started")
+    logger.info("[scheduler] loop started")
     try:
         while not stop_event.is_set():
             try:
                 schedule.run_pending()
             except Exception as e:
-                print(f"[scheduler] run_pending error: {e}")
+                logger.exception(f"[scheduler] run_pending error: {e}")
             time.sleep(1)
     finally:
-        print("[scheduler] loop stopped")
+        logger.info("[scheduler] loop stopped")
 
 # --------------------------
 # FASTAPI EVENTS
@@ -212,20 +123,36 @@ def _scheduler_loop(stop_event):
 @app.on_event("startup")
 async def _on_startup():
     global scheduler_thread, scheduler_stop_event
+
+    # Clear old schedules
     schedule.clear()
-    # schedule.every(1).minutes.do(job)
+
+    # Add your combined market runner job
+    schedule.every(1).minutes.do(combined_market_runner)
 
     scheduler_stop_event.clear()
-    scheduler_thread = threading.Thread(target=_scheduler_loop, args=(scheduler_stop_event,), daemon=True)
+
+    # Start scheduler loop
+    scheduler_thread = threading.Thread(
+        target=_scheduler_loop,
+        args=(scheduler_stop_event,),
+        daemon=True
+    )
     scheduler_thread.start()
 
-    threading.Thread(target=check_model_files, daemon=True).start()
+    # ---- RUN MODEL CHECK ONCE HERE ----
+    try:
+        print("Running model file check...")
+        check_model_files()    
+        print("Model check complete.")
+    except Exception as e:
+        print(f"Model check error: {e}")
 
 @app.on_event("shutdown")
 async def _on_shutdown():
     global scheduler_thread, scheduler_stop_event
-    print('[shutdown] stopping scheduler...')
+    logger.info('[shutdown] stopping scheduler...')
     scheduler_stop_event.set()
     if scheduler_thread:
         scheduler_thread.join(timeout=5)
-    print('[shutdown] scheduler stopped')
+    logger.info('[shutdown] scheduler stopped')

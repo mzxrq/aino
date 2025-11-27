@@ -226,7 +226,7 @@ export default function AnomalyChart() {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lineID: user.userId, ticker }),
+            body: JSON.stringify({ lineId: user.userId, ticker }),
           }
         );
 
@@ -244,7 +244,7 @@ export default function AnomalyChart() {
   const handleSubscribe = async () => {
     setSubLoading(true);
 
-    const body = { lineID: user?.userId || "anonymous", tickers: [ticker] };
+    const body = { lineId: user?.userId || "anonymous", tickers: [ticker] };
 
     try {
       // Send a POST request to the backend
