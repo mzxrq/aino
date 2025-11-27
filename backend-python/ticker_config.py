@@ -44,9 +44,22 @@ class FraudRequest(BaseModel):
 # ---------------------------
 def group_by_ticker_to_json(df: pd.DataFrame) -> Dict[str, Dict]:
     result = {}
-    for ticker, group in df.groupby("Ticker"):
-        # Drop the 'Ticker' column from individual rows to avoid redundancy
-        group_no_ticker = group.drop(columns=["Ticker"], errors="ignore")
+    # tolerate either 'Ticker' or 'ticker' (or other casing)
+    ticker_col = None
+    for cand in ("Ticker", "ticker"):
+        if cand in df.columns:
+            ticker_col = cand
+            break
+    if ticker_col is None:
+        # fall back to case-insensitive search
+        cols_lower = {c.lower(): c for c in df.columns}
+        if "ticker" in cols_lower:
+            ticker_col = cols_lower["ticker"]
+    if ticker_col is None:
+        raise KeyError("group_by_ticker_to_json: dataframe missing 'Ticker' column")
+
+    for ticker, group in df.groupby(ticker_col):
+        group_no_ticker = group.drop(columns=[ticker_col], errors="ignore")
         rows = group_no_ticker.to_dict(orient="records")
         count = len(rows)
         result[ticker] = {
@@ -224,21 +237,29 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
             # Insert anomalies to DB only if not already present
             if db is not None and not anomalies.empty:
                 for _, row in anomalies.iterrows():
-                    if db.anomalies.count_documents({
-                        "ticker": row["Ticker"],
-                        "Datetime": row["Datetime"]
-                    }) == 0:
-                        db.anomalies.insert_one({
-                            "ticker": row["Ticker"],
-                            "Datetime": row["Datetime"],
-                            "Close": row["Close"],
-                            "sent": False
-                        })
+                    # tolerate 'Ticker' vs 'ticker' column names
+                    ticker_key = None
+                    if isinstance(row, dict):
+                        ticker_key = row.get("Ticker") or row.get("ticker")
+                    else:
+                        # pandas Series
+                        ticker_key = row.get("Ticker") if "Ticker" in row.index else None
+                        if ticker_key is None:
+                            ticker_key = row.get("ticker") if "ticker" in row.index else None
 
-                        db.tickers.update_one(
-                            {"ticker": row["ticker"]},
-                            {"$inc" : {"frequency": 1}},
-                        )
+                    if ticker_key is None:
+                        logging.warning("Anomaly row missing Ticker/ticker; skipping DB insert")
+                        continue
+
+                    query = {"ticker": ticker_key, "Datetime": row.get("Datetime") if isinstance(row, dict) else row.get("Datetime")}
+                    if db.anomalies.count_documents(query) == 0:
+                        doc = {
+                            "ticker": ticker_key,
+                            "Datetime": row.get("Datetime") if isinstance(row, dict) else row.get("Datetime"),
+                            "Close": row.get("Close") if isinstance(row, dict) else row.get("Close"),
+                            "sent": False
+                        }
+                        db.anomalies.insert_one(doc)
 
             all_anomalies.append(anomalies)
 
