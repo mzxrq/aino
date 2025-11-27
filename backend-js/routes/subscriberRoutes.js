@@ -6,7 +6,7 @@ const { optionalAuthenticate, requireAuth } = require('../middleware/authMiddlew
 // Routes
 router.get("/", optionalAuthenticate, controller.getAll);
 router.get("/me", requireAuth, controller.getMySubscriptions);
-router.get("/:lineID", controller.getOne);
+router.get("/:lineId", controller.getOne);
 router.post("/status", controller.status);
 router.post("/", controller.addOrUpdate);
 router.delete("/", controller.removeTickers);

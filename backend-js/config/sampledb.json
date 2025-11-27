@@ -18,7 +18,7 @@ db.users.insertMany([
 // Subscribers collection
 db.subscribers.insertMany([
     {
-        "lineID": "U1234567890abcdef1234567890abcdef",
+        "lineId": "U1234567890abcdef1234567890abcdef",
         "tickers": [
             "AAPL",
             "GOOGL",
@@ -26,7 +26,7 @@ db.subscribers.insertMany([
         ]
     },
     {
-        "lineID": "Uabcdef1234567890abcdef1234567890",
+        "lineId": "Uabcdef1234567890abcdef1234567890",
         "tickers": [
             "TSLA",
             "AMZN"

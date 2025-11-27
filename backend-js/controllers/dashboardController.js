@@ -11,7 +11,6 @@ const getAllDashboard = async (req, res) => {
     const collection = db.collection("tickers");
 
     const allTickers = await collection.find().toArray();
-    console.log("All tickers:", allTickers);
 
     const formatted = allTickers.map(t => ({
       ticker: t.ticker,
@@ -31,13 +30,13 @@ const getAllDashboard = async (req, res) => {
 // GET DASHBOARD FOR 1 USER
 const getDashboard = async (req, res) => {
   try {
-    const { lineID } = req.params;
+    const { lineId } = req.params;
 
-    if (!lineID) {
-      return res.status(400).json({ message: "lineID is required" });
+    if (!lineId) {
+      return res.status(400).json({ message: "lineId is required" });
     }
 
-    const subscriber = await subscriberService.getSubscriber(lineID);
+    const subscriber = await subscriberService.getSubscriber(lineId);
     if (!subscriber) return res.status(404).json({ message: "Subscriber not found" });
 
     const tickers = subscriber.tickers || [];

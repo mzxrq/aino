@@ -6,6 +6,6 @@ const { getAllDashboard, getDashboard } = require("../controllers/dashboardContr
 router.get("/all", getAllDashboard);
 
 // GET dashboard for one user
-router.get("/:lineID", getDashboard);
+router.get("/:lineId", getDashboard);
 
 module.exports = router;
