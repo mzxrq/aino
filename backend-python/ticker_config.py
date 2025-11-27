@@ -196,6 +196,14 @@ def preprocess_market_data(tickers ,period: str = "1mo", interval: str = "15m"):
     from train import load_dataset, data_preprocessing
 
     df = load_dataset(tickers, period=period, interval=interval)
+
+    # Defensive: collapse duplicate/repeated columns that can appear when
+    # concatenating or reusing DataFrames across scheduler runs.
+    try:
+        df = _collapse_duplicate_columns(df)
+    except Exception:
+        logging.debug("preprocess_market_data: collapse duplicate columns failed; proceeding with original df")
+
     process_data = data_preprocessing(df)
 
     return process_data
@@ -207,10 +215,14 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
     all_anomalies = []
 
     for ticker in tickers:
+        df = None
+        X = None
+        preds = None
+        anomalies = None
         try:
             # Load preprocessed dataset for single ticker
             df = preprocess_market_data([ticker], period=period, interval=interval)
-            if df.empty:
+            if df is None or df.empty:
                 continue
 
             # Choose model
@@ -228,6 +240,13 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
                 "RSI","MACD","MACD_hist",
                 "VWAP","body","upper_wick","lower_wick","wick_ratio"
             ]
+
+            # Defensive: ensure feature columns exist
+            missing = [c for c in feature_cols if c not in df.columns]
+            if missing:
+                logging.warning("Missing feature columns for %s: %s", ticker, missing)
+                continue
+
             X = df[feature_cols]
             preds = model.predict(X)
             df["Prediction"] = [classes[int(i)] for i in preds]
@@ -235,7 +254,7 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
             anomalies = df[df["Prediction"] != "No Anomaly"]
 
             # Insert anomalies to DB only if not already present
-            if db is not None and not anomalies.empty:
+            if db is not None and anomalies is not None and not anomalies.empty:
                 for _, row in anomalies.iterrows():
                     # tolerate 'Ticker' vs 'ticker' column names
                     ticker_key = None
@@ -261,10 +280,31 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
                         }
                         db.anomalies.insert_one(doc)
 
-            all_anomalies.append(anomalies)
+            all_anomalies.append(anomalies if anomalies is not None else pd.DataFrame())
 
         except Exception as e:
             logging.exception(f"Error detecting fraud for ticker {ticker}: {e}")
+        finally:
+            # Clear large local variables and force garbage collection to avoid
+            # state or memory carrying over into the next scheduler loop.
+            try:
+                del df
+            except Exception:
+                pass
+            try:
+                del X
+            except Exception:
+                pass
+            try:
+                del preds
+            except Exception:
+                pass
+            try:
+                del anomalies
+            except Exception:
+                pass
+            import gc
+            gc.collect()
 
     if all_anomalies:
         return pd.concat(all_anomalies, ignore_index=True)
