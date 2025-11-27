@@ -1,19 +1,26 @@
-import json
 import requests
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
-import os
+import json
 import pandas as pd
-from main import logger, db, CHANNEL_ACCESS_TOKEN
-
-load_dotenv()
-
-# --------------------------
-# LINE MESSAGE
-# --------------------------
-MAX_BUBBLES = 10
+from main import db, logger, CHANNEL_ACCESS_TOKEN
 
 def send_test_message(anomaly):
+
+
+    # Ensure anomaly is always a DataFrame
+    if isinstance(anomaly, dict):
+        anomaly = pd.DataFrame([anomaly])
+    elif isinstance(anomaly, pd.Series):
+        anomaly = pd.DataFrame([anomaly])
+    elif isinstance(anomaly, list):
+        anomaly = pd.DataFrame(anomaly)
+    elif not isinstance(anomaly, pd.DataFrame):
+        logger.warning("send_test_message: anomaly not a DataFrame, dict, or Series")
+        return
+
+    if anomaly.empty:
+        logger.info("No anomalies to send")
+        return
+
     url = "https://api.line.me/v2/bot/message/push"
     user_ids = db.subscribers.distinct("lineId")
 
@@ -22,28 +29,30 @@ def send_test_message(anomaly):
         if not user_doc or "tickers" not in user_doc:
             continue
         user_tickers = set(user_doc["tickers"])
-        user_anomaly = anomaly[anomaly['Ticker'].isin(user_tickers)]
+
+        # Filter anomalies relevant to this user
+        user_anomaly = anomaly[anomaly['ticker'].isin(user_tickers)]
         if user_anomaly.empty:
             logger.info(f"Skipping user {uid}: no matching anomalies")
             continue
 
         bubbles = []
         for _, row in user_anomaly.iterrows():
-            # ensure datetime formatting is robust
             dt_raw = row.get('Datetime') if hasattr(row, 'get') else None
             try:
-                dt_str = pd.to_datetime(dt_raw).strftime('%Y-%m-%d %H:%M:%S') if dt_raw is not None else ''
+                dt_str = pd.to_datetime(dt_raw).strftime('%Y-%m-%d %H:%M:%S') if dt_raw else ''
             except Exception:
                 dt_str = str(dt_raw)
+
             bubble = {
                 "type": "bubble",
                 "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": row.get('Ticker', ''), "weight": "bold", "size": "lg"},
+                        {"type": "text", "text": row.get('ticker', ''), "weight": "bold", "size": "lg"},
                         {"type": "text", "text": f"Date: {dt_str}"},
-                        {"type": "text", "text": f"Close: {row.get('Close', '')}"}
+                        {"type": "text", "text": f"Close: {row.get('Close', ''):.2f}"},
                     ]
                 },
                 "footer": {
@@ -57,7 +66,7 @@ def send_test_message(anomaly):
                             "action": {
                                 "type": "uri",
                                 "label": "Open App",
-                                "uri": f"https://your-app-url.com/ticker/{row['Ticker']}"
+                                "uri": f"https://your-app-url.com/ticker/{row['ticker']}"
                             }
                         },
                         {
@@ -66,7 +75,7 @@ def send_test_message(anomaly):
                             "action": {
                                 "type": "uri",
                                 "label": "View Chart",
-                                "uri": f"https://finance.yahoo.com/quote/{row['Ticker']}"
+                                "uri": f"https://finance.yahoo.com/quote/{row['ticker']}"
                             }
                         }
                     ]
@@ -74,6 +83,8 @@ def send_test_message(anomaly):
             }
             bubbles.append(bubble)
 
+        # Send in batches of 10
+        MAX_BUBBLES = 10
         for i in range(0, len(bubbles), MAX_BUBBLES):
             batch = bubbles[i:i + MAX_BUBBLES]
             flex_message = {
@@ -104,8 +115,3 @@ def send_test_message(anomaly):
                         logger.error(f"API Response: {resp.text}")
                     except Exception:
                         logger.debug("Could not read response text")
-                elif getattr(e, 'response', None) is not None:
-                    try:
-                        logger.error(f"API Response: {e.response.text}")
-                    except Exception:
-                        logger.debug("Could not read exception response text")

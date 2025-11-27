@@ -12,9 +12,22 @@ const getAllDashboard = async (req, res) => {
 
     const allTickers = await collection.find().toArray();
 
-    const formatted = allTickers.map(t => ({
+    const frequencyCollection = db.collection("anomalies");
+
+    const frequencyData = await frequencyCollection
+      .aggregate([
+        { $match: { ticker: { $in: allTickers.map((t) => t.ticker) } } },
+        { $group: { _id: "$ticker", frequency: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    // Get numbers only
+    const counts = frequencyData.map((item) => item.frequency);
+
+
+    const formatted = allTickers.map((t) => ({
       ticker: t.ticker,
-      frequency: t.frequency ?? 0,
+      frequency: counts ?? 0,
       status: t.status ?? "Unknown",
     }));
 
@@ -24,8 +37,6 @@ const getAllDashboard = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
 
 // GET DASHBOARD FOR 1 USER
 const getDashboard = async (req, res) => {
@@ -37,7 +48,8 @@ const getDashboard = async (req, res) => {
     }
 
     const subscriber = await subscriberService.getSubscriber(lineId);
-    if (!subscriber) return res.status(404).json({ message: "Subscriber not found" });
+    if (!subscriber)
+      return res.status(404).json({ message: "Subscriber not found" });
 
     const tickers = subscriber.tickers || [];
 
@@ -46,14 +58,10 @@ const getDashboard = async (req, res) => {
 
     // Return array directly
     return res.status(200).json(dashboardData);
-
   } catch (error) {
     console.error("dashboard error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
-
 
 module.exports = { getAllDashboard, getDashboard };

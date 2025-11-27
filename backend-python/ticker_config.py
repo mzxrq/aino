@@ -88,61 +88,70 @@ def preprocess_market_data(tickers ,period: str = "1mo", interval: str = "15m"):
 
     return process_data
 
-def detect_fraud(data,period: str = "1mo", interval: str = "15m") :
-    # Step 1: Preprocess the data
-    processed_data = preprocess_market_data(data, period=period, interval=interval)
+def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: str = "15m") -> pd.DataFrame:
+    if isinstance(tickers, str):
+        tickers = [tickers]
 
-    feature_cols = [
-    "return_1","return_3","return_6",
-    "zscore_20","ATR_14","bb_width",
-    "RSI","MACD","MACD_hist",
-    "VWAP","body","upper_wick","lower_wick","wick_ratio"
-]
+    all_anomalies = []
 
-    X = processed_data[feature_cols]
-
-    # If no data, return empty DataFrame early
-    if processed_data.empty:
-        return processed_data
-
-    # Prepare array to collect predictions for each row
-    preds = np.empty(len(processed_data), dtype=int)
-
-    # Predict per-ticker group so we can use the correct model for each
-    for ticker, group in processed_data.groupby("Ticker"):
-        idx = group.index
-        Xi = X.loc[idx]
-
-        # choose model by ticker suffix
-        if isinstance(ticker, str) and ticker.endswith(".T"):
-            model = jp_model
-        elif isinstance(ticker, str) and ticker.endswith(".BK"):
-            model = th_model
-        else:
-            model = us_model
-
+    for ticker in tickers:
         try:
-            pred_i = model.predict(Xi)
-        except Exception:
-            # if prediction fails for a group, mark as 1 (No Anomaly) conservatively
-            pred_i = np.array([1] * len(Xi))
+            # Load dataset for single ticker
+            df = load_dataset([ticker], period=period, interval=interval)
+            if df.empty:
+                continue
 
-        preds[idx] = pred_i
-    # Map numeric predictions to labels using the classes dict
-    processed_data["Prediction"] = [classes[int(i)] for i in preds]
+            df = df.reset_index()
+            df = data_preprocessing(df)
 
-    # Keep only anomalous rows (not 'No Anomaly')
-    processed_data = processed_data[processed_data["Prediction"] != "No Anomaly"]
+            if df.empty:
+                continue
 
-    # Insert to anomaly collection in MongoDB
-    if db is not None:
-        try:
-            for _, row in processed_data.iterrows():
-                db.anomalies.insert_one({
-                    "ticker": row["Ticker"],
-                    "Datetime": row["Datetime"],
-                    "price": row["Close"],
-                })
+            # Choose model
+            if ticker.endswith(".T"):
+                model = jp_model
+            elif ticker.endswith(".BK"):
+                model = th_model
+            else:
+                model = us_model
+
+            # Predict
+            feature_cols = [
+                "return_1","return_3","return_6",
+                "zscore_20","ATR_14","bb_width",
+                "RSI","MACD","MACD_hist",
+                "VWAP","body","upper_wick","lower_wick","wick_ratio"
+            ]
+            X = df[feature_cols]
+            preds = model.predict(X)
+            df["Prediction"] = [classes[int(i)] for i in preds]
+
+            anomalies = df[df["Prediction"] != "No Anomaly"]
+
+            # Insert anomalies to DB only if not already present
+            if db is not None and not anomalies.empty:
+                for _, row in anomalies.iterrows():
+                    if db.anomalies.count_documents({
+                        "ticker": row["Ticker"],
+                        "Datetime": row["Datetime"]
+                    }) == 0:
+                        db.anomalies.insert_one({
+                            "ticker": row["Ticker"],
+                            "Datetime": row["Datetime"],
+                            "Close": row["Close"],
+                            "sent": False
+                        })
+
+                        db.tickers.update_one(
+                            {"ticker": row["ticker"]},
+                            {"$inc" : {"frequency": 1}},
+                        )
+
+            all_anomalies.append(anomalies)
+
         except Exception as e:
-            sys.exception(f"Failed to insert anomalies into MongoDB: {e}")
-    return processed_data
+            logging.exception(f"Error detecting fraud for ticker {ticker}: {e}")
+
+    if all_anomalies:
+        return pd.concat(all_anomalies, ignore_index=True)
+    return pd.DataFrame()

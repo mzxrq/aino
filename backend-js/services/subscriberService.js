@@ -36,7 +36,7 @@ const addOrUpdateSubscriber = async (lineId, tickers, userId = null) => {
       });
       await tickerCollection.updateMany(
         { ticker: { $in: tickers } },
-        { $setOnInsert: { frequency: 0, status: "Active" } },
+        { $setOnInsert: { status: "Active" } },
         { upsert: true }
       );
       return { message: "Subscriber tickers updated", tickers: updatedTickers };
@@ -44,7 +44,7 @@ const addOrUpdateSubscriber = async (lineId, tickers, userId = null) => {
       await collection.insertOne({ lineId, tickers, userId });
       await tickerCollection.updateMany(
         { ticker: { $in: tickers } },
-        { $setOnInsert: { frequency: 0, status: "Active" } },
+        { $setOnInsert: { status: "Active" } },
         { upsert: true }
       );
       return { message: "Subscriber added", tickers };
