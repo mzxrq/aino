@@ -7,14 +7,13 @@ from sklearn.ensemble import IsolationForest
 import joblib
 
 from resource.stocklist import MARKET_SYMBOLS
+from ticker_config import preprocess_market_data
 
 
 def trained_model(market, path):
     missing_model = MARKET_SYMBOLS[market]
     # Load dataset
-    train_data = load_dataset(missing_model)
-
-    process_data = data_preprocessing(train_data)
+    process_data = preprocess_market_data(missing_model)
 
     features = [
         "return_1", "return_3", "return_6",

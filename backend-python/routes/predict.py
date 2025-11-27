@@ -79,7 +79,7 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
     # Fetch stored anomalies from DB if available
     try:
         anomalies_cursor = db.anomalies.find({"ticker": {"$in": tickers}}) if db is not None else []
-        anomalies = pd.DataFrame(list(anomalies_cursor), columns=['ticker', 'Datetime', 'price'])
+        anomalies = pd.DataFrame(list(anomalies_cursor), columns=['ticker', 'Datetime', 'close'])
     except Exception:
         anomalies = pd.DataFrame()
 
@@ -125,8 +125,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         # align anomalies to the same Datetime strings
         anomaly_markers['dates'] = anomalies['Datetime'].astype(str).tolist()
         # prefer using Close as y value if present
-        if 'price' in anomalies.columns:
-            anomaly_markers['y_values'] = anomalies['price'].tolist()
+        if 'close' in anomalies.columns:
+            anomaly_markers['y_values'] = anomalies['close'].tolist()
         else:
             anomaly_markers['y_values'] = [None] * len(anomaly_markers['dates'])
 

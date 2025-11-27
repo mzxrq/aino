@@ -1,9 +1,21 @@
 import requests
 import json
 import pandas as pd
-from main import db, logger, CHANNEL_ACCESS_TOKEN
+import logging
+
+# Avoid importing `main` at module import time (circular import). We'll import
+# `db` and `CHANNEL_ACCESS_TOKEN` lazily inside the function and use the
+# module logger.
+logger = logging.getLogger("stock-dashboard.backend-python")
 
 def send_test_message(anomaly):
+
+    # Lazy import to avoid circular import
+    try:
+        from main import db, CHANNEL_ACCESS_TOKEN
+    except Exception:
+        db = None
+        CHANNEL_ACCESS_TOKEN = None
 
 
     # Ensure anomaly is always a DataFrame

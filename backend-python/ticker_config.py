@@ -11,8 +11,6 @@ import sys
 import os
 import logging
 
-from train import load_dataset, data_preprocessing
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -82,7 +80,108 @@ def compute_RSI(data, window=14):
     return rsi
 
 
+def _norm_col(s: str) -> str:
+    return str(s).strip().lower().replace("_", " ")
+
+
+def _collapse_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse duplicate or repeated columns into a single canonical column.
+
+    Handles cases where the same logical column appears multiple times (e.g. due to
+    concatenation or repeated exports). Picks the column with the most non-null
+    numeric values for numeric fields. Returns a new DataFrame with canonical
+    column names like 'Datetime','Adj Close','Close','High','Low','Open','Volume','Ticker'.
+    """
+    if not isinstance(df, pd.DataFrame):
+        return df
+
+    orig_cols = list(df.columns)
+    norm_map = {}
+    for idx, col in enumerate(orig_cols):
+        norm = _norm_col(col)
+        norm_map.setdefault(norm, []).append(idx)
+
+    # canonical normalized names -> display name
+    canon = {
+        "datetime": "Datetime",
+        "adj close": "Adj Close",
+        "close": "Close",
+        "high": "High",
+        "low": "Low",
+        "open": "Open",
+        "volume": "Volume",
+        "ticker": "Ticker",
+        "index": "index",
+    }
+
+    new_cols = {}
+
+    for nname, display in canon.items():
+        matches = norm_map.get(nname, [])
+        if not matches:
+            continue
+        if len(matches) > 1:
+            logging.info(f"Found duplicate columns for '{display}': { [orig_cols[i] for i in matches] }")
+
+        # Choose the best candidate: prefer the column with most non-null numeric values
+        best_idx = matches[0]
+        best_count = -1
+        for i in matches:
+            try:
+                col_series = df.iloc[:, i]
+                # coerce to numeric for counting non-nulls for numeric fields
+                if nname in ("adj close", "close", "high", "low", "open", "volume"):
+                    numeric = pd.to_numeric(col_series, errors="coerce")
+                    count = int(numeric.notna().sum())
+                else:
+                    count = int(col_series.notna().sum())
+            except Exception:
+                count = 0
+            if count > best_count:
+                best_count = count
+                best_idx = i
+
+        # assign chosen column
+        new_cols[display] = df.iloc[:, best_idx].copy()
+
+    # Build result dataframe starting from collapsed canonical columns
+    res = pd.DataFrame()
+    for display, series in new_cols.items():
+        # Cast numeric-like columns to numeric
+        if display in ("Adj Close", "Close", "High", "Low", "Open", "Volume"):
+            res[display] = pd.to_numeric(series, errors="coerce")
+        elif display == "Datetime":
+            res[display] = pd.to_datetime(series, errors="coerce")
+        else:
+            res[display] = series
+
+    # Add any other columns that were not part of canonical set, keeping first occurrence
+    used_idxs = set()
+    for col in res.columns:
+        # mark used original column indices so we don't duplicate them
+        for i, oc in enumerate(orig_cols):
+            if _norm_col(oc) == _norm_col(col) and i not in used_idxs:
+                used_idxs.add(i)
+                break
+
+    for i, oc in enumerate(orig_cols):
+        if i in used_idxs:
+            continue
+        # avoid adding duplicate-normed columns that we already collapsed
+        if _norm_col(oc) in canon:
+            continue
+        # otherwise add the first unseen occurrence of the column
+        if oc in res.columns:
+            continue
+        res[oc] = df.iloc[:, i]
+
+    return res
+
+
 def preprocess_market_data(tickers ,period: str = "1mo", interval: str = "15m"):
+    # Lazy import to avoid circular imports at module import time
+    from train import load_dataset, data_preprocessing
+
     df = load_dataset(tickers, period=period, interval=interval)
     process_data = data_preprocessing(df)
 
@@ -96,14 +195,8 @@ def detect_fraud(tickers: Union[str, List[str]], period: str = "1mo", interval: 
 
     for ticker in tickers:
         try:
-            # Load dataset for single ticker
-            df = load_dataset([ticker], period=period, interval=interval)
-            if df.empty:
-                continue
-
-            df = df.reset_index()
-            df = data_preprocessing(df)
-
+            # Load preprocessed dataset for single ticker
+            df = preprocess_market_data([ticker], period=period, interval=interval)
             if df.empty:
                 continue
 

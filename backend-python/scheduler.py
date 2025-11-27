@@ -5,7 +5,10 @@ from datetime import datetime, time as dtime
 
 import pytz
 import pandas as pd
-from main import db, logger
+import logging
+
+# Use module logger instead of importing from main to avoid circular import
+logger = logging.getLogger("stock-dashboard.backend-python")
 from ticker_config import detect_fraud
 from message import send_test_message
 
@@ -34,9 +37,9 @@ MARKETS = {
     "TH": {
         "open1": dtime(10, 0),
         "close1": dtime(12, 30),
-        "open2": dtime(14, 30),
+        "open2": dtime(13, 30),
         "close2": dtime(16, 30),
-        "tz": pytz.timezone("Asia/Bangkok"),
+        "tz": pytz.timezone("Asia/Tokyo"),
     }
 }
 
@@ -63,6 +66,12 @@ def get_market_for_ticker(ticker: str):
 # Job function per market
 # --------------------------
 def job_for_market(market_name: str):
+    # lazy import of db to avoid circular import at module import time
+    try:
+        from main import db
+    except Exception:
+        db = None
+
     if db is None:
         logger.warning("No DB connection; skipping job")
         return
