@@ -44,9 +44,23 @@
   cursor: pointer;
 }
 
+.navbar-pin-toggle {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.navbar-pin-toggle:hover { transform: scale(1.15); }
+
 /* Light/dark aware styles */
 body.dark .navbar {
-  background: #061025;
+  background: linear-gradient(135deg, #0f1729 0%, #1a2a47 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 body.dark .nav-link,
@@ -71,6 +85,11 @@ body.dark .btn-login {
   color: #333;
 }
 
+body.dark .btn-outline {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #E6EEF8;
+}
+
 .menu-toggle {
   display: none;
   font-size: 20px;
@@ -79,6 +98,55 @@ body.dark .btn-login {
   border: none;
   cursor: pointer;
 }
+
+/* Profile avatar */
+.profile-avatar-link img.profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.12);
+}
+.profile-avatar-placeholder {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #2b2b2b;
+  color: #fff;
+  font-weight: 600;
+}
+
+body.dark .profile-avatar-placeholder {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Collapsed navbar behavior (desktop) */
+.navbar.collapsed {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border-radius: 999px;
+  width: calc(100% - 120px);
+  max-width: 980px;
+  transition: all 260ms cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(6px);
+}
+
+body.dark .navbar.collapsed {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.navbar.collapsed .nav-links { display: none; }
+.navbar.collapsed .nav-actions { display: flex; gap: 8px; }
+.navbar.expanded { transition: all 220ms ease; padding: 14px 24px; }
+
+/* small-screen behavior preserved */
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -97,6 +165,10 @@ body.dark .btn-login {
     padding: 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+  }
+
+  body.dark .nav-links {
+    background: linear-gradient(135deg, #0f1729 0%, #1a2a47 100%);
   }
 
   .nav-links.open {

@@ -1,73 +1,101 @@
 // src/pages/Home.jsx
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 
+const SAMPLE_ANOMALIES = [
+  { id: '1', ticker: 'TICK', company: 'CompanyName', price: 3768, change: -2.3, anomalies: 1 },
+  { id: '2', ticker: 'ABCD', company: 'Another Co', price: 3785, change: 1.2, anomalies: 2 },
+  { id: '3', ticker: 'XYZA', company: 'Xyza Ltd', price: 2585, change: 0.8, anomalies: 1 },
+  { id: '4', ticker: 'LMNO', company: 'Lmno Plc', price: 1968, change: -0.6, anomalies: 3 }
+];
+
+const SAMPLE_NEWS = [
+  { id: 1, title: 'Market tumbles as tech stocks correct sharply', source: 'Daily Finance' },
+  { id: 2, title: 'Oil prices push energy sector higher', source: 'Global News' },
+  { id: 3, title: 'Central bank signals rate pause', source: 'MarketWatch' }
+];
+
 export default function Home() {
+  const navigate = useNavigate();
+
   return (
     <div className="home-container">
-
-      {/* --- Hero Section --- */}
-      <section className="hero-section">
-
+      {/* Hero Section - Appears First */}
+      <section className="hero-section-full">
         <div className="hero-content">
-          <h1 className="hero-title">
-            Securities Trading <br />
-            <span>Anomalies</span> Detection
-          </h1>
-          <p className="hero-subtitle">
-            {/* Harness the power of Unsupervised AI to identify unusual trading patterns across multiple stock markets. */}
-          </p>
-          <div className="hero-buttons" style={{ display: 'flex', gap: '8px' }}>
-            <Link to="/chart" className="btn btn-primary">View Demo Chart</Link>
+          <h1 className="hero-title">Stock Trading<br/><span>Anomaly</span> Detector</h1>
+          <p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p>
+          <div className="hero-buttons">
+            <button className="btn btn-primary" onClick={() => navigate('/chart', { state: { ticker: SAMPLE_ANOMALIES[0].ticker } })}>View Demo Chart</button>
             <Link to="/login" className="btn btn-line">Login with LINE</Link>
           </div>
-        </div>
-
-        {/* Right: Visual/Image */}
-        <div className="hero-image-container">
-          <div className="hero-placeholder">
-            {/* Simple CSS Graphic representing a chart */}
-            <div className="hero-chart-graphic">
-              <div className="bar" style={{ height: '40%' }}></div>
-              <div className="bar" style={{ height: '60%' }}></div>
-              <div className="bar" style={{ height: '45%' }}></div>
-              <div className="bar active" style={{ height: '80%' }}></div>
-              <div className="bar" style={{ height: '55%' }}></div>
-              <div className="bar alert" style={{ height: '80%' }}></div> {/* The Anomaly */}
-              <div className="bar" style={{ height: '30%' }}></div>
-            </div>
-          </div>
+          <p className="guest-link">or view as <Link to="#">guest mode</Link></p>
         </div>
       </section>
 
-      {/* --- Features Grid --- */}
-      {/* <section className="features-section">
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">📈</div>
-            <h3 className="feature-title">Multi-Market Support</h3>
-            <p className="feature-desc">
-              Seamlessly track stocks across NASDAQ, NYSE, Tokyo Stock Exchange (TSE), and the Stock Exchange of Thailand (SET).
-            </p>
+      {/* Anomalies and News Grid */}
+      <div className="homepage-grid">
+        <div className="left-column">
+          <div className="card anomaly-card">
+            <div className="card-header">
+              <h3>Recent anomaly found</h3>
+              <Link to="#" className="show-more">Show more ›</Link>
+            </div>
+            <div className="card-body">
+              {SAMPLE_ANOMALIES.map(a => (
+                <div key={a.id} className="anomaly-row">
+                  <div className="logo-circle" aria-hidden></div>
+                  <div className="anomaly-meta">
+                    <div className="ticker">{a.ticker}</div>
+                    <div className="company">{a.company}</div>
+                  </div>
+                  <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
+                    {a.change < 0 ? '↓' : '↑'} ¥{a.price.toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                  </div>
+                  <div className="anomaly-count">Found {a.anomalies} anml</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="feature-card">
-            <div className="feature-icon">🤖</div>
-            <h3 className="feature-title">Unsupervised AI</h3>
-            <p className="feature-desc">
-              Powered by Isolation Forest algorithms to detect multidimensional anomalies in Price, Volume, and Volatility.
-            </p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">💬</div>
-            <h3 className="feature-title">LINE Notifications</h3>
-            <p className="feature-desc">
-              Never miss a beat. Receive push notifications directly to your LINE app whenever a subscribed stock triggers an alert.
-            </p>
+
+          <div className="card anomaly-card">
+            <div className="card-header">
+              <h3>Previous sig. anomaly found</h3>
+              <Link to="#" className="show-more">Show more ›</Link>
+            </div>
+            <div className="card-body">
+              {SAMPLE_ANOMALIES.map(a => (
+                <div key={a.id} className="anomaly-row">
+                  <div className="logo-circle"></div>
+                  <div className="anomaly-meta">
+                    <div className="ticker">{a.ticker}</div>
+                    <div className="company">{a.company}</div>
+                  </div>
+                  <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
+                    {a.change < 0 ? '↓' : '↑'} ¥{a.price.toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                  </div>
+                  <div className="anomaly-count">Found {a.anomalies} anml</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </section> */}
 
+        <div className="right-column">
+          <div className="news-card card">
+            <h4>Top News</h4>
+            <ul className="news-list">
+              {SAMPLE_NEWS.map(n => (
+                <li key={n.id} className="news-item">
+                  <div className="news-title">{n.title}</div>
+                  <div className="news-source">{n.source}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

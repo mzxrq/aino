@@ -8,6 +8,16 @@
   --primary: var(--primary-btn);
   --accent: var(--line-btn);
   --danger: #DC2626;
+  /* Global design tokens used across components */
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 10px 30px rgba(2,6,23,0.08);
+  --border-color: #e5e7eb;
+  --hover-bg: #f8fafc;
+  --muted: #6b7280;
+  --input-bg: #FFFFFF;
+  --focus-color: #3b82f6;
+  /* navbar offset used to keep fixed navbar from overlapping content */
+  --nav-height: 72px;
 }
 
 body {
@@ -42,6 +52,10 @@ body.dark {
   --input-bg: rgba(255, 255, 255, 0.03);
   --input-border: rgba(255, 255, 255, 0.06);
   --focus-color: rgba(99, 102, 241, 0.7);
+  /* map search/card tokens to dark-mode variants */
+  --card-bg: var(--bg-secondary);
+  --border-color: var(--card-border);
+  --hover-bg: rgba(255,255,255,0.02);
 }
 
 /* Smooth transition for theme changes */
