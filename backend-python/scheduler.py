@@ -1,60 +1,79 @@
-# scheduler.py
+import datetime
+import logging
+import os
 import threading
 import time
-from datetime import datetime, time as dtime
-
+from dotenv import load_dotenv
+from pymongo import MongoClient
 import pytz
 import pandas as pd
-import logging
 
-logger = logging.getLogger("stock-dashboard.backend-python")
-
-from ticker_config import detect_fraud
+# Local imports
 from message import send_test_message
+from train import detect_anomalies
 
-# --------------------------
-# Scheduler globals
-# --------------------------
-scheduler_thread = None
+# ==============================
+# Load Environment
+# ==============================
+load_dotenv()
+
+MONGO_DB_URI = os.getenv("MONGO_DB_URI")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
+
+# MongoDB connection
+try:
+    client = MongoClient(MONGO_DB_URI, serverSelectionTimeoutMS=5000)
+    client.admin.command('ping')
+    db = client[MONGO_DB_NAME]
+    print("MongoDB connected")
+except Exception as e:
+    db = None
+    print(f"MongoDB connection failed: {e}")
+
+# Logger
+logger = logging.getLogger("stock-dashboard")
+logging.basicConfig(level=logging.INFO)
+
+# Scheduler control
 scheduler_stop_event = threading.Event()
 
-# --------------------------
-# Market definitions
-# --------------------------
+# ==============================
+# Market Hours Configuration
+# ==============================
 MARKETS = {
     "US": {
-        "open1": dtime(9, 30),
-        "close1": dtime(16, 0),
-        "tz": pytz.timezone("America/New_York"),
+        "sessions": [("09:30", "16:00")],
+        "tz": "Asia/Tokyo",
     },
     "JP": {
-        "open1": dtime(9, 0),
-        "close1": dtime(11, 30),
-        "open2": dtime(12, 30),
-        "close2": dtime(18, 0),
-        "tz": pytz.timezone("Asia/Tokyo"),
+        "sessions": [("09:00", "11:30"), ("12:30", "18:00")],
+        "tz": "Asia/Tokyo",
     },
     "TH": {
-        "open1": dtime(10, 0),
-        "close1": dtime(12, 30),
-        "open2": dtime(13, 30),
-        "close2": dtime(16, 30),
-        "tz": pytz.timezone("Asia/Bangkok"),
+        "sessions": [("8:00", "12:30"), ("13:30", "16:30")],
+        "tz": "Asia/Tokyo",
     }
 }
 
-# --------------------------
-# Helpers
-# --------------------------
+# Convert strings → datetime.time objects with pytz timezone
+for market_name, market in MARKETS.items():
+    market["tz"] = pytz.timezone(market["tz"])
+    converted_sessions = []
+    for start_str, end_str in market["sessions"]:
+        h1, m1 = map(int, start_str.split(":"))
+        h2, m2 = map(int, end_str.split(":"))
+        converted_sessions.append((datetime.time(h1, m1), datetime.time(h2, m2)))
+    market["sessions"] = converted_sessions
+
+# ==============================
+# Helper Functions
+# ==============================
 def _is_open(now, market):
     t = now.time()
-    o1, c1 = market["open1"], market["close1"]
-    o2, c2 = market.get("open2"), market.get("close2")
-
-    if o2 and c2:
-        return (o1 <= t <= c1) or (o2 <= t <= c2)
-    return o1 <= t <= c1
-
+    for o, c in market["sessions"]:
+        if o <= t <= c:
+            return True
+    return False
 
 def get_market_for_ticker(ticker: str):
     if ticker.endswith(".T"):
@@ -63,106 +82,87 @@ def get_market_for_ticker(ticker: str):
         return "TH"
     return "US"
 
-
-# --------------------------
-# Market job function
-# --------------------------
+# ==============================
+# Market Job Functions
+# ==============================
 def job_for_market(market_name: str):
-    """Runs anomaly detection for all tickers of a specific market."""
-    logger.info(f"Running market job: {market_name}")
-
-    try:
-        from main import db
-    except Exception:
-        db = None
-
+    logger.info(f"Running job for {market_name}")
+    
     if db is None:
-        logger.warning("DB unavailable, skipping market job.")
+        logger.warning("Database not available, skipping job")
         return
-
+    
     subscribers = db.get_collection("subscribers")
     all_tickers = subscribers.distinct("tickers")
-
-    tickers = []
-    for t in all_tickers:
-        if isinstance(t, (list, tuple)):
-            tickers.extend(t)
-        else:
-            tickers.append(t)
-
-    # Filter by market
+    
+    # Flatten tickers
+    tickers = [
+        t
+        for sublist in all_tickers
+        for t in (sublist if isinstance(sublist, (list, tuple)) else [sublist])
+    ]
+    
+    # Filter tickers for the given market
     market_tickers = [t for t in tickers if get_market_for_ticker(t) == market_name]
-
+    
     if not market_tickers:
         logger.info(f"No subscribed tickers for {market_name}")
         return
-
-    # Run detection
+    
     try:
-        anomaly_df = detect_fraud(market_tickers, period="7d", interval="15m")
+        anomaly_df = detect_anomalies(tickers, period="7d", interval="15m")
+        print(anomaly_df)
     except Exception as e:
-        logger.exception(f"detect_fraud() failed for {market_tickers}: {e}")
+        logger.exception(f"detect_anomalies failed for {market_tickers}: {e}")
         return
-
+    
     if anomaly_df.empty:
-        logger.info(f"No anomalies for {market_tickers}")
+        logger.info(f"No anomalies detected for {market_tickers}")
         return
-
-    # Process new anomalies
-    for ticker in market_tickers:
+    
+    for ticker in tickers:
         try:
-            unsent = list(db.anomalies.find({"ticker": ticker, "sent": False}))
+            # Find unsent anomalies
+            unsent = list(db.anomalies.find({"Ticker": ticker, "Sent": False}))
             if not unsent:
+                # Already sent → do nothing
+                logger.info(f"No unsent anomalies for {ticker}, skipping")
                 continue
-
-            df_unsent = pd.DataFrame(unsent)
-
-            send_test_message(df_unsent)
-
-            # Mark as sent
-            db.anomalies.update_many(
-                {"_id": {"$in": df_unsent["_id"].tolist()}},
-                {"$set": {"sent": True}}
-            )
-            logger.info(f"Sent alerts for {ticker}")
-
+            else:
+                # Mark them as sent
+                send_test_message(unsent)
+                ids = [doc["_id"] for doc in unsent]
+                db.anomalies.update_many(
+                    {"_id": {"$in": ids}},
+                    {"$set": {"Sent": True}}
+                )
+                
+                logger.info(f"Marked {len(ids)} anomalies as sent for {ticker}")
+            
         except Exception as e:
-            logger.exception(f"Failed sending alerts for {ticker}: {e}")
+            logger.exception(f"Failed updating anomalies for {ticker}: {e}")
 
-
-# --------------------------
-# RUN ALL MARKETS IN PARALLEL
-# --------------------------
+# ==============================
+# Scheduler Loop
+# ==============================
 def combined_market_runner():
-    """Run ALL markets concurrently."""
     threads = []
-
     for market_name, market in MARKETS.items():
-        now = datetime.now(market["tz"])
-
+        now = datetime.datetime.now(market["tz"])
         if _is_open(now, market):
-            logger.info(f"{market_name} market OPEN — starting job")
+            logger.info(f"{market_name} market is OPEN")
             t = threading.Thread(target=job_for_market, args=(market_name,))
             t.start()
             threads.append(t)
         else:
-            logger.info(f"{market_name} market CLOSED — skip")
-
-    # Do NOT block waiting for all to finish — let them run freely
-    # Scheduler loop will fire again in 60 seconds
+            logger.info(f"{market_name} market is CLOSED")
     return
 
-
-# --------------------------
-# Scheduler loop
-# --------------------------
 def scheduler_loop():
-    logger.info("Scheduler loop started")
-
+    logger.info("Scheduler started")
     try:
         while not scheduler_stop_event.is_set():
             combined_market_runner()
             time.sleep(60)
-
     finally:
-        logger.info("Scheduler loop stopped")
+        logger.info("Scheduler stopped")

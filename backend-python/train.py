@@ -1,192 +1,358 @@
-# import necessary modules
+
+from enum import IntEnum
+from typing import Optional, Union, List
+from dotenv import load_dotenv
+import os
+from pydantic import BaseModel
+from pymongo import MongoClient
+import joblib as jo
+import logging
+from sklearn.ensemble import IsolationForest
+import yfinance as yf
+import time
 import pandas as pd
 import numpy as np
-import time
-import yfinance as yf
-from sklearn.ensemble import IsolationForest
-import joblib
 
-from resource.stocklist import MARKET_SYMBOLS
-from ticker_config import preprocess_market_data
+# ===============================
+# Config Setup
+# ===============================
+# 1. Load .env variables
+load_dotenv()
 
+# 2. Set environment variables
+# 2.1 MongoDB
+MONGODB_URI = os.getenv("MONGO_DB_URI")
+MONGODB_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-def trained_model(market, path):
-    missing_model = MARKET_SYMBOLS[market]
-    # Load dataset
-    process_data = preprocess_market_data(missing_model)
+# Try to connect with authentication if credentials provided
+try:
+    client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+    client.admin.command('ping')
+    db = client[MONGODB_DB_NAME]
+except Exception as e:
+    db = None
 
-    features = [
-        "return_1", "return_3", "return_6",
-        "roll_mean_20", "roll_std_20", "zscore_20",
-        "ATR_14", "bb_width", "RSI",
-        "MACD", "Signal", "MACD_hist",
-        "VWAP", "body", "upper_wick",
-        "lower_wick", "wick_ratio"
-    ]
+# 2.2 Ticker name for sample trainings
+US_TICKERS = os.getenv("US_TICKERS", "").split(",")
+JP_TICKERS = os.getenv("JP_TICKERS", "").split(",")
+TH_TICKERS = os.getenv("TH_TICKERS", "").split(",")
 
-    X_train = process_data[features].dropna()
+MARKET_SYMBOLS = {
+    "US": US_TICKERS,
+    "JP": JP_TICKERS,
+    "TH": TH_TICKERS
+}
 
-    model = IsolationForest(
-        n_estimators=300,
-        contamination=0.02,
-        random_state=42,
-        n_jobs=-1
-    )
+# 2.3 Model paths
+MODEL_PATHS = {
+    "US": os.getenv("US_MODEL_PATH"),
+    "JP": os.getenv("JP_MODEL_PATH"),
+    "TH": os.getenv("TH_MODEL_PATH")
+}
 
+# Load model
+us_model = jo.load(MODEL_PATHS["US"])
+jp_model = jo.load(MODEL_PATHS["JP"])
+th_model = jo.load(MODEL_PATHS["TH"])
+
+version = os.getenv("MODEL_VERSION")
+
+# 2.4 Pydantic model config
+class FraudRequest(BaseModel):
+    """Accept either a single ticker string or a list of tickers.
+
+    Examples accepted in JSON body:
+    - { "ticker": "AAPL" }
+    - { "ticker": ["AAPL", "TSLA"] }
+    - { "ticker": "AAPL", "period": "1mo", "interval": "15m" }
+    """
+    ticker: Union[str, List[str]]
+    period: Optional[str] = None
+    interval: Optional[str] = None
+
+# 2.5 Features used in the model
+features_columns = os.getenv("MODEL_FEATURES").split(',')
+
+# 2.6 Timezone settings
+JP_TZ = os.getenv("JP_TZ", "Asia/Tokyo")
+US_TZ = os.getenv("US_TZ", "America/New_York")
+TH_TZ = os.getenv("TH_TZ", "Asia/Bangkok")
+
+# 3. Logging setup
+logger = logging.getLogger("stock-dashboard.backend-python.train")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+# ===============================
+# Main Functions
+# ===============================
+# 1. train_model function
+def trained_model(tickers: str, path: str) :
+    # 1.1 Load dataset and preprocess (remove multiIndex, NaN handling)
+    process_data = load_dataset(tickers)
+    process_data = process_data.groupby('Ticker').apply(data_preprocessing).reset_index(drop=True)
+
+    # 1.2 Get feature columns data for training
+    X_train = process_data[features_columns].dropna()
+
+    # 1.3 Train model based on market (Isolation Forest)
+    model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
     model.fit(X_train)
-    # Ensure destination directory exists
-    import os as _os
-    _dir = _os.path.dirname(path)
-    if _dir:
-        _os.makedirs(_dir, exist_ok=True)
 
-    joblib.dump(model, path)
-    print(f"{market} model trained and saved at {path}")
-    return model
+    # 1.4 Save trained model to disk (optional)
+    # 1.4.1 Determine directory existence
+    _dir = os.path.dirname(path)
 
-def _ensure_ohlcv_exists(df, ticker):
-    """Ensure dataframe has Open/High/Low/Close/Volume. Create missing fields if needed."""
+    # 1.4.2 Create directory if it doesn't exist
+    if not os.path.exists(_dir):
+        os.makedirs(_dir)
     
-    # ---- Fix missing Close ----
-    if "Close" not in df.columns:
-        if "Adj Close" in df.columns:
-            df["Close"] = df["Adj Close"]
-            print(f"[WARNING] {ticker} missing Close; using Adj Close instead.")
-        else:
-            raise KeyError(f"[ERROR] {ticker} has no Close or Adj Close column!")
+    # 1.4.3 Save model
+    jo.dump(model, path)
+    logger.info(f"Model saved to {path}")
 
-    # ---- Fix missing OHLC with Close fallback ----
-    for col in ["Open", "High", "Low"]:
-        if col not in df.columns:
-            df[col] = df["Close"]
-            print(f"[WARNING] {ticker} missing {col}; using Close as fallback.")
-
-    # ---- Fix missing Volume ----
-    if "Volume" not in df.columns:
-        df["Volume"] = 0
-        print(f"[WARNING] {ticker} missing Volume; filling with 0.")
-
-    return df
-
-def load_dataset(tickers,period: str = "1mo", interval: str = "15m"):
+# 2. load_dataset function
+def load_dataset(tickers,period: str = "2d", interval: str = "15m") :
+    # 2.1 Initialize empty DataFrame
     dataframes = []
 
+    # 2.2 Loop through tickers and fetch data
     for ticker in tickers:
-        # Download data
-        data = yf.download(ticker, period=period, interval=interval, auto_adjust=False)
+        # 2.2.1 Clear temporary DataFrame
+        df =[]
 
-        if data.empty:
-            print(f"No data found for {ticker}. Skipping.")
-            time.sleep(10)
+        # 2.2.2 Fetch data from yfinance
+        df = yf.download(ticker, period=period, interval=interval, auto_adjust=True)
+
+        # 2.2.3 Error handling for empty DataFrame
+        if df.empty:
+            logger.warning(f"No data found for ticker: {ticker}")
+            time.sleep(5) # To avoid hitting rate limits
             continue
 
-        # Normalize column names
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = [col[0] for col in data.columns]
+        # 2.2.4 Normalize column
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] for c in df.columns]
         else:
-            data.columns = data.columns.map(str)
+            df.columns = df.columns.map(str)
 
-        df = data.reset_index()
-        # Rename the first column (the former index) to Datetime
-        df.rename(columns={df.columns[0]: "Datetime"}, inplace=True)
-        df["Ticker"] = ticker
+        df = df.reset_index()  # Reset index to make 'Date' a column
+        df.rename(columns={df.columns[0]: 'Datetime'}, inplace=True)
 
-        # Ensure OHLCV exists
-        try:
-            df = _ensure_ohlcv_exists(df, ticker)
-        except KeyError as e:
-            print(str(e))
-            continue
+        # 2.2.5 Add Ticker column
+        df['Ticker'] = ticker
 
-        # --- TIMEZONE HANDLING ---
-        # Determine original market timezone by ticker suffix
-        tz = 'US/Eastern'  # default US
+        # 2.2.6 Check columns existence
+        df = ensure_columns_exist(df, required_columns=['Open', 'High', 'Low', 'Close', 'Volume'])
+
+        # 2.2.7 Convert timezone to Japan timezone (check on stock ticker)
+        timezone = US_TZ # Default timezone
+
         if ticker.endswith('.T'):
-            tz = 'Asia/Tokyo'
-        elif '.BK' in ticker:
-            tz = 'Asia/Bangkok'
+            timezone = JP_TZ
+        elif ticker.endswith('.BK'):
+            timezone = TH_TZ
 
-        # Convert 'Datetime' to datetime type
         df["Datetime"] = pd.to_datetime(df["Datetime"], errors='coerce')
 
-        # Only localize if naive; catch errors if series is mixed
         try:
-            if df["Datetime"].dt.tz is None:
-                df["Datetime"] = df["Datetime"].dt.tz_localize(tz)
-            # Convert all datetimes to Tokyo time
-            df["Datetime"] = df["Datetime"].dt.tz_convert('Asia/Tokyo')
-        except Exception:
-            # If timezone operations fail, drop tz info and localize safely
-            df["Datetime"] = pd.to_datetime(df["Datetime"]).dt.tz_localize(tz, ambiguous='infer', nonexistent='shift_forward')
-            df["Datetime"] = df["Datetime"].dt.tz_convert('Asia/Tokyo')
+            df["Datetime"] = pd.to_datetime(df["Datetime"], utc=True).dt.tz_convert("Asia/Tokyo")
+        except Exception as e:
+            logger.error(f"Timezone conversion error for ticker {ticker}: {e}")
 
-        # Drop any rows with NaT or NaN and reset index
+        # 2.2.8 check if dataframe is not empty after column conversion (drop rows with NaT)
         df = df.dropna().reset_index(drop=True)
 
+        # 2.2.9 Append to list
         dataframes.append(df)
-        time.sleep(10)  # polite pause to avoid hitting API limits
 
-    # Concatenate all ticker DataFrames
-    process_data = pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
-    print(f"\n--- Data Load Complete ---\nTotal rows loaded: {len(process_data)}")
-    return process_data
+    # 3. Return concatenated DataFrame
+    logger.info(f"\n--- Data Load Complete ---\nTotal rows loaded: {len(dataframes)}")
+    return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
 
-def data_preprocessing(data) :
+# 3. ensure_columns_exist function
+def ensure_columns_exist(df, required_columns):
+    for col in required_columns:
+        if col not in df.columns:
+            return pd.DataFrame()  # Return empty DataFrame if any required column is missing
+    return df
 
-    # --- Returns ---
-    data["return_1"] = data["Close"].pct_change(1)
-    data["return_3"] = data["Close"].pct_change(3)
-    data["return_6"] = data["Close"].pct_change(6)
+# 4. data_preprocessing function
+def data_preprocessing(df: pd.DataFrame):
+    # 4.1 Handle missing values
+    df = df.dropna().reset_index(drop=True)
 
-    # --- Rolling Mean / STD / Z-Score ---
-    data["roll_mean_20"] = data["Close"].rolling(window=20, min_periods=1).mean()
-    data["roll_std_20"] = data["Close"].rolling(window=20, min_periods=1).std()
-    data["zscore_20"] = (data["Close"] - data["roll_mean_20"]) / data["roll_std_20"].replace(0, np.nan)
+    # 4.2 Feature engineering
+    df["return_1"] = df["Close"].pct_change(1)
+    df["return_3"] = df["Close"].pct_change(3)
+    df["return_6"] = df["Close"].pct_change(6)
 
-    # --- ATR (Average True Range) ---
-    data["H-L"] = data["High"] - data["Low"]
-    data["H-PC"] = (data["High"] - data["Close"].shift(1)).abs()
-    data["L-PC"] = (data["Low"] - data["Close"].shift(1)).abs()
-    data["TR"] = data[["H-L","H-PC","L-PC"]].max(axis=1)
-    data["ATR_14"] = data["TR"].ewm(span=14, adjust=False, min_periods=14).mean()
+    df["roll_mean_20"] = df["Close"].rolling(window=20, min_periods=1).mean()
+    df["roll_std_20"] = df["Close"].rolling(window=20, min_periods=1).std()
+    df["zscore_20"] = (df["Close"] - df["roll_mean_20"]) / df["roll_std_20"].replace(0, np.nan)
 
-    # --- Bollinger Bands Width ---
-    data["bb_upper"] = data["roll_mean_20"] + 2 * data["roll_std_20"]
-    data["bb_lower"] = data["roll_mean_20"] - 2 * data["roll_std_20"]
-    data["bb_width"] = data["bb_upper"] - data["bb_lower"]
+    prev_close = df["Close"].shift(1)
+    h_l = df["High"] - df["Low"]
+    h_pc = (df["High"] - prev_close).abs()
+    l_pc = (df["Low"] - prev_close).abs()
+    tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
+    df["ATR_14"] = tr.ewm(span=14, adjust=False, min_periods=14).mean()
 
-    # --- RSI (14) ---
-    delta = data["Close"].diff()
+    df["bb_upper"] = df["roll_mean_20"] + 2 * df["roll_std_20"]
+    df["bb_lower"] = df["roll_mean_20"] - 2 * df["roll_std_20"]
+    df["bb_width"] = df["bb_upper"] - df["bb_lower"]
+
+    delta = df["Close"].diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
     avg_gain = gain.ewm(com=13, adjust=False, min_periods=14).mean()
     avg_loss = loss.ewm(com=13, adjust=False, min_periods=14).mean()
     rs = avg_gain / avg_loss.replace(0, 1e-6)
-    data["RSI"] = 100 - (100 / (1 + rs))
+    df["RSI"] = 100 - (100 / (1 + rs))
 
-    # --- MACD ---
-    data["EMA12"] = data["Close"].ewm(span=12, adjust=False).mean()
-    data["EMA26"] = data["Close"].ewm(span=26, adjust=False).mean()
-    data["MACD"] = data["EMA12"] - data["EMA26"]
-    data["Signal"] = data["MACD"].ewm(span=9, adjust=False).mean()
-    data["MACD_hist"] = data["MACD"] - data["Signal"]
+    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
+    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+    df["MACD"] = ema12 - ema26
+    df["Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+    df["MACD_hist"] = df["MACD"] - df["Signal"]
 
-    # --- VWAP ---
-    data["cum_vol"] = data["Volume"].cumsum()
-    data["cum_vol_price"] = (data["Volume"] * data["Close"]).cumsum()
-    data["VWAP"] = data["cum_vol_price"] / data["cum_vol"].replace(0, np.nan)
+    cum_vol = df["Volume"].cumsum()
+    cum_vol_price = (df["Volume"] * df["Close"]).cumsum()
+    df["VWAP"] = cum_vol_price / cum_vol.replace(0, np.nan)
 
-    # --- Candle Features ---
-    data["body"] = (data["Close"] - data["Open"]).abs()
-    data["upper_wick"] = data["High"] - data[["Open", "Close"]].max(axis=1)
-    data["lower_wick"] = data[["Open", "Close"]].min(axis=1) - data["Low"]
-    data["wick_ratio"] = (data["upper_wick"] + data["lower_wick"]) / data["body"].replace(0, 1e-6)
+    # Wick ratio calculation
+    df["body"] = (df["Close"] - df["Open"]).abs()
+    df["upper_wick"] = df["High"] - df[["Open", "Close"]].max(axis=1)
+    df["lower_wick"] = df[["Open", "Close"]].min(axis=1) - df["Low"]
 
-    # Drop temporary columns
-    data = data.drop(columns=[
-        'H-L', 'H-PC', 'L-PC', 'TR',
-        'cum_vol', 'cum_vol_price',
-        'EMA12', 'EMA26'
-    ], errors='ignore')
+    # Initialize wick_ratio column
+    df['wick_ratio'] = np.nan
 
-    return data
+    for i in range(len(df)):
+        if df.at[i, 'body'] == 0:
+            # Use the previous wick_ratio if body == 0
+            df.at[i, 'wick_ratio'] = df.at[i-1, 'wick_ratio'] if i > 0 else 0
+        else:
+            df.at[i, 'wick_ratio'] = (df.at[i, 'upper_wick'] + df.at[i, 'lower_wick']) / df.at[i, 'body']
+
+    # Optional: cap wick ratio at a max value to avoid extreme spikes
+    df['wick_ratio'] = df['wick_ratio'].clip(upper=20)
+
+    df = df.dropna().reset_index(drop=True)
+
+    return df
+
+
+# 5. detect_anomalies function
+def detect_anomalies(tickers, period, interval):
+
+    # 5.2 Initialize empty dataframe to store all anomalies
+    all_anomalies = pd.DataFrame()
+    # Define features_columns based on the model's expectations
+    features_columns = ['return_1', 'return_3', 'return_6', 'zscore_20', 'ATR_14','bb_width', 'RSI', 'MACD', 'MACD_hist', 'VWAP', 'body','upper_wick', 'lower_wick', 'wick_ratio']
+
+    # Ensure tickers is an iterable list
+    if isinstance(tickers, str):
+        tickers = [tickers]
+
+    # 5.3 Loop through each ticker
+    for ticker in tickers:
+
+        # 5.3.2 Load dataset
+        df = load_dataset([ticker], period=period, interval=interval)
+        if df.empty or 'Ticker' not in df.columns:
+            logger.warning(f"No valid data for ticker: {ticker}")
+            continue
+
+        # Apply preprocessing safely
+        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
+        if df.empty:
+            logger.warning(f"No data available for ticker: {ticker} after preprocessing.")
+            continue
+
+        # 5.3.4 Select model based on ticker suffix
+        if ticker.endswith('.T'):
+            model = jp_model
+        else:
+            model = us_model
+
+        # 5.3.5 Get feature columns data for prediction
+        X = df[features_columns].dropna()
+        if X.empty:
+            logger.warning(f"No feature data for ticker: {ticker}")
+            continue
+
+        # 5.3.6 Predict anomalies
+        prediction = model.predict(X)
+
+        # 5.3.7 Add anomalies to the dataframe
+        status_map = {-1: "Anomaly Detected", 1: "No Anomaly"}
+        df['Prediction'] = pd.Series(prediction).map(status_map)
+
+        # Filter anomalies for current ticker
+        anomalies = df[df['Prediction'] == "Anomaly Detected"]
+        if anomalies.empty:
+            continue
+
+        # Append to global anomalies
+        all_anomalies = pd.concat([all_anomalies, anomalies], ignore_index=True)
+
+        # 3.3.8 Add to MongoDB
+        # Insert anomalies to DB only if not already present
+        if db is not None and not anomalies.empty:
+                for _, row in anomalies.iterrows():
+                    # tolerate 'Ticker' vs 'ticker' column names
+                    ticker_key = None
+                    if isinstance(row, dict):
+                        ticker_key = row.get("Ticker") or row.get("ticker")
+                    else:
+                        # pandas Series
+                        ticker_key = row.get("Ticker") if "Ticker" in row.index else None
+                        if ticker_key is None:
+                            ticker_key = row.get("ticker") if "ticker" in row.index else None
+
+                    if ticker_key is None:
+                        logging.warning("Anomaly row missing Ticker/ticker; skipping DB insert")
+                        continue
+
+                    query = {"Ticker": ticker_key, "Datetime": row.get("Datetime") if isinstance(row, dict) else row.get("Datetime")}
+                    if db.anomalies.count_documents(query) == 0:
+                        doc = {
+                            "Ticker": ticker_key,
+                            "Datetime": row.get("Datetime") if isinstance(row, dict) else row.get("Datetime"),
+                            "Close": row.get("Close") if isinstance(row, dict) else row.get("Close"),
+                            "Volume": row.get("Volume") if isinstance(row, dict) else row.get("Volume"),
+                            "Sent": False
+                        }
+                        db.anomalies.insert_one(doc)
+
+    return all_anomalies
+
+        
+# ===============================
+# Helper Functions
+# ===============================
+# 1. JSON Structure function group by ticker
+def json_structure_group_by_ticker(df: pd.DataFrame) :
+    # 1.1 Check if DataFrame is empty
+    if df.empty: return {}
+
+    # 1.2 Smart Column Search (One-liner to find 'Ticker', 'ticker', 'TICKER', etc.)
+    ticker_col = next((c for c in df.columns if c.lower() == 'ticker'), None)
+
+    if not ticker_col:
+        raise KeyError("Dataframe missing 'Ticker' column")
+
+    # 1.3 Dictionary Comprehension (Replaces the for-loop)
+    return {
+        ticker: 
+                {
+                    "count": len(group),
+                    "detect_fraud": group.drop(columns=[ticker_col]).to_dict(orient="records")
+                }
+                for ticker, group in df.groupby(ticker_col)
+        }
+

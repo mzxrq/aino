@@ -43,8 +43,8 @@ const dashboard = async (tickers = []) => {
     const frequencyCollection = db.collection("anomalies");
     const frequencyData = await frequencyCollection
       .aggregate([
-        { $match: { ticker: { $in: tickers } } },
-        { $group: { _id: "$ticker", frequency: { $sum: 1 } } },
+        { $match: { Ticker: { $in: tickers } } },
+        { $group: { _id: "$Ticker", frequency: { $sum: 1 } } },
       ])
       .toArray();
 

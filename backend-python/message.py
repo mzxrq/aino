@@ -38,12 +38,22 @@ def send_test_message(anomaly):
 
     for uid in user_ids:
         user_doc = db.subscribers.find_one({"lineId": uid})
-        if not user_doc or "tickers" not in user_doc:
+        
+        if not user_doc:
+            logger.warning(f"No subscriber found with lineId: {uid}")
             continue
-        user_tickers = set(user_doc["tickers"])
+
+        user_tickers = set(user_doc.get("tickers", []))  # default to empty list if key missing
+
+        if not user_tickers:
+            logger.info(f"No tickers for subscriber {uid}")
+            continue
+
+        # Now user_tickers is a set of tickers for this subscriber
+        logger.debug(f"User {uid} tickers: {user_tickers}")
 
         # Filter anomalies relevant to this user
-        user_anomaly = anomaly[anomaly['ticker'].isin(user_tickers)]
+        user_anomaly = anomaly[anomaly['Ticker'].isin(user_tickers)]
         if user_anomaly.empty:
             logger.info(f"Skipping user {uid}: no matching anomalies")
             continue
@@ -62,9 +72,10 @@ def send_test_message(anomaly):
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": row.get('ticker', ''), "weight": "bold", "size": "lg"},
+                        {"type": "text", "text": row.get('Ticker', ''), "weight": "bold", "size": "lg"},
                         {"type": "text", "text": f"Date: {dt_str}"},
-                        {"type": "text", "text": f"Close: {row.get('Close', ''):.2f}"},
+{"type": "text", "text": f"Close: {row.get('Close', 0):,.2f}"},
+{"type": "text", "text": f"Volume: {row.get('Volume', 0):,}"}
                     ]
                 },
                 "footer": {
@@ -78,7 +89,7 @@ def send_test_message(anomaly):
                             "action": {
                                 "type": "uri",
                                 "label": "Open App",
-                                "uri": f"https://your-app-url.com/ticker/{row['ticker']}"
+                                "uri": f"https://your-app-url.com/ticker/{row['Ticker']}"
                             }
                         },
                         {
@@ -87,7 +98,7 @@ def send_test_message(anomaly):
                             "action": {
                                 "type": "uri",
                                 "label": "View Chart",
-                                "uri": f"https://finance.yahoo.com/quote/{row['ticker']}"
+                                "uri": f"https://finance.yahoo.com/quote/{row['Ticker']}"
                             }
                         }
                     ]
