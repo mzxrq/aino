@@ -213,6 +213,7 @@ exports.changePassword = async (req, res) => {
 
         return res.json({ message: 'Password changed successfully' });
     }
+};
 
 exports.addPassword = async (req, res) => {
     const { userId, newPassword } = req.body;
@@ -258,6 +259,7 @@ exports.addPassword = async (req, res) => {
 
         return res.json({ message: 'Password added successfully' });
     }
+};
 
 exports.getProfile = async (req, res) => {
     const userId = req.userId;
@@ -300,6 +302,4 @@ exports.getProfile = async (req, res) => {
         };
         return res.json(safeUser);
     }
-};};
-
-
+};

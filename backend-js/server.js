@@ -25,7 +25,7 @@ app.use("/dashboard", dashboardRoute);
 const chartRoutes = require("./routes/chartRoutes");
 app.use("/chart", chartRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5050;
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Home Page!");
@@ -33,6 +33,30 @@ app.get("/", (req, res) => {
 
 // Connect DB but start server regardless so file-based fallbacks work
 connectDB()
-  .then(() => console.log('Connected to DB'))
-  .catch(err => console.warn('DB connection failed, continuing without DB:', err))
-  .finally(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)));
+  .then(() => {
+    console.log('Connected to DB');
+    startServer();
+  })
+  .catch(err => {
+    console.warn('DB connection failed, continuing without DB:', err);
+    startServer();
+  });
+
+function startServer() {
+  const server = app.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    console.error('Server error:', err);
+  });
+}
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
