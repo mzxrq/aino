@@ -11,9 +11,9 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+
 const subscriberRoutes = require("./routes/subscriberRoutes");
 app.use("/subscribers", subscriberRoutes);
-// alias path used by frontend
 app.use("/subscriptions", subscriberRoutes);
 
 const authRoutes = require("./routes/authRoutes");
@@ -21,6 +21,9 @@ app.use("/auth", authRoutes);
 
 const dashboardRoute = require("./routes/dashboardRoute");
 app.use("/dashboard", dashboardRoute);
+
+const chartRoutes = require("./routes/chartRoutes");
+app.use("/chart", chartRoutes);
 
 const PORT = process.env.PORT || 5000;
 

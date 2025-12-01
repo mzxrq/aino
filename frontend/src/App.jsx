@@ -26,7 +26,7 @@ function App() {
         <Navbar />
 
         {/* The main content area that changes */}
-        <div style={{ flex: 1, overflow: 'auto', background: '#F5F7F9' }}>
+        <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-secondary)' }}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

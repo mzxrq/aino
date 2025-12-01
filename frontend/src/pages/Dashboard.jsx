@@ -10,6 +10,7 @@ export default function Dashboard() {
 
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTicker, setSearchTicker] = useState('');
 
   // Fetch subscriptions on mount
   useEffect(() => {
@@ -75,66 +76,116 @@ export default function Dashboard() {
     }
   };
 
+  const handleSearch = () => {
+    if (searchTicker.trim()) {
+      navigate("/chart", { state: { ticker: searchTicker.toUpperCase() } });
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   if (isLoading || !user) {
     return (
       <div className="dashboard-container">
-        <h1>Loading Dashboard...</h1>
+        <div className="loading-skeleton">
+          <div className="skeleton-title"></div>
+          <div className="skeleton-text"></div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="dashboard-container">
-      <h1>My Dashboard</h1>
-      <p>Welcome, {user.displayName}! Here are your stock subscriptions.</p>
-
-      <div className="search-bar-container">
-        <input type="text" placeholder="Search for a new ticker (e.g., AAPL)" />
-        <Link to="/chart" className="btn btn-primary">Search</Link>
+      {/* Header Section */}
+      <div className="dashboard-header">
+        <div className="header-content">
+          <h1>My Dashboard</h1>
+          <p>Welcome, <span className="user-name">{user.displayName}</span>! Track your stock subscriptions</p>
+        </div>
       </div>
 
-      <h2>My Subscriptions</h2>
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Stock Ticker</th>
-              <th>Frequency</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subscriptions.length === 0 ? (
-              <tr><td colSpan="4">No subscriptions found</td></tr>
-            ) : subscriptions.map(sub => (
-              <tr key={sub.ticker}>
-                <td>
+      {/* Search Section */}
+      <div className="search-section">
+        <div className="search-box">
+          <input 
+            type="text" 
+            placeholder="Search for a new ticker (e.g., AAPL, GOOGL, TSLA)" 
+            value={searchTicker}
+            onChange={(e) => setSearchTicker(e.target.value)}
+            onKeyPress={handleKeyPress}
+            className="search-input"
+          />
+          <button onClick={handleSearch} className="btn btn-search">
+            <span>🔍</span>
+            <span>Search</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Subscriptions Section */}
+      <div className="subscriptions-section">
+        <div className="section-header">
+          <h2>My Subscriptions</h2>
+          <span className="badge badge-count">{subscriptions.length}</span>
+        </div>
+
+        {subscriptions.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📊</div>
+            <h3>No Subscriptions Yet</h3>
+            <p>You haven't subscribed to any stocks yet. Use the search box above to find and subscribe to your favorite stocks!</p>
+            <Link to="/chart" className="btn btn-primary">Explore Stocks</Link>
+          </div>
+        ) : (
+          <div className="subscriptions-grid">
+            {subscriptions.map(sub => (
+              <div key={sub.ticker} className="subscription-card">
+                <div className="card-header">
+                  <div className="ticker-info">
+                    <h3 className="ticker">{sub.ticker}</h3>
+                    <span className={`status-badge status-${sub.status.toLowerCase()}`}>
+                      {sub.status}
+                    </span>
+                  </div>
+                  <button 
+                    className="btn-close"
+                    onClick={() => handleUnsubscribe(sub.ticker)}
+                    title="Unsubscribe"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                <div className="card-body">
+                  <div className="info-row">
+                    <span className="label">Frequency</span>
+                    <span className="value">{sub.frequency}</span>
+                  </div>
+                </div>
+
+                <div className="card-footer">
                   <button
-                    className="link-button"
+                    className="btn btn-view"
                     onClick={() => navigate("/chart", { state: { ticker: sub.ticker } })}
                   >
-                    {sub.ticker}
+                    View Chart
                   </button>
-                </td>
-                <td>{sub.frequency}</td>
-                <td>
-                  <span className={`status-badge status-${sub.status.toLowerCase()}`}>
-                    {sub.status}
-                  </span>
-                </td>
-                <td>
                   <button
-                    className="btn btn-danger"
+                    className="btn btn-unsubscribe"
                     onClick={() => handleUnsubscribe(sub.ticker)}
                   >
                     Unsubscribe
                   </button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
     </div>
   );

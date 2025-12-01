@@ -1,199 +1,268 @@
-
-from typing import List
-from dotenv import load_dotenv
 import os
+from typing import List, Dict, Any, Union
 
-from fastapi import APIRouter
 import pandas as pd
-from pydantic import BaseModel, RootModel
-from pymongo import MongoClient
 import yfinance as yf
+from datetime import datetime, timedelta
+from fastapi import APIRouter
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
-# Import Pydantic models
-# Import anomaly detection function
-from train import detect_anomalies, json_structure_group_by_ticker ,FraudRequest
+from ticker_config import FraudRequest, detect_fraud, group_by_ticker_to_json, preprocess_market_data
 
-# ===============================
-# Config Setup
-# ===============================
-# 1. Load .env file
+# --------------------------
+# Load environment variables
+# --------------------------
 load_dotenv()
+MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
 
-# 2. Set environment variables
-# 2.1 MongoDB
-MONGO_DB_URI = os.getenv("MONGO_DB_URI")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
-
-# Try to connect with authentication if credentials provided
+# --------------------------
+# Connect to MongoDB
+# --------------------------
 try:
-    client = MongoClient(MONGO_DB_URI, serverSelectionTimeoutMS=5000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     client.admin.command('ping')
-    db = client[MONGO_DB_NAME]
+    db = client[DB_NAME]
 except Exception as e:
     db = None
     print(f"Failed to connect to MongoDB: {e}")
 
-# 2.2 Ticker lists for searching
-US_TICKERS = os.getenv("US_TICKERS", "").split(",")
-JP_TICKERS = os.getenv("JP_TICKERS", "").split(",")
-TH_TICKERS = os.getenv("TH_TICKERS", "").split(",")
-
-search_list = US_TICKERS + JP_TICKERS + TH_TICKERS
-
-# 2.3 FastAPI settings
-PORT = int(os.getenv("FASTAPI_PORT"))
-
-# 2.4 Response model
-class TickerFraudResult(BaseModel):
-    count: int
-    detect_anomaly: List[dict]   # or List[Any] if you want
-
-class ChartFullResponse(RootModel):
-    root: dict[str, TickerFraudResult]
-
-
+# --------------------------
+# FastAPI router
+# --------------------------
 router = APIRouter()
 
-# ==============================
-# Routes List
-# ==============================
+# --- Simple cache TTLs (seconds) by rough period category ---
+CACHE_TTLS = {
+    'intraday': 300,   # 5 minutes for fast-changing intraday
+    'short': 900,      # 15 minutes for 1d/5d
+    'medium': 3600,    # 1 hour for 1mo/6mo
+    'long': 86400      # 1 day for ytd/1y/5y
+}
+
+def _ttl_for_period(period: str) -> int:
+    if not period:
+        return CACHE_TTLS['short']
+    p = period.lower()
+    if p in ('1d', '5d') or p.endswith('m') or p.endswith('h'):
+        return CACHE_TTLS['intraday']
+    if p in ('1mo', '6mo'):
+        return CACHE_TTLS['medium']
+    return CACHE_TTLS['long']
+
+def _cache_key(ticker: str, period: str, interval: str) -> str:
+    return f"chart::{ticker.upper()}::{period}::{interval}"
+
+def _load_from_cache(key: str, ttl_seconds: int):
+    if db is None:
+        return None
+    try:
+        rec = db.cache.find_one({"_id": key})
+        if not rec:
+            return None
+        fetched = rec.get('fetched_at')
+        if not fetched:
+            return None
+        if (datetime.utcnow() - fetched).total_seconds() > ttl_seconds:
+            # stale
+            return None
+        return rec.get('payload')
+    except Exception:
+        return None
+
+def _save_to_cache(key: str, payload: Dict[str, Any]):
+    if db is None:
+        return
+    try:
+        db.cache.update_one({"_id": key}, {"$set": {"payload": payload, "fetched_at": datetime.utcnow()}}, upsert=True)
+    except Exception:
+        pass
 
 
-
-# ==============================
-# Main function
-# ==============================
-# 1. / Root endpoint (GET)
 @router.get("/")
 def read_root():
-    return {"message": "Welcome to the Anomaly Detection API"}
+    return {"message": "Welcome to the Fraud Detection API"}
 
-# 2. /predict prediction endpoint (POST)
-@router.post("/chart", response_model=ChartFullResponse)
-def detect_anomaly(request: FraudRequest) :
-    # 2.1 Check if ticker(s) provided
+
+@router.post("/chart", response_model=Dict[str, Any])
+def detect_fraud_endpoint(request: FraudRequest):
+    """Detect anomalies for one or more tickers."""
     tickers = request.ticker if isinstance(request.ticker, list) else [request.ticker]
-    period = request.period if request.period else "1d"
-    interval = request.interval if request.interval else "15m"
+    try:
+        prediction_df = detect_fraud(tickers, request.period, request.interval)
+        prediction_json = group_by_ticker_to_json(prediction_df)
+        return prediction_json
+    except Exception as e:
+        return {"error": f"Failed to detect fraud: {e}"}
 
-    # 2.2 Detect anomalies for each ticker
-    predictions_dataframes = detect_anomalies(tickers, period, interval)
 
-    # 2.3 Prepare response (JSON serializable)
-    response_data = json_structure_group_by_ticker(predictions_dataframes)
-
-    return ChartFullResponse(__root__=response_data)
-
-# 3. /chart endpoint (GET)
-@router.get("/chart", response_model=ChartFullResponse)
-def get_chart_data(ticker: str, period: str = "1d", interval: str = "15m") :
-    # 3.1 Check if ticker provided
+@router.get("/chart", response_model=Dict[str, Any])
+def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
+    """Return processed chart data for a single ticker."""
     if not ticker:
-        return {"error": "Ticker symbol is required."}
-    
+        return {"error": "query parameter 'ticker' is required"}
+
     tickers = [ticker]
-    result = {}
 
-    # 3.2 Get chart data for the ticker
-    chart_dataframes = detect_anomalies(tickers, period, interval)
+    # Attempt to serve from cache first
+    key = _cache_key(ticker, period, interval)
+    ttl = _ttl_for_period(period)
+    cached = _load_from_cache(key, ttl)
+    if cached is not None:
+        return {ticker: cached}
 
-    # 3.3 Check if data was found
-    if chart_dataframes[ticker] is None:
-        return {"error": f"No data found for ticker {ticker}."}
-    
-    # 3.4 Fetch anomaly data from database
-    # Check if db is connected
+    try:
+        full_df = preprocess_market_data(tickers, period=period, interval=interval)
+    except Exception as e:
+        return {"error": f"Failed to fetch market data: {e}"}
+
+    result: Dict[str, Any] = {}
+    if full_df.empty:
+        result[ticker] = {}
+        return result
+
+    # Fetch anomalies from DB if connected
     if db is not None:
-        anomaly_documents = db.anomalies.find({"ticker": ticker})
-        anomaly_data = pd.DataFrame(list(anomaly_documents))
-    else :
-        anomaly_data = pd.DataFrame()  # Empty DataFrame if db not connected
+        try:
+            anomalies_cursor = db.anomalies.find({"ticker": {"$in": tickers}})
+            anomalies_df = pd.DataFrame(list(anomalies_cursor))
+        except Exception:
+            anomalies_df = pd.DataFrame()
+    else:
+        anomalies_df = pd.DataFrame()
 
-    for ticker, group in chart_dataframes.groupby('Ticker'):
-        anomaly_df = anomaly_data[anomaly_data['ticker'] == ticker]
-        result[ticker] = build_chart_response_for_ticker(group.reset_index(drop=True), anomaly_df.reset_index(drop=True))
+    for t, group in full_df.groupby('Ticker'):
+        ticker_anoms = anomalies_df[anomalies_df['ticker'] == t] if not anomalies_df.empty else pd.DataFrame()
+        payload = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        result[t] = payload
+        try:
+            _save_to_cache(_cache_key(t, period, interval), payload)
+        except Exception:
+            pass
 
-    return ChartFullResponse(__root__=result)
+    return result
 
-# 4. /chart/ticker/{query} endpoint (GET)
-def search_ticker(query: str):
-    query_upper = query.upper()
-    return [stock for stock in search_list if query_upper in stock["ticker"].upper() or query_upper in stock["name"].upper()]
 
-# ==============================
-# Helper functions
-# ==============================
-# 1. Build chart response for a single ticker
-def build_chart_response_for_ticker(chart_df: pd.DataFrame, anomaly_df: pd.DataFrame) :
-    # 1.1 Check if anomaly_df is empty
-    if anomaly_df.empty:
+@router.post("/chart_full", response_model=Dict[str, Any])
+def chart_full_endpoint(request: FraudRequest):
+    """Return full time-series and anomalies for requested tickers."""
+    tickers = request.ticker if isinstance(request.ticker, list) else [request.ticker]
+
+    period = request.period or "1mo"
+    interval = request.interval or "15m"
+
+    # If a single ticker is requested, try cache first
+    if len(tickers) == 1:
+        key = _cache_key(tickers[0], period, interval)
+        ttl = _ttl_for_period(period)
+        cached = _load_from_cache(key, ttl)
+        if cached is not None:
+            return {tickers[0]: cached}
+
+    try:
+        full_df = preprocess_market_data(tickers, period=period, interval=interval)
+    except Exception as e:
+        return {"error": f"Failed to fetch market data: {e}"}
+
+    # Fetch anomalies from DB if connected
+    if db is not None:
+        try:
+            anomalies_cursor = db.anomalies.find({"ticker": {"$in": tickers}})
+            anomalies_df = pd.DataFrame(list(anomalies_cursor))
+        except Exception:
+            anomalies_df = pd.DataFrame()
+    else:
+        anomalies_df = pd.DataFrame()
+
+    result: Dict[str, Any] = {}
+    if full_df.empty:
+        for t in tickers:
+            result[t] = {}
+        return result
+
+    for ticker, group in full_df.groupby('Ticker'):
+        ticker_anoms = anomalies_df[anomalies_df['ticker'] == ticker] if not anomalies_df.empty else pd.DataFrame()
+        payload = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        result[ticker] = payload
+        try:
+            _save_to_cache(_cache_key(ticker, period, interval), payload)
+        except Exception:
+            pass
+
+    return result
+
+
+# --------------------------
+# Helper function for chart JSON
+# --------------------------
+def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) -> Dict[str, Any]:
+    if df.empty:
         return {}
-    
-    # 1.2 Get variables for response
-    # Candle stick data
-    open_prices = chart_df['Open'].tolist()
-    close_prices = chart_df['Close'].tolist()
-    high_prices = chart_df['High'].tolist()
-    low_prices = chart_df['Low'].tolist()
-    volumes = chart_df['Volume'].tolist()
 
-    # Bollinger Bands
-    bollinger = {
-        "upper_band": chart_df['bb_upper'].tolist(),
-        "middle_band": chart_df['bb_middle'].tolist(),
-        "lower_band": chart_df['bb_lower'].tolist()
+    dates = df['Datetime'].astype(str).tolist()
+
+    def _safe_list(series):
+        return [None if pd.isna(x) else x for x in series.tolist()] if series is not None else []
+
+    open_ = _safe_list(df.get('Open'))
+    high = _safe_list(df.get('High'))
+    low = _safe_list(df.get('Low'))
+    close = _safe_list(df.get('Close'))
+    volume = _safe_list(df.get('Volume'))
+
+    bb = {
+        'lower': _safe_list(df.get('bb_lower')),
+        'upper': _safe_list(df.get('bb_upper')),
+        'sma': _safe_list(df.get('roll_mean_20'))
     }
+    vwap = _safe_list(df.get('VWAP'))
+    rsi = _safe_list(df.get('RSI'))
 
-    # Other indicators (VWAP, RSI, Datetime (String format))
-    vwap = chart_df['VWAP'].tolist()
-    rsi = chart_df['RSI'].tolist()
-    datetimes = chart_df['Datetime'].astype(str).tolist()
+    anomaly_markers = {'dates': [], 'y_values': []}
+    if anomalies is not None and not anomalies.empty:
+        anomaly_markers['dates'] = anomalies['Datetime'].astype(str).tolist()
+        anomaly_markers['y_values'] = anomalies.get('Close', [None]*len(anomaly_markers['dates'])).tolist()
 
-    # 1.3 Get anomaly points
-    anomalies_markers = {
-        'dates' : [],
-        'y_values' : []
-    }
+    display_ticker = df['Ticker'].iloc[0] if 'Ticker' in df.columns else None
 
-    if anomaly_df is not None and not anomaly_df.empty :
-        anomalies_markers['dates'] = anomaly_df['datetime'].astype(str).tolist()
-        anomalies_markers['y_values'] = anomaly_df.get('Close', [None]*len(anomalies_markers['dates'])).tolist()
-
-    # 1.4 Get ticker infomation
-    display_ticker = chart_df['Ticker'].iloc[0] if 'Ticker' in chart_df.columns else None
-
-    # 1.5 Get market information
+    # Determine market with exchange info
     market = None
     if display_ticker:
-        ticker_upper = display_ticker.upper()
-        if ticker_upper.endswith(".T") :
-            market = "JP"
-        elif ticker_upper.endswith(".BK") :
-            market = "TH"
-        else :
-            market = "US"
+        t_up = display_ticker.upper()
+        if t_up.endswith('.T'):
+            market = 'JP (TSE)'
+        elif '.BK' in t_up:
+            market = 'TH (SET)'
+        else:
+            market = 'US (NYSE/NASDAQ)'
 
-    # 1.6 Get company name
+    # Fetch company name from yfinance (best-effort)
     company_name = None
-    if display_ticker :
-        info = yf.Ticker(display_ticker).info
-        company_name = info.get('shortName', None)
-    
+    if display_ticker:
+        try:
+            info = yf.Ticker(display_ticker).info
+            company_name = info.get('shortName') or info.get('longName')
+        except Exception:
+            company_name = None
+
     return {
-        'dates': datetimes,
-        'open': open_prices,
-        'high': high_prices,
-        'low': low_prices,
-        'close': close_prices,
-        'volume': volumes,
-        'bollinger_bands': bollinger,
+        'dates': dates,
+        'open': open_,
+        'high': high,
+        'low': low,
+        'close': close,
+        'volume': volume,
+        'bollinger_bands': bb,
         'VWAP': vwap,
         'RSI': rsi,
-        'anomaly_markers': anomalies_markers,
+        'anomaly_markers': anomaly_markers,
         'displayTicker': display_ticker,
+        'rawTicker': display_ticker,
         'market': market,
         'companyName': company_name
     }
+
 
 # --------------------------
 # Sample stock list for search
@@ -244,5 +313,3 @@ def search_ticker(query: str):
     """Search tickers by symbol or name substring (case-insensitive)."""
     query_upper = query.upper()
     return [stock for stock in stocks if query_upper in stock["ticker"].upper() or query_upper in stock["name"].upper()]
-
-
