@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.dirname(__file__) or '.')
 # ML & model imports
 from resource.stocklist import MODEL_PATHS
 from train import trained_model
-from ticker_config import detect_fraud
 
 # Load environment
 from dotenv import load_dotenv
