@@ -5,36 +5,10 @@ import './Navbar.css';
 import Search from './Search';
 
 export default function Navbar() {
-  
   const [menuOpen, setMenuOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(true);
-  const [forceExpanded, setForceExpanded] = useState(false);
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && localStorage.getItem('theme')) || 'light');
   const { user, isLoggedIn, logout } = useAuth();
-  const hoverTimer = useRef(null);
-
-  const handleMouseEnter = () => {
-    if (forceExpanded) return; // don't auto-collapse if manually pinned
-    if (hoverTimer.current) {
-      clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    hoverTimer.current = setTimeout(() => setCollapsed(false), 80);
-  };
-
-  const handleMouseLeave = () => {
-    if (forceExpanded) return; // don't auto-collapse if manually pinned
-    if (hoverTimer.current) {
-      clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    hoverTimer.current = setTimeout(() => setCollapsed(true), 180);
-  };
-
-  const toggleNavbarPin = () => {
-    setForceExpanded(!forceExpanded);
-    if (!forceExpanded) setCollapsed(false); // expand when pinning
-  };
+  // no pin/collapsed behavior: navbar is static/sticky full-width
 
   useEffect(() => {
     // Apply persisted theme on mount
@@ -72,52 +46,56 @@ export default function Navbar() {
     if (navElement) resizeObserver.observe(navElement);
 
     return () => {
-      if (hoverTimer.current) clearTimeout(hoverTimer.current);
       resizeObserver.disconnect();
     };
   }, []);
 
+  // Close menu when navigating (for mobile UX)
+  const handleNavClick = () => setMenuOpen(false);
+
   return (
-    <nav className={`navbar ${collapsed && !forceExpanded ? 'collapsed' : 'expanded'}`} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <nav className={`navbar`}>
       {/* <div className="navbar-left">
         <Link to="/" className="logo">Placeholder</Link>
       </div> */}
-      
-      <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
+
+      <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Toggle menu">
         <span className="hamburger">☰</span>
       </button>
 
-      <div className={`navbar-left nav-links ${menuOpen ? 'open' : ''}`}>
-        <Link to="/chart" className="nav-link">Chart</Link>
-        <Link to="/list" className="nav-link">Market List</Link>
-        {isLoggedIn && (
+      <div className={`nav-links${menuOpen ? ' open' : ''}`}>
+        <Link to="/chart" className="nav-link" onClick={handleNavClick}>Chart</Link>
+        <Link to="/list" className="nav-link" onClick={handleNavClick}>Market List</Link>
+        {isLoggedIn ? (
           <>
-            <Link to="/dashboard" className="nav-link">Dashboard</Link>
-            <Link to="/profile" className="nav-link profile-link">Profile</Link>
+            <Link to="/dashboard" className="nav-link" onClick={handleNavClick}>Dashboard</Link>
+            <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
           </>
+        ) : (
+          <Link to="/login" className="nav-link" onClick={handleNavClick}></Link>
         )}
+        <div className="mobile-search">
+          <Search />
+        </div>
       </div>
-        <Search />
+      <div className="search-inline"><Search /></div>
       <div className="nav-actions">
-        <button className="navbar-pin-toggle" onClick={toggleNavbarPin} title={forceExpanded ? 'Minimize navbar' : 'Expand navbar'}>
-          {forceExpanded ? '📌' : '◯'}
-        </button>
         <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
           {theme === 'dark' ? '🌙' : '☀️'}
         </button>
         {isLoggedIn ? (
           <>
-            {user && user.avatar ? (
-              <Link to="/profile" className="profile-avatar-link">
-                <img src={user.avatar} alt="profile" className="profile-avatar" />
-              </Link>
-            ) : (
-              <Link to="/profile" className="profile-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</Link>
-            )}
+            <Link to="/profile" className="profile-avatar-link" onClick={handleNavClick}>
+              {user && (user.pictureUrl || user.avatar) ? (
+                <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-avatar" />
+              ) : (
+                <span className="profile-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
+              )}
+            </Link>
             <button onClick={logout} className="btn btn-outline">Logout</button>
           </>
         ) : (
-          <Link to="/login" className="btn btn-login">Login</Link>
+          <Link to="/login" className="btn btn-login" onClick={handleNavClick}>Login</Link>
         )}
       </div>
     </nav>

@@ -29,9 +29,18 @@ export function AuthProvider({ children }) {
       // If we have a token, try to fetch a fresh profile from backend.
       if (t) {
         try {
-          const res = await fetch(`${LINE_API}/profile`, {
+          // Try JS backend first (email/password login)
+          let res = await fetch(`${API_URL}/auth/profile`, {
             headers: { Authorization: `Bearer ${t}` }
           });
+          
+          // If JS backend fails, try LINE backend
+          if (!res.ok) {
+            res = await fetch(`${LINE_API}/profile`, {
+              headers: { Authorization: `Bearer ${t}` }
+            });
+          }
+          
           if (!res.ok) {
             // Token invalid -> clear both
             setTokenState(null);
@@ -78,17 +87,28 @@ export function AuthProvider({ children }) {
     setTokenState(tkn);
     localStorage.setItem('token', tkn);
     try {
-      const res = await fetch(`${LINE_API}/profile`, {
+      // Try JS backend first (email/password login)
+      let res = await fetch(`${API_URL}/auth/profile`, {
         headers: { Authorization: `Bearer ${tkn}` }
       });
+      
+      // If JS backend fails, try LINE backend
+      if (!res.ok) {
+        res = await fetch(`${LINE_API}/profile`, {
+          headers: { Authorization: `Bearer ${tkn}` }
+        });
+      }
+      
       if (!res.ok) {
         console.error('Failed to fetch user after token set');
+        logout();
         return;
       }
       const profile = await res.json();
       setUser(profile);
     } catch (err) {
       console.error(err);
+      logout();
     }
   };
 
@@ -158,3 +178,4 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+

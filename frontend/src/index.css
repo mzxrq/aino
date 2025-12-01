@@ -1,10 +1,13 @@
+* {
+  box-sizing: border-box;
+}
 :root {
   --bg-main: #FFFFFF;
   --bg-secondary: #F5F7F9;
   --text-primary: #333333;
-  --primary-btn: #0052CC;
-  --line-btn: #06C755;
-  --anomaly-color: #8800CC;
+  --primary-btn: #00aaff; /* bright blue */
+  --line-btn: #00c300; /* LINE-like green */
+  --anomaly-color: #10b981;
   --primary: var(--primary-btn);
   --accent: var(--line-btn);
   --danger: #DC2626;
@@ -15,7 +18,7 @@
   --hover-bg: #f8fafc;
   --muted: #6b7280;
   --input-bg: #FFFFFF;
-  --focus-color: #3b82f6;
+  --focus-color: #00aaff;
   /* navbar offset used to keep fixed navbar from overlapping content */
   --nav-height: 72px;
 }
@@ -26,7 +29,7 @@ body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   overflow-x: hidden;
   /* Prevent side scrolling */
@@ -42,16 +45,16 @@ body.dark {
   --bg-main: #0b1220;
   --bg-secondary: #071024;
   --text-primary: #E6EEF8;
-  --primary-btn: #1E40AF;
-  --line-btn: #05b15a;
-  --anomaly-color: #D6BCFF;
+  --primary-btn: #0077cc;
+  --line-btn: #06c755;
+  --anomaly-color: #6ee7b7;
   /* card and input tokens for dark mode */
   --card-border: rgba(255, 255, 255, 0.06);
   --card-shadow: 0 10px 30px rgba(2, 6, 23, 0.6);
   --muted: #9FB6D6;
   --input-bg: rgba(255, 255, 255, 0.03);
   --input-border: rgba(255, 255, 255, 0.06);
-  --focus-color: rgba(99, 102, 241, 0.7);
+  --focus-color: rgba(0, 170, 255, 0.7);
   /* map search/card tokens to dark-mode variants */
   --card-bg: var(--bg-secondary);
   --border-color: var(--card-border);
@@ -64,3 +67,5 @@ body,
 #root {
   transition: background-color 180ms ease, color 180ms ease;
 }
+
+

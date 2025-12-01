@@ -87,40 +87,219 @@ exports.login = async (req, res) => {
     }
 };
 
-exports.lineCallback = async (req, res) => {
-    // For now: receive the code and return a mock user.
-    // In production exchange code with LINE's token endpoint and fetch profile.
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ error: 'Missing code' });
-
-    // Simple mocked user — you can replace with real LINE exchange
-    const mockUser = { id: 'line-' + Date.now().toString(), email: 'lineuser@example.com', name: 'LINE User' };
+exports.updateProfile = async (req, res) => {
+    const { userId, displayName, username, email } = req.body;
+    if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
     try {
         const db = getDb();
         const users = db.collection('users');
-        // upsert by email
-        const hashedPlaceholder = await bcrypt.hash('line-oauth', 8);
-        const r = await users.findOneAndUpdate(
-            { email: mockUser.email },
-            { $setOnInsert: { email: mockUser.email, name: mockUser.name, username: mockUser.email.split('@')[0], password: hashedPlaceholder, createdAt: new Date() } },
-            { upsert: true, returnDocument: 'after' }
-        );
-        const userDoc = r.value || r;
-        const id = (userDoc._id && userDoc._id.toString()) || mockUser.id;
-        const safeUser = { id, email: mockUser.email, name: mockUser.name };
-        const token = createToken(id);
-        return res.json({ user: safeUser, token });
-    } catch (err) {
-        // fallback to file-based users
-        const users = readUsers();
-        let u = users.find(x => x.email === mockUser.email);
-        if (!u) {
-            u = { id: mockUser.id, email: mockUser.email, name: mockUser.name };
-            users.push(u);
-            writeUsers(users);
+
+        // Check if new email/username already exists (excluding current user)
+        if (email || username) {
+            const existing = await users.findOne({
+                $and: [
+                    { _id: { $ne: new (require('mongodb').ObjectId)(userId) } },
+                    { $or: [
+                        email ? { email } : null,
+                        username ? { username } : null
+                    ].filter(Boolean) }
+                ]
+            });
+            if (existing) return res.status(400).json({ error: 'Email or username already in use' });
         }
-        const token = createToken(u.id);
-        return res.json({ user: { id: u.id, email: u.email, name: u.name || mockUser.name }, token });
+
+        const updateData = {};
+        if (displayName) updateData.name = displayName;
+        if (username) updateData.username = username;
+        if (email) updateData.email = email;
+
+        const r = await users.findOneAndUpdate(
+            { _id: new (require('mongodb').ObjectId)(userId) },
+            { $set: updateData },
+            { returnDocument: 'after' }
+        );
+
+        if (!r.value) return res.status(404).json({ error: 'User not found' });
+
+        const updatedUser = r.value;
+        const safeUser = {
+            id: updatedUser._id.toString(),
+            userId: updatedUser._id.toString(),
+            email: updatedUser.email,
+            displayName: updatedUser.name,
+            username: updatedUser.username,
+            name: updatedUser.name
+        };
+
+        return res.json({ user: safeUser, message: 'Profile updated successfully' });
+    } catch (err) {
+        console.error('Error updating profile:', err);
+        // Fallback to file-based users
+        const users = readUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+        // Check for duplicate email/username
+        if (email || username) {
+            const exists = users.some(u => u.id !== userId && (u.email === email || u.username === username));
+            if (exists) return res.status(400).json({ error: 'Email or username already in use' });
+        }
+
+        if (displayName) users[userIndex].name = displayName;
+        if (username) users[userIndex].username = username;
+        if (email) users[userIndex].email = email;
+
+        writeUsers(users);
+        const updatedUser = users[userIndex];
+        const safeUser = {
+            id: updatedUser.id,
+            userId: updatedUser.id,
+            email: updatedUser.email,
+            displayName: updatedUser.name,
+            username: updatedUser.username,
+            name: updatedUser.name
+        };
+
+        return res.json({ user: safeUser, message: 'Profile updated successfully' });
     }
 };
+
+exports.changePassword = async (req, res) => {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const db = getDb();
+        const users = db.collection('users');
+        const user = await users.findOne({ _id: new (require('mongodb').ObjectId)(userId) });
+
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Verify current password
+        const ok = await bcrypt.compare(currentPassword, user.password);
+        if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        // Hash and save new password
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await users.updateOne(
+            { _id: new (require('mongodb').ObjectId)(userId) },
+            { $set: { password: hashed } }
+        );
+
+        return res.json({ message: 'Password changed successfully' });
+    } catch (err) {
+        console.error('Error changing password:', err);
+        // Fallback to file-based users
+        const users = readUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+        const user = users[userIndex];
+        // Verify current password
+        const ok = await bcrypt.compare(currentPassword, user.password);
+        if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        // Hash and save new password
+        const hashed = await bcrypt.hash(newPassword, 10);
+        user.password = hashed;
+        writeUsers(users);
+
+        return res.json({ message: 'Password changed successfully' });
+    }
+
+exports.addPassword = async (req, res) => {
+    const { userId, newPassword } = req.body;
+    if (!userId || !newPassword) {
+        return res.status(400).json({ error: 'Missing userId or password' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const db = getDb();
+        const users = db.collection('users');
+        const user = await users.findOne({ _id: new (require('mongodb').ObjectId)(userId) });
+
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Check if user already has a password
+        if (user.password) return res.status(400).json({ error: 'User already has a password' });
+
+        // Hash and save new password
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await users.updateOne(
+            { _id: new (require('mongodb').ObjectId)(userId) },
+            { $set: { password: hashed } }
+        );
+
+        return res.json({ message: 'Password added successfully' });
+    } catch (err) {
+        console.error('Error adding password:', err);
+        // Fallback to file-based users
+        const users = readUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+        const user = users[userIndex];
+        if (user.password) return res.status(400).json({ error: 'User already has a password' });
+
+        const hashed = await bcrypt.hash(newPassword, 10);
+        user.password = hashed;
+        writeUsers(users);
+
+        return res.json({ message: 'Password added successfully' });
+    }
+
+exports.getProfile = async (req, res) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const db = getDb();
+        const users = db.collection('users');
+        const ObjectId = require('mongodb').ObjectId;
+        
+        const user = await users.findOne({ _id: new ObjectId(userId) });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const safeUser = {
+            id: user._id.toString(),
+            userId: user._id.toString(),
+            email: user.email,
+            displayName: user.name,
+            name: user.name,
+            username: user.username,
+            pictureUrl: user.pictureUrl || null,
+            avatar: user.avatar || null
+        };
+        return res.json(safeUser);
+    } catch (err) {
+        console.error('Error fetching profile:', err);
+        const users = readUsers();
+        const user = users.find(u => u.id === userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const safeUser = {
+            id: user.id,
+            userId: user.id,
+            email: user.email,
+            displayName: user.name,
+            name: user.name,
+            username: user.username,
+            pictureUrl: user.pictureUrl || null,
+            avatar: user.avatar || null
+        };
+        return res.json(safeUser);
+    }
+};};
+
+

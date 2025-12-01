@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Union
 
 import pandas as pd
 import yfinance as yf
+from datetime import datetime, timedelta
 from fastapi import APIRouter
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -32,6 +33,52 @@ except Exception as e:
 # --------------------------
 router = APIRouter()
 
+# --- Simple cache TTLs (seconds) by rough period category ---
+CACHE_TTLS = {
+    'intraday': 300,   # 5 minutes for fast-changing intraday
+    'short': 900,      # 15 minutes for 1d/5d
+    'medium': 3600,    # 1 hour for 1mo/6mo
+    'long': 86400      # 1 day for ytd/1y/5y
+}
+
+def _ttl_for_period(period: str) -> int:
+    if not period:
+        return CACHE_TTLS['short']
+    p = period.lower()
+    if p in ('1d', '5d') or p.endswith('m') or p.endswith('h'):
+        return CACHE_TTLS['intraday']
+    if p in ('1mo', '6mo'):
+        return CACHE_TTLS['medium']
+    return CACHE_TTLS['long']
+
+def _cache_key(ticker: str, period: str, interval: str) -> str:
+    return f"chart::{ticker.upper()}::{period}::{interval}"
+
+def _load_from_cache(key: str, ttl_seconds: int):
+    if db is None:
+        return None
+    try:
+        rec = db.cache.find_one({"_id": key})
+        if not rec:
+            return None
+        fetched = rec.get('fetched_at')
+        if not fetched:
+            return None
+        if (datetime.utcnow() - fetched).total_seconds() > ttl_seconds:
+            # stale
+            return None
+        return rec.get('payload')
+    except Exception:
+        return None
+
+def _save_to_cache(key: str, payload: Dict[str, Any]):
+    if db is None:
+        return
+    try:
+        db.cache.update_one({"_id": key}, {"$set": {"payload": payload, "fetched_at": datetime.utcnow()}}, upsert=True)
+    except Exception:
+        pass
+
 
 @router.get("/")
 def read_root():
@@ -58,6 +105,13 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
 
     tickers = [ticker]
 
+    # Attempt to serve from cache first
+    key = _cache_key(ticker, period, interval)
+    ttl = _ttl_for_period(period)
+    cached = _load_from_cache(key, ttl)
+    if cached is not None:
+        return {ticker: cached}
+
     try:
         full_df = preprocess_market_data(tickers, period=period, interval=interval)
     except Exception as e:
@@ -80,7 +134,12 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
 
     for t, group in full_df.groupby('Ticker'):
         ticker_anoms = anomalies_df[anomalies_df['ticker'] == t] if not anomalies_df.empty else pd.DataFrame()
-        result[t] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        payload = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        result[t] = payload
+        try:
+            _save_to_cache(_cache_key(t, period, interval), payload)
+        except Exception:
+            pass
 
     return result
 
@@ -90,8 +149,19 @@ def chart_full_endpoint(request: FraudRequest):
     """Return full time-series and anomalies for requested tickers."""
     tickers = request.ticker if isinstance(request.ticker, list) else [request.ticker]
 
+    period = request.period or "1mo"
+    interval = request.interval or "15m"
+
+    # If a single ticker is requested, try cache first
+    if len(tickers) == 1:
+        key = _cache_key(tickers[0], period, interval)
+        ttl = _ttl_for_period(period)
+        cached = _load_from_cache(key, ttl)
+        if cached is not None:
+            return {tickers[0]: cached}
+
     try:
-        full_df = preprocess_market_data(tickers, period=request.period or "1mo", interval=request.interval or "15m")
+        full_df = preprocess_market_data(tickers, period=period, interval=interval)
     except Exception as e:
         return {"error": f"Failed to fetch market data: {e}"}
 
@@ -113,7 +183,12 @@ def chart_full_endpoint(request: FraudRequest):
 
     for ticker, group in full_df.groupby('Ticker'):
         ticker_anoms = anomalies_df[anomalies_df['ticker'] == ticker] if not anomalies_df.empty else pd.DataFrame()
-        result[ticker] = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        payload = _build_chart_response_for_ticker(group.reset_index(drop=True), ticker_anoms.reset_index(drop=True))
+        result[ticker] = payload
+        try:
+            _save_to_cache(_cache_key(ticker, period, interval), payload)
+        except Exception:
+            pass
 
     return result
 
@@ -151,16 +226,16 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
 
     display_ticker = df['Ticker'].iloc[0] if 'Ticker' in df.columns else None
 
-    # Determine market
+    # Determine market with exchange info
     market = None
     if display_ticker:
         t_up = display_ticker.upper()
         if t_up.endswith('.T'):
-            market = 'JP'
+            market = 'JP (TSE)'
         elif '.BK' in t_up:
-            market = 'TH'
+            market = 'TH (SET)'
         else:
-            market = 'US'
+            market = 'US (NYSE/NASDAQ)'
 
     # Fetch company name from yfinance (best-effort)
     company_name = None
@@ -183,6 +258,7 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'RSI': rsi,
         'anomaly_markers': anomaly_markers,
         'displayTicker': display_ticker,
+        'rawTicker': display_ticker,
         'market': market,
         'companyName': company_name
     }

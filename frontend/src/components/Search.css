@@ -1,7 +1,7 @@
 /* Consolidated Search Component styles - pill input matching navbar */
 :root {
-  --search-width: 250px;
-  --search-mobile-width: 160px;
+  --search-width: 200px;
+  --search-mobile-width: 120px;
   --border-color-default: #e5e7eb;
   --card-shadow-default: 0 10px 30px rgba(2,6,23,0.08);
 }
@@ -14,12 +14,12 @@
 
 .search-input {
   width: 100%;
-  padding: 9px 14px;
-  border-radius: 22px; /* pill to match navbar */
+  padding: 5px 10px;
+  border-radius: 28px; /* pill to match navbar */
   border: 1px solid var(--border-color, var(--border-color-default));
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #111827);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s;
   box-sizing: border-box;
 }
