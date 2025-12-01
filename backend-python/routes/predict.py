@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-from ticker_config import FraudRequest, detect_fraud, group_by_ticker_to_json, preprocess_market_data
+from train import detect_anomalies,FraudRequest,json_structure_group_by_ticker,load_dataset,data_preprocessing
 
 # --------------------------
 # Load environment variables
@@ -90,8 +90,8 @@ def detect_fraud_endpoint(request: FraudRequest):
     """Detect anomalies for one or more tickers."""
     tickers = request.ticker if isinstance(request.ticker, list) else [request.ticker]
     try:
-        prediction_df = detect_fraud(tickers, request.period, request.interval)
-        prediction_json = group_by_ticker_to_json(prediction_df)
+        prediction_df = detect_anomalies(tickers, request.period, request.interval)
+        prediction_json = json_structure_group_by_ticker(prediction_df)
         return prediction_json
     except Exception as e:
         return {"error": f"Failed to detect fraud: {e}"}
@@ -113,7 +113,8 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
         return {ticker: cached}
 
     try:
-        full_df = preprocess_market_data(tickers, period=period, interval=interval)
+        full_df = load_dataset(tickers, period=period, interval=interval)
+        full_df = full_df.apply(data_preprocessing).reset_index(drop=True)
     except Exception as e:
         return {"error": f"Failed to fetch market data: {e}"}
 
@@ -161,7 +162,8 @@ def chart_full_endpoint(request: FraudRequest):
             return {tickers[0]: cached}
 
     try:
-        full_df = preprocess_market_data(tickers, period=period, interval=interval)
+        full_df = load_dataset(tickers, period=period, interval=interval)
+        full_df = full_df.apply(data_preprocessing).reset_index(drop=True)
     except Exception as e:
         return {"error": f"Failed to fetch market data: {e}"}
 
