@@ -24,26 +24,26 @@ export function EditableTicker({ value, onChange, collapsed, overlay }) {
     }
   }
 
+  if (collapsed && overlay) return null;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', flex: collapsed && !overlay ? 1 : 'none' }}>
-      {!editing && !(collapsed && overlay) ? (
-        <h3
-          style={{ margin: 0, cursor: 'pointer', flex: collapsed && !overlay ? 1 : 'none' }}
-          onClick={() => setEditing(true)}
-        >{value}</h3>
-      ) : editing ? (
-        <input
-          ref={inputRef}
-          style={{ fontSize: collapsed && !overlay ? '0.9rem' : '1.5rem', fontWeight: 700, padding: '4px 6px', flex: collapsed && !overlay ? 1 : 'none' }}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.toUpperCase())}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') { setEditing(false); setDraft(value); }
-          }}
-        />
-      ) : null}
+    <div className="editable-ticker-wrapper">
+      <input
+        ref={inputRef}
+        className="editable-ticker-input"
+        value={editing ? draft : value}
+        onChange={(e) => setDraft(e.target.value.toUpperCase())}
+        onFocus={() => setEditing(true)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') { setEditing(false); setDraft(value); inputRef.current?.blur(); }
+        }}
+      />
+      <svg className="editable-ticker-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </div>
   );
 }

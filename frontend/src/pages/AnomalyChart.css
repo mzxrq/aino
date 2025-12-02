@@ -222,6 +222,54 @@
   font-size: 1rem;
 }
 
+/* Editable ticker input styles */
+.editable-ticker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.editable-ticker-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  width: auto;
+  min-width: 60px;
+  max-width: 100%;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.editable-ticker-input:focus {
+  cursor: text;
+  color: var(--primary);
+}
+
+.editable-ticker-icon {
+  color: var(--muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+  animation: blink-pencil 2s ease-in-out infinite;
+}
+
+.editable-ticker-input:focus + .editable-ticker-icon {
+  opacity: 0.8;
+  color: var(--primary);
+  animation: none;
+}
+
+@keyframes blink-pencil {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
 .chart-sidebar.collapsed {
   width: 0 !important;
   min-width: 0 !important;

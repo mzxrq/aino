@@ -106,7 +106,8 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             type: 'candlestick',
             name: `${ticker} Price`,
             xaxis: 'x',
-            yaxis: 'y'
+            yaxis: 'y',
+            hoverinfo: 'skip'
           });
         } else {
           traces.push({
@@ -118,35 +119,36 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             line: { shape: 'spline', width: 2 },
             fill: '',
             xaxis: 'x',
-            yaxis: 'y'
+            yaxis: 'y',
+            hoverinfo: 'skip'
           });
         }
 
         if (showVWAP && chartDataRaw.VWAP?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
         }
 
         if (chartDataRaw.bollinger_bands?.sma) {
           const bb = chartDataRaw.bollinger_bands;
           if (showBollinger) {
-            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y' });
-            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y' });
+            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
           }
           if (showSMA) {
-            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y' });
+            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
           }
         }
 
         if (chartDataRaw.anomaly_markers?.dates?.length) {
-          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
         }
 
         if (showVolume && chartDataRaw.volume?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' } });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' }, hoverinfo: 'skip' });
         }
 
         if (showRSI && chartDataRaw.RSI?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' } });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' }, hoverinfo: 'skip' });
         }
 
         // Domains computation
@@ -191,7 +193,6 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
           yaxis3: { domain: y3Domain, anchor: 'x' },
           showlegend: false,
           hovermode: 'x',
-          hoverinfo: 'none',
           plot_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',
           paper_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',
           font: { color: !isDarkTheme ? '#111111' : '#E0E0E0' }
