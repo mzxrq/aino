@@ -10,6 +10,7 @@ import { ChartSidebar } from '../components/chart/ChartSidebar';
 import { ChartToolbar } from '../components/chart/ChartToolbar';
 import { IndicatorPanel } from '../components/chart/IndicatorPanel';
 import { PlotContainer } from '../components/chart/PlotContainer';
+import { ChartLegend } from '../components/chart/ChartLegend';
 
 function stripSuffix(t) {
   if (!t) return t;
@@ -41,6 +42,7 @@ export default function AnomalyChart() {
   const sidebarToggleRef = useRef(null);
   const sidebarRef = useRef(null);
   const [isDarkTheme, setIsDarkTheme] = useState(() => typeof document !== 'undefined' && document.body.classList.contains('dark'));
+  const [hoverData, setHoverData] = useState(null);
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
 
@@ -185,8 +187,27 @@ export default function AnomalyChart() {
           </div>
         )}
         {!isLoading && !error && (
-          <div className="chart-plot-wrapper">
-            <PlotContainer data={data} layout={layout} showLegend={showLegend} plotlyTheme={plotlyTheme} isDarkTheme={isDarkTheme} />
+          <div className="chart-plot-wrapper" style={{ position: 'relative' }}>
+            <PlotContainer 
+              data={data} 
+              layout={layout} 
+              showLegend={showLegend} 
+              plotlyTheme={plotlyTheme} 
+              isDarkTheme={isDarkTheme}
+              onHoverChange={setHoverData}
+            />
+            <ChartLegend
+              ticker={stripSuffix(sidebarData?.displayTicker || ticker)}
+              hoverData={hoverData}
+              lastData={sidebarData ? {
+                open: sidebarData.open,
+                high: sidebarData.high,
+                low: sidebarData.low,
+                close: sidebarData.close,
+                volume: sidebarData.volume
+              } : null}
+              companyName={sidebarData?.companyName}
+            />
           </div>
         )}
         <ChartToolbar

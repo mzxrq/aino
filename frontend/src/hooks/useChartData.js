@@ -168,12 +168,30 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
 
         const layoutObj = {
           margin: { t: 10, r: 8, l: 40, b: 28 },
-          xaxis: { rangeslider: { visible: false } },
-          yaxis: { domain: yDomain, title: 'Price' },
+          xaxis: { 
+            rangeslider: { visible: false },
+            showspikes: true,
+            spikemode: 'across',
+            spikesnap: 'cursor',
+            spikecolor: isDarkTheme ? 'rgba(150,150,150,0.5)' : 'rgba(100,100,100,0.5)',
+            spikethickness: 1,
+            spikedash: 'dot'
+          },
+          yaxis: { 
+            domain: yDomain, 
+            title: 'Price',
+            showspikes: true,
+            spikemode: 'across',
+            spikesnap: 'cursor',
+            spikecolor: isDarkTheme ? 'rgba(150,150,150,0.5)' : 'rgba(100,100,100,0.5)',
+            spikethickness: 1,
+            spikedash: 'dot'
+          },
           yaxis2: { domain: y2Domain, title: 'RSI/Score' },
           yaxis3: { domain: y3Domain, anchor: 'x' },
-          legend: { orientation: 'v', x: 0.99, xanchor: 'right', y: 0.98 },
-          hovermode: 'x unified',
+          showlegend: false,
+          hovermode: 'x',
+          hoverinfo: 'none',
           plot_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',
           paper_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',
           font: { color: !isDarkTheme ? '#111111' : '#E0E0E0' }

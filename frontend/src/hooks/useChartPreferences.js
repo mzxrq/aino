@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 export function useChartPreferences() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarOverlay, setSidebarOverlay] = useState(false);
+  const [sidebarOverlay, setSidebarOverlay] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [showBollinger, setShowBollinger] = useState(true);
   const [showRSI, setShowRSI] = useState(true);
