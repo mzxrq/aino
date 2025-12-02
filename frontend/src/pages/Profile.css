@@ -17,13 +17,14 @@
 /* Profile Header */
 .profile-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2rem;
   padding: 2rem;
   background: var(--card-bg);
   border-radius: 12px;
   box-shadow: var(--card-shadow);
   border: 1px solid var(--border-color);
+  overflow: hidden; /* ensure badges and bubbles do not overflow */
 }
 
 .profile-avatar-section {
@@ -56,6 +57,7 @@
 
 .profile-greeting {
   flex: 1;
+  min-width: 0; /* enable text truncation */
 }
 
 .profile-greeting h1 {
@@ -70,6 +72,7 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: wrap; /* prevent overflow to the right */
 }
 
 .badge {
@@ -80,6 +83,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .badge-line {
