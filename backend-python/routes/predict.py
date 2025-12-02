@@ -74,6 +74,9 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
 
     def _safe_list(series):
         return [None if pd.isna(x) else x for x in series.tolist()] if series is not None else []
+    
+    price_change = df['Close'].iloc[-1] - df['Close'].iloc[-2] if len(df) >= 2 else None
+    pct_change = (price_change / df['Close'].iloc[-2] * 100) if len(df) >= 2 and df['Close'].iloc[-2] != 0 else None
 
     payload = {
         'dates': dates,
@@ -95,7 +98,9 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
             if anomalies is not None and not anomalies.empty else []
 
         },
-        'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None
+        'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
+        'price_change' : price_change,
+        'pct_change' : pct_change
     }
 
     return payload
