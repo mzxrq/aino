@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 
@@ -18,6 +18,32 @@ const SAMPLE_NEWS = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const [anomalies, setAnomalies] = useState([]);
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAnomalies = async () => {
+      try {
+        const res = await fetch(`${API_URL}/dashboard/recent-anomalies/list?limit=8`);
+        if (!res.ok) throw new Error('Failed to fetch anomalies');
+        const data = await res.json();
+        const mapped = (data || []).map((d, idx) => ({
+          id: `${d.ticker}-${idx}`,
+          ticker: d.ticker,
+          company: d.name || d.ticker,
+          price: typeof d.price === 'number' ? d.price : 0,
+          change: 0,
+          anomalies: d.anomalies || 0,
+        }));
+        if (isMounted) setAnomalies(mapped);
+      } catch (e) {
+        if (isMounted) setAnomalies(SAMPLE_ANOMALIES);
+      }
+    };
+    fetchAnomalies();
+    return () => { isMounted = false; };
+  }, [API_URL]);
 
   return (
     <div className="home-container">
@@ -27,10 +53,12 @@ export default function Home() {
           <h1 className="hero-title">Stock Trading<br/><span>Anomaly</span> Detector</h1>
           <p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p>
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={() => navigate('/chart', { state: { ticker: SAMPLE_ANOMALIES[0].ticker } })}>View Demo Chart</button>
+            <button className="btn btn-primary" onClick={() => {
+              const first = (anomalies && anomalies.length > 0) ? anomalies[0] : SAMPLE_ANOMALIES[0];
+              navigate('/chart', { state: { ticker: first.ticker } });
+            }}>View Demo Chart</button>
             <Link to="/login" className="btn btn-line">Login with LINE</Link>
           </div>
-          <p className="guest-link">or view as <Link to="#">guest mode</Link></p>
         </div>
       </section>
 
@@ -43,17 +71,22 @@ export default function Home() {
               <Link to="#" className="show-more">Show more ›</Link>
             </div>
             <div className="card-body">
-              {SAMPLE_ANOMALIES.map(a => (
+              {(anomalies.length ? anomalies : SAMPLE_ANOMALIES).map(a => (
                 <div key={a.id} className="anomaly-row">
                   <div className="logo-circle" aria-hidden></div>
                   <div className="anomaly-meta">
                     <div className="ticker">{a.ticker}</div>
                     <div className="company">{a.company}</div>
                   </div>
-                  <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
-                    {a.change < 0 ? '↓' : '↑'} ¥{a.price.toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                  <div className="anomaly-stats">
+                    <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
+                      {a.change < 0 ? '↓' : '↑'} {Number(a.price || 0).toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                    </div>
+                    <div className="anomaly-count">
+                      <span className="count-number">{a.anomalies}</span>
+                      <span className="count-text">Found {a.anomalies} anml</span>
+                    </div>
                   </div>
-                  <div className="anomaly-count">Found {a.anomalies} anml</div>
                 </div>
               ))}
             </div>
@@ -65,17 +98,22 @@ export default function Home() {
               <Link to="#" className="show-more">Show more ›</Link>
             </div>
             <div className="card-body">
-              {SAMPLE_ANOMALIES.map(a => (
+              {(anomalies.length ? anomalies : SAMPLE_ANOMALIES).map(a => (
                 <div key={a.id} className="anomaly-row">
                   <div className="logo-circle"></div>
                   <div className="anomaly-meta">
                     <div className="ticker">{a.ticker}</div>
                     <div className="company">{a.company}</div>
                   </div>
-                  <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
-                    {a.change < 0 ? '↓' : '↑'} ¥{a.price.toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                  <div className="anomaly-stats">
+                    <div className={`price ${a.change < 0 ? 'down' : 'up'}`}>
+                      {a.change < 0 ? '↓' : '↑'} {Number(a.price || 0).toLocaleString()} <span className="percent">{a.change > 0 ? '+' : ''}{a.change}%</span>
+                    </div>
+                    <div className="anomaly-count">
+                      <span className="count-number">{a.anomalies}</span>
+                      <span className="count-text">Found {a.anomalies} anml</span>
+                    </div>
                   </div>
-                  <div className="anomaly-count">Found {a.anomalies} anml</div>
                 </div>
               ))}
             </div>

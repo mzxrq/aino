@@ -37,7 +37,7 @@
 
 .nav-actions {
   display: flex;
-  gap: 2px;
+  gap: 10px;
   align-items: center;
   flex-shrink: 0;
   order: 3;
@@ -63,14 +63,21 @@
 .theme-toggle {
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 14px;
   margin-right: 2px;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 6px;
   min-width: fit-content;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
+.theme-toggle:hover { background: rgba(0,0,0,0.05); }
+body.dark .theme-toggle { color: #E6EEF8; }
+body.dark .theme-toggle:hover { background: rgba(255,255,255,0.08); }
 
 .navbar-pin-toggle {
   background: transparent;
@@ -264,6 +271,7 @@ body.dark .navbar.collapsed {
   }
 
   /* When the mobile menu opens, show the mobile search and hide desktop inline search */
-  .nav-links.open .mobile-search { display: block; }
+  .nav-links.open .mobile-search { display: flex; justify-content: center; padding: 8px 0; }
   .nav-links.open + .search-inline { display: none; }
+  .nav-links.open .mobile-search .search-container { width: min(520px, 86vw); }
 }

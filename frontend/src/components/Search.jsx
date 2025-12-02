@@ -7,6 +7,7 @@ export default function Search() {
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // Debounced AJAX search
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function Search() {
       }
 
       try {
-        const res = await fetch(`http://localhost:5000/chart/ticker/${query}`);
+        const res = await fetch(`${API_URL}/chart/ticker/${encodeURIComponent(query)}`);
         const data = await res.json();
         setResults(data);
         setShowDropdown(data.length > 0);
@@ -30,7 +31,7 @@ export default function Search() {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [query]);
+  }, [query, API_URL]);
 
   // Close dropdown if clicked outside
   useEffect(() => {

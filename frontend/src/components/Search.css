@@ -14,8 +14,8 @@
 
 .search-input {
   width: 100%;
-  padding: 5px 10px;
-  border-radius: 28px; /* pill to match navbar */
+  padding: 8px 14px;
+  border-radius: 9999px; /* extra-round pill */
   border: 1px solid var(--border-color, var(--border-color-default));
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #111827);
@@ -94,5 +94,5 @@ body.dark .search-item:hover { background-color: rgba(255,255,255,0.02); }
 body.dark .search-link .name { color: var(--muted, #aaa); }
 
 @media (max-width: 768px) {
-  .search-container { width: var(--search-mobile-width); }
+  .search-container { width: min(320px, 85vw); }
 }
