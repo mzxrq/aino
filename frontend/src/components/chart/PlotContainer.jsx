@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 
-export function PlotContainer({ data, layout, showLegend, plotlyTheme, isDarkTheme }) {
+export function PlotContainer({ data, layout, showLegend, plotlyTheme, isDarkTheme, onHoverChange }) {
   const plotRef = useRef(null);
 
   const themed = useMemo(() => {
@@ -54,7 +54,42 @@ export function PlotContainer({ data, layout, showLegend, plotlyTheme, isDarkThe
       layout={themed.layout}
       style={{ width: '100%', height: '100%' }}
       useResizeHandler={true}
-      config={{ responsive: true, displayModeBar: false }}
+      config={{ 
+        responsive: true, 
+        displayModeBar: false
+      }}
+      onHover={(event) => {
+        if (!onHoverChange || !event.points || event.points.length === 0) return;
+        const point = event.points[0];
+        const xIndex = point.pointIndex;
+        
+        // Extract OHLCV data from the traces
+        const hoverData = { x: point.x };
+        
+        // Find candlestick or line trace for price data
+        const priceTrace = data.find(t => t.type === 'candlestick' || (t.name && t.name.includes('Close')));
+        if (priceTrace) {
+          if (priceTrace.type === 'candlestick') {
+            hoverData.open = priceTrace.open?.[xIndex];
+            hoverData.high = priceTrace.high?.[xIndex];
+            hoverData.low = priceTrace.low?.[xIndex];
+            hoverData.close = priceTrace.close?.[xIndex];
+          } else {
+            hoverData.close = priceTrace.y?.[xIndex];
+          }
+        }
+        
+        // Find volume trace
+        const volumeTrace = data.find(t => t.type === 'bar' && t.name && t.name.includes('Volume'));
+        if (volumeTrace) {
+          hoverData.volume = volumeTrace.y?.[xIndex];
+        }
+        
+        onHoverChange(hoverData);
+      }}
+      onUnhover={() => {
+        if (onHoverChange) onHoverChange(null);
+      }}
     />
   );
 }

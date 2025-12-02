@@ -64,65 +64,6 @@ def _save_to_cache(key: str, payload: Dict[str, Any]):
     )
 
 # -------------------------
-# Helper to build chart JSON
-# -------------------------
-def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) -> Dict[str, Any]:
-    if df.empty:
-        return {}
-
-    dates = df['Datetime'].astype(str).tolist()
-
-    def _safe_list(series):
-        return [None if pd.isna(x) else x for x in series.tolist()] if series is not None else []
-
-    # Try to read company/market directly from the processed DataFrame when available
-    company_from_df = None
-    market_from_df = None
-    try:
-        for col in ['CompanyName', 'company_name', 'Company', 'Name']:
-            if col in df.columns:
-                v = df[col].iloc[0]
-                if pd.notna(v):
-                    company_from_df = str(v)
-                    break
-        for col in ['Market', 'market']:
-            if col in df.columns:
-                v = df[col].iloc[0]
-                if pd.notna(v):
-                    market_from_df = str(v)
-                    break
-    except Exception:
-        pass
-
-    payload = {
-        'dates': dates,
-        'open': _safe_list(df.get('Open')),
-        'high': _safe_list(df.get('High')),
-        'low': _safe_list(df.get('Low')),
-        'close': _safe_list(df.get('Close')),
-        'volume': _safe_list(df.get('Volume')),
-        'bollinger_bands': {
-            'lower': _safe_list(df.get('bb_lower')),
-            'upper': _safe_list(df.get('bb_upper')),
-            'sma': _safe_list(df.get('roll_mean_20')),
-        },
-        'VWAP': _safe_list(df.get('VWAP')),
-        'RSI': _safe_list(df.get('RSI')),
-        'anomaly_markers': {
-            'dates': anomalies['Datetime'].astype(str).tolist() if anomalies is not None and not anomalies.empty else [],
-            'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] \
-            if anomalies is not None and not anomalies.empty else []
-
-        },
-        'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
-        'rawTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
-        'companyName': company_from_df,
-        'market': market_from_df
-    }
-
-    return payload
-
-# -------------------------
 # Company/Market metadata
 # -------------------------
 def _derive_market_from_ticker(t: str) -> str:
@@ -200,6 +141,70 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
     return meta
 
 # -------------------------
+# Helper to build chart JSON
+# -------------------------
+def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) -> Dict[str, Any]:
+    if df.empty:
+        return {}
+
+    dates = df['Datetime'].astype(str).tolist()
+
+    def _safe_list(series):
+        return [None if pd.isna(x) else x for x in series.tolist()] if series is not None else []
+
+    # Try to read company/market directly from the processed DataFrame when available
+    company_from_df = None
+    market_from_df = None
+    try:
+        for col in ['CompanyName', 'company_name', 'Company', 'Name']:
+            if col in df.columns:
+                v = df[col].iloc[0]
+                if pd.notna(v):
+                    company_from_df = str(v)
+                    break
+        for col in ['Market', 'market']:
+            if col in df.columns:
+                v = df[col].iloc[0]
+                if pd.notna(v):
+                    market_from_df = str(v)
+                    break
+    except Exception:
+        pass
+    
+    price_change = df['Close'].iloc[-1] - df['Close'].iloc[-2] if len(df) >= 2 else None
+    pct_change = (price_change / df['Close'].iloc[-2] * 100) if len(df) >= 2 and df['Close'].iloc[-2] != 0 else None
+
+    payload = {
+        'dates': dates,
+        'open': _safe_list(df.get('Open')),
+        'high': _safe_list(df.get('High')),
+        'low': _safe_list(df.get('Low')),
+        'close': _safe_list(df.get('Close')),
+        'volume': _safe_list(df.get('Volume')),
+        'bollinger_bands': {
+            'lower': _safe_list(df.get('bb_lower')),
+            'upper': _safe_list(df.get('bb_upper')),
+            'sma': _safe_list(df.get('roll_mean_20')),
+        },
+        'VWAP': _safe_list(df.get('VWAP')),
+        'RSI': _safe_list(df.get('RSI')),
+        'anomaly_markers': {
+            'dates': anomalies['Datetime'].astype(str).tolist() if anomalies is not None and not anomalies.empty else [],
+            'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] \
+            if anomalies is not None and not anomalies.empty else []
+
+        },
+        'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
+        'rawTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
+        'companyName': company_from_df,
+        'market': market_from_df,
+        'price_change' : price_change,
+        'pct_change' : pct_change
+    }
+
+    return payload
+
+# -------------------------
 # Chart endpoint
 # -------------------------
 @router.get("/chart", response_model=Dict[str, Any])
@@ -246,8 +251,8 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
         payload = _build_chart_response_for_ticker(df, ticker_anoms)
         # Enrich payload with company/market metadata
         meta = _get_ticker_meta(t)
-        payload['companyName'] = meta.get('companyName')
-        payload['market'] = meta.get('market')
+        payload['companyName'] = payload.get('companyName') or meta.get('companyName')
+        payload['market'] = payload.get('market') or meta.get('market')
 
         # Save to cache
         try:
@@ -299,8 +304,8 @@ def chart_full_endpoint(request: FraudRequest):
 
         payload = _build_chart_response_for_ticker(df, anomalies_df)
         meta = _get_ticker_meta(t)
-        payload['companyName'] = meta.get('companyName')
-        payload['market'] = meta.get('market')
+        payload['companyName'] = payload.get('companyName') or meta.get('companyName')
+        payload['market'] = payload.get('market') or meta.get('market')
         _save_to_cache(key, payload)
         result[t] = payload
 
