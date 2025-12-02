@@ -1,14 +1,19 @@
+from http.client import HTTPException
+from bson import ObjectId
 from dotenv import load_dotenv
-from fastapi import APIRouter
-from typing import Dict, Any, List
+from fastapi import APIRouter, Query
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 import pandas as pd
+from pydantic import BaseModel, Field
 from pymongo import MongoClient
 import yfinance as yf
 from train import FraudRequest, data_preprocessing, load_dataset
 import os 
+import re
 
 router = APIRouter()
+
 
 # ===============================
 # Config Setup
@@ -197,3 +202,21 @@ def chart_full_endpoint(request: FraudRequest):
         result[t] = payload
 
     return result
+
+
+
+@router.get("/chart/ticker")
+def search_ticker(query: str) -> List[dict]:
+    """Search tickers by symbol or name substring (case-insensitive)."""
+    if not query:
+        raise HTTPException(status_code=400, detail="Query parameter is required")
+    
+    regex = {"$regex": query, "$options": "i"}  # Case-insensitive regex
+    cursor = db.tickerlist.find({"$or": [{"ticker": regex}, {"name": regex}]})
+
+    results = []
+    for doc in cursor:
+        # Exclude MongoDB _id if you want
+        results.append({"ticker": doc.get("ticker"), "name": doc.get("company_name")})
+    
+    return results

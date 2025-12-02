@@ -7,7 +7,7 @@ export default function Search() {
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = "http://localhost:5000";
 
   // Debounced AJAX search
   useEffect(() => {
@@ -19,8 +19,9 @@ export default function Search() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/chart/ticker/${encodeURIComponent(query)}`);
-        const data = await res.json();
+const res = await fetch(`${API_URL}/chart/ticker?query=${encodeURIComponent(query)}`);
+const data = await res.json();
+
         setResults(data);
         setShowDropdown(data.length > 0);
       } catch (err) {
