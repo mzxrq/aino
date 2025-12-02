@@ -25,6 +25,7 @@ const Profile = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // Check if user logged in via LINE (no email or email suggests LINE login)
   const isLineUser = !user?.email || user?.email === 'lineuser@example.com';
@@ -102,6 +103,67 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${NODE_API_URL}/auth/profile/avatar`, {
+        method: 'POST',
+        headers,
+        body: form,
+      });
+      if (!res.ok) {
+        let msg = 'Failed to upload avatar';
+        try { const errJson = await res.json(); msg = errJson.error || msg; } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      const updatedUser = { ...user, pictureUrl: data.pictureUrl, avatar: data.pictureUrl };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setSuccess('Avatar updated!');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    setError('');
+    setSuccess('');
+    setAvatarUploading(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${NODE_API_URL}/auth/profile/avatar`, { method: 'DELETE', headers });
+      if (!res.ok) {
+        let msg = 'Failed to delete avatar';
+        try { const errJson = await res.json(); msg = errJson.error || msg; } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      const updatedUser = { ...user };
+      delete updatedUser.pictureUrl;
+      delete updatedUser.avatar;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setSuccess('Avatar removed');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     setError('');
@@ -174,16 +236,21 @@ const Profile = () => {
         <div className="profile-header">
           <div className="profile-avatar-section">
             {user.pictureUrl ? (
-              <img 
-                src={user.pictureUrl} 
-                alt="Profile" 
-                className="profile-avatar"
-              />
+              <img src={user.pictureUrl} alt="Profile" className="profile-avatar" />
             ) : (
               <div className="profile-avatar-placeholder">
                 {(user.displayName || user.name || 'U')[0].toUpperCase()}
               </div>
             )}
+            <div className="avatar-actions">
+              <label className="btn btn-outline">
+                {avatarUploading ? 'Uploading...' : 'Upload Avatar'}
+                <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+              </label>
+              {user.pictureUrl && (
+                <button className="btn btn-outline" onClick={handleAvatarDelete} disabled={avatarUploading}>Remove</button>
+              )}
+            </div>
           </div>
           <div className="profile-greeting">
             <h1>{user.displayName || user.name}</h1>

@@ -5,10 +5,10 @@ const { getAllDashboard, getDashboard, getRecentAnomalies } = require("../contro
 // GET all tickers
 router.get("/all", getAllDashboard);
 
-// GET dashboard for one user
-router.get("/:lineId", getDashboard);
-
-// GET recent anomalies per ticker
+// GET recent anomalies per ticker (place BEFORE dynamic route)
 router.get("/recent-anomalies/list", getRecentAnomalies);
+
+// GET dashboard for one user (keep last due to catch-all param)
+router.get("/:lineId", getDashboard);
 
 module.exports = router;

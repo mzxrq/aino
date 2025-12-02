@@ -7,6 +7,10 @@ const { getDb } = require('../config/db');
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
 const JWT_SECRET = process.env.JWT_SECRET_KEY || process.env.JWT_SECRET || 'dev-secret';
 const JWT_EXPIRES = process.env.ACCESS_TOKEN_EXPIRE_MINUTES || '10080';
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+    try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch {}
+}
 
 function readUsers() {
     try {
@@ -88,8 +92,10 @@ exports.login = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-    const { userId, displayName, username, email } = req.body;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    const authUserId = req.userId;
+    const { userId: bodyUserId, displayName, username, email } = req.body;
+    const userId = authUserId || bodyUserId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
         const db = getDb();
@@ -97,16 +103,17 @@ exports.updateProfile = async (req, res) => {
 
         // Check if new email/username already exists (excluding current user)
         if (email || username) {
-            const existing = await users.findOne({
-                $and: [
-                    { _id: { $ne: new (require('mongodb').ObjectId)(userId) } },
-                    { $or: [
-                        email ? { email } : null,
-                        username ? { username } : null
-                    ].filter(Boolean) }
-                ]
-            });
-            if (existing) return res.status(400).json({ error: 'Email or username already in use' });
+            const ObjectId = require('mongodb').ObjectId;
+            const orConds = [];
+            if (email) orConds.push({ email });
+            if (username) orConds.push({ username });
+            if (orConds.length) {
+                const existing = await users.findOne({
+                    _id: { $ne: new ObjectId(userId) },
+                    $or: orConds
+                });
+                if (existing) return res.status(400).json({ error: 'Email or username already in use' });
+            }
         }
 
         const updateData = {};
@@ -137,7 +144,7 @@ exports.updateProfile = async (req, res) => {
         console.error('Error updating profile:', err);
         // Fallback to file-based users
         const users = readUsers();
-        const userIndex = users.findIndex(u => u.id === userId);
+        const userIndex = users.findIndex(u => (u.id === userId));
         if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
 
         // Check for duplicate email/username
@@ -146,9 +153,9 @@ exports.updateProfile = async (req, res) => {
             if (exists) return res.status(400).json({ error: 'Email or username already in use' });
         }
 
-        if (displayName) users[userIndex].name = displayName;
-        if (username) users[userIndex].username = username;
-        if (email) users[userIndex].email = email;
+        if (typeof displayName === 'string' && displayName.trim() !== '') users[userIndex].name = displayName.trim();
+        if (typeof username === 'string' && username.trim() !== '') users[userIndex].username = username.trim();
+        if (typeof email === 'string' && email.trim() !== '') users[userIndex].email = email.trim();
 
         writeUsers(users);
         const updatedUser = users[userIndex];
@@ -301,5 +308,61 @@ exports.getProfile = async (req, res) => {
             avatar: user.avatar || null
         };
         return res.json(safeUser);
+    }
+};
+
+// Avatar upload/delete helpers
+exports.updateAvatar = async (req, res) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const filename = req.savedFilename || (req.file && req.file.filename);
+    if (!filename) return res.status(400).json({ error: 'No file uploaded' });
+    const urlPath = `/uploads/${filename}`;
+
+    try {
+        const db = getDb();
+        const users = db.collection('users');
+        const ObjectId = require('mongodb').ObjectId;
+        const r = await users.findOneAndUpdate(
+            { _id: new ObjectId(userId) },
+            { $set: { pictureUrl: urlPath, avatar: urlPath } },
+            { returnDocument: 'after' }
+        );
+        if (!r.value) return res.status(404).json({ error: 'User not found' });
+        return res.json({ message: 'Avatar updated', pictureUrl: urlPath });
+    } catch (err) {
+        // fallback file-based
+        const users = readUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx === -1) return res.status(404).json({ error: 'User not found' });
+        users[idx].pictureUrl = urlPath;
+        users[idx].avatar = urlPath;
+        writeUsers(users);
+        return res.json({ message: 'Avatar updated', pictureUrl: urlPath });
+    }
+};
+
+exports.deleteAvatar = async (req, res) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        const db = getDb();
+        const users = db.collection('users');
+        const ObjectId = require('mongodb').ObjectId;
+        const r = await users.findOneAndUpdate(
+            { _id: new ObjectId(userId) },
+            { $unset: { pictureUrl: "", avatar: "" } },
+            { returnDocument: 'after' }
+        );
+        return res.json({ message: 'Avatar removed' });
+    } catch (err) {
+        const users = readUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx === -1) return res.status(404).json({ error: 'User not found' });
+        delete users[idx].pictureUrl;
+        delete users[idx].avatar;
+        writeUsers(users);
+        return res.json({ message: 'Avatar removed' });
     }
 };

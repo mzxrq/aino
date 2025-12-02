@@ -47,9 +47,19 @@ const getDashboard = async (req, res) => {
       return res.status(400).json({ message: "lineId is required" });
     }
 
-    const subscriber = await subscriberService.getSubscriber(lineId);
-    if (!subscriber)
+    let subscriber;
+    try {
+      subscriber = await subscriberService.getSubscriber(lineId);
+    } catch (err) {
+      if ((err && err.message && /not found/i.test(err.message)) || err === 'Subscriber not found') {
+        return res.status(404).json({ message: "Subscriber not found" });
+      }
+      throw err;
+    }
+
+    if (!subscriber) {
       return res.status(404).json({ message: "Subscriber not found" });
+    }
 
     const tickers = subscriber.tickers || [];
 
