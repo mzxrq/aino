@@ -241,8 +241,7 @@ def data_preprocessing(df: pd.DataFrame):
     # Optional: cap wick ratio at a max value to avoid extreme spikes
     df['wick_ratio'] = df['wick_ratio'].clip(upper=20)
 
-    df = df.dropna().reset_index(drop=True)
-
+    df = df.fillna(method='bfill').fillna(method='ffill')
     return df
 
 
@@ -356,3 +355,7 @@ def json_structure_group_by_ticker(df: pd.DataFrame) :
                 for ticker, group in df.groupby(ticker_col)
         }
 
+df = load_dataset(["AAPL"], period="5d", interval="1d")
+df = df.groupby('Ticker').apply(data_preprocessing).reset_index(drop=True)
+
+print(df.head())
