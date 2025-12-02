@@ -76,6 +76,8 @@ export function AuthProvider({ children }) {
     setTokenState(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    // Return a flag so caller can decide where to redirect
+    return true;
   };
 
   // Save token and immediately fetch /profile to populate user

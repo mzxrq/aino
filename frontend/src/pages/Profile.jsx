@@ -65,13 +65,10 @@ const Profile = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const userId = user.userId || user.id;
-      
       const response = await fetch(`${NODE_API_URL}/auth/update-profile`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
-          userId,
           displayName: formData.displayName,
           username: formData.username,
           email: formData.email,
@@ -86,16 +83,11 @@ const Profile = () => {
 
       setSuccess('Profile updated successfully!');
       setEditMode(false);
-      // Update localStorage with new user data
-      const updatedUser = {
-        ...user,
-        displayName: formData.displayName,
-        name: formData.displayName,
-        username: formData.username,
-        email: formData.email,
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setTimeout(() => window.location.reload(), 1000);
+      // Refetch user profile
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setTimeout(() => window.location.reload(), 1000);
+      }
     } catch (err) {
       setError(err.message || 'Failed to update profile');
     } finally {
@@ -235,8 +227,8 @@ const Profile = () => {
         {/* Profile Header */}
         <div className="profile-header">
           <div className="profile-avatar-section">
-            {user.pictureUrl ? (
-              <img src={user.pictureUrl} alt="Profile" className="profile-avatar" />
+            {user.pictureUrl || user.avatar ? (
+              <img src={(user.pictureUrl || user.avatar).startsWith('/') ? `${NODE_API_URL}${user.pictureUrl || user.avatar}` : (user.pictureUrl || user.avatar)} alt="Profile" className="profile-avatar" />
             ) : (
               <div className="profile-avatar-placeholder">
                 {(user.displayName || user.name || 'U')[0].toUpperCase()}
@@ -247,7 +239,7 @@ const Profile = () => {
                 {avatarUploading ? 'Uploading...' : 'Upload Avatar'}
                 <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
               </label>
-              {user.pictureUrl && (
+              {(user.pictureUrl || user.avatar) && (
                 <button className="btn btn-outline" onClick={handleAvatarDelete} disabled={avatarUploading}>Remove</button>
               )}
             </div>
@@ -446,7 +438,7 @@ const Profile = () => {
           <button 
             onClick={() => { 
               logout(); 
-              navigate('/login'); 
+              navigate('/');
             }}
             className="btn btn-logout"
           >
