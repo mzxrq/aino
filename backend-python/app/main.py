@@ -70,3 +70,8 @@ async def _on_shutdown():
     if scheduler_thread:
         scheduler_thread.join(timeout=5)
     logger.info('[shutdown] scheduler stopped')
+
+# Healthcheck endpoint
+@app.get("/health")
+async def health():
+    return {"status": "ok"}

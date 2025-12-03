@@ -33,6 +33,11 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Home Page!");
 });
 
+// Healthcheck endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 // Connect DB but start server regardless so file-based fallbacks work
 connectDB()
   .then(() => {
