@@ -1,80 +1,52 @@
-from fastapi import APIRouter
-import httpx
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from datetime import datetime, timedelta
-from fastapi import Depends
+from typing import Optional
+import httpx
+from jose import jwt, JWTError
 from pymongo import MongoClient
 import os
 import dotenv
 import logging
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
-# MongoDB connection with authentication support
-MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
-DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
-
-# Try to connect with authentication if credentials provided
-try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    # Force connection attempt to validate credentials
-    client.admin.command('ping')
-    db = client[DB_NAME]
-    logger.info("✓ MongoDB connected successfully")
-except Exception as e:
-    logger.warning(f"MongoDB connection failed ({e}). LINE callback will use file-based fallback.")
-    db = None
-
-ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "720")
-
-import os
-from datetime import datetime, timedelta
-import os
-from datetime import datetime, timedelta
-from typing import Optional
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
-from jose import JWTError, jwt
-from pymongo import MongoClient
-
-# --- Pydantic request model used by the LINE callback
-class LoginRequest(BaseModel):
-    code: str
-
-
-# OAuth2 setup
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# JWT + DB configuration with safe fallbacks
+# --- Config ---
 SECRET_KEY = os.getenv("SECRET_KEY", "replace-me-with-a-random-secret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-try:
-    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
-except ValueError:
-    ACCESS_TOKEN_EXPIRE_MINUTES = 10080
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
-# MongoDB client
 MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 
+LINE_CLIENT_ID = os.getenv("LINE_CLIENT_ID")
+LINE_CLIENT_SECRET = os.getenv("LINE_CLIENT_SECRET")
+LINE_REDIRECT_URI = os.getenv("LINE_REDIRECT_URI")
 
+router = APIRouter()
+
+# --- Pydantic Models ---
+class LineLoginRequest(BaseModel):
+    code: str
+    state: Optional[str] = None
+
+# --- JWT Functions ---
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Creates a new JWT token."""
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+# --- Dependency to get current user ---
+from fastapi.security import OAuth2PasswordBearer
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Decodes token and fetches user from DB. Used by /users/me"""
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -82,103 +54,105 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_id = payload.get("sub")
+        if not user_id:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    # --- MongoDB Integration ---
-    # We use user_id (which is the LINE User ID) to find our user
     user = db.users.find_one({"line_user_id": user_id})
-
-    if user is None:
+    if not user:
         raise credentials_exception
-
-    # Convert MongoDB's _id to a string
     user["_id"] = str(user["_id"])
     return user
 
-router = APIRouter()
-# Use the `db` initialized in `auth.py` (single Mongo client for the package)
-
+# --- LINE callback ---
 @router.post("/auth/line/callback")
-async def login_line(request: LoginRequest):
-    # 1. Exchange Code for Access Token
-    token_url = "https://api.line.me/oauth2/v2.1/token"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    data = {
-        "grant_type": "authorization_code",
-        "code": request.code,
-        "redirect_uri": os.getenv("LINE_REDIRECT_URI"), 
-        "client_id": os.getenv("LINE_CLIENT_ID"), 
-        "client_secret": os.getenv("LINE_CLIENT_SECRET")
-    }
+async def login_or_register_line(request: LineLoginRequest):
+    try:
+        async with httpx.AsyncClient() as client_http:
+            # 1. Exchange code for token
+            token_url = "https://api.line.me/oauth2/v2.1/token"
+            token_data = {
+                "grant_type": "authorization_code",
+                "code": request.code,
+                "redirect_uri": LINE_REDIRECT_URI,
+                "client_id": LINE_CLIENT_ID,
+                "client_secret": LINE_CLIENT_SECRET,
+            }
+            token_res = await client_http.post(token_url, data=token_data)
+            token_json = token_res.json()
+            if "error" in token_json:
+                raise HTTPException(status_code=400, detail=token_json.get("error_description"))
+
+            access_token = token_json.get("access_token")
+
+            # 2. Fetch LINE profile
+            profile_res = await client_http.get(
+                "https://api.line.me/v2/profile",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            profile_json = profile_res.json()
+            line_user_id = profile_json.get("userId")
+            if not line_user_id:
+                raise HTTPException(status_code=400, detail="Failed to fetch LINE user profile")
+
+            # 3. Check state for binding
+            user = None
+            if request.state and request.state.startswith("integrate-"):
+                # state format: integrate-<userId>-<nonce>; extract the first segment after prefix
+                raw = request.state.replace("integrate-", "")
+                user_id_to_bind = raw.split("-")[0]
+                try:
+                    oid = ObjectId(user_id_to_bind)
+                except Exception:
+                    oid = user_id_to_bind
+                user = db.users.find_one({"_id": oid})
+                if user:
+                    db.users.update_one({"_id": oid}, {"$set": {
+                        "line_user_id": line_user_id,
+                        "display_name": profile_json.get("displayName"),
+                        "picture_url": profile_json.get("pictureUrl"),
+                        "status_message": profile_json.get("statusMessage"),
+                        "last_login": datetime.utcnow()
+                    }})
+
+            # 4. Login/register if not binding
+            if not user:
+                user = db.users.find_one({"line_user_id": line_user_id})
+                if user:
+                    db.users.update_one({"line_user_id": line_user_id}, {"$set": {"last_login": datetime.utcnow()}})
+                else:
+                    user_document = {
+                        "line_user_id": line_user_id,
+                        "display_name": profile_json.get("displayName"),
+                        "picture_url": profile_json.get("pictureUrl"),
+                        "status_message": profile_json.get("statusMessage"),
+                        "role": "general",
+                        "created_at": datetime.utcnow(),
+                        "last_login": datetime.utcnow()
+                    }
+                    r = db.users.insert_one(user_document)
+                    user = { **user_document, "_id": r.inserted_id }
+
+            user["_id"] = str(user["_id"])
+
+            # 5. Generate JWT
+            token_jwt = create_access_token({"sub": line_user_id}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+
+            return {"user": user, "token": token_jwt}
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
     
-    async with httpx.AsyncClient() as client:
-        token_res = await client.post(token_url, headers=headers, data=data)
-        token_json = token_res.json()
-        
-        if "error" in token_json:
-            return {"error": token_json.get("error_description")}
-            
-        access_token = token_json.get("access_token")
-        
-        # 2. Get User Profile
-        profile_url = "https://api.line.me/v2/profile"
-        profile_headers = {"Authorization": f"Bearer {access_token}"}
-        profile_res = await client.get(profile_url, headers=profile_headers)
-        profile_json = profile_res.json() # This is the user data from LINE
-
-        # 3. --- MODIFIED: Save to MongoDB (with fallback) ---
-        line_user_id = profile_json.get("userId")
-        
-        # Prepare user document based on your schema
-        user_document = {
-            "line_user_id": line_user_id,
-            "display_name": profile_json.get("displayName"),
-            "picture_url": profile_json.get("pictureUrl"),
-            "status_message": profile_json.get("statusMessage"),
-            "role": "general", # Default role
-            "last_login": datetime.utcnow()
-        }
-        
-        # Upsert: Find user by line_user_id and update them, or create if they don't exist
-        if db is not None:
-            try:
-                db.users.update_one(
-                    {"line_user_id": line_user_id},
-                    {"$set": user_document, "$setOnInsert": {"created_at": datetime.utcnow()}},
-                    upsert=True,
-                )
-                logger.info(f"User {line_user_id} saved to MongoDB")
-            except Exception as e:
-                logger.warning(f"Failed to save user to MongoDB: {e}. Continuing without persistence.")
-        else:
-            logger.info(f"MongoDB unavailable. User {line_user_id} session will not persist.")
-
-        # 4. --- MODIFIED: Create and return JWT Token ---
-        token_expires = timedelta(minutes=int(ACCESS_TOKEN_EXPIRE_MINUTES))
-        router_token = create_access_token(
-            data={"sub": line_user_id}, expires_delta=token_expires
-        )
-        
-        # Return both the user profile and our router's token
-        return {"user": profile_json, "token": router_token}
-
-# --- NEW ENDPOINT: Required for session persistence ---
+# --- Endpoint to fetch current profile ---
 @router.get("/profile")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    """
-    Returns the user data for the currently authenticated user.
-    AuthContext.jsx calls this on router load to restore the session.
-    """
-    # The 'current_user' is already fetched from the DB by get_current_user
-    # We just need to format it to match what LINE sends, as React expects it
-    user_profile = {
+    return {
         "userId": current_user.get("line_user_id"),
         "displayName": current_user.get("display_name"),
         "pictureUrl": current_user.get("picture_url"),
         "statusMessage": current_user.get("status_message")
     }
-    return user_profile
