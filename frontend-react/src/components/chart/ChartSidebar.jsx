@@ -36,7 +36,7 @@ export function ChartSidebar({
               overlay={overlay}
             />
             {typeof setSidebarOverlay === 'function' && !collapsed && (
-              <button className="overlay-toggle-btn" onClick={() => setSidebarOverlay(s => !s)} title={overlay ? 'Disable overlay' : 'Enable overlay'} aria-label="Toggle sidebar overlay">
+              <button className="overlay-toggle-btn icon-btn" onClick={() => setSidebarOverlay(s => !s)} title={overlay ? 'Disable overlay' : 'Enable overlay'} aria-label="Toggle sidebar overlay">
                 {overlay ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h18M12 3v18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 ) : (
@@ -45,7 +45,7 @@ export function ChartSidebar({
               </button>
             )}
             {!collapsed && (
-              <button className="collapse-btn small" onClick={() => setCollapsed(true)} aria-label="Close sidebar">
+              <button className="collapse-btn small icon-btn" onClick={() => setCollapsed(true)} aria-label="Close sidebar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                   <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 12 12)" />
                 </svg>

@@ -92,11 +92,11 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
     <div className="legend-data">
       <div className="legend-row ohlcv">
         <span className="legend-label">O</span>
-        <strong className="legend-value">{formatValue(val('open'))}</strong>
-        <span className="legend-label">H</span>
-        <strong className="legend-value">{formatValue(val('high'))}</strong>
+        <strong className="legend-value">{formatValue(val('open'))} </strong>
+        <span className="legend-label">H </span>
+        <strong className="legend-value">{formatValue(val('high'))} </strong>
         <span className="legend-label">L</span>
-        <strong className="legend-value">{formatValue(val('low'))}</strong>
+        <strong className="legend-value">{formatValue(val('low'))} </strong>
         <span className="legend-label">C</span>
         <strong className="legend-value">{formatValue(val('close'))}</strong>
         <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('price')} title="Toggle price">
@@ -117,6 +117,10 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
         </button>
         {/* price visibility toggle removed from inline legend; use toolbar/sidebar controls */}
       </div>
+    </div>
+  );
+
+  const mini2 = (
     <div className="legend-data">
       <div className="legend-row indicators">
         <span className="legend-label">RSI</span>
@@ -167,7 +171,6 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
           )}
         </button>
       </div>
-      </div>
     </div>
     );
 
@@ -178,6 +181,7 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
         {companyName && <span className="legend-company">{companyName}</span>}
       </div>
       {mini}
+      {mini2}
     </div>
   );
 }

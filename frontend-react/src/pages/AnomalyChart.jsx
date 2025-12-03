@@ -61,6 +61,7 @@ export default function AnomalyChart() {
     plotlyLegendPos, setPlotlyLegendPos,
     toolbarCollapsed, setToolbarCollapsed,
     toolbarDock, setToolbarDock,
+    toolbarPos, setToolbarPos,
     legendPos, setLegendPos,
   } = useChartPreferences();
 
@@ -318,7 +319,7 @@ export default function AnomalyChart() {
     if (!isLoggedIn) { alert('Please log in first to subscribe to alerts'); navigate('/login'); return; }
     setSubLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:5050/subscribers/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lineId: user?.userId || 'anonymous', tickers:[ticker] }) });
+      const res = await fetch('http://127.0.0.1:5050/subscribers/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: user?.userId || 'anonymous', tickers:[ticker] }) });
       if(!res.ok) throw new Error('Failed to subscribe');
       await res.json(); setIsSubscribed(true);
     } catch (e) { console.error(e); setIsSubscribed(false); } finally { setSubLoading(false); }
@@ -399,6 +400,7 @@ export default function AnomalyChart() {
                 refresh={refresh}
                 showLegend={showLegend} setShowLegend={setShowLegend}
                 toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
+                toolbarDock={toolbarDock} setToolbarDock={setToolbarDock} toolbarPos={toolbarPos} setToolbarPos={setToolbarPos}
                 toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
               />
             )}
@@ -444,24 +446,29 @@ export default function AnomalyChart() {
                 refresh={refresh}
                 showLegend={showLegend} setShowLegend={setShowLegend}
                 toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
+                toolbarDock={toolbarDock} setToolbarDock={setToolbarDock} toolbarPos={toolbarPos} setToolbarPos={setToolbarPos}
                 toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
               />
             )}
           </div>
         )}
-        <ChartToolbar
-          period={period} setPeriod={setPeriod}
-          interval={interval} setInterval={setInterval}
-          chartType={chartType} setChartType={setChartType}
-          forcedLineMode={forcedLineMode}
-          indicatorsOpen={indicatorsOpen} setIndicatorsOpen={setIndicatorsOpen}
-          plotlyTheme={plotlyTheme} setPlotlyTheme={setPlotlyTheme}
-          sidebarOverlay={sidebarOverlay} setSidebarOverlay={setSidebarOverlay}
-          refresh={refresh}
-          showLegend={showLegend} setShowLegend={setShowLegend}
-          toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
-          toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
-        />
+        {/* Toolbar is rendered conditionally inside the plot wrapper (top/bottom). For floating mode we render a single toolbar here. */}
+        {toolbarDock === 'float' && (
+          <ChartToolbar
+            period={period} setPeriod={setPeriod}
+            interval={interval} setInterval={setInterval}
+            chartType={chartType} setChartType={setChartType}
+            forcedLineMode={forcedLineMode}
+            indicatorsOpen={indicatorsOpen} setIndicatorsOpen={setIndicatorsOpen}
+            plotlyTheme={plotlyTheme} setPlotlyTheme={setPlotlyTheme}
+            sidebarOverlay={sidebarOverlay} setSidebarOverlay={setSidebarOverlay}
+            refresh={refresh}
+            showLegend={showLegend} setShowLegend={setShowLegend}
+            toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
+            toolbarDock={toolbarDock} setToolbarDock={setToolbarDock} toolbarPos={toolbarPos} setToolbarPos={setToolbarPos}
+            toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
+          />
+        )}
         <IndicatorPanel
           open={indicatorsOpen}
           showVolume={showVolume} setShowVolume={setShowVolume}
