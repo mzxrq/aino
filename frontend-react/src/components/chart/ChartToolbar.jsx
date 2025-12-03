@@ -57,16 +57,10 @@ export function ChartToolbar({
         <span className="toolbar-label">Type:</span>
         <button className={`toolbar-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} disabled={forcedLineMode} title={forcedLineMode ? 'Candlesticks unavailable for intraday' : ''} style={{ opacity: forcedLineMode ? 0.3 : 1, cursor: forcedLineMode ? 'not-allowed' : 'pointer' }}>Candles</button>
         <button className={`toolbar-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')}>Line</button>
+        <button className={`toolbar-btn ${chartType === 'area' ? 'active' : ''}`} onClick={() => setChartType('area')}>Area</button>
       </div>
       {/* Indicators panel removed: users can toggle indicators via legend eye icons */}
-      <div className="toolbar-group">
-        <label className="toolbar-label" htmlFor="plotly-theme-select">Plotly Theme:</label>
-        <select id="plotly-theme-select" className="toolbar-select md-select" value={plotlyTheme} onChange={(e) => setPlotlyTheme(e.target.value)}>
-          <option value="auto">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </div>
+      {/* Plotly theme selector removed per user request */}
       <div className="toolbar-group toolbar-actions">
         <button className="toolbar-btn" title="Refresh" onClick={refresh}>↻</button>
         <button className="toolbar-btn" title="Fullscreen" onClick={toggleFullscreen}>{isFullscreen ? '⛶' : '⛶'}</button>

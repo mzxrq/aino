@@ -99,29 +99,73 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
         <strong className="legend-value">{formatValue(val('low'))}</strong>
         <span className="legend-label">C</span>
         <strong className="legend-value">{formatValue(val('close'))}</strong>
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('price')} title="Toggle price">
+          {isTraceVisible('price') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
         <span className="legend-label">V</span>
         <strong className="legend-value">{formatVolume(val('volume'))}</strong>
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('volume')} title="Toggle volume">
+          {isTraceVisible('volume') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
         {/* price visibility toggle removed from inline legend; use toolbar/sidebar controls */}
       </div>
     <div className="legend-data">
       <div className="legend-row indicators">
         <span className="legend-label">RSI</span>
         <strong className="legend-value">{formatValue(val('rsi') ?? val('RSI'))}</strong>
-        {/* RSI toggle removed */}
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('rsi')} title="Toggle RSI">
+          {isTraceVisible('rsi') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
         <span className="legend-label">VWAP</span>
         <strong className="legend-value">{formatValue(val('vwap') ?? val('VWAP'))}</strong>
-        {/* VWAP toggle removed */}
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('vwap')} title="Toggle VWAP">
+          {isTraceVisible('vwap') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
       </div>
       <div className="legend-row indicators">
         <span className="legend-label">BBT</span>
         <strong className="legend-value">{formatValue(val('BB_upper'))}</strong>
-        {/* BB Upper toggle removed */}
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('bb_upper')} title="Toggle BB Upper">
+          {isTraceVisible('bb_upper') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
         <span className="legend-label">BBL</span>
         <strong className="legend-value">{formatValue(val('BB_lower'))}</strong>
-        {/* BB Lower toggle removed */}
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('bb_lower')} title="Toggle BB Lower">
+          {isTraceVisible('bb_lower') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
         <span className="legend-label">BBM</span>
         <strong className="legend-value">{formatValue(val('BB_sma') ?? val('sma'))}</strong>
-        {/* BB SMA toggle removed */}
+        <button className="legend-eye" onMouseDown={(e) => e.stopPropagation()} onClick={() => onToggleTrace && onToggleTrace('bb_sma')} title="Toggle BB SMA">
+          {isTraceVisible('bb_sma') ? (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.4"/></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7 1.5-2.64 4.12-4.72 7.26-5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          )}
+        </button>
       </div>
       </div>
     </div>

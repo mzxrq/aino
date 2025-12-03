@@ -146,6 +146,21 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             yaxis: 'y',
             hovertemplate: /m|h$/.test(String(interval)) ? '<b>%{x|%Y-%m-%d %H:%M}</b><extra></extra>' : '<b>%{x|%b %d}</b><extra></extra>'
           });
+        } else if (finalChartType === 'area') {
+          traces.push({
+            x: chartDataRaw.dates,
+            y: chartDataRaw.close,
+            type: 'scatter',
+            mode: 'lines',
+            name: `${ticker} Area`,
+            traceId: 'price',
+            line: { shape: 'spline', width: 2 },
+            fill: 'tozeroy',
+            fillcolor: 'rgba(33,150,243,0.08)',
+            xaxis: 'x',
+            yaxis: 'y',
+            hovertemplate: /m|h$/.test(String(interval)) ? '<b>%{x|%Y-%m-%d %H:%M}</b><extra></extra>' : '<b>%{x|%b %d}</b><extra></extra>'
+          });
         } else {
           traces.push({
             x: chartDataRaw.dates,

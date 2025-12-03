@@ -199,8 +199,13 @@
 .card-header .ticker {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--primary);
   margin: 0;
+  /* Use gradient-filled text matching the site's card header style (keeps text visible)
+     Use transparent text-fill so the background gradient shows through via background-clip */
+  background: linear-gradient(135deg, var(--primary), #ffd700 55%, var(--primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .btn-close {
