@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pandas
 numpy
 pymongo
@@ -9,3 +9,9 @@ schedule
 yfinance
 scikit-learn
 joblib
+dnspython
+orjson
+python-multipart
+passlib[bcrypt]
+httpx
+python-jose
