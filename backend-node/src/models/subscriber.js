@@ -1,6 +1,6 @@
 class Subscriber {
-  constructor(lineId, tickers) {
-    this.lineId = lineId;
+  constructor(id, tickers) {
+    this.id = id;
     this.tickers = tickers || [];
   }
 }

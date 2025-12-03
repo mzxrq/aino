@@ -41,15 +41,15 @@ const getAllDashboard = async (req, res) => {
 // GET DASHBOARD FOR 1 USER
 const getDashboard = async (req, res) => {
   try {
-    const { lineId } = req.params;
+    const { id } = req.params;
 
-    if (!lineId) {
-      return res.status(400).json({ message: "lineId is required" });
+    if (!id) {
+      return res.status(400).json({ message: "id is required" });
     }
 
     let subscriber;
     try {
-      subscriber = await subscriberService.getSubscriber(lineId);
+      subscriber = await subscriberService.getSubscriber(id);
     } catch (err) {
       if ((err && err.message && /not found/i.test(err.message)) || err === 'Subscriber not found') {
         return res.status(404).json({ message: "Subscriber not found" });

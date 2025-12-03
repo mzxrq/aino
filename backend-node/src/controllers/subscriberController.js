@@ -2,11 +2,11 @@ const subscriberService = require("../services/subscriberService");
 
 const addOrUpdate = async (req, res) => {
   try {
-    const { lineId, tickers } = req.body;
-    if (!lineId || !tickers) return res.status(400).json({ message: "lineId and tickers are required" });
+    const { id, tickers } = req.body;
+    if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
     const userId = req.userId || null;
-    const result = await subscriberService.addOrUpdateSubscriber(lineId, tickers, userId);
+    const result = await subscriberService.addOrUpdateSubscriber(id, tickers);
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
@@ -16,11 +16,11 @@ const addOrUpdate = async (req, res) => {
 
 const removeTickers = async (req, res) => {
   try {
-    const { lineId, tickers } = req.body;
-    if (!lineId || !tickers) return res.status(400).json({ message: "lineId and tickers are required" });
+    const { id, tickers } = req.body;
+    if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
     const userId = req.userId || null;
-    const result = await subscriberService.deleteTickers(lineId, tickers, userId);
+    const result = await subscriberService.deleteTickers(id, tickers, userId);
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
@@ -30,7 +30,7 @@ const removeTickers = async (req, res) => {
 
 const getOne = async (req, res) => {
   try {
-    const subscriber = await subscriberService.getSubscriber(req.params.lineId);
+    const subscriber = await subscriberService.getSubscriber(req.params.id);
     res.status(200).json(subscriber);
   } catch (error) {
     console.error(error);
@@ -74,18 +74,18 @@ const getMySubscriptions = async (req, res) => {
 };
 
 const status = async (req, res) => {
-    const { lineId, ticker } = req.body;
+    const { id, ticker } = req.body;
 
-    if (!lineId || !ticker) {
+    if (!id || !ticker) {
         return res.status(400).json({
             subscribed: false,
-            message: "lineId and ticker are required"
+            message: "id and ticker are required"
         });
     }
 
     try {
-        // find user by lineId
-        const doc = await subscriberService.getSubscriber(lineId);
+        // find user by id
+        const doc = await subscriberService.getSubscriber(id);
 
         if (!doc) {
             return res.status(200).json({ subscribed: false });

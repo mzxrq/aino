@@ -9,6 +9,6 @@ router.get("/all", getAllDashboard);
 router.get("/recent-anomalies/list", getRecentAnomalies);
 
 // GET dashboard for one user (keep last due to catch-all param)
-router.get("/:lineId", getDashboard);
+router.get("/:id", getDashboard);
 
 module.exports = router;
