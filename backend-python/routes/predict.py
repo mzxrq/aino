@@ -35,6 +35,83 @@ except Exception as e:
     db = None
 
 # -------------------------
+# Company/Market metadata (merged from predict_new.py)
+# -------------------------
+def _derive_market_from_ticker(t: str) -> str:
+    s = (t or '').upper()
+    if s.endswith('.T'):
+        return 'JP'
+    if s.endswith('.BK'):
+        return 'TH'
+    return 'US'
+
+def _format_market_label(meta_market: str, meta_exchange: str, ticker: str) -> str:
+    # Prefer yfinance meta when available; otherwise infer by suffix
+    m = (meta_market or '').upper()
+    ex = (meta_exchange or '').upper()
+    if m == 'US' or _derive_market_from_ticker(ticker) == 'US':
+        # Map common US exchanges
+        if 'NASDAQ' in ex or 'NMS' in ex:
+            return 'US (NASDAQ)'
+        if 'NYSE' in ex or 'NYQ' in ex or 'NEW YORK STOCK EXCHANGE' in ex:
+            return 'US (NYSE)'
+        return 'US'
+    if m in ('JP','JPN','JAPAN') or _derive_market_from_ticker(ticker) == 'JP':
+        # Tokyo Stock Exchange
+        return 'JP (TSE/TYO)'
+    if m in ('TH','THAILAND') or _derive_market_from_ticker(ticker) == 'TH':
+        # Stock Exchange of Thailand
+        return 'TH (SET)'
+    # Fallback to suffix-derived simple code
+    return _derive_market_from_ticker(ticker)
+
+def _get_ticker_meta(t: str) -> Dict[str, Any]:
+    """Fetch company name and exchange/market via yfinance, with Mongo cache."""
+    meta = {}
+    try:
+        # Try cache first
+        if db is not None:
+            cached = db.ticker_meta.find_one({'_id': t.upper()})
+            if cached:
+                return cached.get('payload', {})
+
+        yt = yf.Ticker(t)
+        # Prefer fast_info where possible
+        finfo = getattr(yt, 'fast_info', None)
+        info = {}
+        try:
+            info = yt.info or {}
+        except Exception:
+            info = {}
+
+        company = (
+            (getattr(finfo, 'shortName', None) if hasattr(finfo, 'shortName') else None) or
+            info.get('longName') or info.get('shortName') or info.get('symbol') or t.upper()
+        )
+        market = info.get('market', None)
+        exchange = info.get('exchange', None) or info.get('fullExchangeName', None) or info.get('quoteType', None)
+
+        meta = {
+            'companyName': company,
+            'market': _format_market_label(market, exchange, t)
+        }
+
+        # Save to cache
+        if db is not None:
+            db.ticker_meta.update_one(
+                {'_id': t.upper()},
+                {'$set': {'payload': meta, 'fetched_at': datetime.utcnow()}},
+                upsert=True
+            )
+    except Exception:
+        # Fallbacks when yfinance fails
+        meta = {
+            'companyName': t.upper(),
+            'market': _derive_market_from_ticker(t)
+        }
+    return meta
+
+# -------------------------
 # Cache helper (MongoDB)
 # -------------------------
 def _cache_key(ticker: str, period: str, interval: str) -> str:
@@ -104,6 +181,7 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
 
         },
         'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
+        'rawTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
         'price_change' : price_change,
         'pct_change' : pct_change
     }
@@ -127,6 +205,10 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
         ttl = _ttl_for_period(period)
         cached = _load_from_cache(key, ttl)
         if cached:
+            # Enrich cached payload with company/market metadata while preserving cache content
+            meta = _get_ticker_meta(t)
+            cached['companyName'] = cached.get('companyName') or meta.get('companyName')
+            cached['market'] = cached.get('market') or meta.get('market')
             result[t] = cached
             continue
 
@@ -151,6 +233,10 @@ def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
 
         ticker_anoms = anomalies_df if not anomalies_df.empty else pd.DataFrame()
         payload = _build_chart_response_for_ticker(df, ticker_anoms)
+        # Enrich payload with company/market metadata
+        meta = _get_ticker_meta(t)
+        payload['companyName'] = payload.get('companyName') or meta.get('companyName')
+        payload['market'] = payload.get('market') or meta.get('market')
 
         # Save to cache
         try:
@@ -178,6 +264,9 @@ def chart_full_endpoint(request: FraudRequest):
         ttl = _ttl_for_period(period)
         cached = _load_from_cache(key, ttl)
         if cached:
+            meta = _get_ticker_meta(t)
+            cached['companyName'] = cached.get('companyName') or meta.get('companyName')
+            cached['market'] = cached.get('market') or meta.get('market')
             result[t] = cached
             continue
 
@@ -198,6 +287,9 @@ def chart_full_endpoint(request: FraudRequest):
             anomalies_df = pd.DataFrame()
 
         payload = _build_chart_response_for_ticker(df, anomalies_df)
+        meta = _get_ticker_meta(t)
+        payload['companyName'] = payload.get('companyName') or meta.get('companyName')
+        payload['market'] = payload.get('market') or meta.get('market')
         _save_to_cache(key, payload)
         result[t] = payload
 

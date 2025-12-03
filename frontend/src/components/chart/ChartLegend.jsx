@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 
-export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = 'right', position, onPositionChange }) {
+export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = 'right', position, onPositionChange, chartType, onToggleTrace, legendOffset = 16, traceList = [] }) {
   // Show hover data if present; else last candle
   const displayData = hoverData || lastData;
   if (!displayData) return null;
@@ -11,10 +11,20 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
   const formatValue = (val) => (typeof val === 'number' ? val.toFixed(2) : (val?.toFixed?.(2) || 'N/A'));
   const formatVolume = (vol) => {
     if (!vol || vol === 'N/A') return 'N/A';
-    return new Intl.NumberFormat('en-US', { notation: 'compact', compactDisplay: 'short' }).format(vol);
+    return new Intl.NumberFormat('en-US', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(vol);
   };
 
-  const style = position ? { top: position.top, left: position.left, right: 'auto' } : undefined;
+  let style = position ? { top: position.top, left: position.left, right: 'auto' } : {};
+  // If no explicit position and legendOffset provided, position legend next to sidebar
+  if (!position) {
+    if (dock === 'left') {
+      style.left = `${legendOffset}px`;
+      style.right = 'auto';
+    } else {
+      style.right = `${legendOffset}px`;
+      style.left = 'auto';
+    }
+  }
   const classes = ['chart-legend'];
   if (!position && dock === 'left') classes.push('left');
   if (position) classes.push('draggable');
@@ -37,27 +47,93 @@ export function ChartLegend({ ticker, hoverData, lastData, companyName, dock = '
     window.removeEventListener('mousemove', onMouseMove);
   }
 
+  // Mini legend: top-left compact display
+  const isCandle = chartType === 'candlestick';
+  const val = (key) => (hoverData && hoverData[key] != null) ? hoverData[key] : (lastData && lastData[key] != null ? lastData[key] : null);
+
+  // Helper to detect trace visibility from Plotly graph
+  function isTraceVisible(key) {
+    try {
+      const gd = document.querySelector('.js-plotly-plot');
+      if (!gd || !gd.data) return true;
+      const keyLower = String(key).toLowerCase();
+      // Prefer explicit traceList mapping if provided
+      if (traceList && traceList.length) {
+        for (let t of traceList) {
+          const id = (t.id || '').toString().toLowerCase();
+          if (id === keyLower || id.includes(keyLower) || (t.name || '').toString().toLowerCase().includes(keyLower)) {
+            const idx = t.index;
+            const trace = gd.data[idx];
+            if (!trace) return true;
+            return !(trace.visible === 'legendonly');
+          }
+        }
+      }
+      for (let i = 0; i < gd.data.length; i++) {
+        const t = gd.data[i];
+        const name = (t.name || '').toString().toLowerCase();
+        if (keyLower === 'price') {
+          if (t.type === 'candlestick' || name.includes('close') || name.includes('price')) return !(t.visible === 'legendonly');
+        }
+        if (keyLower === 'volume') {
+          if (t.type === 'bar' || name.includes('volume')) return !(t.visible === 'legendonly');
+        }
+        if (keyLower === 'rsi' && name.includes('rsi')) return !(t.visible === 'legendonly');
+        if (keyLower === 'vwap' && name.includes('vwap')) return !(t.visible === 'legendonly');
+        if (keyLower === 'bb_upper' && name.includes('upper')) return !(t.visible === 'legendonly');
+        if (keyLower === 'bb_lower' && name.includes('lower')) return !(t.visible === 'legendonly');
+        if (keyLower === 'bb_sma' && (name.includes('sma') || name.includes('sma (20)'))) return !(t.visible === 'legendonly');
+      }
+    } catch (e) {}
+    return true;
+  }
+
+  const mini = (
+    <div className="legend-data">
+      <div className="legend-row ohlcv">
+        <span className="legend-label">O</span>
+        <strong className="legend-value">{formatValue(val('open'))}</strong>
+        <span className="legend-label">H</span>
+        <strong className="legend-value">{formatValue(val('high'))}</strong>
+        <span className="legend-label">L</span>
+        <strong className="legend-value">{formatValue(val('low'))}</strong>
+        <span className="legend-label">C</span>
+        <strong className="legend-value">{formatValue(val('close'))}</strong>
+        <span className="legend-label">V</span>
+        <strong className="legend-value">{formatVolume(val('volume'))}</strong>
+        {/* price visibility toggle removed from inline legend; use toolbar/sidebar controls */}
+      </div>
+    <div className="legend-data">
+      <div className="legend-row indicators">
+        <span className="legend-label">RSI</span>
+        <strong className="legend-value">{formatValue(val('rsi') ?? val('RSI'))}</strong>
+        {/* RSI toggle removed */}
+        <span className="legend-label">VWAP</span>
+        <strong className="legend-value">{formatValue(val('vwap') ?? val('VWAP'))}</strong>
+        {/* VWAP toggle removed */}
+      </div>
+      <div className="legend-row indicators">
+        <span className="legend-label">BBT</span>
+        <strong className="legend-value">{formatValue(val('BB_upper'))}</strong>
+        {/* BB Upper toggle removed */}
+        <span className="legend-label">BBL</span>
+        <strong className="legend-value">{formatValue(val('BB_lower'))}</strong>
+        {/* BB Lower toggle removed */}
+        <span className="legend-label">BBM</span>
+        <strong className="legend-value">{formatValue(val('BB_sma') ?? val('sma'))}</strong>
+        {/* BB SMA toggle removed */}
+      </div>
+      </div>
+    </div>
+    );
+
   return (
     <div className={classes.join(' ')} style={style} onMouseDown={onMouseDown}>
       <div className="legend-header">
         <span className="legend-ticker">{ticker}</span>
         {companyName && <span className="legend-company">{companyName}</span>}
       </div>
-      {/* Price line: show Close and Volume to avoid confusion in line mode */}
-      <div className="legend-data">
-        <span>C <strong>{formatValue(displayData.close)}</strong></span>
-        {displayData.volume !== undefined && (
-          <span>V <strong>{formatVolume(displayData.volume)}</strong></span>
-        )}
-      </div>
-      {/* Indicators line: VWAP / SMA20 / RSI when available */}
-      {(hoverData?.vwap !== undefined || hoverData?.sma !== undefined || hoverData?.rsi !== undefined) && (
-        <div className="legend-indicators">
-          {hoverData?.vwap !== undefined && <span>VWAP <strong>{formatValue(hoverData.vwap)}</strong></span>}
-          {hoverData?.sma !== undefined && <span>SMA20 <strong>{formatValue(hoverData.sma)}</strong></span>}
-          {hoverData?.rsi !== undefined && <span>RSI <strong>{formatValue(hoverData.rsi)}</strong></span>}
-        </div>
-      )}
+      {mini}
     </div>
   );
 }

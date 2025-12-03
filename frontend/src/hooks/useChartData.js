@@ -26,6 +26,7 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCore, setSidebarCore] = useState(null);
+  const [traceList, setTraceList] = useState([]);
   const [cacheBypassKey, setCacheBypassKey] = useState(null);
 
   const key = useMemo(() => cacheKey(ticker, period, interval), [ticker, period, interval]);
@@ -72,13 +73,47 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
           chartDataRaw = loadLocalCache(key, ttl);
         }
         if (!chartDataRaw) {
-          const res = await fetch(`${ML_API_URL}/chart_full`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticker, period, interval })
-          });
-          const json = await res.json();
-          chartDataRaw = json[ticker] || json[Object.keys(json)[0]] || json;
+          // Primary: POST /chart_full
+          let json;
+          let res;
+          try {
+            res = await fetch(`${ML_API_URL}/chart_full`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticker, period, interval })
+            });
+          } catch (e) {
+            res = null;
+          }
+          if (res && res.ok) {
+            json = await res.json();
+          } else {
+            // If POST failed with a status, log body to help diagnose 422/validation errors
+            if (res && !res.ok) {
+              try {
+                const bodyText = await res.text();
+                console.warn('chart_full POST failed', res.status, bodyText);
+              } catch (e) {
+                console.warn('chart_full POST failed', res.status);
+              }
+            }
+            // Fallback: GET /chart
+            try {
+              const res2 = await fetch(`${ML_API_URL}/chart?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`);
+              if (res2.ok) {
+                json = await res2.json();
+              } else {
+                // propagate error with status
+                const detail = await (async () => { try { return await res2.json(); } catch { return null; } })();
+                throw new Error(`Backend error ${res2.status}${detail && detail.detail ? `: ${detail.detail}` : ''}`);
+              }
+            } catch (e) {
+              const status = res ? res.status : 'network';
+              const errDetail = await (async () => { try { return res ? await res.json() : null; } catch { return null; } })();
+              throw new Error(`Backend error ${status}${errDetail && errDetail.detail ? `: ${errDetail.detail}` : ''}`);
+            }
+          }
+          chartDataRaw = json ? (json[ticker] || json[Object.keys(json)[0]] || json) : null;
           if (chartDataRaw && chartDataRaw.dates) {
             saveLocalCache(key, chartDataRaw);
             setCacheBypassKey(null);
@@ -95,6 +130,7 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
         // Build traces
         const traces = [];
         const finalChartType = shouldForceLine(period, interval) ? 'line' : chartType;
+        const useCategoryAxis = String(period).toLowerCase() === '5d';
 
         if (finalChartType === 'candlestick') {
           traces.push({
@@ -105,8 +141,10 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             close: chartDataRaw.close,
             type: 'candlestick',
             name: `${ticker} Price`,
+            traceId: 'price',
             xaxis: 'x',
-            yaxis: 'y'
+            yaxis: 'y',
+            hovertemplate: /m|h$/.test(String(interval)) ? '<b>%{x|%Y-%m-%d %H:%M}</b><extra></extra>' : '<b>%{x|%b %d}</b><extra></extra>'
           });
         } else {
           traces.push({
@@ -115,38 +153,40 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             type: 'scatter',
             mode: 'lines',
             name: `${ticker} Close`,
+            traceId: 'price',
             line: { shape: 'spline', width: 2 },
             fill: '',
             xaxis: 'x',
-            yaxis: 'y'
+            yaxis: 'y',
+            hovertemplate: /m|h$/.test(String(interval)) ? '<b>%{x|%Y-%m-%d %H:%M}</b><extra></extra>' : '<b>%{x|%b %d}</b><extra></extra>'
           });
         }
 
         if (showVWAP && chartDataRaw.VWAP?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', traceId: 'vwap', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
         }
 
         if (chartDataRaw.bollinger_bands?.sma) {
           const bb = chartDataRaw.bollinger_bands;
           if (showBollinger) {
-            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y' });
-            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y' });
+            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', traceId: 'bb_lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', traceId: 'bb_upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
           }
           if (showSMA) {
-            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y' });
+            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', traceId: 'bb_sma', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
           }
         }
 
         if (chartDataRaw.anomaly_markers?.dates?.length) {
-          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y' });
+          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', traceId: 'anomalies', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
         }
 
         if (showVolume && chartDataRaw.volume?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' } });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', traceId: 'volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' }, hovertemplate: '%{y}<extra></extra>' });
         }
 
         if (showRSI && chartDataRaw.RSI?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' } });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', traceId: 'rsi', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' }, hoverinfo: 'skip' });
         }
 
         // Domains computation
@@ -175,7 +215,8 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
         const legendCfg = legendPosMap[plotlyLegendPos || 'bottom-left'];
 
         const layoutObj = {
-          margin: { t: 10, r: 8, l: 40, b: 28 },
+          // Extra right margin to keep right-side y-axis readable
+          margin: { t: 10, r: 56, l: 40, b: 28 },
           xaxis: { 
             rangeslider: { visible: false },
             showspikes: true,
@@ -183,11 +224,13 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             spikesnap: 'cursor',
             spikecolor: isDarkTheme ? 'rgba(150,150,150,0.5)' : 'rgba(100,100,100,0.5)',
             spikethickness: 1,
-            spikedash: 'dot'
+            spikedash: 'dot',
+            type: useCategoryAxis ? 'category' : 'date'
           },
           yaxis: { 
             domain: yDomain, 
             title: 'Price',
+            side: 'right',
             showspikes: true,
             spikemode: 'across',
             spikesnap: 'cursor',
@@ -207,7 +250,11 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
 
         if (!cancelled) {
           setData(traces);
+          // Build a simple traceList mapping traceId -> index and name for robust toggling
+          const traceList = traces.map((t, i) => ({ id: t.traceId || `trace_${i}`, name: t.name || `trace_${i}`, index: i }));
+          setTraceList && setTraceList(traceList);
           setLayout(layoutObj);
+          // Include last values for indicators so legend can show them
           setSidebarCore({
             displayTicker: chartDataRaw.displayTicker || ticker,
             rawTicker: chartDataRaw.rawTicker || ticker,
@@ -217,7 +264,12 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             high: chartDataRaw.high ? chartDataRaw.high[chartDataRaw.high.length - 1] : null,
             low: chartDataRaw.low ? chartDataRaw.low[chartDataRaw.low.length - 1] : null,
             close: chartDataRaw.close ? chartDataRaw.close[chartDataRaw.close.length - 1] : null,
-            volume: chartDataRaw.volume ? chartDataRaw.volume[chartDataRaw.volume.length - 1] : 'N/A'
+            volume: chartDataRaw.volume ? chartDataRaw.volume[chartDataRaw.volume.length - 1] : 'N/A',
+            VWAP: chartDataRaw.VWAP ? chartDataRaw.VWAP[chartDataRaw.VWAP.length - 1] : null,
+            RSI: chartDataRaw.RSI ? chartDataRaw.RSI[chartDataRaw.RSI.length - 1] : null,
+            BB_upper: chartDataRaw.bollinger_bands?.upper ? chartDataRaw.bollinger_bands.upper[chartDataRaw.bollinger_bands.upper.length - 1] : null,
+            BB_lower: chartDataRaw.bollinger_bands?.lower ? chartDataRaw.bollinger_bands.lower[chartDataRaw.bollinger_bands.lower.length - 1] : null,
+            BB_sma: chartDataRaw.bollinger_bands?.sma ? chartDataRaw.bollinger_bands.sma[chartDataRaw.bollinger_bands.sma.length - 1] : null,
           });
           setIsLoading(false);
         }
@@ -232,5 +284,5 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
     return () => { cancelled = true; };
   }, [ticker, period, interval, chartType, showVolume, showBollinger, showRSI, showVWAP, showSMA, isDarkTheme, ML_API_URL, key, cacheBypassKey, shouldForceLine]);
 
-  return { data, layout, error, isLoading, sidebarCore, refresh, shouldForceLine };
+  return { data, layout, error, isLoading, sidebarCore, refresh, shouldForceLine, traceList };
 }

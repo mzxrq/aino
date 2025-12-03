@@ -29,18 +29,27 @@ export function ChartToolbar({
     if (!allowed.includes(interval)) setInterval(allowed[0]);
   }
 
+  if (toolbarCollapsed) {
+    return (
+      <button className="toolbar-fab" onClick={() => setToolbarCollapsed(false)} aria-label="Open toolbar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
+    );
+  }
+
   return (
-    <div className={`chart-toolbar floating ${toolbarCollapsed ? 'collapsed' : ''}`}>
-      <button className="toolbar-collapse-toggle" onClick={() => setToolbarCollapsed(s => !s)} aria-label="Toggle toolbar">{toolbarCollapsed ? '▸' : '▾'}</button>
+    <div className={`chart-toolbar floating`}>      
       <div className="toolbar-group">
         <label className="toolbar-label" htmlFor="range-select">Range:</label>
-        <select id="range-select" className="toolbar-select" value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
+        <select id="range-select" className="toolbar-select md-select" value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
           {['1d','5d','1mo','6mo','ytd','1y','5y'].map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
         </select>
       </div>
       <div className="toolbar-group">
         <label className="toolbar-label" htmlFor="interval-select">Interval:</label>
-        <select id="interval-select" className="toolbar-select" value={interval} onChange={(e) => setInterval(e.target.value)}>
+        <select id="interval-select" className="toolbar-select md-select" value={interval} onChange={(e) => setInterval(e.target.value)}>
           {(ALLOWED_INTERVALS[period] || ['1d']).map(i => <option key={i} value={i}>{i.toUpperCase()}</option>)}
         </select>
       </div>
@@ -49,23 +58,24 @@ export function ChartToolbar({
         <button className={`toolbar-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} disabled={forcedLineMode} title={forcedLineMode ? 'Candlesticks unavailable for intraday' : ''} style={{ opacity: forcedLineMode ? 0.3 : 1, cursor: forcedLineMode ? 'not-allowed' : 'pointer' }}>Candles</button>
         <button className={`toolbar-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')}>Line</button>
       </div>
-      <div className="toolbar-group">
-        <button id="indicators-toggle" className={`toolbar-btn ${indicatorsOpen ? 'active' : ''}`} onClick={() => setIndicatorsOpen(!indicatorsOpen)}>Indicators ▾</button>
-      </div>
+      {/* Indicators panel removed: users can toggle indicators via legend eye icons */}
       <div className="toolbar-group">
         <label className="toolbar-label" htmlFor="plotly-theme-select">Plotly Theme:</label>
-        <select id="plotly-theme-select" className="toolbar-select" value={plotlyTheme} onChange={(e) => setPlotlyTheme(e.target.value)}>
+        <select id="plotly-theme-select" className="toolbar-select md-select" value={plotlyTheme} onChange={(e) => setPlotlyTheme(e.target.value)}>
           <option value="auto">Auto</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
       </div>
-      <div className="toolbar-group">
-        <button className={`toolbar-btn ${sidebarOverlay ? 'active' : ''}`} title="Toggle sidebar overlay" onClick={() => setSidebarOverlay(s => !s)}>{sidebarOverlay ? 'Overlay On' : 'Overlay Off'}</button>
-        <button className="toolbar-btn" title="Refresh" onClick={refresh}>Refresh</button>
-        <button className={`toolbar-btn ${showLegend ? 'active' : ''}`} title="Toggle legend" onClick={() => setShowLegend(s => !s)}>{showLegend ? 'Legend On' : 'Legend Off'}</button>
-        <button className="toolbar-btn" title="Fullscreen" onClick={toggleFullscreen}>{isFullscreen ? 'Exit FS' : 'Fullscreen'}</button>
+      <div className="toolbar-group toolbar-actions">
+        <button className="toolbar-btn" title="Refresh" onClick={refresh}>↻</button>
+        <button className="toolbar-btn" title="Fullscreen" onClick={toggleFullscreen}>{isFullscreen ? '⛶' : '⛶'}</button>
       </div>
+      <button className="toolbar-fab small close right" onClick={() => setToolbarCollapsed(true)} aria-label="Collapse toolbar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 12h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   );
 }
