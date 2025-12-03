@@ -13,7 +13,8 @@ export function useChartPreferences() {
   const [showLegend, setShowLegend] = useState(false); // Plotly legend visibility
   const [plotlyLegendPos, setPlotlyLegendPos] = useState('bottom-left'); // 'top-left'|'top-right'|'bottom-left'|'bottom-right'
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
-  const [toolbarDock, setToolbarDock] = useState('bottom'); // 'top' | 'bottom'
+  const [toolbarDock, setToolbarDock] = useState('bottom'); // 'top' | 'bottom' | 'float'
+  const [toolbarPos, setToolbarPos] = useState(null); // { left:number, top:number }
   const [legendPos, setLegendPos] = useState(null); // { top: number, left: number }
 
   // Load
@@ -33,6 +34,7 @@ export function useChartPreferences() {
       if (saved.plotlyLegendPos) setPlotlyLegendPos(saved.plotlyLegendPos);
       if (saved.toolbarCollapsed !== undefined) setToolbarCollapsed(!!saved.toolbarCollapsed);
       if (saved.toolbarDock) setToolbarDock(saved.toolbarDock);
+      if (saved.toolbarPos) setToolbarPos(saved.toolbarPos);
       if (saved.legendPos) setLegendPos(saved.legendPos);
     } catch {}
   }, []);
@@ -43,7 +45,7 @@ export function useChartPreferences() {
       sidebarCollapsed, sidebarOverlay, sidebarDock,
       showVolume, showBollinger, showRSI, showVWAP, showSMA,
       plotlyTheme, showLegend, plotlyLegendPos,
-      toolbarCollapsed, toolbarDock,
+      toolbarCollapsed, toolbarDock, toolbarPos,
       legendPos
     };
     try { localStorage.setItem('chartPrefs', JSON.stringify(prefs)); } catch {}

@@ -1,6 +1,15 @@
 /* --- src/pages/AnomalyChart.css --- */
 .chart-page-container {
   --toolbar-height: 56px; /* reserved space for floating toolbar so it doesn't cover the plot */
+  /* Theme-aware tokens for FABs and floating toolbar */
+  --sidebar-fab-bg: var(--primary);
+  --sidebar-fab-color: #ffffff;
+  --toolbar-bg: var(--card-bg);
+  --toolbar-fg: var(--text-primary);
+  --toolbar-btn-min-width: 64px;
+  --toolbar-btn-height: 34px;
+  --toolbar-top-default: 96px;
+  --toolbar-right-default: 20px;
   display: flex;
   /* main content padding is handled by App.jsx; avoid duplicating top spacing */
   flex: 1 1 auto;
@@ -129,6 +138,40 @@
   margin: 0 16px;
   width: calc(100% - 32px);
 }
+
+/* When overlay-mode is enabled we switch the toolbar to a fixed floating panel
+   which the user can reposition. The non-overlay default remains static below
+   the chart. */
+.chart-toolbar.floating.floating-fixed {
+  position: fixed;
+  top: var(--toolbar-top-default);
+  right: var(--toolbar-right-default);
+  left: auto;
+  margin: 0;
+  width: auto;
+  max-width: calc(100% - 48px);
+  z-index: 2200; /* keep above sidebar and overlays */
+  cursor: grab;
+}
+.chart-toolbar.floating.dragging { cursor: grabbing; }
+
+.chart-toolbar .drag-handle {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  border-radius: 10px;
+  cursor: grab;
+  background: linear-gradient(180deg, rgba(0,0,0,0.03), rgba(0,0,0,0.01));
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px rgba(2,6,23,0.04);
+  transition: background 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.chart-toolbar .drag-handle:active { cursor: grabbing; transform: scale(0.99); box-shadow: 0 1px 6px rgba(2,6,23,0.06); }
+.chart-toolbar .drag-handle:hover { background: rgba(0,0,0,0.06); }
+.chart-toolbar .drag-handle svg { width: 14px; height: 14px; display: block; color: var(--muted); opacity: 0.95; }
 
 .chart-toolbar.floating .toolbar-collapse-toggle {
   background: transparent;
@@ -302,6 +345,11 @@
   padding: 0.15rem 0.36rem;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Floating hamburger menu when collapsed */
@@ -315,8 +363,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--primary);
-  color: white;
+  background: var(--sidebar-fab-bg);
+  color: var(--sidebar-fab-color);
   border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1400;
@@ -391,9 +439,11 @@
 /* Ensure toolbar isn't obstructed by overlay sidebar */
 .chart-page-container.overlay-mode .chart-toolbar { z-index: 1600; }
 
-/* When overlay sidebar is active, nudge the toolbar content so it doesn't sit under the overlay */
-.chart-page-container.overlay-mode:not(.sidebar-right) .chart-toolbar { margin-left: calc(280px + 24px); }
-.chart-page-container.overlay-mode.sidebar-right .chart-toolbar { margin-right: calc(280px + 24px); }
+/* When overlay sidebar is active, nudge the toolbar content so it doesn't sit under the overlay.
+  Exclude floating fixed toolbars because those are independently positioned and should not receive
+  the page-level margin offset. */
+.chart-page-container.overlay-mode:not(.sidebar-right) .chart-toolbar:not(.floating-fixed) { margin-left: calc(280px + 24px); }
+.chart-page-container.overlay-mode.sidebar-right .chart-toolbar:not(.floating-fixed) { margin-right: calc(280px + 24px); }
 
 /* Collapse button aligned to the right inside toolbar */
 .chart-toolbar .toolbar-fab.right { margin-left: auto; }
@@ -498,14 +548,14 @@ body.dark .skeleton-bar { background: linear-gradient(180deg, rgba(255,255,255,0
 .toolbar-btn {
   background: transparent;
   border: 1px solid rgba(0,0,0,0.06);
-  color: #6B7280;
+  color: var(--toolbar-fg);
   padding: 0.36rem 0.7rem;
   border-radius: 8px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.16s ease;
-  min-width: 64px;
-  height: 34px;
+  min-width: var(--toolbar-btn-min-width);
+  height: var(--toolbar-btn-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -513,7 +563,7 @@ body.dark .skeleton-bar { background: linear-gradient(180deg, rgba(255,255,255,0
 
 .toolbar-btn:hover {
   border-color: rgba(0,0,0,0.12);
-  color: #111111;
+  color: var(--toolbar-fg);
 }
 
 .toolbar-btn.active {
@@ -604,8 +654,28 @@ body.dark .skeleton-bar { background: linear-gradient(180deg, rgba(255,255,255,0
   justify-content: center;
   cursor: pointer;
   margin-left: 8px;
+  /* ensure consistent icon size with collapse buttons */
+  width: 40px;
+  height: 40px;
 }
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.icon-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(2,6,23,0.06); }
+.icon-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(41,98,255,0.12); }
 .overlay-toggle-btn svg { width: 14px; height: 14px; }
+/* ensure floating toolbar visually sits above pinned sidebar and is interactive */
+.chart-toolbar.floating.floating-fixed { pointer-events: auto; will-change: left, top; }
 
 /* Light mode overrides (if specific tweaking needed, vars control most) */
 .chart-page-container.light { background-color: var(--bg-secondary); color: var(--text-primary); }
@@ -836,8 +906,8 @@ body.dark .tooltip-card { box-shadow: 0 8px 20px rgba(2,6,23,0.5); }
   height: 52px;
   border-radius: 50%;
   border: none;
-  background: var(--primary);
-  color: #fff;
+  background: var(--sidebar-fab-bg);
+  color: var(--sidebar-fab-color);
   box-shadow: 0 8px 24px rgba(2,6,23,0.2);
   display: inline-flex;
   align-items: center;
@@ -861,8 +931,9 @@ body.dark .tooltip-card { box-shadow: 0 8px 20px rgba(2,6,23,0.5); }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--primary);
-  color: white;
+  background: var(--sidebar-fab-bg);
+  /* Force icon color for contrast; use var so theme can override */
+  color: var(--sidebar-fab-color) !important;
   border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1400;
@@ -871,6 +942,9 @@ body.dark .tooltip-card { box-shadow: 0 8px 20px rgba(2,6,23,0.5); }
 }
 .sidebar-fab:hover { transform: scale(1.05); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2); }
 .chart-page-container.sidebar-right .sidebar-fab { right: 16px; left: auto; }
+
+/* Ensure SVG icons inside the button inherit the forced color */
+.sidebar-fab svg { width: 18px; height: 18px; display: block; fill: currentColor; stroke: currentColor; }
 
 /* Material-style select enhancements */
 .md-select {
