@@ -217,6 +217,6 @@ def search_ticker(query: str) -> List[dict]:
     results = []
     for doc in cursor:
         # Exclude MongoDB _id if you want
-        results.append({"ticker": doc.get("ticker"), "name": doc.get("company_name")})
+        results.append({"ticker": doc.get("ticker"), "name": doc.get("name")})
     
     return results

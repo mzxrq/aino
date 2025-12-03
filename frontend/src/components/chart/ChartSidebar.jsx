@@ -5,6 +5,7 @@ export function ChartSidebar({
   sidebarData,
   collapsed,
   overlay,
+  dockSide = 'left',
   setCollapsed,
   onTickerChange,
   stripSuffix,
@@ -21,7 +22,7 @@ export function ChartSidebar({
         </button>
       )}
       
-      <aside className={`chart-sidebar ${collapsed ? 'collapsed' : ''} ${overlay ? 'overlay' : ''}`}>
+      <aside className={`chart-sidebar ${collapsed ? 'collapsed' : ''} ${overlay ? 'overlay' : ''} ${overlay && dockSide === 'right' ? 'right' : ''}`}>
         <div className="sidebar-header">
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px',width: collapsed && overlay ? '100%' : (collapsed ? '100%' : 'auto')}}>
             <EditableTicker

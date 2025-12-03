@@ -20,7 +20,7 @@ function cacheKey(ticker, period, interval) {
   return `chart_local::${String(ticker).toUpperCase()}::${period}::${interval}`;
 }
 
-export function useChartData({ ticker, period, interval, chartType, showVolume, showBollinger, showRSI, showVWAP, showSMA, isDarkTheme, ML_API_URL }) {
+export function useChartData({ ticker, period, interval, chartType, showVolume, showBollinger, showRSI, showVWAP, showSMA, isDarkTheme, ML_API_URL, showLegend, plotlyLegendPos }) {
   const [data, setData] = useState([]);
   const [layout, setLayout] = useState({});
   const [error, setError] = useState(null);
@@ -106,8 +106,7 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             type: 'candlestick',
             name: `${ticker} Price`,
             xaxis: 'x',
-            yaxis: 'y',
-            hoverinfo: 'skip'
+            yaxis: 'y'
           });
         } else {
           traces.push({
@@ -119,36 +118,35 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
             line: { shape: 'spline', width: 2 },
             fill: '',
             xaxis: 'x',
-            yaxis: 'y',
-            hoverinfo: 'skip'
+            yaxis: 'y'
           });
         }
 
         if (showVWAP && chartDataRaw.VWAP?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.VWAP, type: 'scatter', mode: 'lines', name: 'VWAP', line: { dash: 'dash' }, xaxis: 'x', yaxis: 'y' });
         }
 
         if (chartDataRaw.bollinger_bands?.sma) {
           const bb = chartDataRaw.bollinger_bands;
           if (showBollinger) {
-            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
-            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+            traces.push({ x: chartDataRaw.dates, y: bb.lower, type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'none', xaxis: 'x', yaxis: 'y' });
+            traces.push({ x: chartDataRaw.dates, y: bb.upper, type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: 'rgba(86,119,164,0.4)', width: 0 }, fill: 'tonexty', fillcolor: 'rgba(86,119,164,0.1)', xaxis: 'x', yaxis: 'y' });
           }
           if (showSMA) {
-            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+            traces.push({ x: chartDataRaw.dates, y: bb.sma, type: 'scatter', mode: 'lines', name: 'SMA (20)', line: { color: 'rgba(86,119,164,0.9)', width: 1 }, xaxis: 'x', yaxis: 'y' });
           }
         }
 
         if (chartDataRaw.anomaly_markers?.dates?.length) {
-          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y', hoverinfo: 'skip' });
+          traces.push({ x: chartDataRaw.anomaly_markers.dates, y: chartDataRaw.anomaly_markers.y_values, type: 'scatter', mode: 'markers', marker: { color: 'red', size: 8 }, name: 'Anomalies', xaxis: 'x', yaxis: 'y' });
         }
 
         if (showVolume && chartDataRaw.volume?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' }, hoverinfo: 'skip' });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.volume, type: 'bar', name: 'Volume', xaxis: 'x', yaxis: 'y3', marker: { color: 'rgba(100,100,100,0.6)' } });
         }
 
         if (showRSI && chartDataRaw.RSI?.length) {
-          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' }, hoverinfo: 'skip' });
+          traces.push({ x: chartDataRaw.dates, y: chartDataRaw.RSI, type: 'scatter', mode: 'lines', name: 'RSI', xaxis: 'x', yaxis: 'y2', line: { color: '#f39c12' } });
         }
 
         // Domains computation
@@ -167,6 +165,14 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
           y2Domain = [0, 0.18];
           yDomain = [0.18, 1];
         }
+
+        const legendPosMap = {
+          'top-left':   { x: 0.01, y: 0.99, xanchor: 'left',  yanchor: 'top',    orientation: 'v' },
+          'top-right':  { x: 0.99, y: 0.99, xanchor: 'right', yanchor: 'top',    orientation: 'v' },
+          'bottom-left':{ x: 0.01, y: 0.01, xanchor: 'left',  yanchor: 'bottom', orientation: 'h' },
+          'bottom-right':{x: 0.99, y: 0.01, xanchor: 'right', yanchor: 'bottom', orientation: 'h' },
+        };
+        const legendCfg = legendPosMap[plotlyLegendPos || 'bottom-left'];
 
         const layoutObj = {
           margin: { t: 10, r: 8, l: 40, b: 28 },
@@ -191,7 +197,8 @@ export function useChartData({ ticker, period, interval, chartType, showVolume, 
           },
           yaxis2: { domain: y2Domain, title: 'RSI/Score' },
           yaxis3: { domain: y3Domain, anchor: 'x' },
-          showlegend: false,
+          showlegend: !!showLegend,
+          legend: !!showLegend ? { ...legendCfg } : undefined,
           hovermode: 'x',
           plot_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',
           paper_bgcolor: !isDarkTheme ? '#ffffff' : '#0f0f0f',

@@ -50,6 +50,7 @@ export default function AnomalyChart() {
   const {
     sidebarCollapsed, setSidebarCollapsed,
     sidebarOverlay, setSidebarOverlay,
+    sidebarDock, setSidebarDock,
     showVolume, setShowVolume,
     showBollinger, setShowBollinger,
     showRSI, setShowRSI,
@@ -57,11 +58,14 @@ export default function AnomalyChart() {
     showSMA, setShowSMA,
     plotlyTheme, setPlotlyTheme,
     showLegend, setShowLegend,
+    plotlyLegendPos, setPlotlyLegendPos,
     toolbarCollapsed, setToolbarCollapsed,
+    toolbarDock, setToolbarDock,
+    legendPos, setLegendPos,
   } = useChartPreferences();
 
   const { data, layout, error, isLoading, sidebarCore, refresh, shouldForceLine } = useChartData({
-    ticker, period, interval, chartType, showVolume, showBollinger, showRSI, showVWAP, showSMA, isDarkTheme, ML_API_URL: 'http://127.0.0.1:5000'
+    ticker, period, interval, chartType, showVolume, showBollinger, showRSI, showVWAP, showSMA, isDarkTheme, ML_API_URL: 'http://127.0.0.1:5000', showLegend, plotlyLegendPos
   });
 
   const meta = useMetadataEnrichment(ticker, 'http://127.0.0.1:5050', deriveMarketFromTicker, stripSuffix);
@@ -147,11 +151,12 @@ export default function AnomalyChart() {
   const forcedLineMode = shouldForceLine(period, interval);
 
   return (
-    <div className={`chart-page-container ${sidebarOverlay ? 'overlay-mode' : ''} ${isFullscreen ? 'fullscreen' : ''}`}>
+    <div className={`chart-page-container ${sidebarOverlay ? 'overlay-mode' : ''} ${isFullscreen ? 'fullscreen' : ''} ${sidebarDock === 'right' ? 'sidebar-right' : ''}`}>
       <ChartSidebar
         sidebarData={sidebarData}
         collapsed={sidebarCollapsed}
         overlay={sidebarOverlay}
+        dockSide={sidebarDock}
         setCollapsed={setSidebarCollapsed}
         onTickerChange={(newT) => {
           setTicker(newT);
@@ -188,6 +193,21 @@ export default function AnomalyChart() {
         )}
         {!isLoading && !error && (
           <div className="chart-plot-wrapper" style={{ position: 'relative' }}>
+            {toolbarDock === 'top' && (
+              <ChartToolbar
+                period={period} setPeriod={setPeriod}
+                interval={interval} setInterval={setInterval}
+                chartType={chartType} setChartType={setChartType}
+                forcedLineMode={forcedLineMode}
+                indicatorsOpen={indicatorsOpen} setIndicatorsOpen={setIndicatorsOpen}
+                plotlyTheme={plotlyTheme} setPlotlyTheme={setPlotlyTheme}
+                sidebarOverlay={sidebarOverlay} setSidebarOverlay={setSidebarOverlay}
+                refresh={refresh}
+                showLegend={showLegend} setShowLegend={setShowLegend}
+                toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
+                toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
+              />
+            )}
             <PlotContainer 
               data={data} 
               layout={layout} 
@@ -200,14 +220,29 @@ export default function AnomalyChart() {
               ticker={stripSuffix(sidebarData?.displayTicker || ticker)}
               hoverData={hoverData}
               lastData={sidebarData ? {
-                open: sidebarData.open,
-                high: sidebarData.high,
-                low: sidebarData.low,
                 close: sidebarData.close,
                 volume: sidebarData.volume
               } : null}
               companyName={sidebarData?.companyName}
+              dock={'left'}
+              position={legendPos}
+              onPositionChange={setLegendPos}
             />
+            {toolbarDock === 'bottom' && (
+              <ChartToolbar
+                period={period} setPeriod={setPeriod}
+                interval={interval} setInterval={setInterval}
+                chartType={chartType} setChartType={setChartType}
+                forcedLineMode={forcedLineMode}
+                indicatorsOpen={indicatorsOpen} setIndicatorsOpen={setIndicatorsOpen}
+                plotlyTheme={plotlyTheme} setPlotlyTheme={setPlotlyTheme}
+                sidebarOverlay={sidebarOverlay} setSidebarOverlay={setSidebarOverlay}
+                refresh={refresh}
+                showLegend={showLegend} setShowLegend={setShowLegend}
+                toolbarCollapsed={toolbarCollapsed} setToolbarCollapsed={setToolbarCollapsed}
+                toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen}
+              />
+            )}
           </div>
         )}
         <ChartToolbar

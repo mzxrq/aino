@@ -40,6 +40,7 @@
   max-height: calc(100vh - var(--nav-height, 72px) - 32px);
   border-radius: 16px;
 }
+.chart-sidebar.overlay.right { left: auto; right: 16px; }
 
 /* Overlay sidebar when collapsed - show only hamburger menu */
 .chart-sidebar.overlay.collapsed {
@@ -348,6 +349,16 @@
   transition: background-color 0.2s;
 }
 
+/* Hide Plotly's default hover text boxes while keeping hover events and spikes */
+.js-plotly-plot .plotly .hoverlayer { display: none !important; }
+
+/* Ensure sidebar header content sits above plot layers */
+.chart-sidebar .sidebar-header { position: relative; z-index: 1500; }
+
+/* Ticker input should not overflow header; allow shrinking */
+.editable-ticker-wrapper { flex: 1 1 auto; min-width: 0; }
+.editable-ticker-input { width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* --- Main Chart Area --- */
 .chart-main {
   flex: 1; /* Takes up all remaining width */
@@ -586,6 +597,13 @@ body.dark .skeleton-bar { background: linear-gradient(180deg, rgba(255,255,255,0
   .indicator-panel { right: 12px; top: calc(var(--toolbar-height) + 12px); }
 }
 
+/* Dock sidebar to right in non-overlay mode */
+.chart-page-container.sidebar-right { flex-direction: row-reverse; }
+
+/* Position floating collapse button based on dock side */
+.chart-page-container.sidebar-right .chart-sidebar.collapsed .collapse-btn { right: 16px; left: auto; }
+
+
 @media (max-width: 420px) {
   /* Reduce excessive chart height on very small screens and make plot smaller to avoid large empty gaps */
   .chart-main { height: auto; min-height: 360px; }
@@ -639,10 +657,14 @@ body.dark .toolbar-select option { background: var(--card-bg); color: var(--text
   padding: 8px 12px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   z-index: 1000;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: move;
   user-select: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+
+.chart-legend.left { left: 16px; right: auto; }
+.chart-legend.draggable { cursor: move; }
 
 body:not(.dark) .chart-legend {
   background: rgba(255, 255, 255, 0.95);
@@ -690,6 +712,20 @@ body:not(.dark) .legend-company {
   color: rgba(255, 255, 255, 0.5);
   white-space: nowrap;
 }
+
+.legend-indicators {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+}
+
+.legend-indicators span { color: rgba(255,255,255,0.6); }
+body:not(.dark) .legend-indicators span { color: rgba(0,0,0,0.55); }
+.legend-indicators strong { margin-left: 4px; color: #fff; }
+body:not(.dark) .legend-indicators strong { color: #111; }
 
 body:not(.dark) .legend-data span {
   color: rgba(0, 0, 0, 0.5);

@@ -84,6 +84,16 @@ export function PlotContainer({ data, layout, showLegend, plotlyTheme, isDarkThe
         if (volumeTrace) {
           hoverData.volume = volumeTrace.y?.[xIndex];
         }
+
+        // Indicators: RSI, VWAP, SMA (20)
+        const rsiTrace = data.find(t => t.name === 'RSI');
+        if (rsiTrace) hoverData.rsi = rsiTrace.y?.[xIndex];
+
+        const vwapTrace = data.find(t => t.name === 'VWAP');
+        if (vwapTrace) hoverData.vwap = vwapTrace.y?.[xIndex];
+
+        const smaTrace = data.find(t => t.name && t.name.startsWith('SMA'));
+        if (smaTrace) hoverData.sma = smaTrace.y?.[xIndex];
         
         onHoverChange(hoverData);
       }}
