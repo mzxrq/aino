@@ -27,6 +27,9 @@ app.use("/dashboard", dashboardRoute);
 const chartRoutes = require("./routes/chartRoutes");
 app.use("/chart", chartRoutes);
 
+const marketRoute = require("./routes/marketRoute");
+app.use("/market", marketRoute);
+
 const PORT = process.env.PORT || 5050;
 
 app.get("/", (req, res) => {
