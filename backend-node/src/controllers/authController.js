@@ -45,7 +45,7 @@ exports.register = async (req, res) => {
         if (existing) return res.status(400).json({ error: 'Email or username already registered' });
 
         const hashed = await bcrypt.hash(password, 10);
-        const newUser = { email, password: hashed, name, username, createdAt: new Date() };
+        const newUser = { email, password: hashed, name, username, createdAt: new Date() ,sentOptions: 'mail'};
         const r = await users.insertOne(newUser);
         const id = r.insertedId.toString();
         const safeUser = { id, email, name, username };
@@ -56,7 +56,7 @@ exports.register = async (req, res) => {
         const users = readUsers();
         if (users.find(u => u.email === email || u.username === username)) return res.status(400).json({ error: 'Email or username already registered' });
         const hashed = await bcrypt.hash(password, 10);
-        const newUser = { id: Date.now().toString(), email, password: hashed, name, username };
+        const newUser = { id: Date.now().toString(), email, password: hashed, name, username, createdAt: new Date() ,};
         users.push(newUser);
         writeUsers(users);
         const safeUser = { id: newUser.id, email: newUser.email, name: newUser.name, username: newUser.username };

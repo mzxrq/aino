@@ -63,7 +63,7 @@ export default function Dashboard() {
       const response = await fetch(`${NODE_API_URL}/subscriptions/`, {
         method: 'DELETE',
         headers,
-        body: JSON.stringify({ lineId: user.userId, tickers: [ticker] }),
+        body: JSON.stringify({ id: user.userId, tickers: [ticker] }),
       });
 
       if (!response.ok) throw new Error('Failed to unsubscribe');

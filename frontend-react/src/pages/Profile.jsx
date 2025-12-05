@@ -213,13 +213,22 @@ const Profile = () => {
     }
   };
 
-  const handleLineIntegration = async () => {
-    // Redirect to LINE login
-    const clientId = import.meta.env.VITE_LINE_CLIENT_ID || '2008465838';
-    const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || 'http://localhost:5173/auth/callback';
-    const state = `integrate-${user.userId || user.id}`;
-    window.location.href = `https://web.line.biz/web-api/v1/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=profile&state=${state}`;
+ const handleLineIntegration = async () => {
+    const clientId = import.meta.env.VITE_LINE_CLIENT_ID;
+    const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI; // e.g. http://localhost:5173/auth/callback
+    // Prefer Mongo `_id` as canonical identifier, fallback to existing fields
+    const state = `integrate-${user.userId || user._id || user.id}-${Math.random().toString(36).slice(2)}`;
+    const scope = encodeURIComponent('openid profile');
+    // Use access.line.me OAuth2 authorize endpoint
+    const url =
+      `https://access.line.me/oauth2/v2.1/authorize?response_type=code` +
+      `&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}` +
+      `&scope=${scope}`;
+    window.location.href = url;
   };
+
 
   return (
     <div className="profile-container">
