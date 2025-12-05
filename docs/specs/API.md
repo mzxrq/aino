@@ -1,22 +1,23 @@
 # API Overview
 
-This project exposes a single public port (`5050`) via the Node gateway. The FastAPI service runs on `8000` and is proxied through Node under the `/py` path.
+This project exposes a single public port (`5050`) via the Node gateway. The Python FastAPI service runs on `8000` and is proxied through Node under the `/py` path.
 
 Public base URL: `http://localhost:5050`
 
 ## Routing Summary
-- Node routes (native): `/auth/*`, `/chart/*`, `/dashboard/*`, `/subscribers/*`, `/subscriptions/*`
+- Node routes (native): `/auth/*`, `/subscribers/*`, `/subscriptions/*`, `/overview/*`, `/mail/*`
 - FastAPI routes (proxied): `/py/*` (maps to FastAPI `/`)
 
 ## Node Endpoints (Gateway)
-These are handled by Express in `backend-node`.
+These are handled by Express in `backend-node` (mounted paths shown):
 
-- `GET /chart?ticker=<TICKER>`: Returns chart data from Node’s service.
-- `GET /dashboard` and related: Dashboard data.
-- `POST /auth/*`: Authentication routes (Node-side). Token usage is Bearer when protected.
-- `GET/POST /subscribers`, `GET/POST /subscriptions`: Subscriber management.
+- `POST /auth/register` and `POST /auth/login`: Local user registration and login (JWT returned).
+- `GET /auth/profile`: Retrieve the authenticated user's profile (protected).
+- `GET/POST /subscribers` and `GET/POST /subscriptions`: Subscriber management (see `subscriberRoutes`).
+- `GET /overview` and related endpoints: Dashboard / market list data served from Node (`marketListRoute`).
+- `POST /mail/send`: Send an email via Node mail controller (`mailRoutes`).
 
-Note: Exact shapes depend on the Node controllers; responses are JSON.
+Note: Exact JSON shapes depend on controller implementations; this file provides high-level entrypoints.
 
 ## FastAPI Endpoints (via `/py` proxy)
 These are implemented in `backend-python/app/api` and reached by prefixing `/py` to the FastAPI paths.
@@ -35,7 +36,7 @@ These are implemented in `backend-python/app/api` and reached by prefixing `/py`
 
 - `POST /py/auth/line/callback`
   - Body: `{ "code": "<LINE oauth code>" }`
-  - Exchanges code for LINE access token, fetches profile, upserts user in MongoDB, returns `{ user, token }`.
+  - Exchanges code for LINE access token, fetches profile, upserts user in MongoDB, and returns `{ user, token }`.
 
 - `GET /py/profile`
   - Auth: `Authorization: Bearer <token>`
@@ -47,16 +48,21 @@ Using PowerShell:
 
 ```powershell
 Invoke-RestMethod "http://localhost:5050/py/chart?ticker=AAPL&period=1mo&interval=15m" | ConvertTo-Json -Depth 3
-Invoke-RestMethod "http://localhost:5050/chart?ticker=AAPL" | ConvertTo-Json -Depth 3
+# Node-level dashboard/marketlist example
+Invoke-RestMethod "http://localhost:5050/overview/dashboard" | ConvertTo-Json -Depth 3
 ```
 
 Using curl:
 
 ```bash
 curl "http://localhost:5050/py/chart?ticker=AAPL&period=1mo&interval=15m"
-curl "http://localhost:5050/chart?ticker=AAPL"
+curl "http://localhost:5050/overview/dashboard"
 ```
 
 ## Auth Notes
 - FastAPI issues JWT tokens (`JWT_SECRET_KEY`, `JWT_ALGORITHM`) on LINE login callback.
-- Use `Authorization: Bearer <token>` for protected endpoints like `/py/profile`.
+- Use `Authorization: Bearer <token>` for protected endpoints like `/py/profile` and Node endpoints mounted under `/auth/*`.
+
+## Misc
+- Static uploads are served from `/uploads` on the Node gateway (e.g. `http://localhost:5050/uploads/<file>`).
+- Health endpoint: `GET /health` on Node.

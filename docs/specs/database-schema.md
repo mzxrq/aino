@@ -68,6 +68,18 @@ Master list of market instruments and metadata (used to populate market lists).
 
 ---
 
+## Collection: `tickermeta`
+Fetch company name and exchange/market via yfinance, with Mongo cache.
+
+| Field                  | Type        | Description                                     |
+|------------------------|-------------|-------------------------------------------------|
+| _id                    | String      | Unique identifier for the ticker (e.g., TSLA)   |
+| fetched_at             | Date        | Timestamp when the data was fetched             |
+| payload                | Object      | Contains detailed information about the ticker  |
+| payload.companyName    | String      | Name of the company (e.g., Tesla, Inc.)         |
+| payload.market         | String      | Market or exchange (e.g., US (NASDAQ))          |
+
+
 ## Collection: `cache`
 
 Cache entries for chart payloads and other ephemeral data. Payload keys mirror
@@ -165,7 +177,7 @@ db.subscribers.insertOne({
 ```json
 {
   "_id": { "$oid": "6932316a7f92bf43ff9dc2a1" },
-  "Ticker": "INTC",
+  "Ticker": "TSLA",
   "Datetime": { "$date": "2025-12-05T11:45:00Z" },
   "Close": 35.12,
   "Volume": 2345678,
@@ -258,4 +270,48 @@ db.cache.insertOne({
     /* ... */
   },
 });
+
+### `tickermeta` (example document)
+
+```json
+{
+  "_id": "TSLA",
+  "fetched_at": { "$date": "2025-12-05T12:10:00Z" },
+  "payload": {
+    "companyName": "Tesla, Inc.",
+    "market": "US (NASDAQ)",
+    "exchange": "NASDAQ",
+    "currency": "USD",
+    "industry": "Automobiles",
+    "raw": {
+      "longName": "Tesla, Inc.",
+      "shortName": "Tesla",
+      "market": "US",
+      "exchange": "NASDAQ"
+    }
+  }
+}
+```
+
+Mongo shell insert (example):
+
+```js
+db.tickermeta.insertOne({
+  _id: "TSLA",
+  fetched_at: new Date(),
+  payload: {
+    companyName: "Tesla, Inc.",
+    market: "US (NASDAQ)",
+    exchange: "NASDAQ",
+    currency: "USD",
+    industry: "Automobiles",
+    raw: {
+      longName: "Tesla, Inc.",
+      shortName: "Tesla",
+      market: "US",
+      exchange: "NASDAQ"
+    }
+  }
+});
+```
 ```
