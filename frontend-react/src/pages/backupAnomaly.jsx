@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Plot from 'react-plotly.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import '../pages/AnomalyChart.css';
+import '../css/AnomalyChart.css';
 
 // --- CONFIGURATION: Allowed Intervals per Range ---
 const ALLOWED_INTERVALS = {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import '../pages/AnomalyChart.css';
+import '../css/AnomalyChart.css';
 import { useChartPreferences } from '../hooks/useChartPreferences';
 import { useChartData } from '../hooks/useChartData';
 import { useMetadataEnrichment } from '../hooks/useMetadataEnrichment';
