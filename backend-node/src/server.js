@@ -1,8 +1,9 @@
+const path = require('path');
+require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
+
 const express = require("express");
 const { connectDB } = require("./config/db");
 const cors = require("cors");
-
-require("dotenv").config();
 
 const app = express();
 app.use(cors());
@@ -16,7 +17,7 @@ app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
 const subscriberRoutes = require("./routes/subscriberRoutes");
 app.use("/subscribers", subscriberRoutes);
-app.use("/subscriptions", subscriberRoutes);
+app.use("/subscriptions", subscriberRoutes); // support both
 
 const authRoutes = require("./routes/authRoutes");
 app.use("/auth", authRoutes);
@@ -30,6 +31,9 @@ app.use("/chart", chartRoutes);
 const marketRoute = require("./routes/marketRoute");
 app.use("/market", marketRoute);
 
+const mailRoutes = require("./routes/mailRoutes.js");
+app.use("/mail", mailRoutes);
+
 const PORT = process.env.PORT || 5050;
 
 app.get("/", (req, res) => {
@@ -40,6 +44,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
 
 // Connect DB but start server regardless so file-based fallbacks work
 connectDB()
