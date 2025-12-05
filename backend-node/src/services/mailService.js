@@ -1,5 +1,15 @@
+/**
+ * mailService.js
+ * --------------
+ * Handles sending emails using Nodemailer.
+ * 
+ * Exports:
+ *  - sendMail: Send an email with specified options (from, to, subject, text, html, attachments)
+ */
+
 const nodeMailer = require("nodemailer");
 
+// Configure the transporter using Gmail (or environment variables)
 const transporter = nodeMailer.createTransport({
   service: "gmail",
   auth: {
@@ -10,7 +20,14 @@ const transporter = nodeMailer.createTransport({
 
 /**
  * Send an email.
- * options: { from, to, subject, text, html, attachments }
+ * @param {Object} options - Email options
+ * @param {string} options.from - Sender email address
+ * @param {string} options.to - Recipient email address
+ * @param {string} options.subject - Email subject
+ * @param {string} [options.text] - Plain text body
+ * @param {string} [options.html] - HTML body
+ * @param {Array} [options.attachments] - Array of attachment objects
+ * @returns {Promise} Resolves with Nodemailer result object
  */
 const sendMail = async (options = {}) => {
   try {

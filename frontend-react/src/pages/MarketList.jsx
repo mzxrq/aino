@@ -19,7 +19,7 @@ export default function MarketListScreen() {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await fetch("http://localhost:5050/market");
+        const response = await fetch("http://localhost:5050/overview/all");
         const json = await response.json();
 
         // Backend may return { data, types } or a plain array
@@ -47,7 +47,7 @@ export default function MarketListScreen() {
         }
 
         // derive industries (Sector Group) and countries from raw data
-        const indSet = new Set(rawList.map((it) => (it["Sector Group"] || it.Sector || it.sector || it["SectorGroup"] || '').toString()).filter(Boolean));
+        const indSet = new Set(rawList.map((it) => (it["Sector Group"] || it.Sector || it.sector || it["sectorGroup"] || '').toString()).filter(Boolean));
         setIndustries(["All", ...Array.from(indSet).sort()]);
 
         const countrySet = new Set(rawList.map((it) => (it.Country || it.country || '').toString()).filter(Boolean));

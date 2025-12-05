@@ -308,7 +308,7 @@ export default function AnomalyChart() {
     async function checkSubscription() {
       if (!isLoggedIn || !user || !ticker) { setIsSubscribed(false); return; }
       try {
-        const res = await fetch('http://127.0.0.1:5050/subscribers/status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lineId: user.userId, ticker }) });
+        const res = await fetch('http://127.0.0.1:5050/subscribers/status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: user?.id || user?.userId, ticker }) });
         const d = await res.json(); setIsSubscribed(d.subscribed);
       } catch { setIsSubscribed(false); }
     }
@@ -319,7 +319,7 @@ export default function AnomalyChart() {
     if (!isLoggedIn) { alert('Please log in first to subscribe to alerts'); navigate('/login'); return; }
     setSubLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:5050/subscribers/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: user?.userId || 'anonymous', tickers:[ticker] }) });
+      const res = await fetch('http://127.0.0.1:5050/subscribers/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: user?.id || user?.userId || 'anonymous', tickers:[ticker] }) });
       if(!res.ok) throw new Error('Failed to subscribe');
       await res.json(); setIsSubscribed(true);
     } catch (e) { console.error(e); setIsSubscribed(false); } finally { setSubLoading(false); }

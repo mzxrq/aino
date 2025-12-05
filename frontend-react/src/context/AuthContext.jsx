@@ -8,7 +8,13 @@ const LINE_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('user')) || null; } catch { return null; }
+    try {
+      const raw = JSON.parse(localStorage.getItem('user')) || null;
+      if (!raw) return null;
+      // Normalize to ensure we expose a Mongo ObjectId string as `id`
+      const id = raw._id || raw.id || raw.userId || (raw.user && (raw.user._id || raw.user.id));
+      return { ...raw, id };
+    } catch { return null; }
   });
   const [token, setTokenState] = useState(() => localStorage.getItem('token') || null);
 
@@ -48,8 +54,11 @@ export function AuthProvider({ children }) {
             return;
           }
           const profile = await res.json();
+          // Normalize profile to ensure `id` contains MongoDB ObjectId string
+          const normalizedId = profile._id || profile.id || profile.userId || (profile.user && (profile.user._id || profile.user.id));
+          const normalized = { ...profile, id: normalizedId };
           setTokenState(t);
-          setUser(profile);
+          setUser(normalized);
           return;
         } catch (err) {
           console.error('Session restore failed', err);
@@ -60,7 +69,9 @@ export function AuthProvider({ children }) {
       try {
         const u = localStorage.getItem('user');
         if (u) {
-          setUser(JSON.parse(u));
+          const parsed = JSON.parse(u);
+          const id = parsed._id || parsed.id || parsed.userId || (parsed.user && (parsed.user._id || parsed.user.id));
+          setUser({ ...parsed, id });
         }
       } catch (err) {
         console.error('Failed to restore user from localStorage', err);
@@ -107,7 +118,8 @@ export function AuthProvider({ children }) {
         return;
       }
       const profile = await res.json();
-      setUser(profile);
+      const normalizedId = profile._id || profile.id || profile.userId || (profile.user && (profile.user._id || profile.user.id));
+      setUser({ ...profile, id: normalizedId });
     } catch (err) {
       console.error(err);
       logout();
@@ -131,8 +143,12 @@ export function AuthProvider({ children }) {
       }
 
       // Fallback: JS backend returns only a user object (no JWT).
-      setUser(data.user);
-      return data.user;
+      if (data.user) {
+        const id = data.user._id || data.user.id || data.user.userId;
+        setUser({ ...data.user, id });
+        return data.user;
+      }
+      return data;
     } catch (err) {
       // Normalize error message for UI
       throw new Error(err.message || 'Network error during login');
@@ -155,8 +171,12 @@ export function AuthProvider({ children }) {
         return { user: data.user, token: data.token };
       }
 
-      setUser(data.user);
-      return data.user;
+      if (data.user) {
+        const id = data.user._id || data.user.id || data.user.userId;
+        setUser({ ...data.user, id });
+        return data.user;
+      }
+      return data;
     } catch (err) {
       throw new Error(err.message || 'Network error during register');
     }

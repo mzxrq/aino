@@ -1,3 +1,8 @@
+/**
+ * Entry point for the Express server.
+ * Loads environment variables, connects to MongoDB, and sets up routes & middleware.
+ */
+
 const path = require('path');
 require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
@@ -6,47 +11,58 @@ const { connectDB } = require("./config/db");
 const cors = require("cors");
 
 const app = express();
+
+// Enable CORS for all routes
 app.use(cors());
 
-// Middleware
+// Middleware to parse JSON requests
 app.use(express.json());
-// Serve uploaded files
-app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
-// Routes
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+/* =======================
+   Route Definitions
+   ======================= */
+
+// Subscriber routes
 const subscriberRoutes = require("./routes/subscriberRoutes");
 app.use("/subscribers", subscriberRoutes);
-app.use("/subscriptions", subscriberRoutes); // support both
+app.use("/subscriptions", subscriberRoutes); // Alias for /subscribers
 
-const authRoutes = require("./routes/authRoutes");
+// Authentication routes
+const authRoutes = require("./routes/userRoutes.js");
 app.use("/auth", authRoutes);
 
-const dashboardRoute = require("./routes/dashboardRoute");
-app.use("/dashboard", dashboardRoute);
+// Dashboard routes
+const dashboardRoute = require("./routes/marketListRoute.js");
+app.use("/overview", dashboardRoute);
 
-const chartRoutes = require("./routes/chartRoutes");
-app.use("/chart", chartRoutes);
-
-const marketRoute = require("./routes/marketRoute");
-app.use("/market", marketRoute);
-
+// Mail routes
 const mailRoutes = require("./routes/mailRoutes.js");
 app.use("/mail", mailRoutes);
 
-const PORT = process.env.PORT || 5050;
+/* =======================
+   Basic Routes / Healthchecks
+   ======================= */
 
+// Home route
 app.get("/", (req, res) => {
   res.send("Welcome to the Home Page!");
 });
 
-// Healthcheck endpoint
+// Healthcheck route for monitoring
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+/* =======================
+   Database Connection & Server Start
+   ======================= */
 
-// Connect DB but start server regardless so file-based fallbacks work
+const PORT = process.env.PORT || 5050;
+
+// Connect to MongoDB but start server regardless
 connectDB()
   .then(() => {
     console.log('Connected to DB');
@@ -57,21 +73,30 @@ connectDB()
     startServer();
   });
 
+/**
+ * Starts the Express server on the specified PORT
+ */
 function startServer() {
   const server = app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
   });
 
+  // Listen for server errors
   server.on('error', (err) => {
     console.error('Server error:', err);
   });
 }
+
+/* =======================
+   Global Error Handlers
+   ======================= */
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+// Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

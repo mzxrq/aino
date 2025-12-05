@@ -1,105 +1,130 @@
+/**
+ * subscriberController.js
+ * ----------------------
+ * Handles subscriber operations including adding, updating, deleting, and fetching subscriptions.
+ *
+ * Exports:
+ *  - addOrUpdate: Add a new subscriber or update tickers for a subscriber.
+ *  - removeTickers: Remove tickers from a subscriber.
+ *  - getOne: Fetch one subscriber by ID.
+ *  - getAll: Fetch all subscribers.
+ *  - getMySubscriptions: Fetch subscriptions for the logged-in user.
+ *  - deleteById: Delete subscriber by ID.
+ *  - status: Check if a user is subscribed to a specific ticker.
+ */
+
 const subscriberService = require("../services/subscriberService");
 
+/**
+ * Add a new subscriber or update tickers for an existing subscriber.
+ */
 const addOrUpdate = async (req, res) => {
   try {
     const { id, tickers } = req.body;
     if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
-    const userId = req.userId || null;
     const result = await subscriberService.addOrUpdateSubscriber(id, tickers);
     res.status(200).json(result);
   } catch (error) {
-    console.error(error);
+    console.error("addOrUpdate error:", error);
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
 
+/**
+ * Remove specific tickers from a subscriber's list.
+ */
 const removeTickers = async (req, res) => {
   try {
     const { id, tickers } = req.body;
     if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
-    const userId = req.userId || null;
-    const result = await subscriberService.deleteTickers(id, tickers, userId);
+    const result = await subscriberService.deleteTickers(id, tickers);
     res.status(200).json(result);
   } catch (error) {
-    console.error(error);
+    console.error("removeTickers error:", error);
     res.status(404).json({ message: error.message });
   }
 };
 
+/**
+ * Fetch a single subscriber by ID.
+ */
 const getOne = async (req, res) => {
   try {
     const subscriber = await subscriberService.getSubscriber(req.params.id);
     res.status(200).json(subscriber);
   } catch (error) {
-    console.error(error);
+    console.error("getOne error:", error);
     res.status(404).json({ message: error.message });
   }
 };
 
+/**
+ * Delete a subscriber by ID.
+ */
 const deleteById = async (req, res) => {
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ message: 'Missing id' });
+
     const result = await subscriberService.deleteSubscriberById(id);
     res.status(200).json(result);
   } catch (error) {
-    console.error(error);
+    console.error("deleteById error:", error);
     res.status(404).json({ message: error.message });
   }
 };
 
+/**
+ * Fetch all subscribers (optionally filtered by logged-in user).
+ */
 const getAll = async (req, res) => {
   try {
     const userId = req.userId || null;
     const subscribers = await subscriberService.getAllSubscribers(userId);
     res.status(200).json(subscribers);
   } catch (error) {
-    console.error(error);
+    console.error("getAll error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
+/**
+ * Fetch all subscriptions for the logged-in user.
+ */
 const getMySubscriptions = async (req, res) => {
   try {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
     const subscribers = await subscriberService.getAllSubscribers(userId);
     res.status(200).json(subscribers);
   } catch (error) {
-    console.error(error);
+    console.error("getMySubscriptions error:", error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
+/**
+ * Check if a subscriber is subscribed to a specific ticker.
+ */
 const status = async (req, res) => {
-    const { id, ticker } = req.body;
+  const { id, ticker } = req.body;
 
-    if (!id || !ticker) {
-        return res.status(400).json({
-            subscribed: false,
-            message: "id and ticker are required"
-        });
-    }
+  if (!id || !ticker) {
+    return res.status(400).json({ subscribed: false, message: "id and ticker are required" });
+  }
 
-    try {
-        // find user by id
-        const doc = await subscriberService.getSubscriber(id);
+  try {
+    const doc = await subscriberService.getSubscriber(id);
+    const subscribed = Array.isArray(doc?.tickers) && doc.tickers.includes(ticker);
 
-        if (!doc) {
-            return res.status(200).json({ subscribed: false });
-        }
-
-        // check if ticker exists in user's array
-        const subscribed = Array.isArray(doc.tickers) && doc.tickers.includes(ticker);
-
-        return res.status(200).json({ subscribed });
-    } catch (error) {
-        console.error("Error checking subscription:", error);
-        return res.status(500).json({ subscribed: false });
-    }
+    res.status(200).json({ subscribed: !!subscribed });
+  } catch (error) {
+    console.error("status error:", error);
+    res.status(500).json({ subscribed: false });
+  }
 };
-
 
 module.exports = { addOrUpdate, removeTickers, getOne, getAll, getMySubscriptions, deleteById, status };
