@@ -41,6 +41,9 @@ app.use('/node/marketlists', marketlistsRoutes);
 const usersRoutes = require('./routes/usersRoutes');
 app.use('/node/users', usersRoutes);
 
+const mailRoutes = require('./routes/mailRoute');
+app.use('/node/mail', mailRoutes);
+
 
 /* =======================
    Basic Routes / Healthchecks

@@ -21,7 +21,7 @@ const mailService = require("../services/mailService");
  * @param {Object} res - Express response object
  */
 const sendMail = async (req, res) => {
-  const { to, subject, html, text } = req.body || {};
+  const { to, subject, html } = req.body || {};
 
   if (!to) {
     return res.status(400).json({ success: false, error: "Recipient 'to' is required" });
@@ -32,7 +32,6 @@ const sendMail = async (req, res) => {
     to,
     subject: subject || 'Test email from Stock Anomaly Detection',
     html: html || '<p>This is a test email from Stock Anomaly Detection</p>',
-    text: text || 'This is a test email from Stock Anomaly Detection',
   };
 
   try {
