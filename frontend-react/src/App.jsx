@@ -11,7 +11,8 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import AnomalyChart from './pages/AnomalyChart';
+import Chart from './pages/Chart';
+import SuperChart from './pages/SuperChart';
 import LineCallback from './pages/LineCallback';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile'; // <-- IMPORT NEW PAGE
@@ -32,7 +33,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/chart" element={<AnomalyChart />} />
+            <Route path="/chart" element={<Chart />} />
+            <Route path="/superchart/:ticker" element={<SuperChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} /> {/* <-- ADD NEW ROUTE */}
             <Route path="/list" element={<MarketList />} />

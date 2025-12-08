@@ -67,19 +67,20 @@ def trained_model(tickers: str, path: str):
     logger.info(f"Model saved to {path}")
 
 
-def ensure_columns_exist(df, required_columns):
-    for col in required_columns:
-        if col not in df.columns:
-            return pd.DataFrame()
-    return df
+def ensure_columns_exist(df: pd.DataFrame, required_columns: list) -> bool:
+    """Return True if all required columns exist on the DataFrame.
+
+    The caller should handle logging/continuation on False.
+    """
+    missing = [c for c in required_columns if c not in df.columns]
+    if missing:
+        logger.debug(f"Missing required columns: {missing}")
+        return False
+    return True
 
 
 def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
     dataframes = []
-    US_TZ = os.getenv("US_TZ", "America/New_York")
-    JP_TZ = os.getenv("JP_TZ", "Asia/Tokyo")
-    TH_TZ = os.getenv("TH_TZ", "Asia/Bangkok")
-
     for ticker in tickers:
         df = yf.download(ticker, period=period, interval=interval, auto_adjust=True)
         if df is None or getattr(df, "empty", True):
@@ -95,20 +96,12 @@ def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
         df = df.reset_index()
         df.rename(columns={df.columns[0]: 'Datetime'}, inplace=True)
         df['Ticker'] = ticker
-        df = ensure_columns_exist(df, required_columns=['Open', 'High', 'Low', 'Close', 'Volume'])
-
-        timezone = US_TZ
-        if ticker.endswith('.T'):
-            timezone = JP_TZ
-        elif ticker.endswith('.BK'):
-            timezone = TH_TZ
-
-        df['Datetime'] = pd.to_datetime(df['Datetime'], errors='coerce')
-        try:
-            df['Datetime'] = pd.to_datetime(df['Datetime'], utc=True).dt.tz_convert("Asia/Tokyo")
-        except Exception as e:
-            logger.debug(f"Timezone conversion error for ticker {ticker}: {e}")
-
+        if not ensure_columns_exist(df, required_columns=['Open', 'High', 'Low', 'Close', 'Volume']):
+            logger.warning(f"Ticker {ticker} missing OHLCV columns; skipping")
+            continue
+        # Normalize Datetime to UTC so downstream services and clients get a consistent timezone.
+        # This converts tz-aware timestamps to UTC and localizes naive timestamps to UTC.
+        df['Datetime'] = pd.to_datetime(df['Datetime'], errors='coerce', utc=True)
         df = df.dropna().reset_index(drop=True)
         dataframes.append(df)
 

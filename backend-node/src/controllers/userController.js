@@ -287,6 +287,64 @@ exports.getProfile = async (req, res) => {
     }
 };
 
+/** -------------------- GET PREFERENCES -------------------- */
+exports.getPreferences = async (req, res) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const usersCol = await getUserCollection();
+        if (usersCol) {
+            const { ObjectId } = require('mongodb');
+            const user = await usersCol.findOne({ _id: new ObjectId(userId) });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            return res.json({ preferences: user.preferences || {} });
+        }
+
+        const users = readUsers();
+        const u = users.find(x => x.id === userId);
+        if (!u) return res.status(404).json({ error: 'User not found' });
+        return res.json({ preferences: u.preferences || {} });
+    } catch (err) {
+        console.error('getPreferences error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/** -------------------- UPDATE PREFERENCES -------------------- */
+exports.updatePreferences = async (req, res) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const prefs = req.body && typeof req.body === 'object' ? req.body : null;
+    if (!prefs) return res.status(400).json({ error: 'Missing preferences in request body' });
+
+    try {
+        const usersCol = await getUserCollection();
+        if (usersCol) {
+            const { ObjectId } = require('mongodb');
+            const r = await usersCol.findOneAndUpdate(
+                { _id: new ObjectId(userId) },
+                { $set: { preferences: prefs } },
+                { returnDocument: 'after' }
+            );
+            if (!r.value) return res.status(404).json({ error: 'User not found' });
+            return res.json({ preferences: r.value.preferences || {} });
+        }
+
+        // File fallback
+        const users = readUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx === -1) return res.status(404).json({ error: 'User not found' });
+        users[idx].preferences = prefs;
+        writeUsers(users);
+        return res.json({ preferences: users[idx].preferences || {} });
+    } catch (err) {
+        console.error('updatePreferences error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 /** -------------------- UPDATE AVATAR -------------------- */
 exports.updateAvatar = async (req, res) => {
     const userId = req.userId; // assume auth middleware sets this

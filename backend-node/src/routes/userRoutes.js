@@ -71,6 +71,10 @@ router.put('/update-profile', requireAuth, authCtrl.updateProfile);
 router.put('/change-password', requireAuth, authCtrl.changePassword);
 router.put('/add-password', requireAuth, authCtrl.addPassword);
 
+// User preferences (protected)
+router.get('/preferences', requireAuth, authCtrl.getPreferences);
+router.put('/preferences', requireAuth, authCtrl.updatePreferences);
+
 // Avatar CRUD (protected)
 router.post(
     '/profile/avatar',
