@@ -13,7 +13,8 @@
  *  - status: Check if a user is subscribed to a specific ticker.
  */
 
-const subscriberService = require("../services/subscriberService");
+const subscriberService = require("../services/subscribersService");
+const { getDb } = require('../config/db');
 
 /**
  * Add a new subscriber or update tickers for an existing subscriber.
@@ -95,14 +96,55 @@ const getAll = async (req, res) => {
  */
 const getMySubscriptions = async (req, res) => {
   try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    // allow optional auth or explicit id if needed
+    const id = req.userId || req.query.userId || req.headers['x-user-id'] || req.body?.id;
+    if (!id) return res.status(400).json({ message: 'userId is required (JWT, query, header X-User-Id, or body.id)' });
 
-    const subscribers = await subscriberService.getAllSubscribers(userId);
-    res.status(200).json(subscribers);
+    const subscriber = await subscriberService.getSubscriber(id);
+    const tickers = Array.isArray(subscriber.tickers) ? subscriber.tickers : [];
+
+    if (tickers.length === 0) return res.status(200).json([]);
+
+    const db = getDb();
+
+    // get statuses from marketlists
+    let marketRows = [];
+    try {
+      marketRows = await db.collection('marketlists')
+        .find({ ticker: { $in: tickers } })
+        .project({ _id: 0, ticker: 1, status: 1 })
+        .toArray();
+    } catch (e) {
+      console.warn('marketlists read error:', e.message);
+      marketRows = [];
+    }
+    const statusMap = new Map(marketRows.map(r => [r.ticker, r.status || 'Unknown']));
+
+    // aggregate anomalies counts
+    let freqLookup = {};
+    try {
+      const aggr = await db.collection('anomalies')
+        .aggregate([
+          { $match: { ticker: { $in: tickers } } },
+          { $group: { _id: '$ticker', count: { $sum: 1 } } }
+        ])
+        .toArray();
+      freqLookup = aggr.reduce((acc, cur) => { acc[cur._id] = cur.count; return acc; }, {});
+    } catch (e) {
+      console.warn('anomalies aggregate error:', e.message);
+      freqLookup = {};
+    }
+
+    const result = tickers.map(t => ({
+      ticker: t,
+      status: statusMap.get(t) || 'Unknown',
+      frequency: freqLookup[t] || 0
+    }));
+
+    return res.status(200).json(result);
   } catch (error) {
-    console.error("getMySubscriptions error:", error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('getMySubscriptions error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 

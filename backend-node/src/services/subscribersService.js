@@ -16,6 +16,7 @@ const { getDb } = require("../config/db");
 const fs = require("fs");
 const path = require("path");
 const { ObjectId } = require("mongodb");
+const subscribersModel = require("../models/subscribersModel");
 
 // cache fallback file (for offline mode)
 const SUBS_FILE = path.join(__dirname, "..", "cache", "subscriptions.json");
@@ -44,30 +45,43 @@ function buildIdQuery(id) {
 
 const addOrUpdateSubscriber = async (id, tickers) => {
   try {
-    const db = getDb();
-    const collection = db.collection("subscribers");
-    const tickerCollection = db.collection("marketlists");
-
     const query = buildIdQuery(id);
-    const existingSubscriber = await collection.findOne(query);
+    const existingSubscriber = await subscribersModel.findSubscriber(query);
 
     if (existingSubscriber) {
       const updatedTickers = Array.from(new Set([...(existingSubscriber.tickers || []), ...tickers]));
-      await collection.updateOne(query, { $set: { tickers: updatedTickers } });
-      await tickerCollection.updateMany(
-        { ticker: { $in: tickers } },
-        { $setOnInsert: { status: "active" } },
-        { upsert: true }
-      );
+      await subscribersModel.updateSubscriber(query, { tickers: updatedTickers });
+
+      // Try to update marketlists if DB available
+      try {
+        const db = getDb();
+        const tickerCollection = db.collection("marketlists");
+        await tickerCollection.updateMany(
+          { ticker: { $in: tickers } },
+          { $setOnInsert: { status: "active" } },
+          { upsert: true }
+        );
+      } catch (e) {
+        // ignore marketlist update failures (still proceed)
+      }
+
       return { message: "Subscriber tickers updated", tickers: updatedTickers };
     } else {
       const doc = { tickers, _id: query._id instanceof ObjectId ? query._id : id };
-      await collection.insertOne(doc);
-      await tickerCollection.updateMany(
-        { ticker: { $in: tickers } },
-        { $setOnInsert: { status: "inactive" } },
-        { upsert: true }
-      );
+      await subscribersModel.createSubscriber(doc);
+
+      try {
+        const db = getDb();
+        const tickerCollection = db.collection("marketlists");
+        await tickerCollection.updateMany(
+          { ticker: { $in: tickers } },
+          { $setOnInsert: { status: "inactive" } },
+          { upsert: true }
+        );
+      } catch (e) {
+        // ignore
+      }
+
       return { message: "Subscriber added", tickers };
     }
   } catch (err) {
@@ -90,15 +104,12 @@ const addOrUpdateSubscriber = async (id, tickers) => {
 
 const deleteTickers = async (id, tickers) => {
   try {
-    const db = getDb();
-    const collection = db.collection("subscribers");
-
     const query = buildIdQuery(id);
-    const existingSubscriber = await collection.findOne(query);
+    const existingSubscriber = await subscribersModel.findSubscriber(query);
     if (!existingSubscriber) throw new Error("Subscriber not found");
 
     const updatedTickers = (existingSubscriber.tickers || []).filter((t) => !tickers.includes(t));
-    await collection.updateOne(query, { $set: { tickers: updatedTickers } });
+    await subscribersModel.updateSubscriber(query, { tickers: updatedTickers });
 
     return { message: "Tickers removed", tickers: updatedTickers };
   } catch (err) {
@@ -115,9 +126,7 @@ const deleteTickers = async (id, tickers) => {
 
 const getSubscriber = async (id) => {
   try {
-    const db = getDb();
-    const collection = db.collection("subscribers");
-    const subscriber = await collection.findOne(buildIdQuery(id));
+    const subscriber = await subscribersModel.findSubscriber(buildIdQuery(id));
     if (!subscriber) throw new Error("Subscriber not found");
     return subscriber;
   } catch (err) {
@@ -130,9 +139,7 @@ const getSubscriber = async (id) => {
 
 const getAllSubscribers = async () => {
   try {
-    const db = getDb();
-    const collection = db.collection("subscribers");
-    return await collection.find({}).toArray();
+    return await subscribersModel.findAllSubscribers();
   } catch (err) {
     return await readSubscriptionsFile();
   }
@@ -141,11 +148,9 @@ const getAllSubscribers = async () => {
 // delete subscriber by internal id (Mongo _id or file id)
 async function deleteSubscriberById(id) {
   try {
-    const db = getDb();
-    const collection = db.collection("subscribers");
     const query = buildIdQuery(id);
-    const r = await collection.deleteOne(query);
-    if (r.deletedCount === 0) throw new Error("Not found");
+    const deleted = await subscribersModel.deleteSubscriber(query);
+    if (!deleted) throw new Error("Not found");
     return { message: "Subscriber removed" };
   } catch (err) {
     const subs = await readSubscriptionsFile();

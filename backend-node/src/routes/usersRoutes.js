@@ -9,7 +9,7 @@
 
 const express = require('express');
 const router = express.Router();
-const authCtrl = require('../controllers/userController');
+const authCtrl = require('../controllers/usersController');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // For avatar upload
@@ -80,5 +80,15 @@ router.post(
     authCtrl.updateAvatar
 );
 router.delete('/profile/avatar', requireAuth, authCtrl.deleteAvatar);
+
+// ----------------------------
+// Common CRUD for users (no auth yet)
+// ----------------------------
+router.post('/', authCtrl.createUser);
+router.post('/bulk', authCtrl.bulkCreateUsers);
+router.get('/', authCtrl.listUsers);
+router.get('/:id', authCtrl.getUserById);
+router.put('/:id', authCtrl.updateUser);
+router.delete('/:id', authCtrl.deleteUser);
 
 module.exports = router;

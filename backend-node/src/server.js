@@ -18,29 +18,29 @@ app.use(cors());
 // Middleware to parse JSON requests
 app.use(express.json());
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 /* =======================
    Route Definitions
    ======================= */
 
-// Subscriber routes
-const subscriberRoutes = require("./routes/subscriberRoutes");
-app.use("/subscribers", subscriberRoutes);
-app.use("/subscriptions", subscriberRoutes); // Alias for /subscribers
+// Anomalies routes (CRUD operations)
+const anomaliesRoutes = require("./routes/anomaliesRoute");
+app.use("/node/anomalies", anomaliesRoutes);
 
-// Authentication routes
-const authRoutes = require("./routes/userRoutes.js");
-app.use("/auth", authRoutes);
+// Cache routes (chart data CRUD operations)
+const cacheRoutes = require("./routes/cacheRoute");
+app.use("/node/cache", cacheRoutes);
+// Subscribers routes
+const subscribersRoutes = require("./routes/subscribersRoute");
+app.use("/node/subscribers", subscribersRoutes);
+// Marketlists routes
+const marketlistsRoutes = require('./routes/marketlistsRoute');
+app.use('/node/marketlists', marketlistsRoutes);
+  
+// Users routes
+const usersRoutes = require('./routes/usersRoutes');
+app.use('/node/users', usersRoutes);
 
-// Dashboard routes
-const dashboardRoute = require("./routes/marketListRoute.js");
-app.use("/overview", dashboardRoute);
-
-// Mail routes
-const mailRoutes = require("./routes/mailRoutes.js");
-app.use("/mail", mailRoutes);
 
 /* =======================
    Basic Routes / Healthchecks

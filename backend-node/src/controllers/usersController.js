@@ -20,6 +20,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../config/db');
+const usersService = require('../services/usersService');
 
 const USERS_FILE = path.join(__dirname, '..', 'cache', 'users.json');
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
@@ -284,6 +285,74 @@ exports.getProfile = async (req, res) => {
     } catch (err) {
         console.error('getProfile error:', err);
         return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/** -------------------- ADMIN / COMMON CRUD (no auth required here yet) -------------------- */
+exports.createUser = async (req, res) => {
+    try {
+        const doc = req.body || {};
+        const u = await usersService.createUser(doc);
+        return res.status(201).json({ success: true, data: u });
+    } catch (err) {
+        console.error('createUser error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    }
+};
+
+exports.listUsers = async (req, res) => {
+    try {
+        const q = req.query || {};
+        const result = await usersService.getAllUsers(q);
+        return res.json({ success: true, data: result.data, meta: { total: result.total, limit: result.limit, skip: result.skip } });
+    } catch (err) {
+        console.error('listUsers error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    }
+};
+
+exports.getUserById = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const u = await usersService.getUserById(id);
+        return res.json({ success: true, data: u });
+    } catch (err) {
+        return res.status(404).json({ success: false, error: err.message || 'User not found' });
+    }
+};
+
+exports.updateUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const body = req.body || {};
+        const updated = await usersService.updateUser(id, body);
+        return res.json({ success: true, data: updated });
+    } catch (err) {
+        console.error('updateUser error:', err);
+        return res.status(400).json({ success: false, error: err.message || 'Unable to update user' });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        await usersService.deleteUser(id);
+        return res.json({ success: true, message: 'User deleted' });
+    } catch (err) {
+        console.error('deleteUser error:', err);
+        return res.status(400).json({ success: false, error: err.message || 'Unable to delete user' });
+    }
+};
+
+exports.bulkCreateUsers = async (req, res) => {
+    try {
+        const docs = Array.isArray(req.body) ? req.body : (req.body.docs || []);
+        if (!docs.length) return res.status(400).json({ success: false, error: 'No documents provided' });
+        const r = await usersService.bulkCreateUsers(docs);
+        return res.status(201).json({ success: true, data: r });
+    } catch (err) {
+        console.error('bulkCreateUsers error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
     }
 };
 
