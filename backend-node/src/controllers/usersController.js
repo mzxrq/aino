@@ -288,61 +288,71 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-/** -------------------- GET PREFERENCES -------------------- */
-exports.getPreferences = async (req, res) => {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
+/** -------------------- ADMIN / COMMON CRUD (no auth required here yet) -------------------- */
+exports.createUser = async (req, res) => {
     try {
-        const usersCol = await getUserCollection();
-        if (usersCol) {
-            const { ObjectId } = require('mongodb');
-            const user = await usersCol.findOne({ _id: new ObjectId(userId) });
-            if (!user) return res.status(404).json({ error: 'User not found' });
-            return res.json({ preferences: user.preferences || {} });
-        }
-
-        const users = readUsers();
-        const u = users.find(x => x.id === userId);
-        if (!u) return res.status(404).json({ error: 'User not found' });
-        return res.json({ preferences: u.preferences || {} });
+        const doc = req.body || {};
+        const u = await usersService.createUser(doc);
+        return res.status(201).json({ success: true, data: u });
     } catch (err) {
-        console.error('getPreferences error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('createUser error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
     }
 };
 
-/** -------------------- UPDATE PREFERENCES -------------------- */
-exports.updatePreferences = async (req, res) => {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const prefs = req.body && typeof req.body === 'object' ? req.body : null;
-    if (!prefs) return res.status(400).json({ error: 'Missing preferences in request body' });
-
+exports.listUsers = async (req, res) => {
     try {
-        const usersCol = await getUserCollection();
-        if (usersCol) {
-            const { ObjectId } = require('mongodb');
-            const r = await usersCol.findOneAndUpdate(
-                { _id: new ObjectId(userId) },
-                { $set: { preferences: prefs } },
-                { returnDocument: 'after' }
-            );
-            if (!r.value) return res.status(404).json({ error: 'User not found' });
-            return res.json({ preferences: r.value.preferences || {} });
-        }
-
-        // File fallback
-        const users = readUsers();
-        const idx = users.findIndex(u => u.id === userId);
-        if (idx === -1) return res.status(404).json({ error: 'User not found' });
-        users[idx].preferences = prefs;
-        writeUsers(users);
-        return res.json({ preferences: users[idx].preferences || {} });
+        const q = req.query || {};
+        const result = await usersService.getAllUsers(q);
+        return res.json({ success: true, data: result.data, meta: { total: result.total, limit: result.limit, skip: result.skip } });
     } catch (err) {
-        console.error('updatePreferences error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('listUsers error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    }
+};
+
+exports.getUserById = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const u = await usersService.getUserById(id);
+        return res.json({ success: true, data: u });
+    } catch (err) {
+        return res.status(404).json({ success: false, error: err.message || 'User not found' });
+    }
+};
+
+exports.updateUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const body = req.body || {};
+        const updated = await usersService.updateUser(id, body);
+        return res.json({ success: true, data: updated });
+    } catch (err) {
+        console.error('updateUser error:', err);
+        return res.status(400).json({ success: false, error: err.message || 'Unable to update user' });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        await usersService.deleteUser(id);
+        return res.json({ success: true, message: 'User deleted' });
+    } catch (err) {
+        console.error('deleteUser error:', err);
+        return res.status(400).json({ success: false, error: err.message || 'Unable to delete user' });
+    }
+};
+
+exports.bulkCreateUsers = async (req, res) => {
+    try {
+        const docs = Array.isArray(req.body) ? req.body : (req.body.docs || []);
+        if (!docs.length) return res.status(400).json({ success: false, error: 'No documents provided' });
+        const r = await usersService.bulkCreateUsers(docs);
+        return res.status(201).json({ success: true, data: r });
+    } catch (err) {
+        console.error('bulkCreateUsers error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
     }
 };
 
