@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, date, time as dtime
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 import pandas as pd
 import yfinance as yf
 
@@ -102,6 +106,43 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
     return meta
 
 
+def _market_open_close_for_label(market_label: str):
+    """Return (timezone, open_time, close_time) for a market label.
+
+    This is a best-effort mapping for common markets. Returns strings in
+    the market timezone as ISO8601 with offset when ZoneInfo is available.
+    """
+    label = (market_label or '').upper()
+    if 'NASDAQ' in label or 'NYSE' in label or label.startswith('US'):
+        tz = 'America/New_York'
+        open_t = dtime(9, 30)
+        close_t = dtime(16, 0)
+    elif 'JP' in label or 'TOKYO' in label or 'TSE' in label:
+        tz = 'Asia/Tokyo'
+        open_t = dtime(9, 0)
+        close_t = dtime(15, 0)
+    elif 'TH' in label or 'SET' in label:
+        tz = 'Asia/Bangkok'
+        open_t = dtime(9, 30)
+        close_t = dtime(16, 30)
+    else:
+        tz = 'UTC'
+        open_t = dtime(9, 0)
+        close_t = dtime(17, 0)
+
+    if ZoneInfo is None:
+        # Fallback: return naive ISO times in UTC
+        today = date.today()
+        open_dt = datetime.combine(today, open_t)
+        close_dt = datetime.combine(today, close_t)
+        return open_dt.isoformat(), close_dt.isoformat()
+
+    today = datetime.now(ZoneInfo(tz)).date()
+    open_dt = datetime.combine(today, open_t).replace(tzinfo=ZoneInfo(tz))
+    close_dt = datetime.combine(today, close_t).replace(tzinfo=ZoneInfo(tz))
+    return open_dt.isoformat(), close_dt.isoformat()
+
+
 # -------------------------
 # Cache helper (MongoDB)
 # -------------------------
@@ -148,7 +189,12 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         return {}
 
 
-    dates = df['Datetime'].astype(str).tolist()
+    # Ensure ISO8601 UTC timestamps for consistency (train_service now normalizes to UTC)
+    try:
+        dates = df['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist()
+    except Exception:
+        # Fallback to string casting if dt accessor not available
+        dates = df['Datetime'].astype(str).tolist()
 
 
     def _safe_list(series):
@@ -173,14 +219,11 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'VWAP': _safe_list(df.get('VWAP')),
         'RSI': _safe_list(df.get('RSI')),
         'anomaly_markers': {
-            'dates': anomalies['Datetime'].astype(str).tolist() if anomalies is not None and not anomalies.empty else [],
+            'dates': anomalies['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist() if anomalies is not None and not anomalies.empty else [],
             'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] \
             if anomalies is not None and not anomalies.empty else []
-
-
         },
-        'displayTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
-        'rawTicker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
+        'Ticker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
         'price_change' : price_change,
         'pct_change' : pct_change
     }
@@ -189,129 +232,134 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
     return payload
 
 
+def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a non-breaking, normalized payload where expected keys always exist.
+
+    This preserves existing values but ensures clients receive consistent keys
+    (empty lists/dicts instead of missing keys), avoiding breaking changes.
+    """
+    if not isinstance(payload, dict):
+        return {}
+
+    def _safe(val, default):
+        return val if val is not None else default
+
+    bb = payload.get('bollinger_bands') or {}
+    anomaly = payload.get('anomaly_markers') or {}
+
+    normalized = {
+        'dates': _safe(payload.get('dates'), []),
+        'open': _safe(payload.get('open'), []),
+        'high': _safe(payload.get('high'), []),
+        'low': _safe(payload.get('low'), []),
+        'close': _safe(payload.get('close'), []),
+        'volume': _safe(payload.get('volume'), []),
+        'bollinger_bands': {
+            'lower': _safe(bb.get('lower') if isinstance(bb, dict) else None, []),
+            'upper': _safe(bb.get('upper') if isinstance(bb, dict) else None, []),
+            'sma': _safe(bb.get('sma') if isinstance(bb, dict) else None, []),
+        },
+        'VWAP': _safe(payload.get('VWAP'), []),
+        'RSI': _safe(payload.get('RSI'), []),
+        'anomaly_markers': {
+            'dates': _safe(anomaly.get('dates') if isinstance(anomaly, dict) else None, []),
+            'y_values': _safe(anomaly.get('y_values') if isinstance(anomaly, dict) else None, []),
+        },
+        'Ticker': payload.get('Ticker'),
+        'price_change': payload.get('price_change'),
+        'pct_change': payload.get('pct_change'),
+        'companyName': payload.get('companyName'),
+        'market': payload.get('market'),
+    }
+
+    return normalized
+
+
 # -------------------------
 # Chart endpoint
 # -------------------------
-@router.get("/chart", response_model=Dict[str, Any])
-def get_chart(ticker: str, period: str = "1mo", interval: str = "15m"):
-    if not ticker:
-        return {"error": "Query parameter 'ticker' is required"}
+def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str, Any]:
+    """Shared processing for one-or-more tickers; returns mapping ticker->payload.
 
-
-    tickers = [ticker.upper()]
+    Keeps cache behavior, metadata enrichment, anomaly lookups and saves cleaned payloads.
+    """
     result: Dict[str, Any] = {}
-
-
     for t in tickers:
+        t = t.upper()
         # Try cache first
         key = _cache_key(t, period, interval)
         ttl = _ttl_for_period(period)
         cached = _load_from_cache(key, ttl)
         if cached:
-            # Enrich cached payload with company/market metadata while preserving cache content
             meta = _get_ticker_meta(t)
             cached['companyName'] = cached.get('companyName') or meta.get('companyName')
             cached['market'] = cached.get('market') or meta.get('market')
-            result[t] = cached
+            result[t] = _ensure_payload_shape(cached)
             continue
-
-
-        # Load data
-        df = load_dataset([t], period=period, interval=interval)
-        if df.empty:
-            result[t] = {}
-            continue
-
-
-        # Preprocess per ticker
-        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
-        if df.empty:
-            result[t] = {}
-            continue
-
-
-        # Fetch anomalies from MongoDB if available
-        if db is not None:
-            anomalies_cursor = db.anomalies.find({"Ticker": t})
-            anomalies_df = pd.DataFrame(list(anomalies_cursor))
-        else:
-            anomalies_df = pd.DataFrame()
-
-
-        ticker_anoms = anomalies_df if not anomalies_df.empty else pd.DataFrame()
-        payload = _build_chart_response_for_ticker(df, ticker_anoms)
-        # Enrich payload with company/market metadata
-        meta = _get_ticker_meta(t)
-        payload['companyName'] = payload.get('companyName') or meta.get('companyName')
-        payload['market'] = payload.get('market') or meta.get('market')
-
-
-        # Save to cache
-        try:
-            _save_to_cache(key, payload)
-        except Exception:
-            pass
-
-
-        result[t] = payload
-
-
-    return result
-
-
-# -------------------------
-# Full chart with multiple tickers
-# -------------------------
-@router.post("/chart_full", response_model=Dict[str, Any])
-def chart_full_endpoint(request: ChartRequest):
-    tickers = [t.upper() for t in (request.ticker if isinstance(request.ticker, list) else [request.ticker])]
-    period = request.period or "1mo"
-    interval = request.interval or "15m"
-
-
-    result: Dict[str, Any] = {}
-
-
-    for t in tickers:
-        key = _cache_key(t, period, interval)
-        ttl = _ttl_for_period(period)
-        cached = _load_from_cache(key, ttl)
-        if cached:
-            meta = _get_ticker_meta(t)
-            cached['companyName'] = cached.get('companyName') or meta.get('companyName')
-            cached['market'] = cached.get('market') or meta.get('market')
-            result[t] = cached
-            continue
-
 
         df = load_dataset([t], period=period, interval=interval)
         if df.empty:
             result[t] = {}
             continue
 
-
         df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
         if df.empty:
             result[t] = {}
             continue
-
 
         if db is not None:
             anomalies_cursor = db.anomalies.find({"Ticker": t})
             anomalies_df = pd.DataFrame(list(anomalies_cursor))
         else:
             anomalies_df = pd.DataFrame()
-
 
         payload = _build_chart_response_for_ticker(df, anomalies_df)
         meta = _get_ticker_meta(t)
         payload['companyName'] = payload.get('companyName') or meta.get('companyName')
         payload['market'] = payload.get('market') or meta.get('market')
-        _save_to_cache(key, payload)
-        result[t] = payload
 
+        # Add best-effort market open/close ISO timestamps for the payload
+        try:
+            mo, mc = _market_open_close_for_label(payload.get('market') or meta.get('market'))
+            payload['market_open'] = mo
+            payload['market_close'] = mc
+        except Exception:
+            # don't fail the whole request if timezone mapping fails
+            payload['market_open'] = payload.get('market_open')
+            payload['market_close'] = payload.get('market_close')
+
+        # Save to cache (best-effort)
+        try:
+            _save_to_cache(key, payload)
+        except Exception:
+            logger.debug(f"Failed saving cache for {key}")
+
+        result[t] = _ensure_payload_shape(payload)
 
     return result
+
+
+@router.get("/chart", response_model=Dict[str, Any])
+def get_chart(ticker: Optional[str] = None, period: str = "1mo", interval: str = "30m"):
+    """GET /chart?ticker=AAPL or ticker=AAPL,GOOG - returns mapping of ticker->payload."""
+    if not ticker:
+        return {"error": "Query parameter 'ticker' is required"}
+
+    # Support comma-separated tickers in the `ticker` query param
+    tickers = [t.strip().upper() for t in ticker.split(',') if t.strip()]
+    return _process_tickers(tickers, period, interval)
+
+
+@router.post("/chart", response_model=Dict[str, Any])
+def post_chart(request: ChartRequest):
+    """POST /chart with JSON body supporting single or list of tickers."""
+    tickers = [t.upper() for t in (request.ticker if isinstance(request.ticker, list) else [request.ticker])]
+    period = request.period or "1mo"
+    interval = request.interval or "15m"
+    return _process_tickers(tickers, period, interval)
+
+
+# chart_full was intentionally removed; use GET /chart (comma-separated) or POST /chart instead
 
 
 

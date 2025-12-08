@@ -1,0 +1,449 @@
+.chart-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    color: var(--text-primary);
+}
+
+/* Light-mode chart-specific accents to match homepage green palette */
+body:not(.dark) {
+    --chart-accent: #2cc17f; /* greeny accent */
+    --chart-muted: #4b5563;
+    --chart-pill-bg: rgba(44,193,127,0.06);
+}
+
+body:not(.dark) .chart-toolbar {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+body:not(.dark) .toolbar-label,
+body:not(.dark) .chart-card-title {
+    color: #0b2e13; /* darker green/near-black for headings */
+}
+
+body:not(.dark) .market-compact { color: var(--chart-muted); }
+body:not(.dark) .market-compact .pill-text { color: var(--chart-accent); font-weight:600; }
+body:not(.dark) .market-meta-compact { color: #2f4f3a; }
+
+body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); background: var(--input-bg); border-color: var(--input-border, rgba(0,0,0,0.06)); }
+
+/* Plotly legend/text inside charts (SVG text fill) */
+.chart-card .plot-container .legend text { fill: #0b2e13 !important; }
+.chart-card .plot-container .legend g text { fill: #0b2e13 !important; }
+
+.chart-toolbar {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Prevent buttons in the toolbar inheriting wide min-width from global home styles */
+.chart-toolbar .btn { min-width: unset; }
+
+/* Ensure toolbar buttons don't stretch full width and remain compact */
+.chart-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto !important;
+    padding: 6px 12px !important;
+    font-size: 0.92rem !important;
+}
+
+/* Presets row: keep buttons compact and left-aligned */
+.toolbar-row.presets {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+}
+.toolbar-row.presets .btn {
+    min-width: 80px;
+    max-width: 220px;
+    border-radius: 12px;
+    white-space: nowrap;
+    padding: 10px 18px;
+    background: #f6f7f8;
+    color: var(--text-muted);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* Make the Apply button small and aligned with the input */
+.toolbar-group .btn.btn-primary { padding: 6px 12px; font-size: 0.92rem; }
+
+/* Prevent the timezone select from visually overlapping presets: keep toolbar rows compact */
+.chart-toolbar .toolbar-row { padding-top: 6px; padding-bottom: 6px; }
+
+/* Per-card Subscribe button: consistent small size */
+.chart-card-actions .btn {
+    /* fixed button width so label changes don't resize layout; width chosen to fit 'Candlestick' plus icon */
+    --card-btn-w: 110px;
+    width: var(--card-btn-w);
+    min-width: var(--card-btn-w);
+    height: 32px;
+    padding: 6px 10px !important;
+    font-size: 0.86rem !important;
+    border-radius: 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.btn-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #2fdf91, #2cc17f);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 600;
+}
+
+.mode-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 140px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    padding: 6px 0;
+    z-index: 60;
+}
+.mode-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: #222;
+}
+.mode-item:hover { background: #f5f7fb; }
+.mode-item.active { font-weight: 600; color: #0b6b3a; }
+
+.change-up { color: #2cc17f; font-weight: 600; }
+.change-down { color: #e03b3b; font-weight: 600; }
+.change-neutral { color: #6b7280; font-weight: 600; }
+
+/* Toolbar-level chart-mode buttons use the same visual style as per-card mode button */
+.chart-toolbar .btn-mode, .chart-toolbar .btn-mode:focus {
+    background: linear-gradient(180deg, #2fdf91, #2cc17f);
+    color: #fff;
+    border: none;
+    box-shadow: 0 6px 18px rgba(44,193,127,0.14);
+    border-radius: 12px;
+    padding: 8px 14px;
+}
+
+.chart-toolbar .btn-mode.inactive {
+    background: #f6f7f8;
+    color: var(--text-muted);
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: none;
+}
+
+/* Ensure active/primary appearance stays green and not overly tall */
+.chart-card-actions .btn-primary, .chart-toolbar .btn-primary {
+    /* Match the green pill style used by per-card mode */
+    padding: 6px 12px !important;
+    background: linear-gradient(180deg, #2fdf91, #2cc17f) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px rgba(44,193,127,0.18) !important;
+    border-radius: 12px !important;
+}
+
+/* Ensure toolbar-level buttons that are not primary use the pill neutral style */
+.chart-toolbar .btn {
+    background: #f6f7f8 !important;
+    color: var(--text-muted) !important;
+    border: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+/* Make the Apply button and preset active state visually match the candlestick indicator */
+.chart-toolbar .btn.btn-primary {
+    background: linear-gradient(180deg, #2fdf91, #2cc17f) !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px rgba(44,193,127,0.18) !important;
+}
+
+.chart-card-actions { display: flex; gap: 8px; align-items:center; flex: 0 0 auto; max-width: 48%; justify-content: flex-end; flex-wrap: wrap; }
+
+/* Ensure title area can shrink and wrap when actions are wide */
+.chart-card-header > div:first-child { flex: 1 1 52%; min-width: 160px; }
+
+.company-name { font-size: 0.92rem; color: var(--text-secondary); margin-left: 8px; font-weight: 500; }
+
+.toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.toolbar-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toolbar-label {
+    font-weight: 600;
+}
+
+.input, .select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+}
+
+.chart-card-actions .btn { padding: 4px 8px; font-size: 0.88rem; }
+
+.styled-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 6px 28px 6px 10px;
+    border-radius: 8px;
+    color: var(--text-primary);
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+}
+.styled-select::-ms-expand { display: none; }
+.styled-select option { background: var(--bg-primary); color: var(--text-primary); }
+
+.btn:hover { filter: brightness(1.1); }
+
+.btn-primary {
+    /* Force primary to use the site's Home green palette (variables with sensible fallbacks) */
+    background: linear-gradient(135deg, var(--cute-green-700, #2cc17f), var(--cute-green-500, #77e6b2));
+    border-color: var(--cute-green-800, #1e9c66);
+    color: #ffffff !important;
+    box-shadow: 0 6px 20px rgba(44,193,127,0.18) !important;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+/* Secondary buttons in the chart area should be neutral (not bright blue) */
+.btn-secondary {
+    background: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
+    border-color: rgba(0,0,0,0.06);
+    color: var(--text-primary);
+}
+
+.btn-active { outline: 2px solid var(--cute-green-700, #3fa34d); }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 12px;
+}
+
+.chart-card {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 8px 8px 12px 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: visible;
+}
+
+/* Improve light-mode readability: make chart cards slightly lighter and reduce heavy green accents */
+body:not(.dark) .chart-card {
+    background: #f6f8fa; /* lighter card */
+    color: var(--text-primary);
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 1px 4px rgba(16,24,40,0.06);
+}
+
+body:not(.dark) .chart-toolbar {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.04);
+}
+
+.chart-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 8px 6px;
+}
+
+.chart-card-title {
+    font-weight: 600;
+}
+
+.plot-container {
+    width: 100%;
+    height: 320px;
+}
+
+/* Faint gradient behind the Plotly canvas, clipped to the plot container. */
+.plot-container {
+    width: 100%;
+    height: 320px;
+}
+
+.chart-card.sleek { padding: 10px; border-radius: 12px; }
+.plot-wrapper { position: relative; }
+.badge-overlay {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+.market-compact { display:inline-flex; align-items:center; gap:8px; background:transparent; padding:0 6px; border-radius:6px; font-size:0.85rem; color:var(--text-muted); }
+.market-compact .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+.market-compact .status-dot.open { background:#1db954; box-shadow:0 0 4px rgba(29,185,84,0.25); }
+.market-compact .status-dot.closed { background:#e03b3b; box-shadow:none; opacity:0.95; }
+.market-compact .status-dot.closed + .pill-text { color: #e03b3b; font-weight:700; }
+.market-meta-compact { color: var(--text-secondary); font-size:0.85rem; margin-left:6px; }
+
+.modal-backdrop {
+    position: fixed;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 16px;
+    border-radius: 8px;
+    width: 420px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.modal h3 { margin: 0 0 8px 0; }
+.modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+
+.status {
+    background: var(--bg-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.status.error { color: #ff6b6b; }
+
+/* Improve contrast specifically for dark mode when system or theme is dark */
+@media (prefers-color-scheme: dark) {
+    .chart-toolbar {
+        background: rgba(255,255,255,0.02);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    .toolbar-label, .toolbar-row.hints span, .chart-card-title {
+        color: #e6f0ff; /* brighter label text */
+    }
+
+    .market-compact { color: #d6e7f5; }
+    .market-compact .pill-text { color: #bfe3c6; font-weight:600; }
+    .market-meta-compact { color: #aebfd0; }
+
+    .input, .select {
+        background: rgba(255,255,255,0.03);
+        color: #e8f0ff;
+        border-color: rgba(255,255,255,0.06);
+    }
+
+    .btn { color: #e8f0ff; }
+    .btn-primary { background: #2f9b4a; border-color: #23823a; }
+    .btn-secondary { background: #146b83; border-color: #0f5164; }
+
+    .chart-card { background: rgba(10,16,26,0.6); border: 1px solid rgba(255,255,255,0.03); }
+
+    .market-compact .status-dot.open { box-shadow:0 0 6px rgba(29,185,84,0.35); }
+    .market-compact .status-dot.closed { background:#9aa0a6; opacity:0.9; }
+
+    .chart-card-actions .btn { color: #ffffff; }
+}
+
+/* Specific tweaks for per-card mode control: slightly different green and softer shadow
+   so the in-card control reads as a separate element from the toolbar. Also ensure
+   the per-card dropdown matches the card surface (avoid stark white). */
+.chart-card .btn-mode {
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+/* Lines mode: blue pill */
+.chart-card .btn-mode.mode-lines {
+    background: linear-gradient(180deg, #2b9be0, #1f6fb3);
+    box-shadow: 0 3px 10px rgba(27,106,169,0.12);
+}
+
+/* Candlestick mode: green -> red gradient */
+.chart-card .btn-mode.mode-candle {
+    background: linear-gradient(90deg, #2fc97f, #f06254);
+    box-shadow: 0 4px 12px rgba(160,60,60,0.12);
+}
+.chart-card .btn-mode:hover { filter: brightness(0.96); }
+
+/* visually indicate that the per-card control is overridden by the toolbar */
+.chart-card .btn-mode.overridden {
+    background: linear-gradient(180deg, #e9eef0, #f3f6f7) !important;
+    color: #6b7280 !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(0,0,0,0.04) !important;
+    cursor: not-allowed;
+}
+
+/* Ensure overridden state wins over mode color variants */
+.chart-card .btn-mode.mode-lines.overridden,
+.chart-card .btn-mode.mode-candle.overridden {
+    background: linear-gradient(180deg, #e9eef0, #f3f6f7) !important;
+    color: #6b7280 !important;
+    box-shadow: none !important;
+}
+.chart-card .mode-dropdown {
+    background: #f6fbf6; /* very light green-tinged surface */
+    border: 1px solid rgba(47,166,77,0.06);
+    box-shadow: 0 8px 24px rgba(15,23,12,0.06);
+}
+.chart-card .mode-item { color: #12391a; }
+.chart-card .mode-item.active { color: #0b6b3a; font-weight: 700; }
