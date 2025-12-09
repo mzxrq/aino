@@ -67,7 +67,10 @@ router.post('/login', authCtrl.login);
 router.get('/profile', requireAuth, authCtrl.getProfile);
 
 // Profile updates (protected)
+// Handle preflight and both verbs to avoid client mismatches
+router.options('/update-profile', (req, res) => res.sendStatus(200));
 router.put('/update-profile', requireAuth, authCtrl.updateProfile);
+router.patch('/update-profile', requireAuth, authCtrl.updateProfile);
 router.put('/change-password', requireAuth, authCtrl.changePassword);
 router.put('/add-password', requireAuth, authCtrl.addPassword);
 

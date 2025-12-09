@@ -60,7 +60,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
 
-    user = db.users.find_one({"line_user_id": user_id})
+    user = db.users.find_one({"lineid": user_id})
     if not user:
         raise credentials_exception
     user["_id"] = str(user["_id"])
@@ -93,8 +93,8 @@ async def login_or_register_line(request: LineLoginRequest):
                 headers={"Authorization": f"Bearer {access_token}"}
             )
             profile_json = profile_res.json()
-            line_user_id = profile_json.get("userId")
-            if not line_user_id:
+            lineid = profile_json.get("userId")
+            if not lineid:
                 raise HTTPException(status_code=400, detail="Failed to fetch LINE user profile")
 
             # 3. Check state for binding
@@ -110,27 +110,28 @@ async def login_or_register_line(request: LineLoginRequest):
                 user = db.users.find_one({"_id": oid})
                 if user:
                     db.users.update_one({"_id": oid}, {"$set": {
-                        "line_user_id": line_user_id,
-                        "display_name": profile_json.get("displayName"),
-                        "picture_url": profile_json.get("pictureUrl"),
-                        "status_message": profile_json.get("statusMessage"),
-                        "last_login": datetime.utcnow()
+                        "lineid": lineid,
+                        "pictureUrl": profile_json.get("pictureUrl"),
+                        "lastLogin": datetime.utcnow(),
+                        "loginMethod": "line"
                     }})
 
             # 4. Login/register if not binding
             if not user:
-                user = db.users.find_one({"line_user_id": line_user_id})
+                user = db.users.find_one({"lineid": lineid})
                 if user:
-                    db.users.update_one({"line_user_id": line_user_id}, {"$set": {"last_login": datetime.utcnow()}})
+                    db.users.update_one({"lineid": lineid}, {"$set": {"lastLogin": datetime.utcnow()}})
                 else:
                     user_document = {
-                        "line_user_id": line_user_id,
-                        "display_name": profile_json.get("displayName"),
-                        "picture_url": profile_json.get("pictureUrl"),
-                        "status_message": profile_json.get("statusMessage"),
-                        "role": "general",
-                        "created_at": datetime.utcnow(),
-                        "last_login": datetime.utcnow()
+                        "lineid": lineid,
+                        "email" : "",
+                        "name": profile_json.get("displayName"),
+                        "username" : "",
+                        "createdAt": datetime.utcnow(),
+                        "role": "user",
+                        "pictureUrl": profile_json.get("pictureUrl"),
+                        "lastLogin": datetime.utcnow(),
+                        "loginMethod": "line"
                     }
                     r = db.users.insert_one(user_document)
                     user = { **user_document, "_id": r.inserted_id }
@@ -138,7 +139,7 @@ async def login_or_register_line(request: LineLoginRequest):
             user["_id"] = str(user["_id"])
 
             # 5. Generate JWT
-            token_jwt = create_access_token({"sub": line_user_id}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+            token_jwt = create_access_token({"sub": lineid}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
 
             return {"user": user, "token": token_jwt}
 
@@ -151,8 +152,8 @@ async def login_or_register_line(request: LineLoginRequest):
 @router.get("/profile")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
-        "userId": current_user.get("line_user_id"),
-        "displayName": current_user.get("display_name"),
+        "userId": current_user.get("lineid"),
+        "name": current_user.get("display_name"),
         "pictureUrl": current_user.get("picture_url"),
         "statusMessage": current_user.get("status_message")
     }

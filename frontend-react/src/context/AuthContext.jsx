@@ -3,13 +3,32 @@ import { API_URL, LINE_API } from './envConfig';
 import { AuthContext } from './contextBase';
 
 export function AuthProvider({ children }) {
+  // Normalize stored/returned user objects so frontend always has `id` and `createdAt` fields
+  const normalizeUser = (raw) => {
+    if (!raw) return null;
+    const src = (raw.user && typeof raw.user === 'object') ? { ...raw, ...raw.user } : raw;
+    const id = src._id || src.id || src.userId || src.lineid || src.line_user_id || null;
+    const createdRaw = src.createdAt || src.created_at || src.created_at || src.created || null;
+    const lastRaw = src.lastLogin || src.last_login || src.last_login || src.last_login_time || null;
+
+    const fmtDate = (v) => {
+      if (!v) return undefined;
+      if (typeof v === 'string') return v;
+      if (v instanceof Date) return v.toISOString();
+      try { return new Date(v).toISOString(); } catch { return String(v); }
+    };
+
+    const createdAt = fmtDate(createdRaw);
+    const lastLogin = fmtDate(lastRaw);
+
+    return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin };
+  };
+
   const [user, setUser] = useState(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('user')) || null;
       if (!raw) return null;
-      // Normalize to ensure we expose a Mongo ObjectId string as `id`
-      const id = raw._id || raw.id || raw.userId || (raw.user && (raw.user._id || raw.user.id));
-      return { ...raw, id };
+      return normalizeUser(raw);
     } catch { return null; }
   });
   const [token, setTokenState] = useState(() => localStorage.getItem('token') || null);
@@ -50,11 +69,9 @@ export function AuthProvider({ children }) {
             return;
           }
           const profile = await res.json();
-          // Normalize profile to ensure `id` contains MongoDB ObjectId string
-          const normalizedId = profile._id || profile.id || profile.userId || (profile.user && (profile.user._id || profile.user.id));
-          const normalized = { ...profile, id: normalizedId };
+          // Normalize returned profile
           setTokenState(t);
-          setUser(normalized);
+          setUser(normalizeUser(profile));
           return;
         } catch (err) {
           console.error('Session restore failed', err);
@@ -66,8 +83,7 @@ export function AuthProvider({ children }) {
         const u = localStorage.getItem('user');
         if (u) {
           const parsed = JSON.parse(u);
-          const id = parsed._id || parsed.id || parsed.userId || (parsed.user && (parsed.user._id || parsed.user.id));
-          setUser({ ...parsed, id });
+          setUser(normalizeUser(parsed));
         }
       } catch (err) {
         console.error('Failed to restore user from localStorage', err);
@@ -114,8 +130,7 @@ export function AuthProvider({ children }) {
         return;
       }
       const profile = await res.json();
-      const normalizedId = profile._id || profile.id || profile.userId || (profile.user && (profile.user._id || profile.user.id));
-      setUser({ ...profile, id: normalizedId });
+      setUser(normalizeUser(profile));
     } catch (err) {
       console.error(err);
       logout();
@@ -140,8 +155,7 @@ export function AuthProvider({ children }) {
 
       // Fallback: JS backend returns only a user object (no JWT).
       if (data.user) {
-        const id = data.user._id || data.user.id || data.user.userId;
-        setUser({ ...data.user, id });
+        setUser(normalizeUser(data.user));
         return data.user;
       }
       return data;
@@ -168,8 +182,7 @@ export function AuthProvider({ children }) {
       }
 
       if (data.user) {
-        const id = data.user._id || data.user.id || data.user.userId;
-        setUser({ ...data.user, id });
+        setUser(normalizeUser(data.user));
         return data.user;
       }
       return data;

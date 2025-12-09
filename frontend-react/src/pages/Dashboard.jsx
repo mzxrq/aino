@@ -108,7 +108,7 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <div className="header-content">
           <h1>My Dashboard</h1>
-          <p>Welcome, <span className="user-name">{user.displayName}</span>! Track your stock subscriptions</p>
+          <p>Welcome, <span className="user-name">{user.name}</span>! Track your stock subscriptions</p>
         </div>
       </div>
 
