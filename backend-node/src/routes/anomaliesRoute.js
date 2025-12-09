@@ -10,6 +10,7 @@ const anomaliesController = require("../controllers/anomaliesController");
 
 // Special routes (must be defined before parameterized routes)
 router.get("/unsent", anomaliesController.getUnsentAnomalies);
+router.get("/recent", anomaliesController.getRecentAnomalies);
 router.post("/bulk", anomaliesController.bulkCreateAnomalies);
 
 // CRUD routes
@@ -23,5 +24,6 @@ router.delete("/:id", anomaliesController.deleteAnomaly);
 
 // Additional operations
 router.patch("/:id/mark-sent", anomaliesController.markAsSent);
+
 
 module.exports = router;

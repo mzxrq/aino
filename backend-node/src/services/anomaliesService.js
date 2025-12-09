@@ -179,6 +179,21 @@ const bulkCreateAnomalies = async (anomalies) => {
   return await anomaliesModel.bulkInsertAnomalies(validatedAnomalies);
 };
 
+const getRecentAnomalies = async (query) => {
+  const filter = {};
+  
+  // Build filter from query params
+  if (query.ticker) {
+    filter.ticker = query.ticker.toUpperCase();
+  }
+  const limit = parseInt(query.limit) || 6;
+
+  const data = await anomaliesModel.getAllAnomalies(filter, { limit, sort: { Datetime: -1 } });
+  const total = data.length;
+  return { data, total };
+};
+
+
 module.exports = {
   createAnomaly,
   getAllAnomalies,
@@ -188,4 +203,5 @@ module.exports = {
   markAsSent,
   getUnsentAnomalies,
   bulkCreateAnomalies,
+  getRecentAnomalies,
 };
