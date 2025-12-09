@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { DateTime } from 'luxon';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 
 const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
@@ -75,8 +75,8 @@ function enforceIntervalRules(period, interval) {
 
 function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onExpand, period, interval, globalChartMode = 'auto' }) {
   const payload = data?.[ticker] || {};
-  const dates = payload.dates || [];
-  const close = payload.close || [];
+  const dates = useMemo(() => payload.dates || [], [payload.dates]);
+  const close = useMemo(() => payload.close || [], [payload.close]);
   const open = payload.open || [];
   const high = payload.high || [];
   const low = payload.low || [];
@@ -95,6 +95,20 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   const [hoverIdx, setHoverIdx] = useState(null);
   const [chartMode, setChartMode] = useState('lines'); // 'lines' or 'candlestick'
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  // Keyboard helpers for per-card mode dropdown
+  const handleModeKeyDown = (e, mode) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setChartMode(mode);
+      setModeDropdownOpen(false);
+    } else if (e.key === 'Escape') {
+      setModeDropdownOpen(false);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      // toggle between the two modes for quick keyboard navigation
+      setChartMode(prev => (prev === 'lines' ? 'candlestick' : 'lines'));
+    }
+  };
   const appliedChartMode = (globalChartMode === 'auto') ? chartMode : globalChartMode;
 
   // compute simple price change based on last close vs previous_close/open
@@ -106,7 +120,9 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   useEffect(() => {
     // compute overlay badge vertical position after plot renders
     if (!plotRef.current || !dates || dates.length === 0 || lastClose == null) {
-      setBadgeTopPx(null);
+      // Defer clearing the badge state to avoid synchronous setState inside effect
+      // which ESLint flags; schedule it asynchronously if needed.
+      setTimeout(() => setBadgeTopPx(null), 0);
       return;
     }
     // small delay to allow Plotly to draw
@@ -120,7 +136,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
         const frac = 1 - ((lastClose - yMin) / (yMax - yMin));
         const topPx = Math.max(8, Math.min(plotHeight - 8, frac * plotHeight));
         setBadgeTopPx(topPx);
-      } catch (e) { setBadgeTopPx(null); }
+      } catch { setBadgeTopPx(null); }
     }, 80);
     return () => clearTimeout(id);
   }, [dates, close, lastClose, plotRef]);
@@ -132,7 +148,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
     const hrs = off / 60;
     const sign = hrs >= 0 ? '+' : '-';
     gmtLabel = `GMT${sign}${Math.abs(hrs)}`;
-  } catch (e) { gmtLabel = '' }
+  } catch { gmtLabel = '' }
 
   // Build traces (use payload data, no polling here)
   const priceTrace = {
@@ -262,7 +278,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   if (bbLowerTrace) bbLowerTrace.x = axisX;
   if (bbSmaTrace) bbSmaTrace.x = axisX;
   if (vwapTrace) vwapTrace.x = axisX;
-  if (anomalyTrace) anomalyTrace.x = (useOrdinalX ? anomalies.map((a, i) => dates.indexOf(a.date)) : anomalies.map(a => a.date));
+  if (anomalyTrace) anomalyTrace.x = (useOrdinalX ? anomalies.map(a => dates.indexOf(a.date)) : anomalies.map(a => a.date));
 
   // Determine Plotly text color from CSS/theme so legend/axis/title match app
   const plotTextColor = useMemo(() => resolvePlotlyColorFallback(), []);
@@ -274,13 +290,15 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
     plot_bgcolor: 'transparent',
     font: { color: plotTextColor },
     hovermode: 'closest',
-    // show axis spikes to help locate hovered x position
-    xaxis: { showspikes: true, spikemode: 'across', spikecolor: plotTextColor, spikethickness: 1 },
-    yaxis: { showspikes: true, spikecolor: plotTextColor, spikethickness: 1 },
+    // show axis spikes to help locate hovered x position (merged into axis defs below)
     showlegend: false,
     // increase right margin to make room for the right-side price badge
     margin: { l: 50, r: 90, t: 40, b: 40 },
     xaxis: {
+      showspikes: true,
+      spikemode: 'across',
+      spikecolor: plotTextColor,
+      spikethickness: 1,
       title: 'Time',
       showgrid: false,
       rangeslider: { visible: false },
@@ -291,6 +309,9 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
       tickfont: { color: plotTextColor }
     },
     yaxis: {
+      showspikes: true,
+      spikecolor: plotTextColor,
+      spikethickness: 1,
       title: 'Price',
       showgrid: true,
       tickfont: { color: plotTextColor },
@@ -381,7 +402,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
         const closeT = DateTime.fromISO(payload.market_close, { zone: timezone });
         return now >= openT && now <= closeT;
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     // fallback: if there's recent data within last 6 hours, treat as open (best-effort)
     if (dates.length) {
       const last = DateTime.fromISO(dates[dates.length - 1], { zone: 'utc' }).toUTC();
@@ -449,9 +470,27 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
                 )}
               </button>
               {modeDropdownOpen && globalChartMode === 'auto' && (
-                <div className="mode-dropdown" role="menu" onMouseLeave={() => setModeDropdownOpen(false)}>
-                  <div className={`mode-item ${appliedChartMode === 'lines' ? 'active' : ''}`} onClick={() => { setChartMode('lines'); setModeDropdownOpen(false); }}>Lines</div>
-                  <div className={`mode-item ${appliedChartMode === 'candlestick' ? 'active' : ''}`} onClick={() => { setChartMode('candlestick'); setModeDropdownOpen(false); }}>Candlestick</div>
+                <div className="mode-dropdown" role="listbox" tabIndex={0} aria-label={`${ticker} chart mode`} onMouseLeave={() => setModeDropdownOpen(false)}>
+                  <div
+                    className={`mode-item ${appliedChartMode === 'lines' ? 'active' : ''}`}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={appliedChartMode === 'lines'}
+                    onClick={() => { setChartMode('lines'); setModeDropdownOpen(false); }}
+                    onKeyDown={(e) => handleModeKeyDown(e, 'lines')}
+                  >
+                    Lines
+                  </div>
+                  <div
+                    className={`mode-item ${appliedChartMode === 'candlestick' ? 'active' : ''}`}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={appliedChartMode === 'candlestick'}
+                    onClick={() => { setChartMode('candlestick'); setModeDropdownOpen(false); }}
+                    onKeyDown={(e) => handleModeKeyDown(e, 'candlestick')}
+                  >
+                    Candlestick
+                  </div>
                 </div>
               )}
             </div>
@@ -467,7 +506,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
             try {
               const p = e && e.points && e.points[0];
               if (p && typeof p.pointIndex === 'number') setHoverIdx(p.pointIndex);
-            } catch (err) { /* ignore */ }
+            } catch { /* ignore */ }
           }}
           onUnhover={() => setHoverIdx(null)}
         />
@@ -481,41 +520,10 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   );
 }
 
-function SubscribeButton({ ticker, tickers }) {
+function SubscribeButton({ ticker }) {
   const { token, user } = useAuth();
-  const serverPrefsLoaded = useRef(false);
-  const savePrefsTimer = useRef(null);
-
-  // When user logs in, try to load server-side preferences and merge into local state
-  useEffect(() => {
-    let mounted = true;
-    async function loadServerPrefs() {
-      if (!token || !user) return;
-      try {
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-        const res = await fetch(`${front}/users/preferences`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!mounted) return;
-        if (!res.ok) return;
-        const j = await res.json();
-        const prefs = j && j.preferences ? j.preferences : null;
-        if (prefs && typeof prefs === 'object') {
-          if (prefs.tickersInput) setTickersInput(prefs.tickersInput);
-          if (prefs.tickers) setTickers(prefs.tickers);
-          if (prefs.period) setPeriod(prefs.period);
-          if (prefs.interval) setInterval(prefs.interval);
-          if (prefs.timezone) setTimezone(prefs.timezone);
-          if (prefs.showBB !== undefined) setShowBB(!!prefs.showBB);
-          if (prefs.showVWAP !== undefined) setShowVWAP(!!prefs.showVWAP);
-          if (prefs.showVolume !== undefined) setShowVolume(!!prefs.showVolume);
-        }
-        serverPrefsLoaded.current = true;
-      } catch (e) {
-        // ignore
-      }
-    }
-    loadServerPrefs();
-    return () => { mounted = false; };
-  }, [token, user]);
+  // server-side prefs merge intentionally removed from here to keep
+  // Subscribe handling localized to the card-level component.
   const [state, setState] = useState(null); // null=unknown, true=subscribed, false=not
 
   useEffect(() => {
@@ -531,7 +539,7 @@ function SubscribeButton({ ticker, tickers }) {
         const j = await res.json();
         if (!mounted) return;
         setState(!!j.subscribed);
-      } catch (e) { setState(false); }
+      } catch { setState(false); }
     }
     check();
     return () => { mounted = false; };
@@ -568,19 +576,23 @@ export default function Chart() {
   const navigate = useNavigate();
   const PREF_KEY = 'chart_prefs_v1';
 
+  const savePrefsTimer = useRef(null);
+
   const [tickersInput, setTickersInput] = useState(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickersInput || 'AAPL,MSFT'; } catch (e) { return 'AAPL,MSFT'; }
+    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickersInput || 'AAPL,MSFT'; } catch { return 'AAPL,MSFT'; }
   });
   const [tickers, setTickers] = useState(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || ['AAPL','MSFT']; } catch (e) { return ['AAPL','MSFT']; }
+    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || ['AAPL','MSFT']; } catch { return ['AAPL','MSFT']; }
   });
-  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1mo'; } catch (e) { return '1mo'; } });
-  const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch (e) { return '1m'; } });
-  const [timezone, setTimezone] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.timezone || 'Asia/Tokyo'; } catch (e) { return 'Asia/Tokyo'; } });
-  const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch (e) { return false; } });
-  const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch (e) { return false; } });
-  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch (e) { return true; } });
-  const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch (e) { return 'auto'; } });
+  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1mo'; } catch { return '1mo'; } });
+  const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch { return '1m'; } });
+  const [timezone, setTimezone] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.timezone || 'Asia/Tokyo'; } catch { return 'Asia/Tokyo'; } });
+  const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
+  const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
+  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
+  const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch { return 'auto'; } });
+  const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState({});
@@ -620,11 +632,11 @@ export default function Chart() {
               method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify(p)
             });
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         }, 600);
       }
-    } catch (e) { /* ignore */ }
-  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume]);
+    } catch { /* ignore */ }
+  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, globalChartMode, token, user]);
 
   function applyPreset(p) {
     setPeriod(p.period);
@@ -640,29 +652,7 @@ export default function Chart() {
     navigate(`/superchart/${encodeURIComponent(ticker)}`);
   }
 
-  function subscribe() {
-    // Wire to Node backend: POST /subscribers with { id, tickers }
-    (async () => {
-      try {
-        if (!user || !token) {
-          alert('Please login to subscribe');
-          return;
-        }
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-        const res = await fetch(`${front}/subscribers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: user.id || user._id || user.userId, tickers })
-        });
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.message || 'Failed to subscribe');
-        alert('Subscribed successfully');
-      } catch (e) {
-        console.error(e);
-        alert('Subscription failed: ' + (e.message || e));
-      }
-    })();
-  }
+  // `subscribe` helper removed (not used in toolbar); per-card SubscribeButton handles subscriptions.
 
   return (
     <div className="chart-page">
@@ -670,7 +660,42 @@ export default function Chart() {
         <div className="toolbar-row">
           <div className="toolbar-group">
             <label className="toolbar-label">Tickers</label>
-            <input className="input" value={tickersInput} onChange={e => setTickersInput(e.target.value)} placeholder="AAPL,MSFT,TSLA" />
+            <div className="tag-input" onClick={() => document.getElementById('ticker-input')?.focus()}>
+              {tickers.map((t) => (
+                <span className="tag-pill" key={t} tabIndex={0} role="option" aria-label={`Ticker ${t}`} onKeyDown={(e) => { if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setTickers(prev => prev.filter(x => x !== t)); } }}>
+                  {t}
+                  <button aria-label={`Remove ${t}`} className="tag-x" onClick={(e) => { e.stopPropagation(); setTickers(prev => prev.filter(x => x !== t)); }}>{'\u00d7'}</button>
+                </span>
+              ))}
+              <input
+                id="ticker-input"
+                className="input tag-text"
+                value={tickersInput}
+                onChange={e => setTickersInput(e.target.value)}
+                placeholder={tickers.length ? '' : 'e.g. 9020.T, AAPL'}
+                onKeyDown={(e) => {
+                  const v = e.target.value;
+                  if (e.key === ' ' || e.key === ',' || e.key === 'Enter') {
+                    e.preventDefault();
+                    const parts = v.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+                    if (parts.length) {
+                      setTickers(prev => Array.from(new Set([...prev, ...parts])));
+                      setTickersInput('');
+                    }
+                  } else if (e.key === 'Backspace' && !v) {
+                    setTickers(prev => prev.slice(0, Math.max(0, prev.length - 1)));
+                  }
+                }}
+                onBlur={() => {
+                  const v = tickersInput.trim();
+                  if (v) {
+                    const parts = v.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+                    setTickers(prev => Array.from(new Set([...prev, ...parts])));
+                    setTickersInput('');
+                  }
+                }}
+              />
+            </div>
             <button className="btn btn-primary" onClick={applyTickers}>Apply</button>
           </div>
 
@@ -683,17 +708,53 @@ export default function Chart() {
 
           <div className="toolbar-group">
             <label className="toolbar-label">Indicators</label>
-            <label className="checkbox"><input type="checkbox" checked={showVolume} onChange={e => setShowVolume(e.target.checked)} /> Volume</label>
-            <label className="checkbox"><input type="checkbox" checked={showBB} onChange={e => setShowBB(e.target.checked)} /> Bollinger Bands</label>
-            <label className="checkbox"><input type="checkbox" checked={showVWAP} onChange={e => setShowVWAP(e.target.checked)} /> VWAP</label>
+            <div className="indicator-select">
+              <button
+                className={`btn btn-mode btn-sm ${showVolume || showBB || showVWAP ? 'active' : ''}`}
+                onClick={() => setIndicatorsOpen(v => !v)}
+                aria-haspopup="true"
+                aria-expanded={indicatorsOpen}
+              >
+                Indicators
+              </button>
+              {indicatorsOpen && (
+                <div className="mode-dropdown indicators-dropdown" role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
+                    <input type="checkbox" checked={showVolume} readOnly /> Volume
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
+                    <input type="checkbox" checked={showBB} readOnly /> Bollinger Bands
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
+                    <input type="checkbox" checked={showVWAP} readOnly /> VWAP
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="toolbar-group">
             <label className="toolbar-label">Chart Mode</label>
-            <div style={{display:'flex', gap:8, alignItems:'center'}}>
-              <button className={`btn btn-sm btn-mode ${globalChartMode === 'auto' ? 'btn-primary' : 'inactive'}`} onClick={() => setGlobalChartMode('auto')}>Auto</button>
-              <button className={`btn btn-sm btn-mode ${globalChartMode === 'lines' ? 'btn-primary' : 'inactive'}`} onClick={() => setGlobalChartMode('lines')}>Lines</button>
-              <button className={`btn btn-sm btn-mode ${globalChartMode === 'candlestick' ? 'btn-primary' : 'inactive'}`} onClick={() => setGlobalChartMode('candlestick')}>Candlestick</button>
+            <div className="mode-select">
+              <button
+                className="btn btn-mode btn-sm"
+                onClick={() => setToolbarModeOpen(v => !v)}
+                aria-haspopup="true"
+                aria-expanded={toolbarModeOpen}
+              >{globalChartMode === 'lines' ? 'Lines' : (globalChartMode === 'candlestick' ? 'Candlestick' : 'Auto')}</button>
+              {toolbarModeOpen && (
+                <div className="mode-dropdown" role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
+                  <div className={`mode-item ${globalChartMode === 'auto' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'auto'} onClick={() => { setGlobalChartMode('auto'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('auto'); setToolbarModeOpen(false); } }}>
+                    Auto
+                  </div>
+                  <div className={`mode-item ${globalChartMode === 'lines' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'lines'} onClick={() => { setGlobalChartMode('lines'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('lines'); setToolbarModeOpen(false); } }}>
+                    Lines
+                  </div>
+                  <div className={`mode-item ${globalChartMode === 'candlestick' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'candlestick'} onClick={() => { setGlobalChartMode('candlestick'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('candlestick'); setToolbarModeOpen(false); } }}>
+                    Candlestick
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -713,9 +774,7 @@ export default function Chart() {
           ))}
         </div>
 
-        <div className="toolbar-row hints">
-          <span>Tip: Hold LeftCtrl and scroll to zoom. Scroll to pan.</span>
-        </div>
+        
       </div>
 
       {loading && <div className="status">Loading...</div>}
@@ -792,8 +851,8 @@ function resolvePlotlyColorFallback() {
     const txt = (s.getPropertyValue('--text-primary') || s.getPropertyValue('--text') || '').trim();
     if (txt) return txt;
     return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111';
-  } catch (e) {
-    try { return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111'; } catch (e2) { return '#111111'; }
+  } catch {
+    try { return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111'; } catch { return '#111111'; }
   }
 }
 
@@ -807,7 +866,7 @@ function buildHoverTextForDates(dates, tz, period) {
   else if (p === '1mo' || p === '6mo') fmt = 'LL-dd';
   else if (p === '1y' || p === '5y') fmt = 'yyyy-LL';
   return dates.map(d => {
-    try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch (e) { return d; }
+    try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch { return d; }
   });
 }
 

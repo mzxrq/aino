@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import '../css/Profile.css';
 
@@ -32,12 +32,13 @@ const Profile = () => {
   const canChangePassword = !isLineUser; // Only email-registered users can change password
 
   // Redirect if not logged in
-  if (!user) {
-    React.useEffect(() => {
+  React.useEffect(() => {
+    if (!user) {
       navigate('/login');
-    }, [navigate]);
-    return null;
-  }
+    }
+  }, [user, navigate]);
+
+  if (!user) return null;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -114,7 +115,7 @@ const Profile = () => {
       });
       if (!res.ok) {
         let msg = 'Failed to upload avatar';
-        try { const errJson = await res.json(); msg = errJson.error || msg; } catch {}
+        try { const errJson = await res.json(); msg = errJson.error || msg; } catch (e) { void e; }
         throw new Error(msg);
       }
       const data = await res.json();
@@ -139,10 +140,10 @@ const Profile = () => {
       const res = await fetch(`${NODE_API_URL}/auth/profile/avatar`, { method: 'DELETE', headers });
       if (!res.ok) {
         let msg = 'Failed to delete avatar';
-        try { const errJson = await res.json(); msg = errJson.error || msg; } catch {}
+        try { const errJson = await res.json(); msg = errJson.error || msg; } catch (e) { void e; }
         throw new Error(msg);
       }
-      const data = await res.json();
+      await res.json().catch(() => ({}));
       const updatedUser = { ...user };
       delete updatedUser.pictureUrl;
       delete updatedUser.avatar;

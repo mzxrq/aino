@@ -6,6 +6,9 @@
     color: var(--text-primary);
 }
 
+/* Shared card/toolbar button width variable so mode buttons match across UI */
+:root { --card-btn-w: 100px; }
+
 /* Light-mode chart-specific accents to match homepage green palette */
 body:not(.dark) {
     --chart-accent: #2cc17f; /* greeny accent */
@@ -129,13 +132,22 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 
 /* Toolbar-level chart-mode buttons use the same visual style as per-card mode button */
 .chart-toolbar .btn-mode, .chart-toolbar .btn-mode:focus {
-    background: linear-gradient(180deg, #2fdf91, #2cc17f);
     color: #fff;
     border: none;
-    box-shadow: 0 6px 18px rgba(44,193,127,0.14);
     border-radius: 12px;
-    padding: 8px 14px;
+    padding: 8px 12px;
+    width: var(--card-btn-w);
+    min-width: var(--card-btn-w);
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
+
+/* toolbar mode variants mirror per-card modes */
+.chart-toolbar .btn-mode.mode-lines { background: linear-gradient(180deg, #2b9be0, #1f6fb3); box-shadow: 0 3px 8px rgba(27,106,169,0.12); }
+.chart-toolbar .btn-mode.mode-candle { background: linear-gradient(90deg, #2fc97f, #f06254); box-shadow: 0 4px 10px rgba(160,60,60,0.12); }
+.chart-toolbar .btn-mode.mode-auto { background: linear-gradient(180deg, #f6f7f8, #eef2f3); color: var(--text-muted); box-shadow:none; border:1px solid rgba(0,0,0,0.04); }
 
 .chart-toolbar .btn-mode.inactive {
     background: #f6f7f8;
@@ -242,6 +254,77 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 .styled-select option { background: var(--bg-primary); color: var(--text-primary); }
 
 .btn:hover { filter: brightness(1.1); }
+
+/* Tag-style ticker input */
+.tag-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    min-height: 36px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    cursor: text;
+}
+.tag-input .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(47,166,77,0.12);
+    color: #083a1f;
+    padding: 4px 8px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+.tag-input .tag-x {
+    background: transparent;
+    border: none;
+    color: #083a1f;
+    cursor: pointer;
+    padding: 0 6px;
+    font-size: 0.95rem;
+}
+.tag-input .tag-text {
+    flex: 1 1 120px;
+    min-width: 56px;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 6px 4px;
+    font-size: 0.95rem;
+}
+
+/* Material-style dropdowns and toolbar refinements */
+.chart-toolbar {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 6px 20px rgba(16,24,40,0.08);
+}
+.mode-dropdown, .indicators-dropdown {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 12px 36px rgba(16,24,40,0.12);
+    padding: 8px 6px;
+}
+.mode-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: #0b3d66;
+    border-radius: 6px;
+}
+.mode-item:hover { background: rgba(15,76,117,0.06); }
+.indicators-dropdown .mode-item { display: flex; gap: 8px; align-items: center; }
+
+/* indicators button keep subtle elevation when active */
+.indicator-select .btn.active { box-shadow: 0 6px 14px rgba(33,150,243,0.12) !important; }
+
+/* make toolbar labels and controls align with Material guidelines */
+.toolbar-label { color: #263238; font-size: 0.95rem; }
+.toolbar-group .btn { border-radius: 8px; }
 
 .btn-primary {
     /* Force primary to use the site's Home green palette (variables with sensible fallbacks) */

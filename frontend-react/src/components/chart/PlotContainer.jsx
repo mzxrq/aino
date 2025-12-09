@@ -42,7 +42,7 @@ export function PlotContainer({ data, layout, showLegend, plotlyTheme, isDarkThe
         const gd = plotRef.current && (plotRef.current.el || plotRef.current.getPlot());
         if (gd && window.Plotly?.Plots?.resize) window.Plotly.Plots.resize(gd);
         window.dispatchEvent(new Event('resize'));
-      } catch {}
+      } catch (e) { void e; }
     }, 140);
     return () => clearTimeout(t);
   }, [themed]);

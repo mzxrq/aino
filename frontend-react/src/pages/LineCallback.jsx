@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
+
+const LINE_BACKEND = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const LineCallback = () => {
   const [searchParams] = useSearchParams();
@@ -9,9 +11,6 @@ const LineCallback = () => {
   const { setToken, login } = useAuth();
   const [status, setStatus] = useState('Processing LINE login...');
  
-  const LINE_BACKEND = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-
   useEffect(() => {
     const code = searchParams.get('code');
     const state = searchParams.get('state'); // e.g., integrate-<userId>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import '../css/Dashboard.css';
+
+const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
 
 export default function Dashboard() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
 
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { DateTime } from 'luxon';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 
 const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
@@ -46,7 +46,6 @@ export default function SuperChart() {
   const [tickerInput, setTickerInput] = useState((routeTicker || 'AAPL').toUpperCase());
   const navTimer = useRef(null);
   const { token, user } = useAuth();
-  const serverPrefsLoaded = useRef(false);
   const savePrefsTimer = useRef(null);
 
     // Load server-side preferences when authenticated
@@ -71,22 +70,23 @@ export default function SuperChart() {
             if (prefs.showRSI !== undefined) setShowRSI(!!prefs.showRSI);
             if (prefs.showMACD !== undefined) setShowMACD(!!prefs.showMACD);
           }
-          serverPrefsLoaded.current = true;
-        } catch (e) { /* ignore */ }
+          // serverPrefsLoaded removed; no-op here
+        } catch { /* ignore */ }
       }
       loadServerPrefs();
       return () => { mounted = false; };
     }, [token, user]);
   // Default to intraday
   const PREF_KEY = 'chart_prefs_v1';
-  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1d'; } catch (e) { return '1d'; } });
-  const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch (e) { return '1m'; } });
-  const [timezone, setTimezone] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.timezone || 'Asia/Tokyo'; } catch (e) { return 'Asia/Tokyo'; } });
-  const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch (e) { return false; } });
-  const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch (e) { return false; } });
-  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch (e) { return true; } });
-  const [showRSI, setShowRSI] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showRSI !== undefined) ? p.showRSI : false; } catch (e) { return false; } });
-  const [showMACD, setShowMACD] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showMACD !== undefined) ? p.showMACD : false; } catch (e) { return false; } });
+  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1d'; } catch { return '1d'; } });
+  const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch { return '1m'; } });
+  const [timezone, setTimezone] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.timezone || 'Asia/Tokyo'; } catch { return 'Asia/Tokyo'; } });
+  const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
+  const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
+  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
+  const [showRSI, setShowRSI] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showRSI !== undefined) ? p.showRSI : false; } catch { return false; } });
+  const [showMACD, setShowMACD] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showMACD !== undefined) ? p.showMACD : false; } catch { return false; } });
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [payload, setPayload] = useState({});
@@ -113,7 +113,7 @@ export default function SuperChart() {
         try {
           console.debug('[SuperChart] fetched payload keys', Object.keys(final));
           console.debug('[SuperChart] dates count', (final.dates || []).length, 'close count', (final.close || []).length);
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         setPayload(final);
       } catch (e) {
         setError(e?.message || 'Failed to load chart data');
@@ -140,11 +140,11 @@ export default function SuperChart() {
               method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify({ period, interval, timezone, showBB, showVWAP, showVolume, showRSI, showMACD })
             });
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         }, 600);
       }
-    } catch (e) { /* ignore */ }
-  }, [period, interval, timezone, showBB, showVWAP, showVolume, showRSI, showMACD]);
+    } catch { /* ignore */ }
+  }, [period, interval, timezone, showBB, showVWAP, showVolume, showRSI, showMACD, token, user]);
 
   const [showCandles, setShowCandles] = useState(false);
   const [seekRange, setSeekRange] = useState(null); // {start, end}
@@ -176,8 +176,8 @@ export default function SuperChart() {
       const txt = (s.getPropertyValue('--text-primary') || s.getPropertyValue('--text') || '').trim();
       if (txt) return txt;
       return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111';
-    } catch (e) {
-      try { return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111'; } catch (e2) { return '#111111'; }
+    } catch {
+      try { return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111'; } catch { return '#111111'; }
     }
   }
 
@@ -190,7 +190,7 @@ export default function SuperChart() {
     else if (p === '1mo' || p === '6mo') fmt = 'LL-dd';
     else if (p === '1y' || p === '5y') fmt = 'yyyy-LL';
     return dates.map(d => {
-      try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch (e) { return d; }
+      try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch { return d; }
     });
   }
 
@@ -228,7 +228,7 @@ export default function SuperChart() {
   }
 
   // ordinal axis helper: compress gaps (weekends/holidays) by using indices for x
-  function buildOrdinalAxis(dates, tz, period) {
+  function buildOrdinalAxis(dates, tz) {
     if (!dates || dates.length === 0) return { x: [], tickvals: [], ticktext: [] };
     const x = dates.map((d, i) => i);
     const ticks = formatTickLabels(dates, tz, 8);
@@ -237,8 +237,8 @@ export default function SuperChart() {
     return { x, tickvals, ticktext: ticks.ticktext };
   }
 
-  // compute MACD client-side
-  function computeEMA(values, span) {
+  // compute MACD client-side (stable callbacks)
+  const computeEMA = React.useCallback((values, span) => {
     const alpha = 2 / (span + 1);
     const out = [];
     let prev = null;
@@ -249,74 +249,86 @@ export default function SuperChart() {
       out.push(prev);
     }
     return out;
-  }
+  }, []);
 
-  function computeMACD(close) {
-    if (!close || close.length === 0) return { macd: [], signal: [], hist: [] };
-    const ema12 = computeEMA(close, 12);
-    const ema26 = computeEMA(close, 26);
+  const computeMACD = React.useCallback((closeArr) => {
+    if (!closeArr || closeArr.length === 0) return { macd: [], signal: [], hist: [] };
+    const ema12 = computeEMA(closeArr, 12);
+    const ema26 = computeEMA(closeArr, 26);
     const macd = ema12.map((v, i) => (v - (ema26[i] || 0)));
     const signal = computeEMA(macd, 9);
     const hist = macd.map((v, i) => v - (signal[i] || 0));
     return { macd, signal, hist };
-  }
+  }, [computeEMA]);
 
-  const dates = payload.dates || [];
-  const close = payload.close || [];
-  const volume = payload.volume || [];
-  const bb = payload.bollinger_bands || { lower: [], upper: [], sma: [] };
-  const vwap = payload.VWAP || [];
-  const rsi = payload.RSI || [];
+  const dates = useMemo(() => payload.dates || [], [payload.dates]);
+  const close = useMemo(() => payload.close || [], [payload.close]);
+  const volume = useMemo(() => payload.volume || [], [payload.volume]);
+  const bb = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
+  const vwap = useMemo(() => payload.VWAP || [], [payload.VWAP]);
+  const rsi = useMemo(() => payload.RSI || [], [payload.RSI]);
   const anomalies = (payload.anomaly_markers?.dates || []).map((d, i) => ({
     date: d, y: (payload.anomaly_markers?.y_values || [])[i]
   })).filter(x => x.date && (x.y !== undefined && x.y !== null));
 
-  const priceTrace = {
-    x: dates,
-    y: close,
-    type: 'scatter',
-    mode: 'lines',
-    name: `${ticker} Close`,
-    line: { color: '#3fa34d', width: 2 }
-  };
-  const hoverTexts = buildHoverTextForDates(dates, timezone, period);
-  priceTrace.text = hoverTexts;
-  priceTrace.hovertemplate = '%{text}<br>Close: %{y:.2f}<extra></extra>';
-  const candleTrace = showCandles ? {
-    x: dates,
-    open: payload.open || [],
-    high: payload.high || [],
-    low: payload.low || [],
-    close: payload.close || [],
-    type: 'candlestick',
-    name: `${ticker} Candles`,
-    increasing: { line: { color: '#26a69a' } },
-    decreasing: { line: { color: '#ef5350' } }
-  } : null;
-  if (candleTrace) {
-    candleTrace.text = hoverTexts;
-    candleTrace.hovertemplate = '%{text}<br>Open: %{open:.2f}<br>High: %{high:.2f}<br>Low: %{low:.2f}<br>Close: %{close:.2f}<extra></extra>';
-  }
-  const macdObj = computeMACD(close);
-  const macdTrace = showMACD ? { x: dates, y: macdObj.macd, type: 'scatter', mode: 'lines', name: 'MACD', line: { color: '#ff7f0e', width: 1 }, yaxis: 'y4' } : null;
-  const macdSignalTrace = showMACD ? { x: dates, y: macdObj.signal, type: 'scatter', mode: 'lines', name: 'Signal', line: { color: '#1f77b4', width: 1, dash: 'dot' }, yaxis: 'y4' } : null;
-  const macdHistTrace = showMACD ? { x: dates, y: macdObj.hist, type: 'bar', name: 'MACD Hist', marker: { color: 'rgba(200,100,100,0.6)' }, yaxis: 'y4' } : null;
-  const volumeTrace = showVolume ? {
-    x: dates, y: volume, type: 'bar', name: 'Volume', marker: { color: 'rgba(100,149,237,0.5)' }, yaxis: 'y2'
-  } : null;
-  const bbUpperTrace = showBB ? { x: dates, y: bb.upper || [], type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: '#ffa500', width: 1 } } : null;
-  const bbLowerTrace = showBB ? { x: dates, y: bb.lower || [], type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: '#ffa500', width: 1 } } : null;
-  const bbSmaTrace   = showBB ? { x: dates, y: bb.sma   || [], type: 'scatter', mode: 'lines', name: 'BB SMA',   line: { color: '#d2691e', width: 1, dash: 'dot' } } : null;
-  const vwapTrace    = showVWAP ? { x: dates, y: vwap, type: 'scatter', mode: 'lines', name: 'VWAP', line: { color: '#6a5acd', width: 1 } } : null;
-  const anomalyTrace = anomalies.length ? {
-    x: anomalies.map(a => a.date), y: anomalies.map(a => a.y), type: 'scatter', mode: 'markers+text', name: 'Anomaly',
-    marker: { color: 'red', size: 12, symbol: 'triangle-up' }, text: anomalies.map(() => 'Anomaly'), textposition: 'top center'
-  } : null;
+  const hoverTexts = useMemo(() => buildHoverTextForDates(dates, timezone, period), [dates, timezone, period]);
 
-  const topTraces = [ priceTrace, ...(volumeTrace ? [volumeTrace] : []), ...(bbUpperTrace ? [bbUpperTrace, bbLowerTrace, bbSmaTrace] : []), ...(vwapTrace ? [vwapTrace] : []), ...(anomalyTrace ? [anomalyTrace] : []) ];
+  const topTraces = useMemo(() => {
+    const _priceTrace = {
+      x: dates,
+      y: close,
+      type: 'scatter',
+      mode: 'lines',
+      name: `${ticker} Close`,
+      line: { color: '#3fa34d', width: 2 },
+      text: hoverTexts,
+      hovertemplate: '%{text}<br>Close: %{y:.2f}<extra></extra>'
+    };
+
+    const _candleTrace = showCandles ? {
+      x: dates,
+      open: payload.open || [],
+      high: payload.high || [],
+      low: payload.low || [],
+      close: payload.close || [],
+      type: 'candlestick',
+      name: `${ticker} Candles`,
+      increasing: { line: { color: '#26a69a' } },
+      decreasing: { line: { color: '#ef5350' } },
+      text: hoverTexts,
+      hovertemplate: '%{text}<br>Open: %{open:.2f}<br>High: %{high:.2f}<br>Low: %{low:.2f}<br>Close: %{close:.2f}<extra></extra>'
+    } : null;
+
+    const _volumeTrace = showVolume ? { x: dates, y: volume, type: 'bar', name: 'Volume', marker: { color: 'rgba(100,149,237,0.5)' }, yaxis: 'y2' } : null;
+    const _bbUpperTrace = showBB ? { x: dates, y: bb.upper || [], type: 'scatter', mode: 'lines', name: 'BB Upper', line: { color: '#ffa500', width: 1 } } : null;
+    const _bbLowerTrace = showBB ? { x: dates, y: bb.lower || [], type: 'scatter', mode: 'lines', name: 'BB Lower', line: { color: '#ffa500', width: 1 } } : null;
+    const _bbSmaTrace   = showBB ? { x: dates, y: bb.sma   || [], type: 'scatter', mode: 'lines', name: 'BB SMA',   line: { color: '#d2691e', width: 1, dash: 'dot' } } : null;
+    const _vwapTrace    = showVWAP ? { x: dates, y: vwap, type: 'scatter', mode: 'lines', name: 'VWAP', line: { color: '#6a5acd', width: 1 } } : null;
+    const _anomalyTrace = anomalies.length ? { x: anomalies.map(a => a.date), y: anomalies.map(a => a.y), type: 'scatter', mode: 'markers+text', name: 'Anomaly', marker: { color: 'red', size: 12, symbol: 'triangle-up' }, text: anomalies.map(() => 'Anomaly'), textposition: 'top center' } : null;
+
+    return [ _priceTrace, ...(_volumeTrace ? [_volumeTrace] : []), ...(_bbUpperTrace ? [_bbUpperTrace, _bbLowerTrace, _bbSmaTrace] : []), ...(_vwapTrace ? [_vwapTrace] : []), ...(_anomalyTrace ? [_anomalyTrace] : []) ];
+  }, [dates, close, payload.open, payload.high, payload.low, payload.close, volume, bb, vwap, anomalies, showVolume, showBB, showVWAP, showCandles, hoverTexts, ticker]);
+  // expose individual trace references for downstream axis assignment
+  const priceTrace = topTraces[0];
+  const candleTrace = topTraces.find(t => t && t.type === 'candlestick') || null;
+  const volumeTrace = topTraces.find(t => t && t.name === 'Volume') || null;
+  const bbUpperTrace = topTraces.find(t => t && t.name === 'BB Upper') || null;
+  const bbLowerTrace = topTraces.find(t => t && t.name === 'BB Lower') || null;
+  const bbSmaTrace = topTraces.find(t => t && t.name === 'BB SMA') || null;
+  const vwapTrace = topTraces.find(t => t && t.name === 'VWAP') || null;
+  const anomalyTrace = topTraces.find(t => t && t.name === 'Anomaly') || null;
   // dashed gap connectors will be appended after axis calculation below
-  const rsiTrace = showRSI ? { x: dates, y: rsi, type: 'scatter', mode: 'lines', name: 'RSI', line: { color: '#999', width: 1 }, xaxis: 'x', yaxis: 'y3' } : null;
-  const macdTraces = showMACD ? [macdTrace, macdSignalTrace, macdHistTrace].filter(Boolean) : [];
+  const rsiTrace = useMemo(() => showRSI ? { x: dates, y: rsi, type: 'scatter', mode: 'lines', name: 'RSI', line: { color: '#999', width: 1 }, xaxis: 'x', yaxis: 'y3' } : null, [dates, rsi, showRSI]);
+  const macdTraces = useMemo(() => {
+    const macdObj = computeMACD(close);
+    const macdTrace = showMACD ? { x: dates, y: macdObj.macd, type: 'scatter', mode: 'lines', name: 'MACD', line: { color: '#ff7f0e', width: 1 }, yaxis: 'y4' } : null;
+    const macdSignalTrace = showMACD ? { x: dates, y: macdObj.signal, type: 'scatter', mode: 'lines', name: 'Signal', line: { color: '#1f77b4', width: 1, dash: 'dot' }, yaxis: 'y4' } : null;
+    const macdHistTrace = showMACD ? { x: dates, y: macdObj.hist, type: 'bar', name: 'MACD Hist', marker: { color: 'rgba(200,100,100,0.6)' }, yaxis: 'y4' } : null;
+    return showMACD ? [macdTrace, macdSignalTrace, macdHistTrace].filter(Boolean) : [];
+  }, [close, dates, showMACD, computeMACD]);
+  const macdTrace = macdTraces[0] || null;
+  const macdSignalTrace = macdTraces[1] || null;
+  const macdHistTrace = macdTraces[2] || null;
   // MACD not provided directly; we can derive from payload in future if needed.
 
   // allocate vertical space: top = price, then volume (if shown), then MACD, then RSI at bottom
@@ -373,9 +385,9 @@ export default function SuperChart() {
     ];
     try {
       console.debug('[SuperChart] plotData summary', arr.map(t => ({ name: t.name, type: t.type, x: (t.x || []).length, y: (t.y || []).length })));
-    } catch (e) { /* ignore */ }
+    } catch (e) { void e; }
     return arr;
-  }, [dates.length, showCandles, showVolume, showBB, showVWAP, showRSI, showMACD]);
+  }, [candleTrace, priceTrace, topTraces, macdTraces, rsiTrace]);
 
   // Render-time sanity checks
   useEffect(() => {
@@ -384,7 +396,7 @@ export default function SuperChart() {
         const first = plotData[0];
         console.debug('[SuperChart] render-check first-trace sample x[0..2]:', (first.x || []).slice(0,3), 'types:', (first.x || []).slice(0,3).map(v => typeof v));
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }, [plotData]);
 
   const layout = {
@@ -417,7 +429,7 @@ export default function SuperChart() {
         const j = await res.json();
         if (!mounted) return;
         setSubscribed(!!j.subscribed);
-      } catch (e) { setSubscribed(false); }
+      } catch { setSubscribed(false); }
     }
     check();
     return () => { mounted = false; };
@@ -442,18 +454,7 @@ export default function SuperChart() {
     } catch (e) { alert(e.message || e); }
   }
 
-  // Snapshot modal state
-  const [snapshotOpen, setSnapshotOpen] = useState(false);
-  const [snapshotName, setSnapshotName] = useState('');
-
-  function saveSnapshot() {
-    const key = `snapshot:${ticker}:${new Date().toISOString()}`;
-    const payloadToSave = { config: { ticker, period, interval, showBB, showVWAP, showVolume, showRSI, showMACD }, payload };
-    localStorage.setItem(key, JSON.stringify(payloadToSave));
-    alert('Snapshot saved');
-    setSnapshotOpen(false);
-    setSnapshotName('');
-  }
+  // Snapshot feature omitted for now (no UI hooks present).
 
   // debounce navigation: when user types tickerInput, navigate after 1s of idle or on Enter
   useEffect(() => {
@@ -478,7 +479,7 @@ export default function SuperChart() {
         const r = e['xaxis.range'];
         setSeekRange({ start: r[0], end: r[1] });
       }
-    } catch (err) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   return (
@@ -533,10 +534,33 @@ export default function SuperChart() {
           </div>
           <div className="toolbar-group">
             <label className="toolbar-label">Indicators</label>
-            <label className="checkbox"><input type="checkbox" checked={showVolume} onChange={e => setShowVolume(e.target.checked)} /> Volume</label>
-            <label className="checkbox"><input type="checkbox" checked={showBB} onChange={e => setShowBB(e.target.checked)} /> Bollinger Bands</label>
-            <label className="checkbox"><input type="checkbox" checked={showVWAP} onChange={e => setShowVWAP(e.target.checked)} /> VWAP</label>
-            <label className="checkbox"><input type="checkbox" checked={showRSI} onChange={e => setShowRSI(e.target.checked)} /> RSI</label>
+            <div className="indicator-select">
+              <button
+                className={`btn btn-mode btn-sm ${showVolume || showBB || showVWAP || showRSI || showMACD ? 'active' : ''}`}
+                onClick={() => setIndicatorsOpen(v => !v)}
+                aria-haspopup="true"
+                aria-expanded={indicatorsOpen}
+              >Indicators</button>
+              {indicatorsOpen && (
+                <div className="mode-dropdown indicators-dropdown" role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
+                    <input type="checkbox" checked={showVolume} readOnly /> Volume
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
+                    <input type="checkbox" checked={showBB} readOnly /> Bollinger Bands
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
+                    <input type="checkbox" checked={showVWAP} readOnly /> VWAP
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showRSI} onClick={() => setShowRSI(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowRSI(v => !v); } }}>
+                    <input type="checkbox" checked={showRSI} readOnly /> RSI
+                  </div>
+                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showMACD} onClick={() => setShowMACD(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMACD(v => !v); } }}>
+                    <input type="checkbox" checked={showMACD} readOnly /> MACD
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="toolbar-group">
             <button className="btn btn-primary btn-sm" onClick={toggleSubscribe}>{subscribed ? 'Unsubscribe' : 'Subscribe'}</button>
@@ -567,8 +591,8 @@ export default function SuperChart() {
                 config={config}
                 className="plot-container"
                 onRelayout={handleRelayout}
-                onInitialized={(figure, graphDiv) => { console.debug('[SuperChart] Plot initialized', graphDiv); }}
-                onUpdate={(figure, graphDiv) => { /* no-op, but useful when debugging */ }}
+                onInitialized={(_figure, graphDiv) => { console.debug('[SuperChart] Plot initialized', graphDiv); }}
+                onUpdate={() => { /* no-op, but useful when debugging */ }}
               />
             )}
         {seekRange && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>Selected: {seekRange.start} → {seekRange.end}</div>}

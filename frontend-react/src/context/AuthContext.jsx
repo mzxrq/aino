@@ -1,10 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-
-const AuthContext = createContext();
-// JS backend (email/password) usually runs on 5050 in this project.
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-// LINE / Python backend (ML/auth) default to 5000 if not specified.
-const LINE_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+import React, { useEffect, useState } from 'react';
+import { API_URL, LINE_API } from './envConfig';
+import { AuthContext } from './contextBase';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -199,5 +195,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+// Note: `useAuth` lives in `src/context/useAuth.js` to keep this module
+// exporting only the provider component (compatible with fast-refresh rules).
 

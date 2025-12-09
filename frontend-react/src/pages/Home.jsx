@@ -38,6 +38,7 @@ export default function Home() {
         }));
         if (isMounted) setAnomalies(mapped);
       } catch (e) {
+        void e;
         if (isMounted) setAnomalies(SAMPLE_ANOMALIES);
       }
     };

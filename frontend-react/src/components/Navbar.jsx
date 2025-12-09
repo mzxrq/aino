@@ -1,31 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import '../css/Navbar.css';
 import Search from './Search';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && localStorage.getItem('theme')) || 'light');
+  const [theme, setTheme] = useState(() => {
+    try {
+      return (typeof window !== 'undefined' && localStorage.getItem('theme')) || 'light';
+    } catch (e) {
+      void e;
+      return 'light';
+    }
+  });
   const { user, isLoggedIn, logout } = useAuth();
   // no pin/collapsed behavior: navbar is static/sticky full-width
 
   useEffect(() => {
-    // Apply persisted theme on mount
+    // Apply theme class to body whenever `theme` changes
     try {
-      const t = localStorage.getItem('theme') || theme;
-      if (t === 'dark') document.body.classList.add('dark');
+      if (theme === 'dark') document.body.classList.add('dark');
       else document.body.classList.remove('dark');
-      setTheme(t);
     } catch (e) {
-      // ignore in SSR or restricted env
+      void e;
     }
-  }, []);
+  }, [theme]);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    try { localStorage.setItem('theme', next); } catch (e) { }
+    try { localStorage.setItem('theme', next); } catch (e) { void e; }
     if (next === 'dark') document.body.classList.add('dark'); else document.body.classList.remove('dark');
   };
 
