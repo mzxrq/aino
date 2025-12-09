@@ -361,13 +361,35 @@ exports.getUserById = async (req, res) => {
 };
 
 exports.updateUser = async (req, res) => {
+  // 1. Log incoming request parameters
+  console.log("--- updateUser Request START ---");
+  console.log("Request Params ID:", req.params.id);
+  console.log("Request Body:", req.body);
+  
   try {
     const id = req.params.id;
     const body = req.body || {};
+    
+    // Log the cleaned input values before the service call
+    console.log("Processed ID:", id);
+    console.log("Processed Body:", body);
+    
+    // 2. Execute the service call
     const updated = await usersService.updateUser(id, body);
+    
+    // 3. Log the successful output
+    console.log("User Update Successful.");
+    console.log("Updated User Data:", updated);
+    console.log("--- updateUser Request END (Success) ---");
+    
     return res.json({ success: true, data: updated });
+    
   } catch (err) {
+    // 4. Log the error details
+    console.error("--- updateUser Request END (Error) ---");
     console.error("updateUser error:", err);
+    console.error("Error Message Sent to Client:", err.message || "Unable to update user");
+    
     return res
       .status(400)
       .json({ success: false, error: err.message || "Unable to update user" });
