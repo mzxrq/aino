@@ -1,56 +1,97 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET_KEY || process.env.JWT_SECRET || 'dev-secret';
+const { getUserById } = require('../services/usersService'); // adjust path
 
+const JWT_SECRET =
+  process.env.JWT_SECRET_KEY ||
+  process.env.JWT_SECRET ||
+  'dev-secret';
+
+/**
+ * Extract userId from JWT but DO NOT fail.
+ */
 function optionalAuthenticate(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return next();
+  const header = req.headers.authorization;
+  if (!header) return next();
 
-    const [scheme, token] = authHeader.split(' ');
-    if (!/^Bearer$/i.test(scheme) || !token) return next();
+  const [scheme, token] = header.split(' ');
 
-    try {
-        const payload = jwt.verify(token, JWT_SECRET);
+  if (scheme !== 'Bearer' || !token) return next();
 
-        req.userId =
-            payload.sub ||
-            payload.id ||
-            payload._id ||
-            payload.userId ||
-            null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    } catch {}
+    req.userId =
+      decoded.sub ||
+      decoded.id ||
+      decoded._id ||
+      decoded.userId ||
+      null;
+      
+  } catch {
+    // ignore errors silently
+  }
 
-    next();
+  return next();
 }
 
-function requireAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'Missing authorization header' });
+/**
+ * Fully authenticated: requires JWT + loads full user from DB.
+ */
+async function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
 
-    const [scheme, token] = authHeader.split(' ');
-    if (!/^Bearer$/i.test(scheme) || !token)
-        return res.status(401).json({ message: 'Invalid authorization header' });
+  if (!header)
+    return res.status(401).json({ error: 'Missing Authorization header' });
 
-    try {
-        const payload = jwt.verify(token, JWT_SECRET);
+  const [scheme, token] = header.split(' ');
 
-        req.userId =
-            payload.sub ||
-            payload.id ||
-            payload._id ||
-            payload.userId ||
-            null;
+  if (scheme !== 'Bearer' || !token)
+    return res.status(401).json({ error: 'Authorization format: Bearer <token>' });
 
-        if (!req.userId) {
-            return res.status(401).json({ message: 'Token missing user ID' });
-        }
+  // --- STEP 1: Verify Token ---
+  let userId;
+  let decoded;
 
-        next();
-    } catch {
-        return res.status(401).json({ message: 'Invalid or expired token' });
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+
+    userId =
+      decoded.sub ||
+      decoded.id ||
+      decoded._id ||
+      decoded.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Token contains no user ID (sub, id, _id)' });
     }
+
+    req.userId = String(userId);
+
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  // --- STEP 2: Load User From DB ---
+  try {
+    const user = await getUserById(userId);
+
+    if (!user)
+      return res.status(404).json({ error: 'User not found' });
+
+    // Attach full user to req for downstream middleware
+    req.user = user;
+
+    return next();
+
+  } catch (err) {
+    console.error('Auth DB error:', err);
+    return res.status(500).json({ error: 'Internal server error during authentication' });
+  }
 }
 
-module.exports = { optionalAuthenticate, requireAuth };
+module.exports = {
+  optionalAuthenticate,
+  requireAuth,
+};
