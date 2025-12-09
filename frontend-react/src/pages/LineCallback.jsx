@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { LINE_API } from '../context/envConfig';
 
-
-const LINE_BACKEND = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use centralized `LINE_API` (falls back to configured LINE Python backend)
+const LINE_BACKEND = LINE_API || import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 
 const LineCallback = () => {
   const [searchParams] = useSearchParams();
@@ -31,10 +32,10 @@ const LineCallback = () => {
 
 
         if (!res.ok) {
+          const status = res.status;
           const errText = await res.text().catch(() => '');
-          throw new Error(errText || 'LINE callback failed');
+          throw new Error(`LINE callback failed: ${status} ${errText}`);
         }
-
 
         const data = await res.json();
 
