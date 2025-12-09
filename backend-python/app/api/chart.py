@@ -11,7 +11,7 @@ import yfinance as yf
 from pydantic import BaseModel, Field
 
 from core.config import db, logger
-from services.train_service import load_dataset, data_preprocessing
+from services.train_service import load_dataset, data_preprocessing, detect_anomalies
 
 router = APIRouter()
 
@@ -59,11 +59,11 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
     """Fetch company name and exchange/market via yfinance, with Mongo cache."""
     meta = {}
     try:
-        # Try cache first
+        # Try cache first using the existing `cache` collection to avoid creating new collections
         if db is not None:
-            cached = db.ticker_meta.find_one({'_id': t.upper()})
+            cached = _load_from_cache(f"ticker_meta::{t.upper()}", 86400 * 7)  # 7 days TTL
             if cached:
-                return cached.get('payload', {})
+                return cached if isinstance(cached, dict) else cached.get('payload', {})
 
 
         yt = yf.Ticker(t)
@@ -90,13 +90,11 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
         }
 
 
-        # Save to cache
-        if db is not None:
-            db.ticker_meta.update_one(
-                {'_id': t.upper()},
-                {'$set': {'payload': meta, 'fetched_at': datetime.utcnow()}},
-                upsert=True
-            )
+        # Save to cache (use existing `cache` collection keyed by ticker_meta::TICKER)
+        try:
+            _save_to_cache(f"ticker_meta::{t.upper()}", meta)
+        except Exception:
+            logger.debug('ticker meta cache save failed')
     except Exception:
         # Fallbacks when yfinance fails
         meta = {
@@ -181,6 +179,57 @@ def _save_to_cache(key: str, payload: Dict[str, Any]):
     )
 
 
+def _ensure_anomalies_for_ticker(ticker: str):
+    """Ensure anomalies have been processed for the past 12 months for `ticker`.
+
+    Processing runs only when no prior processing metadata exists for the ticker,
+    or when newer data is available (i.e. latest Datetime in yfinance > last_data_ts).
+    The function updates a small meta document in `db.anomaly_meta` to record the
+    last processed timestamp so repeated calls do not re-run expensive detection.
+    """
+    if db is None:
+        return
+    try:
+        # Read anomaly metadata from the existing `cache` collection to avoid creating new collections.
+        meta = _load_from_cache(f"anomaly_meta::{ticker}", 86400 * 365)  # 1 year TTL for meta
+        # Load last 12 months of daily data to determine latest timestamp
+        df = load_dataset([ticker], period='12mo', interval='1d')
+        if df.empty:
+            # Nothing to process
+            db.anomaly_meta.update_one({'_id': ticker}, {'$set': {'last_checked': datetime.utcnow(), 'last_data_ts': None}}, upsert=True)
+            return
+        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
+        if df.empty:
+            db.anomaly_meta.update_one({'_id': ticker}, {'$set': {'last_checked': datetime.utcnow(), 'last_data_ts': None}}, upsert=True)
+            return
+        latest = df['Datetime'].max()
+        latest_iso = latest.isoformat() if hasattr(latest, 'isoformat') else str(latest)
+        last_data_ts = None
+        if meta:
+            # meta may be the payload dict saved via _save_to_cache
+            last_data_ts = (meta.get('last_data_ts') if isinstance(meta, dict) else None) or (meta.get('payload', {}) and meta.get('payload').get('last_data_ts'))
+        # If never processed or new data available, run detection
+        if not last_data_ts or (isinstance(last_data_ts, str) and last_data_ts < latest_iso):
+            # Run detection over the 12 month window (this will insert anomalies into db.anomalies)
+            try:
+                detect_anomalies([ticker], period='12mo', interval='1d')
+            except Exception:
+                logger.exception(f"detect_anomalies failed for {ticker}")
+            # Record we processed up to latest_iso (store in `cache` as anomaly_meta::TICKER)
+            try:
+                _save_to_cache(f"anomaly_meta::{ticker}", {'last_checked': datetime.utcnow(), 'last_data_ts': latest_iso})
+            except Exception:
+                logger.debug('anomaly_meta cache save failed')
+        else:
+            # update checked timestamp
+            try:
+                _save_to_cache(f"anomaly_meta::{ticker}", {'last_checked': datetime.utcnow(), 'last_data_ts': last_data_ts})
+            except Exception:
+                logger.debug('anomaly_meta cache touch failed')
+    except Exception:
+        logger.exception(f"_ensure_anomalies_for_ticker failed for {ticker}")
+
+
 # -------------------------
 # Helper to build chart JSON
 # -------------------------
@@ -191,7 +240,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
 
     # Ensure ISO8601 UTC timestamps for consistency (train_service now normalizes to UTC)
     try:
-        dates = df['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist()
+        # Use isoformat() per-datetime to include colon in timezone offset (e.g. +00:00)
+        dates = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in df['Datetime'].tolist()]
     except Exception:
         # Fallback to string casting if dt accessor not available
         dates = df['Datetime'].astype(str).tolist()
@@ -219,9 +269,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'VWAP': _safe_list(df.get('VWAP')),
         'RSI': _safe_list(df.get('RSI')),
         'anomaly_markers': {
-            'dates': anomalies['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist() if anomalies is not None and not anomalies.empty else [],
-            'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] \
-            if anomalies is not None and not anomalies.empty else []
+            'dates': [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies['Datetime'].tolist()] if anomalies is not None and not anomalies.empty else [],
+            'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] if anomalies is not None and not anomalies.empty else []
         },
         'Ticker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
         'price_change' : price_change,
@@ -308,6 +357,11 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
             continue
 
         if db is not None:
+            # Ensure anomalies are computed for this ticker (past 12 months) if needed
+            try:
+                _ensure_anomalies_for_ticker(t)
+            except Exception:
+                logger.debug(f"_ensure_anomalies_for_ticker raised for {t}")
             anomalies_cursor = db.anomalies.find({"Ticker": t})
             anomalies_df = pd.DataFrame(list(anomalies_cursor))
         else:
@@ -383,3 +437,88 @@ def search_ticker(query: str) -> List[dict]:
         results.append({"ticker": doc.get("ticker"), "name": doc.get("name")})
 
     return results
+
+
+@router.get("/financials")
+def get_financials(ticker: str):
+    """GET /financials?ticker=...  — return balance sheet, financials, earnings and news via yfinance."""
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Query parameter 'ticker' is required")
+    t = ticker.strip()
+    # check cache (best-effort)
+    try:
+        cache_key = f"financials::{t.upper()}"
+        cached = _load_from_cache(cache_key, 60 * 60 * 6)  # 6 hours
+        if cached:
+            return cached
+    except Exception:
+        logger.debug('financials cache lookup failed')
+    try:
+        yt = yf.Ticker(t)
+        # yfinance returns DataFrames for these attributes; convert to records where appropriate
+        def df_to_dict(dframe):
+            try:
+                if dframe is None:
+                    return {}
+                if hasattr(dframe, 'to_dict'):
+                    return dframe.fillna('').to_dict()
+                return {}
+            except Exception:
+                return {}
+
+        balance = df_to_dict(getattr(yt, 'balance_sheet', None))
+        financials = df_to_dict(getattr(yt, 'financials', None))
+        quarterly = df_to_dict(getattr(yt, 'quarterly_financials', None))
+        earnings = df_to_dict(getattr(yt, 'earnings', None))
+        # yfinance exposes some news on certain builds; default to empty list
+        news = getattr(yt, 'news', []) or []
+
+        out = {
+            'ticker': t.upper(),
+            'balance_sheet': balance,
+            'financials': financials,
+            'quarterly_financials': quarterly,
+            'earnings': earnings,
+            'news': news
+        }
+        try:
+            _save_to_cache(cache_key, out)
+        except Exception:
+            logger.debug('financials cache save failed')
+        return out
+    except Exception as e:
+        logger.exception('financials fetch failed')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/chart/debug")
+def chart_debug(ticker: Optional[str] = None, period: str = "1mo", interval: str = "30m"):
+    """Return lightweight diagnostics for tickers to help debug client-side plotting issues.
+
+    Response includes counts of dates/close arrays and sample first/last date strings.
+    """
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Query parameter 'ticker' is required")
+    tickers = [t.strip().upper() for t in ticker.split(',') if t.strip()]
+    out = {}
+    for t in tickers:
+        try:
+            df = load_dataset([t], period=period, interval=interval)
+            if df.empty:
+                out[t] = { 'count': 0, 'error': 'no-data' }
+                continue
+            df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
+            if df.empty:
+                out[t] = { 'count': 0, 'error': 'preprocessing-empty' }
+                continue
+            dates = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in df['Datetime'].tolist()]
+            closes = df['Close'].tolist()
+            out[t] = {
+                'count': len(dates),
+                'first_date': dates[0] if dates else None,
+                'last_date': dates[-1] if dates else None,
+                'close_count': len(closes)
+            }
+        except Exception as e:
+            out[t] = { 'count': 0, 'error': str(e) }
+    return out

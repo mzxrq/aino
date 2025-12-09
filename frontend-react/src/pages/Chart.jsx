@@ -4,6 +4,9 @@ import Plot from 'react-plotly.js';
 import { DateTime } from 'luxon';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
+import PortalDropdown from '../components/PortalDropdown';
+import FlagSelect from '../components/FlagSelect';
+import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
 const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
 
@@ -17,11 +20,12 @@ const TIMEZONES = [
   'Asia/Bangkok'
 ];
 
-const PRESETS = [
-  { label: '1D', period: '1d', interval: '1m' },
+  const PRESETS = [
+  { label: 'Intraday', period: '1d', interval: '1m' },
   { label: '5D', period: '5d', interval: '30m' },
-  { label: '1Mo', period: '1mo', interval: '30m' },
-  { label: '6Mo', period: '6mo', interval: '1d' },
+  { label: '1M', period: '1mo', interval: '30m' },
+  { label: '6M', period: '6mo', interval: '1d' },
+  { label: 'YTD', period: '1y', interval: '1d' },
   { label: '1Y', period: '1y', interval: '1d' },
   { label: '5Y', period: '5y', interval: '1d' }
 ];
@@ -73,9 +77,9 @@ function enforceIntervalRules(period, interval) {
   return allowed.includes(interval) ? interval : '30m';
 }
 
-function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onExpand, period, interval, globalChartMode = 'auto' }) {
+function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, onExpand, period, interval, globalChartMode = 'auto' }) {
   const payload = data?.[ticker] || {};
-  const dates = useMemo(() => payload.dates || [], [payload.dates]);
+  const dates = useMemo(() => (payload.dates || []).map(d => normalizeIso(d)), [payload.dates]);
   const close = useMemo(() => payload.close || [], [payload.close]);
   const open = payload.open || [];
   const high = payload.high || [];
@@ -83,9 +87,33 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   const volume = payload.volume || [];
   const bb = payload.bollinger_bands || { lower: [], upper: [], sma: [] };
   const vwap = payload.VWAP || [];
-  const anomalies = (payload.anomaly_markers?.dates || []).map((d, i) => ({
-    date: d, y: (payload.anomaly_markers?.y_values || [])[i]
-  })).filter(x => x.date && (x.y !== undefined && x.y !== null));
+  // Keep anomaly timestamps as-provided by backend. For intraday (1d) we
+  // require exact data-point matches, but for ordinal axes (multi-day) we'll
+  // keep the raw anomalies and map them to the nearest available index later
+  // so small timezone/format differences don't drop valid detections.
+  const rawAnomalies = useMemo(() => {
+    return (payload.anomaly_markers?.dates || []).map((d, i) => ({ date: d, y: (payload.anomaly_markers?.y_values || [])[i] }))
+      .filter(x => x.date && (x.y !== undefined && x.y !== null));
+  }, [payload.anomaly_markers]);
+
+  const anomalies = useMemo(() => {
+    try {
+      const isOrdinal = (((period || payload.period || '') + '').toLowerCase() !== '1d');
+      if (isOrdinal) {
+        // Defer strict matching to the index-mapping step so we can match by
+        // nearest timestamp (useful when server returns midnight UTC dates
+        // while anomalies may have slightly different hour offsets).
+        console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, matched: 'deferred' });
+        return rawAnomalies;
+      }
+      const matched = rawAnomalies.filter(a => dates.includes(normalizeIso(a.date)));
+      console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, matched: matched.length });
+      return matched;
+    } catch (e) {
+      console.debug('anomaly filter failed', e);
+      return [];
+    }
+  }, [rawAnomalies, dates, ticker, period, payload.period]);
 
   const companyName = payload.companyName || ticker;
   const market = payload.market || '';
@@ -95,6 +123,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   const [hoverIdx, setHoverIdx] = useState(null);
   const [chartMode, setChartMode] = useState('lines'); // 'lines' or 'candlestick'
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const modeBtnRef = useRef(null);
   // Keyboard helpers for per-card mode dropdown
   const handleModeKeyDown = (e, mode) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -160,7 +189,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
     line: { color: '#3fa34d', width: 2 }
   };
   // localized hover text
-  const hoverTexts = buildHoverTextForDates(dates, timezone, payload.period || period);
+  const hoverTexts = useMemo(() => buildHoverTextForDates(dates, timezone, payload.period || period), [dates, timezone, payload.period, period]);
   priceTrace.text = hoverTexts;
   // If Bollinger Bands available and enabled, include BB values in the hover box via customdata
   // Build formatted hover text. For candlestick mode include OHLC, volume; for line mode show Close.
@@ -243,15 +272,17 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
     line: { color: '#6a5acd', width: 1 }
   } : null;
 
-  const anomalyTrace = anomalies.length ? {
+  const anomalyTrace = (anomalies.length && showAnomaly) ? {
+    // Use backend-provided x values for display, but only include anomalies
+    // that matched an existing data point (see `anomalies` filter above).
     x: anomalies.map(a => a.date),
     y: anomalies.map(a => a.y),
     type: 'scatter',
-    mode: 'markers+text',
+    mode: 'markers',
     name: 'Anomaly',
     marker: { color: 'red', size: 10, symbol: 'triangle-up' },
     text: anomalies.map(() => 'Anomaly'),
-    textposition: 'top center'
+    hovertemplate: '%{text}<extra></extra>'
   } : null;
 
   const traces = [
@@ -262,6 +293,15 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
     ...(vwapTrace ? [vwapTrace] : []),
     ...(anomalyTrace ? [anomalyTrace] : [])
   ];
+
+  // Normalize ISO timestamps returned by the server (some servers use +0000 instead of +00:00)
+  function normalizeIso(s) {
+    if (!s || typeof s !== 'string') return s;
+    if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) return s;
+    const m = s.match(/([+-])(\d{2})(\d{2})$/);
+    if (m) return s.replace(/([+-])(\d{2})(\d{2})$/, `$1${m[2]}:${m[3]}`);
+    return s;
+  }
 
   // dashed gap connectors are added after axis computation below
 
@@ -278,14 +318,33 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
   if (bbLowerTrace) bbLowerTrace.x = axisX;
   if (bbSmaTrace) bbSmaTrace.x = axisX;
   if (vwapTrace) vwapTrace.x = axisX;
-  if (anomalyTrace) anomalyTrace.x = (useOrdinalX ? anomalies.map(a => dates.indexOf(a.date)) : anomalies.map(a => a.date));
+  if (anomalyTrace) {
+    if (useOrdinalX) {
+      // Map anomalies to the nearest available index in `dates` and keep
+      // corresponding y-values. Only map when the nearest timestamp is within
+      // a reasonable threshold to avoid false matches (24h by default).
+      const MAX_ANOMALY_MATCH_MS = 24 * 60 * 60 * 1000; // 24 hours
+      const pairs = anomalies.map(a => ({ i: findClosestIndex(dates, a.date, MAX_ANOMALY_MATCH_MS), y: a.y })).filter(p => p.i >= 0);
+      anomalyTrace.x = pairs.map(p => p.i);
+      anomalyTrace.y = pairs.map(p => p.y);
+      anomalyTrace.text = pairs.map(() => 'Anomaly');
+      anomalyTrace.hovertemplate = '%{text}<extra></extra>';
+      console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, mapped: pairs.length });
+    } else {
+      anomalyTrace.x = anomalies.map(a => a.date);
+      anomalyTrace.y = anomalies.map(a => a.y);
+    }
+  }
 
   // Determine Plotly text color from CSS/theme so legend/axis/title match app
   const plotTextColor = useMemo(() => resolvePlotlyColorFallback(), []);
+  // Use Plotly dark template when app is in dark mode
+  const plotlyTemplate = (typeof document !== 'undefined' && document.body && document.body.classList && document.body.classList.contains('dark')) ? 'plotly_dark' : 'plotly';
   const hasDecimals = (close || []).some(v => Math.abs(Number(v) - Math.trunc(Number(v))) > 1e-8);
 
   const layout = {
     title: { text: '', font: { color: plotTextColor } },
+    template: plotlyTemplate,
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
     font: { color: plotTextColor },
@@ -348,11 +407,19 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
 
   // add dashed connectors for detected gaps (intraday lunch etc)
   const axisForGap = useOrdinalX ? (ticks.x || dates.map((_, i) => i)) : dates;
-  const gapTraces = buildGapConnectors(dates, close, axisForGap, interval);
+  // Avoid computing gap/gradient traces for very large datasets (can be expensive)
+  const GAP_THRESHOLD = 1000; // number of points above which we skip heavy visuals
+  const gapTraces = useMemo(() => {
+    if (!dates || dates.length > GAP_THRESHOLD) return [];
+    return buildGapConnectors(dates, close, axisForGap, interval) || [];
+  }, [dates, close, axisForGap, interval]);
   traces.push(...gapTraces);
 
   // Add stacked translucent gradient bands under the price line (before price trace)
-  const gradientBands = buildGradientBands(dates, close, axisForGap, 4, priceTrace.line?.color || '#26a69a');
+  const gradientBands = useMemo(() => {
+    if (!dates || dates.length > GAP_THRESHOLD) return [];
+    return buildGradientBands(dates, close, axisForGap, 4, priceTrace.line?.color || '#26a69a') || [];
+  }, [dates, close, axisForGap, priceTrace.line]);
   // Place gradient bands before the price trace so the line sits on top
   if (gradientBands && gradientBands.length) {
     traces.unshift(...gradientBands);
@@ -439,6 +506,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
           </div>
             <div style={{position: 'relative'}}>
               <button
+                ref={modeBtnRef}
                 className={`btn btn-mode btn-sm ${appliedChartMode === 'lines' ? 'mode-lines' : (appliedChartMode === 'candlestick' ? 'mode-candle' : '')} ${globalChartMode !== 'auto' ? 'overridden' : ''}`}
                 onClick={() => { if (globalChartMode === 'auto') setModeDropdownOpen(v => !v); }}
                 aria-haspopup="true"
@@ -469,29 +537,31 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, onEx
                   </>
                 )}
               </button>
-              {modeDropdownOpen && globalChartMode === 'auto' && (
-                <div className="mode-dropdown" role="listbox" tabIndex={0} aria-label={`${ticker} chart mode`} onMouseLeave={() => setModeDropdownOpen(false)}>
-                  <div
-                    className={`mode-item ${appliedChartMode === 'lines' ? 'active' : ''}`}
-                    role="option"
-                    tabIndex={0}
-                    aria-selected={appliedChartMode === 'lines'}
-                    onClick={() => { setChartMode('lines'); setModeDropdownOpen(false); }}
-                    onKeyDown={(e) => handleModeKeyDown(e, 'lines')}
-                  >
-                    Lines
+              {modeDropdownOpen && globalChartMode === 'auto' && modeBtnRef.current && (
+                <PortalDropdown anchorRect={modeBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setModeDropdownOpen(false)} className="mode-dropdown">
+                  <div role="listbox" tabIndex={0} aria-label={`${ticker} chart mode`} onMouseLeave={() => setModeDropdownOpen(false)}>
+                    <div
+                      className={`mode-item ${appliedChartMode === 'lines' ? 'active' : ''}`}
+                      role="option"
+                      tabIndex={0}
+                      aria-selected={appliedChartMode === 'lines'}
+                      onClick={() => { setChartMode('lines'); setModeDropdownOpen(false); }}
+                      onKeyDown={(e) => handleModeKeyDown(e, 'lines')}
+                    >
+                      Lines
+                    </div>
+                    <div
+                      className={`mode-item ${appliedChartMode === 'candlestick' ? 'active' : ''}`}
+                      role="option"
+                      tabIndex={0}
+                      aria-selected={appliedChartMode === 'candlestick'}
+                      onClick={() => { setChartMode('candlestick'); setModeDropdownOpen(false); }}
+                      onKeyDown={(e) => handleModeKeyDown(e, 'candlestick')}
+                    >
+                      Candlestick
+                    </div>
                   </div>
-                  <div
-                    className={`mode-item ${appliedChartMode === 'candlestick' ? 'active' : ''}`}
-                    role="option"
-                    tabIndex={0}
-                    aria-selected={appliedChartMode === 'candlestick'}
-                    onClick={() => { setChartMode('candlestick'); setModeDropdownOpen(false); }}
-                    onKeyDown={(e) => handleModeKeyDown(e, 'candlestick')}
-                  >
-                    Candlestick
-                  </div>
-                </div>
+                </PortalDropdown>
               )}
             </div>
         </div>
@@ -529,7 +599,7 @@ function SubscribeButton({ ticker }) {
   useEffect(() => {
     let mounted = true;
     async function check() {
-      if (!user || !token) { setState(false); return; }
+      if (!user || !token) { if (mounted) setState(false); return; }
       try {
         const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
         const res = await fetch(`${front}/subscribers/status`, {
@@ -539,7 +609,9 @@ function SubscribeButton({ ticker }) {
         const j = await res.json();
         if (!mounted) return;
         setState(!!j.subscribed);
-      } catch { setState(false); }
+      } catch {
+        if (mounted) setState(false);
+      }
     }
     check();
     return () => { mounted = false; };
@@ -571,7 +643,6 @@ function SubscribeButton({ ticker }) {
     </button>
   );
 }
-
 export default function Chart() {
   const navigate = useNavigate();
   const PREF_KEY = 'chart_prefs_v1';
@@ -590,9 +661,13 @@ export default function Chart() {
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
   const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
+  // Anomalies are now an indicator toggle like the others. Default to true to preserve visibility.
+  const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
   const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch { return 'auto'; } });
   const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const indicatorsBtnRef = useRef(null);
+  const toolbarModeBtnRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState({});
@@ -605,8 +680,24 @@ export default function Chart() {
       const enforced = enforceIntervalRules(period, interval);
       try {
         const q = tickers.join(',');
-        const res = await fetch(`${PY_API}/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`);
+        const url = `${PY_API}/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+        const res = await fetch(url);
         const json = await res.json();
+        // Temporary debug logging to diagnose period/interval/date-range issues
+        try {
+          console.debug('Chart fetch', { url, requested: { period, interval: enforced, tickers }, returnedKeys: Object.keys(json || {}) });
+          // log per-ticker date counts and first/last ISO strings (if available)
+          for (const t of tickers) {
+            const pl = (json && json[t]) || {};
+            const d = pl.dates || [];
+            if (d && d.length) {
+              console.debug(`chart:${t}`, { count: d.length, first: d[0], last: d[d.length - 1] });
+            } else {
+              console.debug(`chart:${t}`, { count: 0 });
+            }
+          }
+        } catch (e) { console.debug('Chart fetch debug failed', e); }
+        // No client-side anomaly injection: rely on server-side anomaly detection
         setData(json || {});
       } catch (e) {
         setError(e?.message || 'Failed to load chart data');
@@ -620,7 +711,7 @@ export default function Chart() {
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
     try {
-      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, globalChartMode };
+      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, globalChartMode };
       localStorage.setItem(PREF_KEY, JSON.stringify(p));
       // also persist to server for authenticated users (debounced)
       if (token && user) {
@@ -636,7 +727,7 @@ export default function Chart() {
         }, 600);
       }
     } catch { /* ignore */ }
-  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, globalChartMode, token, user]);
+  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, globalChartMode, token, user]);
 
   function applyPreset(p) {
     setPeriod(p.period);
@@ -701,34 +792,69 @@ export default function Chart() {
 
           <div className="toolbar-group">
             <label className="toolbar-label">Timezone</label>
-            <select className="select styled-select" value={timezone} onChange={e => setTimezone(e.target.value)}>
-              {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-            </select>
+            <div style={{width: 200}}>
+              {/* custom flag-select replaces native select for richer UI */}
+              <FlagSelect value={timezone} onChange={setTimezone} options={TIMEZONES} />
+            </div>
           </div>
 
           <div className="toolbar-group">
             <label className="toolbar-label">Indicators</label>
             <div className="indicator-select">
               <button
-                className={`btn btn-mode btn-sm ${showVolume || showBB || showVWAP ? 'active' : ''}`}
+                ref={indicatorsBtnRef}
+                className={`btn btn-mode btn-sm ${showVolume || showBB || showVWAP || showAnomaly ? 'active' : ''}`}
                 onClick={() => setIndicatorsOpen(v => !v)}
                 aria-haspopup="true"
                 aria-expanded={indicatorsOpen}
               >
                 Indicators
               </button>
-              {indicatorsOpen && (
-                <div className="mode-dropdown indicators-dropdown" role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
-                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
-                    <input type="checkbox" checked={showVolume} readOnly /> Volume
+              {indicatorsOpen && indicatorsBtnRef.current && (
+                <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
+                  <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
+                          <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>
+                            {showVolume && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          Volume
+                        </div>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
+                          <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>
+                            {showBB && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          Bollinger Bands
+                        </div>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
+                          <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>
+                            {showVWAP && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          VWAP
+                        </div>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => !v); } }}>
+                          <span className={`indicator-dot ${showAnomaly ? 'checked' : ''}`} aria-hidden>
+                            {showAnomaly && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          Anomalies
+                        </div>
                   </div>
-                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
-                    <input type="checkbox" checked={showBB} readOnly /> Bollinger Bands
-                  </div>
-                  <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
-                    <input type="checkbox" checked={showVWAP} readOnly /> VWAP
-                  </div>
-                </div>
+                </PortalDropdown>
               )}
             </div>
           </div>
@@ -737,23 +863,26 @@ export default function Chart() {
             <label className="toolbar-label">Chart Mode</label>
             <div className="mode-select">
               <button
+                ref={toolbarModeBtnRef}
                 className="btn btn-mode btn-sm"
                 onClick={() => setToolbarModeOpen(v => !v)}
                 aria-haspopup="true"
                 aria-expanded={toolbarModeOpen}
               >{globalChartMode === 'lines' ? 'Lines' : (globalChartMode === 'candlestick' ? 'Candlestick' : 'Auto')}</button>
-              {toolbarModeOpen && (
-                <div className="mode-dropdown" role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
-                  <div className={`mode-item ${globalChartMode === 'auto' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'auto'} onClick={() => { setGlobalChartMode('auto'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('auto'); setToolbarModeOpen(false); } }}>
-                    Auto
+              {toolbarModeOpen && toolbarModeBtnRef.current && (
+                <PortalDropdown anchorRect={toolbarModeBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setToolbarModeOpen(false)} className="mode-dropdown">
+                  <div role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
+                    <div className={`mode-item ${globalChartMode === 'auto' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'auto'} onClick={() => { setGlobalChartMode('auto'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('auto'); setToolbarModeOpen(false); } }}>
+                      Auto
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'lines' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'lines'} onClick={() => { setGlobalChartMode('lines'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('lines'); setToolbarModeOpen(false); } }}>
+                      Lines
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'candlestick' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'candlestick'} onClick={() => { setGlobalChartMode('candlestick'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('candlestick'); setToolbarModeOpen(false); } }}>
+                      Candlestick
+                    </div>
                   </div>
-                  <div className={`mode-item ${globalChartMode === 'lines' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'lines'} onClick={() => { setGlobalChartMode('lines'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('lines'); setToolbarModeOpen(false); } }}>
-                    Lines
-                  </div>
-                  <div className={`mode-item ${globalChartMode === 'candlestick' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'candlestick'} onClick={() => { setGlobalChartMode('candlestick'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('candlestick'); setToolbarModeOpen(false); } }}>
-                    Candlestick
-                  </div>
-                </div>
+                </PortalDropdown>
               )}
             </div>
           </div>
@@ -790,6 +919,7 @@ export default function Chart() {
             showBB={showBB}
             showVWAP={showVWAP}
             showVolume={showVolume}
+            showAnomaly={showAnomaly}
             onExpand={onExpand}
             period={period}
             interval={interval}
@@ -801,152 +931,5 @@ export default function Chart() {
   );
 }
 
-// Smarter tick label formatting based on period (moved to top-level so TickerCard can use it)
-function formatTickLabels(dates, tz, period) {
-  if (!dates || dates.length === 0) return { tickvals: [], ticktext: [] };
-  const p = (period || '').toLowerCase();
-  let maxTicks = 6;
-  let fmt = 'yyyy-LL-dd HH:mm';
-  if (p === '1d') { maxTicks = 6; fmt = 'HH:mm'; }
-  else if (p === '5d') { maxTicks = 8; fmt = 'LL-dd HH:mm'; }
-  else if (p === '1mo' || p === '6mo') { maxTicks = 8; fmt = 'LL-dd'; }
-  else if (p === '1y' || p === '5y' || p === 'max') { maxTicks = 8; fmt = 'yyyy-LL'; }
-
-  const total = dates.length;
-  const step = Math.max(1, Math.floor(total / maxTicks));
-  const vals = [];
-  const txt = [];
-  for (let i = 0; i < total; i += step) {
-    const d = DateTime.fromISO(dates[i], { zone: 'utc' }).setZone(tz);
-    vals.push(dates[i]);
-    txt.push(d.toFormat(fmt));
-  }
-  const last = dates[total - 1];
-  if (vals[vals.length - 1] !== last) {
-    vals.push(last);
-    txt.push(DateTime.fromISO(last, { zone: 'utc' }).setZone(tz).toFormat(fmt));
-  }
-  return { tickvals: vals, ticktext: txt };
-}
-
-// Build an ordinal x-axis (0..n-1) and compact tick labels so gaps (weekends/holidays)
-// are visually compressed. Returns { x, tickvals, ticktext } where x is numeric indices.
-function buildOrdinalAxis(dates, tz, period) {
-  if (!dates || dates.length === 0) return { x: [], tickvals: [], ticktext: [] };
-  const x = dates.map((d, i) => i);
-  // reuse formatTickLabels to generate textual ticks based on original dates
-  const ticks = formatTickLabels(dates, tz, period);
-  // map tickvals (ISO date strings) to indices
-  const idxMap = new Map(dates.map((d, i) => [d, i]));
-  const tickvals = ticks.tickvals.map(v => idxMap.get(v)).filter(v => v !== undefined);
-  const ticktext = ticks.ticktext;
-  return { x, tickvals, ticktext };
-}
-
-// Resolve Plotly colors from CSS variables when possible so Plotly SVG text
-// and legends match the app theme (light/dark). Falls back to sensible colors.
-function resolvePlotlyColorFallback() {
-  try {
-    const s = getComputedStyle(document.body);
-    const txt = (s.getPropertyValue('--text-primary') || s.getPropertyValue('--text') || '').trim();
-    if (txt) return txt;
-    return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111';
-  } catch {
-    try { return document.body.classList.contains('dark') ? '#FFFFFF' : '#111111'; } catch { return '#111111'; }
-  }
-}
-
-// Format hover text for each timestamp localized to `tz`.
-function buildHoverTextForDates(dates, tz, period) {
-  if (!dates || dates.length === 0) return [];
-  const p = (period || '').toLowerCase();
-  let fmt = 'yyyy-LL-dd HH:mm';
-  if (p === '1d') fmt = 'HH:mm';
-  else if (p === '5d') fmt = 'LL-dd HH:mm';
-  else if (p === '1mo' || p === '6mo') fmt = 'LL-dd';
-  else if (p === '1y' || p === '5y') fmt = 'yyyy-LL';
-  return dates.map(d => {
-    try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch { return d; }
-  });
-}
-
-// Build dashed connector traces for large intraday gaps (e.g., lunch break)
-function buildGapConnectors(dates, closes, axisX, interval) {
-  if (!dates || dates.length < 2) return [];
-  const mapIntervalMs = (itv) => {
-    if (!itv) return 60000;
-    if (itv.endsWith('m')) return parseInt(itv.replace('m','')) * 60000;
-    if (itv.endsWith('h')) return parseInt(itv.replace('h','')) * 3600000;
-    if (itv.endsWith('d')) return parseInt(itv.replace('d','')) * 86400000;
-    return 60000;
-  };
-  const expected = mapIntervalMs(interval);
-  const threshold = Math.max(expected * 3, 1000 * 60 * 30);
-  const out = [];
-  for (let i = 0; i < dates.length - 1; i++) {
-    const a = DateTime.fromISO(dates[i], { zone: 'utc' }).toMillis();
-    const b = DateTime.fromISO(dates[i+1], { zone: 'utc' }).toMillis();
-    if ((b - a) > threshold) {
-      const x0 = axisX ? axisX[i] : dates[i];
-      const x1 = axisX ? axisX[i+1] : dates[i+1];
-      out.push({
-        x: [x0, x1],
-        y: [closes[i], closes[i+1]],
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Gap',
-        hoverinfo: 'skip',
-        line: { color: 'rgba(200,200,200,0.6)', width: 1, dash: 'dash' },
-        showlegend: false
-      });
-    }
-  }
-  return out;
-}
-
-// Convert a hex color like '#26a69a' to an rgba(...) string with given alpha
-function hexToRgba(hex, alpha = 1) {
-  if (!hex) return `rgba(38,166,154,${alpha})`;
-  const h = hex.replace('#','');
-  const bigint = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-// Build several stacked translucent polygon traces between the price line and
-// a slightly lowered copy of the price line. Using `fill: 'toself'` avoids
-// anchoring to the zero baseline and produces a soft gradient-like band.
-function buildGradientBands(dates, closes, axisX, layers = 4, baseColor = '#26a69a') {
-  if (!dates || dates.length === 0 || !closes || closes.length === 0) return [];
-  const vals = closes.slice();
-  let yMin = Math.min(...vals);
-  let yMax = Math.max(...vals);
-  if (!isFinite(yMin) || !isFinite(yMax)) return [];
-  if (yMin === yMax) { yMin = yMin - 1; yMax = yMax + 1; }
-  // total vertical depth of gradient (fraction of range)
-  const depthTotal = (yMax - yMin) * 0.18;
-  const out = [];
-  for (let i = 1; i <= layers; i++) {
-    const prevDepth = depthTotal * ((i - 1) / layers);
-    const nextDepth = depthTotal * (i / layers);
-    const upper = vals.map(v => v - prevDepth);
-    const lower = vals.map(v => v - nextDepth);
-    // polygon: forward upper, then reversed lower to close the loop
-    const xpoly = axisX.concat(axisX.slice().reverse());
-    const ypoly = upper.concat(lower.slice().reverse());
-    const alpha = 0.08 * (1 - (i - 1) / layers); // decreasing opacity upward
-    out.push({
-      x: xpoly,
-      y: ypoly,
-      type: 'scatter',
-      mode: 'none',
-      fill: 'toself',
-      fillcolor: hexToRgba(baseColor, Math.max(0.02, alpha)),
-      showlegend: false,
-      line: { width: 0 }
-    });
-  }
-  return out;
-}
+// Shared helpers (formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands)
+// are provided by `src/components/ChartCore.js` and imported above.
