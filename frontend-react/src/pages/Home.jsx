@@ -25,7 +25,7 @@ export default function Home() {
     let isMounted = true;
     const fetchAnomalies = async () => {
       try {
-        const res = await fetch(`${API_URL}/dashboard/recent-anomalies/list?limit=8`);
+        const res = await fetch(`${API_URL}/node/anomalies/recent?limit=8`);
         if (!res.ok) throw new Error('Failed to fetch anomalies');
         const data = await res.json();
         const mapped = (data || []).map((d, idx) => ({

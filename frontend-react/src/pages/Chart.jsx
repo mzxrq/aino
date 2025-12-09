@@ -602,7 +602,7 @@ function SubscribeButton({ ticker }) {
       if (!user || !token) { if (mounted) setState(false); return; }
       try {
         const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-        const res = await fetch(`${front}/subscribers/status`, {
+        const res = await fetch(`${front}/node/subscribers/status`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ id: user.id || user._id || user.userId, ticker })
         });
@@ -623,12 +623,12 @@ function SubscribeButton({ ticker }) {
     try {
       if (state) {
         // Unsubscribe
-        const res = await fetch(`${front}/subscribers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
+        const res = await fetch(`${front}/node/subscribers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
         if (!res.ok) throw new Error('Failed to unsubscribe');
         setState(false);
         alert('Unsubscribed');
       } else {
-        const res = await fetch(`${front}/subscribers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
+        const res = await fetch(`${front}/node/subscribers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
         const j = await res.json();
         if (!res.ok) throw new Error(j.message || 'Failed to subscribe');
         setState(true);
@@ -719,7 +719,7 @@ export default function Chart() {
         savePrefsTimer.current = setTimeout(async () => {
           try {
             const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-            await fetch(`${front}/users/preferences`, {
+            await fetch(`${front}/node/users/preferences`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify(p)
             });

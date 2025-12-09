@@ -1,8 +1,5 @@
 """
 Orchestrator main for the backend-fastapi app.
-
-This file registers routers and starts a lightweight background scheduler.
-Actual business logic is located in `api/`, `services/` and `core/`.
 """
 
 import os
@@ -11,15 +8,14 @@ import threading
 import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# ensure local imports resolve when running main.py directly
 sys.path.insert(0, os.path.dirname(__file__) or '.')
 
 from core.config import logger
 from api.auth import router as auth_router
 from api.chart import router as chart_router
 from scheduler import combined_market_runner, scheduler_stop_event
-
 
 app = FastAPI(title="Stock Fraud Detection API")
 
@@ -36,9 +32,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
+# Register routers under the `/py` prefix
 app.include_router(auth_router)
 app.include_router(chart_router)
+
+# ⭐ Toggle state
+scheduler_enabled = False
 
 
 def _scheduler_loop(stop_event):
@@ -46,7 +45,10 @@ def _scheduler_loop(stop_event):
     try:
         while not stop_event.is_set():
             try:
-                combined_market_runner()
+                if scheduler_enabled:
+                    combined_market_runner()
+                else:
+                    logger.info("[scheduler] disabled - skipping run")
             except Exception as e:
                 logger.exception(f"[scheduler] run error: {e}")
             time.sleep(60)
@@ -71,7 +73,18 @@ async def _on_shutdown():
         scheduler_thread.join(timeout=5)
     logger.info('[shutdown] scheduler stopped')
 
-# Healthcheck endpoint
-@app.get("/health")
+
+class SchedulerToggle(BaseModel):
+    state: bool
+
+@app.post("/py/scheduler/toggle")
+def toggle_scheduler(toggle: SchedulerToggle):
+    global scheduler_enabled
+    scheduler_enabled = toggle.state
+    return {"scheduler_enabled": scheduler_enabled}
+
+
+# Healthcheck
+@app.get("/py/health")
 async def health():
     return {"status": "ok"}

@@ -24,7 +24,7 @@ export default function Dashboard() {
       setIsLoading(true);
       try {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const response = await fetch(`${NODE_API_URL}/overview/${user.id || user.userId}`, { headers });
+        const response = await fetch(`${NODE_API_URL}/node/subscribers/me`, { headers });
 
         if (!response.ok) throw new Error(`Server error: ${response.status}`);
         const data = await response.json();
@@ -63,7 +63,7 @@ export default function Dashboard() {
 
       // Ensure we send normalized id (frontend normalizes to `user.id`)
       // Keep fallback to legacy `user.userId` for safety
-      const response = await fetch(`${NODE_API_URL}/subscriptions/`, {
+      const response = await fetch(`${NODE_API_URL}/node/subscribers`, {
         method: 'DELETE',
         headers,
         body: JSON.stringify({ id: user.id || user.userId, tickers: [ticker] }),
@@ -108,7 +108,7 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <div className="header-content">
           <h1>My Dashboard</h1>
-          <p>Welcome, <span className="user-name">{user.displayName}</span>! Track your stock subscriptions</p>
+          <p>Welcome, <span className="user-name">{user.name}</span>! Track your stock subscriptions</p>
         </div>
       </div>
 

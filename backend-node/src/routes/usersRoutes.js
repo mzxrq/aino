@@ -67,9 +67,13 @@ router.post('/login', authCtrl.login);
 router.get('/profile', requireAuth, authCtrl.getProfile);
 
 // Profile updates (protected)
-router.put('/update-profile', requireAuth, authCtrl.updateProfile);
+// Handle preflight and both verbs to avoid client mismatches
 router.put('/change-password', requireAuth, authCtrl.changePassword);
 router.put('/add-password', requireAuth, authCtrl.addPassword);
+
+// User preferences (protected)
+router.get('/preferences', requireAuth, authCtrl.getPreferences);
+router.put('/preferences', requireAuth, authCtrl.updatePreferences);
 
 // Avatar CRUD (protected)
 router.post(
