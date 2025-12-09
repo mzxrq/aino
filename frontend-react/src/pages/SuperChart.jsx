@@ -55,7 +55,7 @@ export default function SuperChart() {
         if (!token || !user) return;
         try {
           const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-          const res = await fetch(`${front}/users/preferences`, { headers: { Authorization: `Bearer ${token}` } });
+          const res = await fetch(`${front}/node/users/preferences`, { headers: { Authorization: `Bearer ${token}` } });
           if (!mounted) return;
           if (!res.ok) return;
           const j = await res.json();
@@ -136,7 +136,7 @@ export default function SuperChart() {
         savePrefsTimer.current = setTimeout(async () => {
           try {
             const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-            await fetch(`${front}/users/preferences`, {
+            await fetch(`${front}/node/users/preferences`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify({ period, interval, timezone, showBB, showVWAP, showVolume, showRSI, showMACD })
             });
@@ -425,7 +425,7 @@ export default function SuperChart() {
       if (!user || !token) { setSubscribed(false); return; }
       try {
         const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-        const res = await fetch(`${front}/subscribers/status`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, ticker }) });
+        const res = await fetch(`${front}/node/subscribers/status`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, ticker }) });
         const j = await res.json();
         if (!mounted) return;
         setSubscribed(!!j.subscribed);
@@ -440,12 +440,12 @@ export default function SuperChart() {
     const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
     try {
       if (subscribed) {
-        const res = await fetch(`${front}/subscribers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
+        const res = await fetch(`${front}/node/subscribers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
         if (!res.ok) throw new Error('Failed to unsubscribe');
         setSubscribed(false);
         alert('Unsubscribed');
       } else {
-        const res = await fetch(`${front}/subscribers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
+        const res = await fetch(`${front}/node/subscribers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] }) });
         const j = await res.json();
         if (!res.ok) throw new Error(j.message || 'Failed to subscribe');
         setSubscribed(true);

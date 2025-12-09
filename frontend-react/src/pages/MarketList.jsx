@@ -19,7 +19,7 @@ export default function MarketListScreen() {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await fetch("http://localhost:5050/overview/all");
+        const response = await fetch("http://localhost:5050/node/marketlists");
         const json = await response.json();
 
         // Backend may return { data, types } or a plain array

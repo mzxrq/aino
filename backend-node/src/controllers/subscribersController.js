@@ -100,7 +100,18 @@ const getMySubscriptions = async (req, res) => {
     const id = req.userId || req.query.userId || req.headers['x-user-id'] || req.body?.id;
     if (!id) return res.status(400).json({ message: 'userId is required (JWT, query, header X-User-Id, or body.id)' });
 
-    const subscriber = await subscriberService.getSubscriber(id);
+    // Debug/logging: show which id source was used
+    console.debug(`[getMySubscriptions] resolving subscriptions for id=${id} (req.userId=${req.userId})`);
+
+    let subscriber;
+    try {
+      subscriber = await subscriberService.getSubscriber(id);
+    } catch (err) {
+      // If subscriber not found, return empty list instead of internal error
+      console.info(`[getMySubscriptions] subscriber not found for id=${id} - returning empty list`);
+      return res.status(200).json([]);
+    }
+
     const tickers = Array.isArray(subscriber.tickers) ? subscriber.tickers : [];
 
     if (tickers.length === 0) return res.status(200).json([]);

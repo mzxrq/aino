@@ -66,7 +66,7 @@ const Profile = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${NODE_API_URL}/auth/update-profile`, {
+      const response = await fetch(`${NODE_API_URL}/node/users/update-profile`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
@@ -108,7 +108,7 @@ const Profile = () => {
       const headers = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${NODE_API_URL}/auth/profile/avatar`, {
+      const res = await fetch(`${NODE_API_URL}/node/users/profile/avatar`, {
         method: 'POST',
         headers,
         body: form,
@@ -137,7 +137,7 @@ const Profile = () => {
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`${NODE_API_URL}/auth/profile/avatar`, { method: 'DELETE', headers });
+      const res = await fetch(`${NODE_API_URL}/node/users/profile/avatar`, { method: 'DELETE', headers });
       if (!res.ok) {
         let msg = 'Failed to delete avatar';
         try { const errJson = await res.json(); msg = errJson.error || msg; } catch (e) { void e; }
@@ -184,7 +184,7 @@ const Profile = () => {
 
       const userId = user.userId || user.id;
 
-      const response = await fetch(`${NODE_API_URL}/auth/change-password`, {
+      const response = await fetch(`${NODE_API_URL}/node/users/change-password`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({

@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
       if (t) {
         try {
           // Try JS backend first (email/password login)
-          let res = await fetch(`${API_URL}/auth/profile`, {
+          let res = await fetch(`${API_URL}/node/users/profile`, {
             headers: { Authorization: `Bearer ${t}` }
           });
           
@@ -97,7 +97,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', tkn);
     try {
       // Try JS backend first (email/password login)
-      let res = await fetch(`${API_URL}/auth/profile`, {
+      let res = await fetch(`${API_URL}/node/users/profile`, {
         headers: { Authorization: `Bearer ${tkn}` }
       });
       
@@ -124,7 +124,7 @@ export function AuthProvider({ children }) {
 
   const loginWithCredentials = async (email, password) => {
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_URL}/node/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -153,7 +153,7 @@ export function AuthProvider({ children }) {
 
   const registerWithCredentials = async (email, password, name, username) => {
     try {
-      const res = await fetch(`${API_URL}/auth/register`, {
+      const res = await fetch(`${API_URL}/node/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, username })
