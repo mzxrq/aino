@@ -212,6 +212,8 @@ def detect_anomalies(tickers, period, interval):
                         "Close": row.get('Close'),
                         "Volume": row.get('Volume'),
                         "Sent": False,
+                        "note": "",
+                        "status": "new"
                     }
                     db.anomalies.insert_one(doc)
 

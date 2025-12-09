@@ -29,7 +29,7 @@ def send_test_message(anomaly):
 
     # Read send option from DB safely
     try:
-        sent_option_doc = db.users.find_one({"key": "sendOptions"}) if db is not None else None
+        sent_option_doc = db.users.find_one({"key": "sendOption"}) if db is not None else None
         sentOption = sent_option_doc.get("value") if sent_option_doc else "mail"
     except Exception as e:
         logger.warning(f"Could not read sendOption from DB: {e}")

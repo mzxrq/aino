@@ -17,12 +17,11 @@ Stores user login and profile information.
 | `name`           | String   | Full name                                    |
 | `username`       | String   | Username                                     |
 | `createdAt`      | Date     | Account creation timestamp                   |
-| `sentOptions`    | String   | Preferred notification method (e.g. `email`) |
-| `display_name`   | String   | Display name from LINE profile               |
-| `last_login`     | Date     | Last login timestamp                         |
-| `line_user_id`   | String   | LINE user id (for push messages)             |
-| `picture_url`    | String   | LINE profile picture URL                     |
-| `status_message` | String   | LINE status message                          |
+| `sentOption`     | String   | Preferred notification method (e.g. `email`) |
+| `lastLogin`      | Date     | Last login timestamp                         |
+| `lineid`         | String   | LINE user id (for push messages)             |
+| `pictureUrl`     | String   | LINE profile picture URL                     |
+| `loginMethod`    | String   | Login by email or line                       |
 
 ---
 
@@ -147,9 +146,10 @@ db.users.insertOne({
   name: "Alice Example",
   username: "alice",
   createdAt: new Date(),
-  sentOptions: "email",
+  sentOption: "mail",
   display_name: "Alice",
-  line_user_id: "U1234567890abcdef",
+  lineid: "U1234567890abcdef",
+  loginMethod : "mail"
 });
 ```
 
@@ -181,7 +181,9 @@ db.subscribers.insertOne({
   "Datetime": { "$date": "2025-12-05T11:45:00Z" },
   "Close": 35.12,
   "Volume": 2345678,
-  "Sent": false
+  "Sent": false,
+  "note": "Hello, World" , 
+  "status": "new"
 }
 ```
 
@@ -194,6 +196,8 @@ db.anomalies.insertOne({
   Close: 35.12,
   Volume: 2345678,
   Sent: false,
+  note: "Hello, World",
+  status: "new"
 });
 ```
 
