@@ -97,6 +97,7 @@ exports.register = async (req, res) => {
         pictureUrl: null,
         lastLogin: new Date(),
         loginMethod: "mail",
+        sentOption : "mail"
       });
       const id = r.insertedId.toString();
       const token = createToken(id);

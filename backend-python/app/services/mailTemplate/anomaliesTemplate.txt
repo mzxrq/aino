@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Anomaly Alert</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed; background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+
+                <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 1px solid #dddddd;">
+                    
+                    <tr>
+                        <td align="center" style="padding: 20px 0; background-color: #007bff; border-radius: 8px 8px 0 0;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🚨 Stock Anomaly Detected 🚨</h1>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 30px;">
+                            <p style="font-size: 16px; color: #333333; line-height: 1.6;">
+                                A new anomaly detection run has been completed as of **[DATE]**. A total of **[ANOMALY_COUNT]** anomalies were found across **[NUMBER_OF_TICKERS]** tickers.
+                            </p>
+                            
+                            <h2 style="font-size: 20px; color: #007bff; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">
+                                Anomaly Details
+                            </h2>
+
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 20px; border-collapse: collapse;">
+                                
+                                <thead>
+                                    <tr style="background-color: #f0f0f0;">
+                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333; width: 50%;">
+                                            Ticker Name
+                                        </th>
+                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333; width: 50%;">
+                                            Anomaly Date
+                                        </th>
+                                    </tr>
+                                </thead>
+                                
+                                <tbody>
+                                    <tr>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
+                                            **TSLA**
+                                        </td>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
+                                            2025-12-09
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
+                                            **MSFT**
+                                        </td>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
+                                            2025-12-08
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
+                                            **GOOGL**
+                                        </td>
+                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
+                                            2025-12-07
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                            </table>
+                            <p align="center" style="margin: 30px 0;">
+                                <a href="[LINK_TO_DASHBOARD]" target="_blank" style="display: inline-block; padding: 12px 25px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                                    View Full Report
+                                </a>
+                            </p>
+
+                            <p style="font-size: 14px; color: #777777;">
+                                *This is an automated alert. Please log in to your dashboard for detailed information regarding the detected anomalies.*
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td align="center" style="padding: 20px; font-size: 12px; color: #aaaaaa; border-top: 1px solid #eeeeee;">
+                            Automated Stock Monitor | [YEAR]
+                        </td>
+                    </tr>
+
+            </table>
+            </td>
+        </tr>
+</table>
