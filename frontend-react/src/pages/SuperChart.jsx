@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Plot from 'react-plotly.js';
 import { DateTime } from 'luxon';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/PortalDropdown';
 import FlagSelect from '../components/FlagSelect';
 import DropdownSelect from '../components/DropdownSelect';
+import EchartsCard from '../components/EchartsCard';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
 const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
@@ -945,19 +945,33 @@ export default function SuperChart() {
               <div className="plot-container" style={{display:'flex',alignItems:'center',justifyContent:'center',height:320,color:'var(--text-secondary)'}}>
                 <div>No chart data available for <strong>{ticker}</strong> (try a different period or ticker)</div>
               </div>
+            ) : compareMode && compareData && compareTickers.length ? (
+              // Compare mode: render comparison tickers as line overlays
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:plotHeight,color:'var(--text-secondary)'}}>
+                <div>Compare mode with {compareTickers.length} ticker(s) — ECharts view (coming soon)</div>
+              </div>
             ) : (
-              <Plot
-                key={`plot-${ticker}`}
-                data={plotData}
-                layout={layout}
-                config={config}
-                useResizeHandler={true}
-                style={{ width: '100%', height: plotHeight }}
-                className="plot-container"
-                onRelayout={handleRelayout}
-                onClick={handlePlotClick}
-                onInitialized={(_figure, graphDiv) => { console.debug('[SuperChart] Plot initialized', graphDiv); }}
-                onUpdate={() => { /* no-op, but useful when debugging */ }}
+              // Single-ticker expanded view with ECharts
+              <EchartsCard
+                ticker={ticker}
+                dates={dates}
+                open={open}
+                high={high}
+                low={low}
+                close={close}
+                volume={volume}
+                VWAP={VWAP}
+                bollinger_bands={bollinger_bands}
+                anomalies={filteredAnomalies}
+                timezone={timezone}
+                period={period}
+                interval={interval}
+                chartMode={showCandles ? 'candlestick' : 'line'}
+                showVolume={showVolume}
+                showVWAP={showVWAP}
+                showBB={showBB}
+                showAnomaly={showRSI} // use RSI toggle as anomaly toggle for consistency
+                height={plotHeight}
               />
             )}
             {seekRange && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>Selected: {seekRange.start} → {seekRange.end}</div>}
