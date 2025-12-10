@@ -431,12 +431,11 @@ def search_ticker(query: str) -> List[dict]:
         return []
 
     regex = {"$regex": query, "$options": "i"}  # Case-insensitive regex
-    cursor = db.tickerlist.find({"$or": [{"ticker": regex}, {"name": regex}]})
+    cursor = db.marketlists.find({"$or": [{"ticker": regex}, {"companyName": regex}]})
 
     results = []
     for doc in cursor:
-        results.append({"ticker": doc.get("ticker"), "name": doc.get("name")})
-
+        results.append({"ticker": doc.get("ticker"), "name": doc.get("companyName")})
     return results
 
 
@@ -523,3 +522,5 @@ def chart_debug(ticker: Optional[str] = None, period: str = "1mo", interval: str
         except Exception as e:
             out[t] = { 'count': 0, 'error': str(e) }
     return out
+
+

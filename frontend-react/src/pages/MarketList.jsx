@@ -7,92 +7,107 @@ export default function MarketListScreen() {
   const [category, setCategory] = useState("All");
   const [industry, setIndustry] = useState("All");
   const [country, setCountry] = useState("All");
-  const [marketData, setMarketData] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // Default categories; backend `types` are "Primary Exchange" values
+  const [marketData, setMarketData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Dropdown lists
   const [categories, setCategories] = useState(["All"]);
   const [industries, setIndustries] = useState(["All"]);
   const [countries, setCountries] = useState(["All"]);
 
-  // --- Fetch market data from backend ---
+  // ---------------------------------------------------
+  // Fetch data with search filter (auto-fetch + debounce)
+  // ---------------------------------------------------
   useEffect(() => {
-    const fetchMarketData = async () => {
-      try {
-        const response = await fetch("http://localhost:5050/node/marketlists");
-        const json = await response.json();
+    const timer = setTimeout(() => {
+      fetchMarketData();
+    }, 300); // debounce 300ms
 
-        // Backend may return { data, types } or a plain array
-        const rawList = Array.isArray(json) ? json : (json.data || []);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-        // Normalize items to a stable shape the UI expects
-        const list = rawList.map((it) => ({
-          _id: it._id,
-          ticker: it.Ticker || it.ticker || "",
-          name: it["Company Name"] || it.name || it.company || "",
-          primaryExchange: it["Primary Exchange"] || it.primaryExchange || it["PrimaryExchange"] || "",
-          sectorGroup: it["Sector Group"] || it["SectorGroup"] || it.Sector || it.sector || "",
-          raw: it,
-        }));
+const fetchMarketData = async () => {
+  setLoading(true);
 
-        setMarketData(list);
+  try {
+    const url =
+      search.trim() === ""
+        ? "http://localhost:5050/node/marketlists" 
+        : `http://localhost:5000/chart/ticker?query=${encodeURIComponent(search)}`;
 
-        // If backend provides types (Primary Exchange), use them as categories for the dropdown
-        if (json && json.types && Array.isArray(json.types) && json.types.length > 0) {
-          setCategories(["All", ...json.types]);
-        } else {
-          // derive exchanges from raw data if types not provided
-          const exSet = new Set(rawList.map((it) => (it["Primary Exchange"] || it.primaryExchange || '').toString()).filter(Boolean));
-          setCategories(["All", ...Array.from(exSet).sort()]);
-        }
+    const res = await fetch(url);
+    const json = await res.json();
+    const rawList = Array.isArray(json) ? json : json.data || [];
 
-        // derive industries (Sector Group) and countries from raw data
-        const indSet = new Set(rawList.map((it) => (it["Sector Group"] || it.Sector || it.sector || it["sectorGroup"] || '').toString()).filter(Boolean));
-        setIndustries(["All", ...Array.from(indSet).sort()]);
+    // Normalize list
+    const list = rawList.map((it) => {
+  const ticker = it.ticker || it.Ticker || "";
 
-        const countrySet = new Set(rawList.map((it) => (it.Country || it.country || '').toString()).filter(Boolean));
-        setCountries(["All", ...Array.from(countrySet).sort()]);
+  return {
+    _id: it._id,
+    ticker,
+    name: it.name || it["Company Name"] || "",
+    primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
+    industry:
+      it.sector ||
+      it.Sector ||
+      it["Sector Group"] ||
+      it["SectorGroup"] ||
+      "",
+    country: it.country || it.Country || "",
 
-        setLoading(false);
-      } catch (err) {
-        console.error("Failed to fetch market data:", err);
-        setLoading(false);
-      }
-    };
+    // Auto-generate ticker logo URL
+    logo: ticker
+      ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(
+          ticker
+        )}?format=png`
+      : "",
 
-    fetchMarketData();
-  }, []);
+    raw: it,
+  };
+});
 
-  // --- Filter by search and category ---
+
+    setMarketData(list);
+
+    // Populate dropdowns once
+    if (categories.length === 1) {
+      const exSet = [...new Set(list.map((i) => i.primaryExchange).filter(Boolean))];
+      setCategories(["All", ...exSet.sort()]);
+    }
+
+    if (industries.length === 1) {
+      const indSet = [...new Set(list.map((i) => i.industry).filter(Boolean))];
+      setIndustries(["All", ...indSet.sort()]);
+    }
+
+    if (countries.length === 1) {
+      const countrySet = [...new Set(list.map((i) => i.country).filter(Boolean))];
+      setCountries(["All", ...countrySet.sort()]);
+    }
+  } catch (err) {
+    console.error("Error fetching market list:", err);
+  }
+
+  setLoading(false);
+};
+
+
+  // ---------------------------------------------------
+  // Local filtering (after backend search)
+  // ---------------------------------------------------
   const filteredData = marketData.filter((item) => {
-    // Use normalized fields produced earlier in this file
-    const ticker = (item.ticker || "").toString();
-    const name = (item.name || "").toString();
-    const primaryExchange = (item.primaryExchange || "").toString();
-    const sectorGroup = (item.sectorGroup || "").toString();
-    const itemCountry = (item.raw?.Country || item.raw?.country || "").toString();
-    const categoryValue = category || "All";
-    const industryValue = industry || "All";
-    const countryValue = country || "All";
+    const matchCategory =
+      category === "All" ||
+      item.primaryExchange === category ||
+      item.industry === category;
 
-    const q = search.trim().toLowerCase();
-    const matchesSearch = !q || ticker.toLowerCase().includes(q) || name.toLowerCase().includes(q);
-    // Dropdown `category` is populated from backend `types` (Primary Exchange) when available.
-    // If categories are sectors instead, this logic also falls back to matching sectorGroup.
-    const matchesCategory =
-      categoryValue === "All" ||
-      primaryExchange.toLowerCase() === String(categoryValue).toLowerCase() ||
-      sectorGroup.toLowerCase() === String(categoryValue).toLowerCase();
+    const matchIndustry = industry === "All" || item.industry === industry;
 
-    const matchesIndustry =
-      industryValue === "All" ||
-      sectorGroup.toLowerCase() === String(industryValue).toLowerCase();
+    const matchCountry = country === "All" || item.country === country;
 
-    const matchesCountry =
-      countryValue === "All" ||
-      itemCountry.toLowerCase() === String(countryValue).toLowerCase();
-
-    return matchesSearch && matchesCategory && matchesIndustry && matchesCountry;
+    return matchCategory && matchIndustry && matchCountry;
   });
 
   return (
@@ -107,22 +122,20 @@ export default function MarketListScreen() {
         style={styles.searchBar}
       />
 
-      {/* DROPDOWNS: Exchange, Industry, Country */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+      {/* DROPDOWNS */}
+      <div style={styles.dropdownRow}>
         <CategoryDropdown
           value={category}
           onChange={setCategory}
           items={categories}
           label="Exchange"
         />
-
         <CategoryDropdown
           value={industry}
           onChange={setIndustry}
           items={industries}
           label="Industry"
         />
-
         <CategoryDropdown
           value={country}
           onChange={setCountry}
@@ -131,13 +144,13 @@ export default function MarketListScreen() {
         />
       </div>
 
-      {/* LIST */}
+      {/* RESULTS */}
       <div style={{ marginTop: 20 }}>
         {loading ? (
           <p style={{ color: "#fff" }}>Loading...</p>
         ) : filteredData.length > 0 ? (
-          filteredData.map((item, index) => (
-            <MarketItemCard key={item.ticker || item._id || index} item={item} />
+          filteredData.map((item) => (
+            <MarketItemCard key={item._id || item.ticker} item={item} />
           ))
         ) : (
           <p style={{ color: "#fff" }}>No results found</p>
@@ -169,6 +182,11 @@ const styles = {
     border: "1px solid rgba(0,255,200,0.12)",
     color: "#fff",
     width: "100%",
-    boxSizing: "border-box",
+  },
+  dropdownRow: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    marginTop: 8,
   },
 };

@@ -108,6 +108,6 @@ def scheduler_loop():
     try:
         while not scheduler_stop_event.is_set():
             combined_market_runner()
-            time.sleep(60)
+            time.sleep(300)
     finally:
         logger.info("Scheduler stopped")

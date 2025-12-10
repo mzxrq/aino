@@ -22,7 +22,7 @@
                     <tr>
                         <td style="padding: 30px;">
                             <p style="font-size: 16px; color: #333333; line-height: 1.6;">
-                                A new anomaly detection run has been completed as of **[DATE]**. A total of **[ANOMALY_COUNT]** anomalies were found across **[NUMBER_OF_TICKERS]** tickers.
+                                A new anomaly detection run has been completed as of <strong>[DATE]</strong>. A total of <strong>[ANOMALY_COUNT]</strong> anomalies were found across <strong>[NUMBER_OF_TICKERS]</strong> tickers.
                             </p>
                             
                             <h2 style="font-size: 20px; color: #007bff; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">
@@ -33,42 +33,43 @@
                                 
                                 <thead>
                                     <tr style="background-color: #f0f0f0;">
-                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333; width: 50%;">
-                                            Ticker Name
+                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333;">
+                                            Ticker
                                         </th>
-                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333; width: 50%;">
+                                        <th align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333;">
                                             Anomaly Date
+                                        </th>
+                                        <th align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333;">
+                                            Close Price
+                                        </th>
+                                        <th align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 14px; color: #333333;">
+                                            Volume
                                         </th>
                                     </tr>
                                 </thead>
                                 
                                 <tbody>
                                     <tr>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
-                                            **TSLA**
-                                        </td>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
-                                            2025-12-09
-                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">TSLA</td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">2025-12-09</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">$172.45</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">1,234,567</td>
                                     </tr>
                                     <tr>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
-                                            **MSFT**
-                                        </td>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
-                                            2025-12-08
-                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">MSFT</td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">2025-12-08</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">$345.12</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">987,654</td>
                                     </tr>
                                     <tr>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">
-                                            **GOOGL**
-                                        </td>
-                                        <td align="left" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">
-                                            2025-12-07
-                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; font-weight: bold; color: #dc3545;">GOOGL</td>
+                                        <td style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">2025-12-07</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">$2,845.67</td>
+                                        <td align="right" style="padding: 10px; border: 1px solid #dddddd; font-size: 15px; color: #333333;">543,210</td>
                                     </tr>
-                                    </tbody>
+                                </tbody>
                             </table>
+
                             <p align="center" style="margin: 30px 0;">
                                 <a href="[LINK_TO_DASHBOARD]" target="_blank" style="display: inline-block; padding: 12px 25px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
                                     View Full Report
@@ -88,7 +89,10 @@
                         </td>
                     </tr>
 
-            </table>
+                </table>
             </td>
         </tr>
-</table>
+    </table>
+
+</body>
+</html>
