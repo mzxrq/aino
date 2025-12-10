@@ -44,9 +44,38 @@ const Profile = () => {
         saving: false,
         avatarUploading: false,
     });
+        const _hasLineMarker = (u) => {
+            if (!u) return false;
+            try {
+                // scan top-level string values/keys for 'line'
+                for (const k of Object.keys(u)) {
+                    try {
+                        const val = u[k];
+                        if (!val) continue;
+                        if (typeof val === 'string' && /line/i.test(val)) return true;
+                        if (/line/i.test(String(k))) return true;
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+            return false;
+        };
 
-    // --- Derived State ---
-    const isLineUser = user?.loginMethod === 'line' || user?.lineid || user?.line_user_id;
+        const isLineUser = _hasLineMarker(user);
+
+        // Debug resolved user shape to console to help see which fields are present
+        React.useEffect(() => {
+            if (user) console.debug('Profile: resolved user object', user);
+        }, [user]);
+
+    // Debugging: Inspect resolved user shape in console to help identify mismatches
+    useEffect(() => {
+        if (user) console.debug('Profile> resolved user:', user);
+    }, [user]);
+     
     const canChangePassword = !isLineUser && !!user?.email;
     const avatarUrl = user?.pictureUrl || user?.avatar;
     const resolvedAvatar = avatarUrl?.startsWith('/') ? `${API_URL}${avatarUrl}` : avatarUrl;
