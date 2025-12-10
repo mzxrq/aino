@@ -19,7 +19,7 @@ DEFAULT_MARKET_TZ = {
 }
 
 MARKETS = {
-    "US": {"sessions": [("09:30", "16:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
+    "US": {"sessions": [("09:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
     "JP": {"sessions": [("09:00", "11:30"), ("12:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
     "TH": {"sessions": [("08:00", "12:30"), ("13:30", "16:30")], "tz": DEFAULT_MARKET_TZ.get("JP")},
 }
@@ -108,6 +108,6 @@ def scheduler_loop():
     try:
         while not scheduler_stop_event.is_set():
             combined_market_runner()
-            time.sleep(60)
+            time.sleep(300)
     finally:
         logger.info("Scheduler stopped")
