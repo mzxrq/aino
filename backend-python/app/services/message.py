@@ -1,27 +1,30 @@
-import json
 import os
+import json
 import re
+import logging
 from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
 import requests
 from pymongo import MongoClient
-import logging
 
-# ===========================================================
-# Config / Logger
-# ===========================================================
+# -------------------------
+# Logger
+# -------------------------
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# -------------------------
+# Config
+# -------------------------
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 MAIL_API_URL = os.getenv("MAIL_API_URL", "http://localhost:5050/node/mail/send")
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://localhost:5173")
 
-# ===========================================================
+# -------------------------
 # MongoDB Singleton
-# ===========================================================
+# -------------------------
 _mongo_client = None
 def get_db():
     global _mongo_client
@@ -34,14 +37,33 @@ def get_db():
 
 db = get_db()
 
-# ===========================================================
-# Utils
-# ===========================================================
+# -------------------------
+# Timezone Support
+# -------------------------
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except ImportError:
+    from pytz import timezone as ZoneInfo
+
+def format_date(val, tz_name="UTC"):
+    """Format a datetime in the user's timezone."""
+    if pd.isna(val):
+        return ""
+    try:
+        dt = pd.to_datetime(val)
+        if dt.tzinfo is None:
+            dt = dt.tz_localize('UTC')  # assume UTC if naive
+        dt_user = dt.tz_convert(tz_name)
+        return dt_user.strftime('%Y-%m-%d %H:%M:%S %Z')
+    except Exception:
+        return str(val)
+
+# -------------------------
+# Data Normalization
+# -------------------------
 def normalize_df(anomaly):
-    """Convert anomaly object into DataFrame and normalize column names."""
     if anomaly is None:
         return pd.DataFrame()
-
     if isinstance(anomaly, pd.DataFrame):
         df = anomaly.copy()
     elif isinstance(anomaly, dict):
@@ -56,44 +78,24 @@ def normalize_df(anomaly):
 
     df.columns = [c.lower().strip().replace(" ", "_") for c in df.columns]
 
-    # Add companyname (lowercase) if ticker exists — normalize tickers to uppercase for lookup
     if "ticker" in df.columns:
         tickers = df["ticker"].dropna().unique().tolist()
-        # build map with uppercase tickers
         try:
             cursor = db["marketlists"].find(
-                {"ticker": {"$in": [t for t in tickers]}},
+                {"ticker": {"$in": tickers}},
                 {"_id": 0, "ticker": 1, "companyName": 1}
             )
-            ticker_to_company = {}
-            for doc in cursor:
-                try:
-                    tk = str(doc.get("ticker", "")).upper()
-                except Exception:
-                    tk = ""
-                if not tk:
-                    continue
-                ticker_to_company[tk] = doc.get("companyName", "")
+            ticker_to_company = {str(doc.get("ticker", "")).upper(): doc.get("companyName", "") for doc in cursor}
         except Exception:
             ticker_to_company = {}
 
-        df["companyname"] = (
-            df["ticker"].astype(str).str.upper().map(ticker_to_company).fillna("Unknown Company")
-        )
+        df["companyname"] = df["ticker"].astype(str).str.upper().map(ticker_to_company).fillna("Unknown Company")
 
     return df
 
-def format_date(val):
-    if pd.isna(val):
-        return ""
-    try:
-        return pd.to_datetime(val).strftime('%Y-%m-%d %H:%M:%S')
-    except Exception:
-        return str(val)
-
-# ===========================================================
-# Email Rendering
-# ===========================================================
+# -------------------------
+# Email Templates
+# -------------------------
 def load_email_template():
     tpl_path = Path(__file__).parent / "mailTemplate" / "anomaliesTemplate.txt"
     if tpl_path.exists():
@@ -103,46 +105,62 @@ def load_email_template():
             logger.warning(f"Failed to read email template: {e}")
     return None
 
-def render_email_html(template, user_anomaly, user_tickers):
-    """Render HTML email from template or fallback."""
-    if not template:
-        html = "<h2>Detected Stock Anomalies</h2><ul>"
-        for _, row in user_anomaly.iterrows():
-            html += (
-                f"<li><strong>{row.get('ticker','')}</strong><br>"
-                f"Company: {row.get('companyName','')}<br>"
-                f"Date: {format_date(row.get('datetime'))}<br>"
-                f"Close: {row.get('close', 0):,.2f}<br>"
-                f"Volume: {row.get('volume', 0):,}</li><br>"
-            )
-        html += "</ul>"
-        return html
+def render_email_html(template, user_anomaly, user_tickers, user_timezone="UTC"):
+    """Render an email HTML with datetimes converted to the user's timezone."""
+    if user_anomaly.empty:
+        return "<p>No anomalies detected.</p>"
 
+    # --- Build table rows ---
     rows_html = ""
     for _, row in user_anomaly.iterrows():
         rows_html += (
             f"<tr>"
             f"<td style='padding:10px;border:1px solid #ddd;font-weight:bold;color:#dc3545;'>{row.get('companyname','')}</td>"
-            f"<td style='padding:10px;border:1px solid #ddd;'>{format_date(row.get('datetime'))}</td>"
+            f"<td style='padding:10px;border:1px solid #ddd;'>{format_date(row.get('datetime'), user_timezone)}</td>"
             f"<td style='padding:10px;border:1px solid #ddd;text-align:right;'>{row.get('close', 0):,.2f}</td>"
             f"<td style='padding:10px;border:1px solid #ddd;text-align:right;'>{row.get('volume', 0):,}</td>"
             f"</tr>"
         )
-        
-    html = template
-    html = html.replace("[DATE]", datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
+
+    # --- Prepare template placeholders ---
+    html = template if template else "<table><tbody></tbody></table>"
+
+    try:
+        # Current time in user timezone
+        from datetime import datetime
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from pytz import timezone as ZoneInfo
+
+        now_utc = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        now_user = now_utc.astimezone(ZoneInfo(user_timezone))
+        date_str = now_user.strftime('%Y-%m-%d %H:%M:%S %Z')
+        year_str = str(now_user.year)
+    except Exception as e:
+        logger.warning(f"Failed to convert template [DATE] to user timezone: {e}")
+        date_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        year_str = str(datetime.utcnow().year)
+
+    html = html.replace("[DATE]", date_str)
     html = html.replace("[ANOMALY_COUNT]", str(len(user_anomaly)))
     html = html.replace("[NUMBER_OF_TICKERS]", str(len(user_tickers)))
     html = html.replace("[LINK_TO_DASHBOARD]", DASHBOARD_URL)
-    html = html.replace("[YEAR]", str(datetime.utcnow().year))
+    html = html.replace("[YEAR]", year_str)
 
-    # Flexible tbody replacement
+    # --- Replace table body ---
     html = re.sub(r"<tbody.*?>[\s\S]*?</tbody>", f"<tbody>{rows_html}</tbody>", html, flags=re.I)
+
+    # Fallback: if template has no tbody
+    if "<tbody" not in html:
+        html += f"<table><tbody>{rows_html}</tbody></table>"
 
     return html
 
 
-
+# -------------------------
+# Email Sending
+# -------------------------
 def send_mail(to, html):
     if not to:
         logger.warning("No email provided, skipping send_mail")
@@ -160,15 +178,14 @@ def send_mail(to, html):
     except Exception as e:
         logger.error(f"Failed to send email to {to}: {e}")
 
-# ===========================================================
-# LINE Rendering
-# ===========================================================
-def make_line_bubble(row):
+# -------------------------
+# LINE Messages
+# -------------------------
+def make_line_bubble(row, user_timezone="UTC"):
     company = row.get('companyname') or row.get('companyName') or ''
     ticker = row.get('ticker', '')
     close = row.get('close', 0) or 0
     volume = row.get('volume', 0) or 0
-
     title = f"{ticker}{(' - ' + company) if company else ''}"
 
     return {
@@ -178,7 +195,7 @@ def make_line_bubble(row):
             "layout": "vertical",
             "contents": [
                 {"type": "text", "text": title, "weight": "bold", "size": "lg"},
-                {"type": "text", "text": f"Date: {format_date(row.get('datetime'))}"},
+                {"type": "text", "text": f"Date: {format_date(row.get('datetime'), user_timezone)}"},
                 {"type": "text", "text": f"Close: {close:,.2f}"},
                 {"type": "text", "text": f"Volume: {volume:,}"}
             ]
@@ -189,26 +206,21 @@ def make_line_bubble(row):
             "contents": [
                 {"type": "button", "style": "primary",
                  "action": {"type": "uri", "label": "Open App",
-                            "uri": f"{DASHBOARD_URL}/ticker/{ticker}"}
-                },
+                            "uri": f"{DASHBOARD_URL}/ticker/{ticker}"}},
                 {"type": "button", "style": "secondary",
                  "action": {"type": "uri", "label": "View Chart",
-                            "uri": f"https://finance.yahoo.com/quote/{ticker}"}
-                }
-            ]
+                            "uri": f"https://finance.yahoo.com/quote/{ticker}"}}]
         }
     }
 
-def send_line_messages(uid, anomalies):
+def send_line_messages(uid, bubbles):
     if not CHANNEL_ACCESS_TOKEN:
         logger.warning("CHANNEL_ACCESS_TOKEN missing")
         return
-
     if not uid:
         logger.warning("No LINE user ID, skipping message")
         return
 
-    bubbles = [make_line_bubble(row) for _, row in anomalies.iterrows()]
     MAX = 10
     url = "https://api.line.me/v2/bot/message/push"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
@@ -229,9 +241,9 @@ def send_line_messages(uid, anomalies):
         except Exception as e:
             logger.error(f"Failed to send LINE to {uid}: {e}")
 
-# ===========================================================
+# -------------------------
 # Main Handler
-# ===========================================================
+# -------------------------
 def send_test_message(anomaly):
     anomaly = normalize_df(anomaly)
     if anomaly.empty:
@@ -240,7 +252,7 @@ def send_test_message(anomaly):
 
     email_template = load_email_template()
 
-    users = list(db.users.find({}, {"sentOption": 1, "email": 1, "lineid": 1}))
+    users = list(db.users.find({}, {"sentOption": 1, "email": 1, "lineid": 1, "timeZone": 1}))
     subs = {s["_id"]: s for s in db.subscribers.find({})}
 
     for user in users:
@@ -248,6 +260,7 @@ def send_test_message(anomaly):
         subscriber = subs.get(uid, {})
         sent_option = user.get("sentOption", "mail").lower()
         user_tickers = set(subscriber.get("tickers", []))
+        user_timezone = user.get("timeZone", "UTC")  # get timezone from document
 
         if not user_tickers:
             continue
@@ -256,14 +269,16 @@ def send_test_message(anomaly):
         if user_anomaly.empty:
             continue
 
+        # --- Send Email ---
         if sent_option in ["mail", "both"]:
             email = user.get("email")
             if email:
-                html = render_email_html(email_template, user_anomaly, user_tickers)
+                html = render_email_html(email_template, user_anomaly, user_tickers, user_timezone)
                 send_mail(email, html)
-            else:
-                logger.warning(f"No email for user {uid}, skipping email")
 
+        # --- Send LINE ---
         if sent_option in ["line", "both"]:
             line_id = user.get("lineid")
-            send_line_messages(line_id, user_anomaly)
+            if line_id:
+                bubbles = [make_line_bubble(row, user_timezone) for _, row in user_anomaly.iterrows()]
+                send_line_messages(line_id, bubbles)

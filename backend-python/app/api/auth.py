@@ -131,7 +131,6 @@ async def login_or_register_line(request: LineLoginRequest):
                         "pictureUrl": profile_json.get("pictureUrl"),
                         "lastLogin": datetime.utcnow(),
                         "loginMethod": "line",
-                        "sentOption": "mail"  # Default to email on binding
                     }})
 
             # 4. Login/register if not binding (Logic Unchanged)
@@ -150,7 +149,8 @@ async def login_or_register_line(request: LineLoginRequest):
                         "pictureUrl": profile_json.get("pictureUrl"),
                         "lastLogin": datetime.utcnow(),
                         "loginMethod": "line",
-                        "sentOption": "line"
+                        "sentOption": "line",
+                        "timeZone": "Asia/Tokyo"
                     }
                     r = db.users.insert_one(user_document)
                     user = { **user_document, "_id": r.inserted_id }
