@@ -56,7 +56,8 @@ features_columns = os.getenv("MODEL_FEATURES", "return_1,return_3,return_6,zscor
 
 def trained_model(tickers: str, path: str):
     process_data = load_dataset(tickers)
-    process_data = process_data.groupby('Ticker').apply(data_preprocessing).reset_index(drop=True)
+    process_data = data_preprocessing(process_data) 
+
     X_train = process_data[features_columns].dropna()
     model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
     model.fit(X_train)
@@ -109,62 +110,78 @@ def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
     return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
 
 
+import pandas as pd
+import numpy as np
+
+# 4. data_preprocessing function
 def data_preprocessing(df: pd.DataFrame):
+
+    # ---- Clean ----
     df = df.dropna().reset_index(drop=True)
-    df['return_1'] = df['Close'].pct_change(1)
-    df['return_3'] = df['Close'].pct_change(3)
-    df['return_6'] = df['Close'].pct_change(6)
-    df['roll_mean_20'] = df['Close'].rolling(window=20, min_periods=1).mean()
-    df['roll_std_20'] = df['Close'].rolling(window=20, min_periods=1).std()
-    df['zscore_20'] = (df['Close'] - df['roll_mean_20']) / df['roll_std_20'].replace(0, np.nan)
 
-    prev_close = df['Close'].shift(1)
-    h_l = df['High'] - df['Low']
-    h_pc = (df['High'] - prev_close).abs()
-    l_pc = (df['Low'] - prev_close).abs()
+    # ---- Preserve ticker ----
+    tickers = df["Ticker"]
+
+    # ---- Only ffill/bfill numeric columns ----
+    num_cols = df.select_dtypes(include=["number"]).columns
+    df[num_cols] = df.groupby("Ticker")[num_cols].transform(lambda x: x.ffill().bfill())
+
+    # ---- Restore Ticker ----
+    df["Ticker"] = tickers
+
+    # ---- Feature engineering ----
+    df["return_1"] = df["Close"].pct_change(1)
+    df["return_3"] = df["Close"].pct_change(3)
+    df["return_6"] = df["Close"].pct_change(6)
+
+    df["roll_mean_20"] = df["Close"].rolling(20, min_periods=1).mean()
+    df["roll_std_20"] = df["Close"].rolling(20, min_periods=1).std()
+    df["zscore_20"] = (df["Close"] - df["roll_mean_20"]) / df["roll_std_20"].replace(0, np.nan)
+
+    prev_close = df["Close"].shift(1)
+    h_l = df["High"] - df["Low"]
+    h_pc = (df["High"] - prev_close).abs()
+    l_pc = (df["Low"] - prev_close).abs()
     tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
-    df['ATR_14'] = tr.ewm(span=14, adjust=False, min_periods=14).mean()
+    df["ATR_14"] = tr.ewm(span=14, adjust=False, min_periods=14).mean()
 
-    df['bb_upper'] = df['roll_mean_20'] + 2 * df['roll_std_20']
-    df['bb_lower'] = df['roll_mean_20'] - 2 * df['roll_std_20']
-    df['bb_width'] = df['bb_upper'] - df['bb_lower']
+    df["bb_upper"] = df["roll_mean_20"] + 2 * df["roll_std_20"]
+    df["bb_lower"] = df["roll_mean_20"] - 2 * df["roll_std_20"]
+    df["bb_width"] = df["bb_upper"] - df["bb_lower"]
 
-    delta = df['Close'].diff()
+    delta = df["Close"].diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
     avg_gain = gain.ewm(com=13, adjust=False, min_periods=14).mean()
     avg_loss = loss.ewm(com=13, adjust=False, min_periods=14).mean()
     rs = avg_gain / avg_loss.replace(0, 1e-6)
-    df['RSI'] = 100 - (100 / (1 + rs))
+    df["RSI"] = 100 - (100 / (1 + rs))
 
-    ema12 = df['Close'].ewm(span=12, adjust=False).mean()
-    ema26 = df['Close'].ewm(span=26, adjust=False).mean()
-    df['MACD'] = ema12 - ema26
-    df['Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
-    df['MACD_hist'] = df['MACD'] - df['Signal']
+    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
+    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+    df["MACD"] = ema12 - ema26
+    df["Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+    df["MACD_hist"] = df["MACD"] - df["Signal"]
 
-    cum_vol = df['Volume'].cumsum()
-    cum_vol_price = (df['Volume'] * df['Close']).cumsum()
-    df['VWAP'] = cum_vol_price / cum_vol.replace(0, np.nan)
+    cum_vol = df["Volume"].cumsum()
+    cum_vol_price = (df["Volume"] * df["Close"]).cumsum()
+    df["VWAP"] = cum_vol_price / cum_vol.replace(0, np.nan)
 
-    df['body'] = (df['Close'] - df['Open']).abs()
-    df['upper_wick'] = df['High'] - df[['Open', 'Close']].max(axis=1)
-    df['lower_wick'] = df[['Open', 'Close']].min(axis=1) - df['Low']
+    df["body"] = (df["Close"] - df["Open"]).abs()
+    df["upper_wick"] = df["High"] - df[["Open", "Close"]].max(axis=1)
+    df["lower_wick"] = df[["Open", "Close"]].min(axis=1) - df["Low"]
 
-    # Coerce to numeric to avoid string/object types and handle invalid values
-    df['body'] = pd.to_numeric(df['body'], errors='coerce')
-    df['upper_wick'] = pd.to_numeric(df['upper_wick'], errors='coerce')
-    df['lower_wick'] = pd.to_numeric(df['lower_wick'], errors='coerce')
+    df['wick_ratio'] = np.where(
+        df['body'] != 0,
+        (df['upper_wick'] + df['lower_wick']) / df['body'],
+        np.nan
+    )
 
-    # Compute wick_ratio vectorized; set entries with zero body to NaN so they can be filled from neighbors
-    df['wick_ratio'] = (df['upper_wick'] + df['lower_wick']) / df['body']
-    df.loc[df['body'] == 0, 'wick_ratio'] = np.nan
-    df['wick_ratio'] = df['wick_ratio'].replace([np.inf, -np.inf], np.nan)
-    df['wick_ratio'] = df['wick_ratio'].clip(upper=20)
+    df['wick_ratio'] = df['wick_ratio'].ffill().fillna(0).clip(upper=20)
 
-    df = df.bfill().ffill()
+    df = df.dropna().reset_index(drop=True)
+
     return df
-
 
 def detect_anomalies(tickers, period, interval):
     all_anomalies = pd.DataFrame()
@@ -177,7 +194,7 @@ def detect_anomalies(tickers, period, interval):
         if df.empty or 'Ticker' not in df.columns:
             logger.warning(f"No valid data for ticker: {ticker}")
             continue
-        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
+        df = data_preprocessing(df)
         if df.empty:
             continue
 
@@ -204,14 +221,14 @@ def detect_anomalies(tickers, period, interval):
                 if ticker_key is None:
                     logger.warning('Anomaly row missing Ticker; skipping DB insert')
                     continue
-                query = {"Ticker": ticker_key, "Datetime": row.get('Datetime')}
+                query = {"ticker": ticker_key, "datetime": row.get('Datetime')}
                 if db.anomalies.count_documents(query) == 0:
                     doc = {
-                        "Ticker": ticker_key,
-                        "Datetime": row.get('Datetime'),
-                        "Close": row.get('Close'),
-                        "Volume": row.get('Volume'),
-                        "Sent": False,
+                        "ticker": ticker_key,
+                        "datetime": row.get('Datetime'),
+                        "close": row.get('Close'),
+                        "volume": row.get('Volume'),
+                        "sent": False,
                         "note": "",
                         "status": "new"
                     }

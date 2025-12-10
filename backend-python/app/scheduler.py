@@ -2,6 +2,7 @@ import threading
 import time
 import datetime
 import pytz
+import os
 from dotenv import load_dotenv
 from core.config import db, logger
 from services.train_service import detect_anomalies
@@ -11,10 +12,16 @@ load_dotenv()
 
 scheduler_stop_event = threading.Event()
 
+DEFAULT_MARKET_TZ = {
+    "US": os.getenv("MARKET_TZ_US", "America/New_York"),
+    "JP": os.getenv("MARKET_TZ_JP", "Asia/Tokyo"),
+    "TH": os.getenv("MARKET_TZ_TH", "Asia/Bangkok"),
+}
+
 MARKETS = {
-    "US": {"sessions": [("09:30", "16:00")], "tz": "Asia/Tokyo"},
-    "JP": {"sessions": [("09:00", "11:30"), ("12:30", "18:00")], "tz": "Asia/Tokyo"},
-    "TH": {"sessions": [("08:00", "12:30"), ("13:30", "16:30")], "tz": "Asia/Tokyo"},
+    "US": {"sessions": [("09:30", "16:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
+    "JP": {"sessions": [("09:00", "11:30"), ("12:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
+    "TH": {"sessions": [("08:00", "12:30"), ("13:30", "16:30")], "tz": DEFAULT_MARKET_TZ.get("JP")},
 }
 
 for market_name, market in MARKETS.items():
@@ -69,14 +76,14 @@ def job_for_market(market_name: str):
 
     for ticker in tickers:
         try:
-            unsent = list(db.anomalies.find({"Ticker": ticker, "Sent": False}))
+            unsent = list(db.anomalies.find({"ticker": ticker, "sent": False}))
             if not unsent:
                 logger.info(f"No unsent anomalies for {ticker}, skipping")
                 continue
             else:
                 send_test_message(unsent)
                 ids = [doc["_id"] for doc in unsent]
-                db.anomalies.update_many({"_id": {"$in": ids}}, {"$set": {"Sent": True}})
+                db.anomalies.update_many({"_id": {"$in": ids}}, {"$set": {"sent": True}})
                 logger.info(f"Marked {len(ids)} anomalies as sent for {ticker}")
         except Exception as e:
             logger.exception(f"Failed updating anomalies for {ticker}: {e}")

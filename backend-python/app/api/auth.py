@@ -130,7 +130,8 @@ async def login_or_register_line(request: LineLoginRequest):
                         "lineid": lineid,
                         "pictureUrl": profile_json.get("pictureUrl"),
                         "lastLogin": datetime.utcnow(),
-                        "loginMethod": "line"
+                        "loginMethod": "line",
+                        "sentOption": "mail"  # Default to email on binding
                     }})
 
             # 4. Login/register if not binding (Logic Unchanged)

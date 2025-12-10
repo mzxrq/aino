@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
+const { login } = require('../controllers/usersController');
 
 const USERS_FILE = path.join(__dirname, '..', 'cache', 'users.json');
 
@@ -29,6 +30,8 @@ const createUser = async (data) => {
     lineid: data.lineid || null,
     role: data.role || 'user',
     createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+    sentOption: data.sentOption || 'mail',
+    loginMethod: data.loginMethod || 'mail',
   };
 
   // Hash if looks like plain text (not starting with $2)

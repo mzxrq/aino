@@ -80,8 +80,8 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
             (getattr(finfo, 'shortName', None) if hasattr(finfo, 'shortName') else None) or
             info.get('longName') or info.get('shortName') or info.get('symbol') or t.upper()
         )
-        market = info.get('market', None)
-        exchange = info.get('exchange', None) or info.get('fullExchangeName', None) or info.get('quoteType', None)
+        market = info.get('market', None) or ''
+        exchange = info.get('exchange', None) or info.get('fullExchangeName', None) or info.get('quoteType', None) or ''
 
 
         meta = {
@@ -191,7 +191,7 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
 
     # Ensure ISO8601 UTC timestamps for consistency (train_service now normalizes to UTC)
     try:
-        dates = df['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist()
+        dates = list(df['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')) # type: ignore
     except Exception:
         # Fallback to string casting if dt accessor not available
         dates = df['Datetime'].astype(str).tolist()
@@ -219,7 +219,7 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'VWAP': _safe_list(df.get('VWAP')),
         'RSI': _safe_list(df.get('RSI')),
         'anomaly_markers': {
-            'dates': anomalies['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist() if anomalies is not None and not anomalies.empty else [],
+            'dates': anomalies['Datetime'].dt.strftime('%Y-%m-%dT%H:%M:%S%z').tolist() if anomalies is not None and not anomalies.empty else [], # type: ignore
             'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] \
             if anomalies is not None and not anomalies.empty else []
         },
@@ -302,7 +302,7 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
             result[t] = {}
             continue
 
-        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
+        df = data_preprocessing(df)
         if df.empty:
             result[t] = {}
             continue
@@ -320,7 +320,8 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
 
         # Add best-effort market open/close ISO timestamps for the payload
         try:
-            mo, mc = _market_open_close_for_label(payload.get('market') or meta.get('market'))
+            market_label = str(payload.get('market') or meta.get('market') or "")
+            mo, mc = _market_open_close_for_label(market_label)
             payload['market_open'] = mo
             payload['market_close'] = mc
         except Exception:
