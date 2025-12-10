@@ -61,11 +61,65 @@ def trained_model(tickers: str, path: str):
     X_train = process_data[features_columns].dropna()
     model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
     model.fit(X_train)
-    _dir = os.path.dirname(path)
-    if not os.path.exists(_dir):
-        os.makedirs(_dir)
-    jo.dump(model, path)
-    logger.info(f"Model saved to {path}")
+
+    # Manage versioned model filenames: if existing models exist for this base name, bump minor version
+    base_dir = os.path.dirname(path) or '.'
+    base_name = os.path.basename(path)
+    # Expect pattern like US_model-0.1.0.pkl; fallback to given path if not matching
+    import re
+    m = re.match(r'(?P<prefix>.+?)-(?P<ver>\d+\.\d+\.\d+)\.pkl$', base_name)
+    if m:
+        prefix = m.group('prefix')
+        # find existing files matching prefix-*.pkl
+        existing = [f for f in os.listdir(base_dir) if f.startswith(prefix + '-') and f.endswith('.pkl')]
+        def parse_ver(fn):
+            mm = re.match(r'.+-(\d+)\.(\d+)\.(\d+)\.pkl$', fn)
+            if not mm: return (0,0,0)
+            return tuple(int(x) for x in mm.groups())
+        vers = [parse_ver(f) for f in existing]
+        if vers:
+            # pick highest version
+            highest = max(vers)
+            major, minor, patch = highest
+            # bump minor for a new trained model by default
+            new_ver = f"{major}.{minor+1}.0"
+        else:
+            # start at 0.1.0 if none
+            new_ver = '0.1.0'
+        new_filename = f"{prefix}-{new_ver}.pkl"
+        new_path = os.path.join(base_dir, new_filename)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        jo.dump(model, new_path)
+        logger.info(f"Model saved to {new_path}")
+        # remove old model files for this prefix to keep only latest
+        for f in existing:
+            try:
+                oldp = os.path.join(base_dir, f)
+                if os.path.exists(oldp) and oldp != new_path:
+                    os.remove(oldp)
+                    logger.info(f"Removed old model {oldp}")
+            except Exception:
+                logger.exception(f"Failed to remove old model {oldp}")
+        # update model mapping in memory if applicable
+        key = None
+        if prefix.upper().startswith('US'):
+            key = 'US'
+        elif prefix.upper().startswith('JP'):
+            key = 'JP'
+        elif prefix.upper().startswith('TH'):
+            key = 'TH'
+        if key:
+            MODEL_PATHS[key] = new_path
+            if key in _model_cache:
+                del _model_cache[key]
+    else:
+        # fallback: write directly to provided path
+        _dir = os.path.dirname(path)
+        if not os.path.exists(_dir):
+            os.makedirs(_dir)
+        jo.dump(model, path)
+        logger.info(f"Model saved to {path}")
 
 
 def ensure_columns_exist(df: pd.DataFrame, required_columns: list) -> bool:

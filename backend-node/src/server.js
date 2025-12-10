@@ -27,6 +27,9 @@ app.use(express.json());
 const anomaliesRoutes = require("./routes/anomaliesRoute");
 app.use("/node/anomalies", anomaliesRoutes);
 
+// Anomaly memos (notes) - persisted memos for anomalies
+// anomaly memos route removed (rolled back)
+
 // Cache routes (chart data CRUD operations)
 const cacheRoutes = require("./routes/cacheRoute");
 app.use("/node/cache", cacheRoutes);

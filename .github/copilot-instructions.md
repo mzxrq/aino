@@ -1,22 +1,23 @@
 <!-- .github/copilot-instructions.md - Project-specific guidance for AI coding agents -->
-# Stock Dashboard — Copilot Instructions
+````instructions
+<!-- .github/copilot-instructions.md - Project-specific guidance for AI coding agents -->
+# Stock Dashboard — Copilot Instructions (updated)
 
-This file contains concise, actionable guidance for AI coding agents working in this repository. It focuses on the actual architecture, developer workflows, and code patterns discoverable in the tree so an agent becomes productive quickly.
+This file gives succinct, actionable guidance so an AI coding agent can be productive quickly in this repo.
 
 ## Big picture
-- Two backends and a React frontend:
-  - `backend-node/` — Express server (entry: `src/server.js`). Supports MongoDB but falls back to local JSON files in `src/cache/` when DB is unavailable. Useful for local dev without a DB.
-  - `backend-python/` — FastAPI service (entry: `app/main.py`) that runs a scheduler (`app/scheduler.py`) for model training and notifications. Business logic lives under `app/services/` (e.g. `train_service.py`, `message.py`). Shared configuration and `db` client are in `app/core/config.py`.
-  - `frontend-react/` — Vite + React app (entry: `src/main.jsx`, top-level routes in `src/App.jsx`). Uses `AuthContext` for JWT/session handling and many small components/hooks under `src/components` and `src/hooks`.
+- Architecture: three services:
+  - `backend-node/` (Express, entry `src/server.js`) — primary REST API used by frontend; prefers MongoDB but falls back to JSON files in `src/cache/` for local development and tests.
+  - `backend-python/` (FastAPI, entry `app/main.py`) — data/model pipeline, scheduler (`app/scheduler.py`), LINE integration and chart-building logic (`app/api/chart.py`). Uses `yfinance` for optional financial data.
+  - `frontend-react/` (Vite + React, entry `src/main.jsx`) — UI: dashboard, `SuperChart`, small card components and context-based auth (`src/context/AuthContext.jsx`). Uses `react-plotly.js` for charts and `luxon` for timezone formatting.
 
-## Critical workflows / run commands (PowerShell)
+## Fast dev commands (PowerShell)
 - Node backend (dev):
 ```powershell
 cd backend-node
-# copy the provided .env (project root) if desired
-copy ..\.env.backend .env
+copy ..\.env.backend .env      # optional for environment variables
 npm install
-npm start        # or `npm run dev` for auto-reload if configured
+npm start      # or `npm run dev` if configured
 ```
 - Python backend (dev):
 ```powershell
@@ -29,52 +30,50 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```powershell
 cd frontend-react
 npm install
-npm run dev
+npm run dev    # serves on 5173 by default
 ```
 
 Notes:
-- Node server defaults to port `5050` (see `backend-node/src/server.js`); it always starts even if DB connection fails (file cache fallback).
-- Python app defaults to `8000` and starts a scheduler thread on FastAPI startup (`app/main.py`).
-- Frontend dev server commonly runs on `5173`; ensure CORS origins in `app/main.py` include that origin.
+- Node defaults to port `5050` (see `backend-node/src/server.js`). Python defaults to `8000`. Frontend uses `5173`.
+- Frontend reads `VITE_LINE_PY_URL` (used as `PY_API`) and `VITE_API_URL` for the Node/Front API URLs.
 
-## Project-specific conventions & patterns
-- Auth:
-  - JWT is used across services. Node middleware exposes `optionalAuthenticate` and `requireAuth` in `backend-node/src/middleware/authMiddleware.js` — use `req.userId` to get the authenticated subject.
-  - Frontend wraps the app in `AuthProvider` (`frontend-react/src/context/AuthContext.jsx`) and expects the backend to return a JWT the frontend stores and sends as `Authorization: Bearer <token>`.
-- Node DB fallback:
-  - `backend-node` prefers MongoDB (see `config/db.js`) but continues working with JSON files in `src/cache/` if DB is unavailable — tests and local flows rely on that behavior.
-- Scheduler & model paths:
-  - Python scheduler is in `backend-python/app/scheduler.py` and is triggered from `main.py`. Environment vars control model paths (`US_MODEL_PATH`, `MODEL_FEATURES`, etc.) — missing models may trigger training or warnings.
-- APIs & routes:
-  - Node exposes routes like `/auth`, `/chart`, `/dashboard`, `/subscribers` (see `backend-node/src/server.js` and `routes/`).
-  - Python exposes `/auth/line/callback`, `/profile`, `/chart` (see `backend-python/app/api/*`). Use the FastAPI docs at `/docs` when running the Python server.
-- Data shapes & normalization:
-  - Frontend components expect normalized shapes but often handle fallbacks into `raw` fields. Example: `frontend-react/src/components/MarketItemCard.jsx` reads `item.ticker || item.Ticker || item.raw?.price` — prefer returning a normalized object where possible.
+## Project-specific conventions & patterns (do these)
+- Auth: JWT is shared across services. Use Node middleware helpers in `backend-node/src/middleware/authMiddleware.js` (`optionalAuthenticate`, `requireAuth`). Frontend auth context is `frontend-react/src/context/AuthContext.jsx` and stores/sends `Authorization: Bearer <token>`.
+- Node fallback cache: `backend-node` will continue running if Mongo is unavailable and uses `backend-node/src/cache/*.json` (e.g. `users.json`, `subscriptions.json`). Tests rely on this behavior; preserve it when refactoring.
+- Chart payloads: Python `app/api/chart.py` builds per-ticker payloads with keys: `dates`, `open`, `high`, `low`, `close`, `volume`, `VWAP`, `bollinger_bands`, `RSI`, `anomaly_markers` and `Ticker`. The frontend expects ISO8601 timestamps — server now uses `datetime.isoformat()` (includes colon in offset). Frontend also contains a defensive `normalizeIso` utility in `SuperChart.jsx`.
+- UI overlay pattern: dropdowns use a portal component `frontend-react/src/components/PortalDropdown.jsx` to escape stacking contexts — prefer using it for floating menus.
+- Timezone flags: `frontend-react/src/components/FlagSelect.jsx` loads inline SVG flags; prefer SVG over emoji for desktop fidelity.
+- Preferences: frontend stores chart prefs in localStorage under key `chart_prefs_v1` and syncs (debounced) to Node `/users/preferences` when authenticated.
 
-## Integration points & external dependencies
-- LINE Login / Messaging: handled by Python `api/auth.py` and `services/message.py`. Frontend redirects to LINE and receives a code at `/auth/callback` which is then forwarded to backend endpoints.
-- MongoDB: both backends may use MongoDB. Connection env vars differ slightly (`MONGO_URI` vs `MONGO_CONNECTION_STRING`) — check `backend-python/README.md` and `backend-node/README.md`.
+## Recent integrations & notable endpoints
+- Chart API (Python): `GET/POST /chart` — returns ticker->payload mapping. See `backend-python/app/api/chart.py`.
+- Financials endpoint (Python): `GET /financials?ticker=...` — queries `yfinance` and returns `balance_sheet`, `financials`, `earnings`, `news`. This endpoint is defensive (may return empty shapes) and should be cached if used frequently.
+- Node routes: `backend-node/src/routes/` include `/auth`, `/chart` (Node side), `/subscribers`, `/mail` etc. Frontend expects Node APIs at `VITE_API_URL`.
 
-## Helpful file references (examples to inspect)
-- `backend-node/src/server.js` — express app composition and routes
-- `backend-node/src/middleware/authMiddleware.js` — JWT handling patterns (`optionalAuthenticate`, `requireAuth`)
-- `backend-node/src/cache/` — file-based fallback JSON used for local dev
-- `backend-python/app/main.py` — FastAPI startup, CORS origins, scheduler bootstrap
-- `backend-python/app/scheduler.py` — background runner for market jobs
-- `frontend-react/src/context/AuthContext.jsx` — how the frontend manages auth state
-- `frontend-react/src/App.jsx` — route map and where to add new pages/components
-- `frontend-react/src/components/MarketItemCard.jsx` — example of normalization/fallback logic
+## Key files to inspect when debugging
+- `backend-python/app/api/chart.py` — chart payload construction, anomaly markers, and `isoformat()` usage.
+- `backend-python/app/scheduler.py` — scheduler bootstrap and training hooks.
+- `backend-node/src/server.js` — express composition, ports, and middleware wiring.
+- `backend-node/src/cache/` — JSON cache used when Mongo is unavailable.
+- `frontend-react/src/pages/SuperChart.jsx` — Plotly trace building, `normalizeIso`, `FlagSelect` usage, and side-panel financials wiring.
+- `frontend-react/src/components/PortalDropdown.jsx` — portal positioning pattern (anchorRect) used by dropdowns.
+- `frontend-react/src/context/AuthContext.jsx` — JWT/session patterns the UI relies on.
 
-## Debugging & quick checks
-- Health endpoints:
-  - Node: `GET /health` (port 5050)
-  - Python: `GET /health` (port 8000)
+## Debugging tips & quick checks
+- Health endpoints: Node `GET /health` (5050), Python `GET /health` (8000).
+- If plots are blank: verify `dates` (payload) are valid ISO strings with timezone offsets (colon required). Check browser console logs from `SuperChart.jsx` (`[SuperChart] fetching`, `render-check`, `plotData summary`).
+- CORS issues: check `backend-python/app/main.py` origins and Node `cors()` configuration.
+- Dropdowns clipping: ensure `PortalDropdown` is used where dropdowns are nested inside overflow/stacking contexts.
 
-- If you see CORS errors, check `backend-python/app/main.py` origins list and Node `cors()` usage.
-- To validate auth flows, exercise `/auth/line/callback` (python) and confirm JWTs are returned and accepted by Node endpoints that require auth.
+## When extending or refactoring
+- Avoid changing the public payload contract of `/chart` without updating `SuperChart.jsx` and `Chart.jsx` (they expect specific keys). If you must change names, add a compatibility shim in `backend-python/app/api/chart.py`.
+- Add server-side caching (Mongo `db.cache`) for expensive yfinance calls (`/financials`) and chart builds. Use existing `_cache_key` and `_save_to_cache` helpers as patterns.
 
-## Merge guidance (if a pre-existing `.github/copilot-instructions.md` is present)
-- Preserve any project-specific notes already present; append or update runtime commands and the list of key file references above.
+## Quick examples
+- Fetch chart (single ticker): `GET http://localhost:8000/chart?ticker=AAPL&period=1d&interval=1m`
+- Fetch financials: `GET http://localhost:8000/financials?ticker=AAPL`
 
 ---
-If anything is unclear or you want more detail for a specific area (e.g., example requests for `/chart`, or a smoke-test script), tell me which part to expand and I will iterate.
+If anything here is unclear or you want more examples (sample JSON for `/chart` or a smoke-test script that starts all three services), tell me which section to expand and I'll iterate.
+````
+---
