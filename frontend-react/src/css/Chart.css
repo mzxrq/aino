@@ -38,10 +38,16 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 
 .chart-toolbar {
     background: var(--bg-primary);
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    position: relative; /* anchor dropdowns */
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    position: relative;
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+}
+
+.chart-toolbar:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
 /* Prevent buttons in the toolbar inheriting wide min-width from global home styles */
@@ -53,32 +59,91 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
     align-items: center;
     justify-content: center;
     width: auto !important;
-    padding: 6px 12px !important;
+    padding: 8px 14px !important;
     font-size: 0.92rem !important;
+    border-radius: 8px !important;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0,0,0,0.06);
+    background: rgba(0,0,0,0.02);
+    color: var(--text-primary);
 }
 
-/* Presets row: keep buttons compact and left-aligned */
+.chart-toolbar .btn:hover {
+    background: rgba(0,0,0,0.04);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: rgba(0,0,0,0.1);
+}
+
+.chart-toolbar .btn:active {
+    transform: translateY(0);
+}
+
+/* Presets row: keep buttons compact and left-aligned with modern styling */
 .toolbar-row.presets {
     justify-content: flex-start;
     align-items: center;
     gap: 10px;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,0,0,0.04);
 }
+
 .toolbar-row.presets .btn {
-    min-width: 80px;
+    min-width: auto;
     max-width: 220px;
-    border-radius: 12px;
+    border-radius: 8px;
     white-space: nowrap;
-    padding: 10px 18px;
-    background: #f6f7f8;
-    color: var(--text-muted);
-    border: 1px solid rgba(0,0,0,0.04);
+    padding: 8px 16px !important;
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.08), rgba(44, 193, 127, 0.04));
+    color: var(--text-primary);
+    border: 1px solid rgba(44, 193, 127, 0.2);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toolbar-row.presets .btn:hover {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.15), rgba(44, 193, 127, 0.08));
+    border-color: rgba(44, 193, 127, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(44, 193, 127, 0.15);
+}
+
+.toolbar-row.presets .btn.btn-primary {
+    background: linear-gradient(135deg, #2cc17f, #1fa85b);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.25);
+}
+
+.toolbar-row.presets .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #2dd489, #22b866);
+    box-shadow: 0 8px 20px rgba(44, 193, 127, 0.35);
+    transform: translateY(-2px);
 }
 
 /* Make the Apply button small and aligned with the input */
-.toolbar-group .btn.btn-primary { padding: 6px 12px; font-size: 0.92rem; }
+.toolbar-group .btn.btn-primary {
+    padding: 8px 16px !important;
+    font-size: 0.92rem;
+    background: linear-gradient(135deg, #2fdf91, #2cc17f);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.2);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toolbar-group .btn.btn-primary:hover {
+    box-shadow: 0 6px 16px rgba(44, 193, 127, 0.3);
+    transform: translateY(-1px);
+}
 
 /* Prevent the timezone select from visually overlapping presets: keep toolbar rows compact */
-.chart-toolbar .toolbar-row { padding-top: 6px; padding-bottom: 6px; }
+.chart-toolbar .toolbar-row { 
+    padding-top: 8px; 
+    padding-bottom: 8px;
+}
 
 /* Per-card Subscribe button: consistent small size */
 .chart-card-actions .btn {
@@ -141,6 +206,54 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
     box-shadow: none;
 }
 
+/* Dark mode mode buttons */
+body.dark .chart-toolbar .btn-mode.mode-lines { 
+    background: linear-gradient(180deg, #2b9be0, #1f6fb3);
+    box-shadow: 0 3px 8px rgba(43, 155, 224, 0.2);
+}
+body.dark .chart-toolbar .btn-mode.mode-candle { 
+    background: linear-gradient(90deg, #2fc97f, #f06254);
+    box-shadow: 0 4px 10px rgba(244, 98, 84, 0.2);
+}
+body.dark .chart-toolbar .btn-mode.mode-auto { 
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: none;
+}
+
+body.dark .chart-toolbar .btn-mode.inactive {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: none;
+}
+
+/* Fix Indicators and Chart Mode buttons in dark mode - they use .btn-mode class */
+body.dark .indicator-select .btn,
+body.dark .mode-select .btn {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+body.dark .indicator-select .btn:hover,
+body.dark .mode-select .btn:hover {
+    background: rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.95);
+    border-color: rgba(255,255,255,0.25);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+body.dark .indicator-select .btn.active,
+body.dark .mode-select .btn.active {
+    background: linear-gradient(135deg, #2cc17f, #1fa85b);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
+}
+
 /* Ensure active/primary appearance stays green and not overly tall */
 .chart-card-actions .btn-primary, .chart-toolbar .btn-primary {
     /* Match the green pill style used by per-card mode */
@@ -176,27 +289,44 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 .toolbar-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .toolbar-group {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
 }
 
 .toolbar-label {
     font-weight: 600;
+    font-size: 0.93rem;
+    color: var(--text-primary);
+    min-width: 70px;
 }
 
 .input, .select {
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--bg-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(255,255,255,0.5);
     color: var(--text-primary);
+    font-size: 0.93rem;
+    transition: all 0.2s ease;
+}
+
+.input:hover, .select:hover {
+    border-color: rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.7);
+}
+
+.input:focus, .select:focus {
+    outline: none;
+    border-color: #2cc17f;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.1);
 }
 
 .checkbox {
@@ -244,33 +374,58 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 .tag-input {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: wrap;
-    min-height: 36px;
-    padding: 6px 8px;
+    min-height: 38px;
+    padding: 8px 10px;
     border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg-secondary);
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(255,255,255,0.5);
     cursor: text;
+    transition: all 0.2s ease;
 }
+
+.tag-input:focus-within {
+    border-color: #2cc17f;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.1);
+}
+
 .tag-input .tag-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(47,166,77,0.14);
-    color: #05321a;
-    padding: 4px 8px;
-    border-radius: 14px;
-    font-weight: 700;
-    font-size: 0.92rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.12), rgba(44, 193, 127, 0.06));
+    border: 1px solid rgba(44, 193, 127, 0.2);
+    color: #0b6b3a;
+    font-weight: 500;
+    font-size: 0.93rem;
+    transition: all 0.2s ease;
 }
+
+.tag-input .tag-pill:hover {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.18), rgba(44, 193, 127, 0.1));
+    border-color: rgba(44, 193, 127, 0.35);
+    box-shadow: 0 2px 8px rgba(44, 193, 127, 0.12);
+}
+
 .tag-input .tag-x {
     background: transparent;
     border: none;
-    color: #083a1f;
+    color: #0b6b3a;
     cursor: pointer;
-    padding: 0 6px;
-    font-size: 0.95rem;
+    padding: 0 4px;
+    font-size: 1.1rem;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tag-input .tag-x:hover {
+    opacity: 0.7;
 }
 .tag-input .tag-text {
     flex: 1 1 120px;
@@ -278,8 +433,13 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
     border: none;
     background: transparent;
     outline: none;
-    padding: 6px 4px;
-    font-size: 0.95rem;
+    padding: 8px 6px;
+    font-size: 0.93rem;
+    color: var(--text-primary);
+}
+
+.tag-input .tag-text::placeholder {
+    color: rgba(0,0,0,0.35);
 }
 
 /* FlagSelect styles */
@@ -287,22 +447,65 @@ body:not(.dark) .input, body:not(.dark) .select { color: var(--text-primary); ba
 .flag-select .flag-button {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 10px;
-    background: var(--bg-secondary);
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.5);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(0,0,0,0.08);
+    font-weight: 500;
+    font-size: 0.93rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
-.flag-select .flag-emoji { font-size: 16px; line-height: 1; }
-.flag-select .flag-label { font-size: 0.92rem; }
-.flag-dropdown .flag-option { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; }
-.flag-dropdown .flag-option:hover { background: var(--hover-bg); }
-.flag-dropdown .flag-option.active { background: rgba(47,166,77,0.08); color: var(--accent); font-weight:600; }
+.flag-select .flag-button:hover {
+    background: rgba(255,255,255,0.7);
+    border-color: rgba(0,0,0,0.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.flag-select .flag-emoji { font-size: 18px; line-height: 1; }
+.flag-select .flag-label { font-size: 0.93rem; }
+.flag-dropdown .flag-option { 
+    display:flex; 
+    align-items:center; 
+    gap:12px; 
+    padding:10px 14px; 
+    border-radius:6px;
+    font-size: 0.93rem;
+    transition: all 0.2s ease;
+}
+.flag-dropdown .flag-option:hover { 
+    background: rgba(44, 193, 127, 0.08);
+}
+.flag-dropdown .flag-option.active { 
+    background: rgba(44, 193, 127, 0.15); 
+    color: #0b6b3a; 
+    font-weight:600; 
+}
 
 /* Dark mode tweaks for flag select */
 body.dark .flag-select .flag-button { background: rgba(255,255,255,0.02); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.04); }
 body.dark .flag-dropdown .flag-option.active { background: rgba(47,166,77,0.14); }
+
+/* Timezone dropdown - compact and scrollable */
+.timezone-dropdown {
+    min-width: 240px;
+    max-width: 280px;
+}
+.timezone-dropdown .flag-option {
+    padding: 6px 12px !important;
+    font-size: 0.85rem !important;
+}
+.timezone-dropdown .flag-option.current-tz {
+    background: rgba(44, 193, 127, 0.12);
+    font-weight: 600;
+    border-left: 3px solid #2cc17f;
+    padding-left: 9px !important;
+}
+body.dark .timezone-dropdown .flag-option.current-tz {
+    background: rgba(110, 231, 183, 0.1);
+    border-left-color: #6ee7b7;
+}
 
 /* Ensure inline SVG flag sizes are constrained */
 .flag-emoji svg { width: 20px; height: 14px; display: block; }
@@ -432,35 +635,122 @@ body.dark .mode-dropdown .mode-item,
 body.dark .indicators-dropdown .mode-item {
     color: var(--text-primary);
 }
+/* Dark mode toolbar styling */
+body.dark .chart-toolbar {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.08);
+}
 
-/* Ensure toolbar buttons are readable in dark mode (neutral/unselected states) */
 body.dark .chart-toolbar .btn {
-    background: var(--bg-secondary) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid var(--border-color) !important;
-    box-shadow: none !important;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.12);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Presets (unselected) should be subtle but visible in dark mode */
+body.dark .chart-toolbar .btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transform: translateY(-1px);
+}
+
+/* Presets styling in dark mode */
 body.dark .toolbar-row.presets .btn {
-    background: rgba(255,255,255,0.02) !important;
-    color: var(--muted) !important;
-    border: 1px solid rgba(255,255,255,0.03) !important;
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.12), rgba(44, 193, 127, 0.06));
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(44, 193, 127, 0.3);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Make active preset clear (keep existing green style) */
+body.dark .toolbar-row.presets .btn:hover {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.2), rgba(44, 193, 127, 0.12));
+    border-color: rgba(44, 193, 127, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(44, 193, 127, 0.2);
+}
+
+/* Active preset in dark mode */
 body.dark .toolbar-row.presets .btn.btn-primary {
-    background: linear-gradient(180deg, #2fdf91, #2cc17f) !important;
-    color: #fff !important;
+    background: linear-gradient(135deg, #2cc17f, #1fa85b);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
 }
 
-/* Brighten tag pills in dark mode for better visibility */
-body.dark .tag-input .tag-pill {
-    background: rgba(47,166,77,0.18) !important;
-    color: #e6fff2 !important;
-    box-shadow: 0 4px 14px rgba(44,193,127,0.06);
+body.dark .toolbar-row.presets .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #2dd489, #22b866);
+    box-shadow: 0 8px 20px rgba(44, 193, 127, 0.4);
 }
-body.dark .tag-input .tag-x { color: #d9fff0 !important; }
+
+/* Dark mode Apply button styling */
+body.dark .toolbar-group .btn.btn-primary {
+    background: linear-gradient(135deg, #2fdf91, #2cc17f);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+body.dark .toolbar-group .btn.btn-primary:hover {
+    box-shadow: 0 6px 16px rgba(44, 193, 127, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Dark mode tag styling */
+body.dark .tag-input {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.08);
+}
+
+body.dark .tag-input:focus-within {
+    background: rgba(0,0,0,0.2);
+    border-color: #6ee7b7;
+    box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.1);
+}
+
+body.dark .tag-input .tag-pill {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.15), rgba(44, 193, 127, 0.08));
+    border-color: rgba(44, 193, 127, 0.3);
+    color: #6ee7b7;
+}
+
+body.dark .tag-input .tag-pill:hover {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.2), rgba(44, 193, 127, 0.12));
+    border-color: rgba(44, 193, 127, 0.5);
+    box-shadow: 0 2px 8px rgba(44, 193, 127, 0.2);
+}
+
+body.dark .tag-input .tag-x {
+    color: #6ee7b7;
+}
+
+/* Dark mode input styling */
+body.dark .input, 
+body.dark .select {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.08);
+    color: var(--text-primary);
+}
+
+body.dark .input:focus, 
+body.dark .select:focus {
+    border-color: #6ee7b7;
+    background: rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.1);
+}
+
+/* Dark mode flag select */
+body.dark .flag-select .flag-button {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.08);
+    color: var(--text-primary);
+}
+
+body.dark .flag-select .flag-button:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.15);
+}
 
 /* Ensure any buttons inside dropdowns don't remain white-on-white */
 body.dark .mode-dropdown :is(button, a),
@@ -475,6 +765,12 @@ body.dark .indicators-dropdown :is(button, a) {
 /* make toolbar labels and controls align with Material guidelines */
 .toolbar-label { color: #263238; font-size: 0.95rem; }
 .toolbar-group .btn { border-radius: 8px; }
+
+/* Dark mode toolbar labels */
+body.dark .toolbar-label {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.95rem;
+}
 
 .btn-primary {
     /* Force primary to use the site's Home green palette (variables with sensible fallbacks) */
@@ -711,3 +1007,250 @@ body:not(.dark) .chart-toolbar {
 }
 .chart-card .mode-item { color: #12391a; }
 .chart-card .mode-item.active { color: #0b6b3a; font-weight: 700; }
+
+/* Chart Card Header with Buttons Layout */
+.chart-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 8px 6px;
+}
+
+.chart-card-header-with-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 8px 6px;
+    gap: 12px;
+}
+
+.chart-card-header-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.chart-card-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chart-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: currentColor;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    white-space: nowrap;
+    position: relative;
+}
+
+.chart-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.12);
+}
+
+.chart-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.chart-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Follow Button */
+.chart-btn-follow {
+    color: var(--text-primary);
+    background: rgba(44, 193, 127, 0.06);
+    border: 1px solid rgba(44, 193, 127, 0.15);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.chart-btn-follow svg {
+    color: #2cc17f;
+}
+
+.chart-btn-follow.followed {
+    background: linear-gradient(135deg, rgba(44, 193, 127, 0.12), rgba(44, 193, 127, 0.06));
+    border-color: rgba(44, 193, 127, 0.3);
+    color: #0b6b3a;
+    font-weight: 600;
+}
+
+.chart-btn-follow.followed svg {
+    animation: followPulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Expand/Analyze Button */
+.chart-btn-expand {
+    color: var(--text-primary);
+    background: rgba(0, 170, 255, 0.06);
+    border: 1px solid rgba(0, 170, 255, 0.15);
+}
+
+.chart-btn-expand:hover:not(:disabled) {
+    background: rgba(0, 170, 255, 0.12);
+    border-color: rgba(0, 170, 255, 0.3);
+    color: #0077cc;
+}
+
+.chart-btn-expand svg {
+    color: #00aaff;
+    transition: transform 0.3s ease;
+}
+
+.chart-btn-expand:hover svg {
+    transform: scale(1.1);
+}
+
+/* Mode Button Group */
+.chart-btn-group {
+    position: relative;
+}
+
+.chart-btn-mode {
+    color: #fff;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-btn-mode::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.chart-btn-mode:hover::before:not(:disabled) {
+    opacity: 1;
+}
+
+.chart-btn-mode.mode-lines {
+    background: linear-gradient(135deg, #2b9be0, #1f6fb3);
+    box-shadow: 0 3px 8px rgba(31, 111, 179, 0.2);
+}
+
+.chart-btn-mode.mode-candle {
+    background: linear-gradient(135deg, #2fc97f, #1fa85b);
+    box-shadow: 0 3px 8px rgba(31, 168, 91, 0.2);
+}
+
+.chart-btn-mode.overridden {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.chart-btn-mode:hover:not(.overridden) {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Mode Dropdown for Chart Card Buttons */
+.mode-dropdown-chart {
+    background: #f6fbf6;
+    border: 1px solid rgba(47, 166, 77, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    z-index: 9999;
+}
+
+.mode-dropdown-chart .mode-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: #0b2e13;
+    transition: all 0.15s ease;
+    font-size: 13px;
+}
+
+.mode-dropdown-chart .mode-item:hover {
+    background: rgba(44, 193, 127, 0.08);
+    color: #0b6b3a;
+}
+
+.mode-dropdown-chart .mode-item.active {
+    background: rgba(44, 193, 127, 0.15);
+    color: #0b6b3a;
+    font-weight: 600;
+}
+
+/* Animations */
+@keyframes followPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Dark mode overrides */
+body.dark .chart-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+body.dark .chart-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .chart-btn-follow {
+    background: rgba(44, 193, 127, 0.08);
+    border-color: rgba(44, 193, 127, 0.2);
+}
+
+body.dark .chart-btn-follow.followed {
+    background: rgba(44, 193, 127, 0.15);
+    border-color: rgba(44, 193, 127, 0.4);
+}
+
+body.dark .chart-btn-expand {
+    background: rgba(0, 170, 255, 0.08);
+    border-color: rgba(0, 170, 255, 0.2);
+}
+
+body.dark .chart-btn-expand:hover:not(:disabled) {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: rgba(0, 170, 255, 0.4);
+}
+
+body.dark .mode-dropdown-chart {
+    background: #1a2a23;
+    border-color: rgba(44, 193, 127, 0.15);
+}
+
+body.dark .mode-dropdown-chart .mode-item {
+    color: #e6eef8;
+}
+
+body.dark .mode-dropdown-chart .mode-item:hover {
+    background: rgba(44, 193, 127, 0.12);
+    color: #6ee7b7;
+}
+
+body.dark .mode-dropdown-chart .mode-item.active {
+    background: rgba(44, 193, 127, 0.2);
+    color: #6ee7b7;
+}
