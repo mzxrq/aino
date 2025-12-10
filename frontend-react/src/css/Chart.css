@@ -370,6 +370,126 @@ body.dark .mode-select .btn.active {
 
 .btn:hover { filter: brightness(1.1); }
 
+/* Search icon button for ticker apply */
+.btn-icon-search {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-icon-search:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.btn-icon-search svg {
+    width: 20px;
+    height: 20px;
+    color: currentColor;
+    display: block;
+}
+
+body.dark .btn-icon-search {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark .btn-icon-search:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Period button for mobile */
+.toolbar-period-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+@media (max-width: 768px) {
+    .chart-toolbar .toolbar-right {
+        gap: 8px;
+    }
+    
+    .chart-toolbar {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+    
+    .chart-toolbar .toolbar-row:first-child {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+    
+    .chart-toolbar {
+        flex-wrap: wrap;
+    }
+    
+    .chart-toolbar .toolbar-right {
+        width: 100%;
+        order: 3;
+        gap: 6px;
+        margin-top: 8px;
+    }
+    
+    .toolbar-period-btn {
+        height: 40px;
+        padding: 0 10px;
+        font-size: 0.80rem;
+        flex-shrink: 0;
+    }
+    
+    .toolbar-period-btn .period-label {
+        display: block;
+    }
+
+.toolbar-period-btn:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-period-btn .period-label {
+    white-space: nowrap;
+}
+
+body.dark .toolbar-period-btn {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark .toolbar-period-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
 /* Tag-style ticker input */
 .tag-input {
     display: flex;
@@ -524,6 +644,7 @@ body.dark .timezone-dropdown .flag-option.current-tz {
     display: inline-block;
     width: -moz-fit-content;
     width: fit-content;
+    min-width: 160px;
     max-width: 90vw;
     font-size: 14px;
     line-height: 1.4;
@@ -584,12 +705,18 @@ body.dark .timezone-dropdown .flag-option.current-tz {
 body.dark .indicator-dot { border-color: rgba(255,255,255,0.08); }
 body.dark .indicator-dot.checked { border-color: var(--accent); }
 
-/* Responsive: use nearly full width on small screens */
+/* Responsive: handle dropdown positioning on small screens */
 @media (max-width: 480px) {
     .mode-dropdown, .indicators-dropdown {
-        /* mobile: full width with small side padding */
-        width: calc(100vw - 24px) !important;
-        left: 12px !important;
+        /* mobile: limit max width and rely on PortalDropdown positioning logic */
+        max-width: calc(100vw - 24px) !important;
+        min-width: 140px;
+        white-space: normal;
+    }
+    
+    /* Hide preset buttons on mobile, show dropdown instead */
+    .toolbar-row.presets {
+        display: none;
     }
 }
 
@@ -1253,4 +1380,241 @@ body.dark .mode-dropdown-chart .mode-item:hover {
 body.dark .mode-dropdown-chart .mode-item.active {
     background: rgba(44, 193, 127, 0.2);
     color: #6ee7b7;
+}
+
+/* Toolbar right-side layout for icon-based controls */
+.chart-toolbar .toolbar-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0;
+}
+
+.chart-toolbar .toolbar-control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.toolbar-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0;
+}
+
+.toolbar-icon-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-icon-btn:active {
+    transform: translateY(0);
+}
+
+.toolbar-icon-btn[aria-expanded="true"] {
+    background: rgba(44, 193, 127, 0.08);
+    border-color: rgba(44, 193, 127, 0.2);
+}
+
+/* Icon styling inside toolbar buttons */
+.toolbar-icon-btn svg {
+    width: 20px;
+    height: 20px;
+    color: currentColor;
+    display: block;
+}
+
+/* FlagSelect inside toolbar-control */
+.chart-toolbar .toolbar-control .flag-select-button {
+    width: auto;
+    min-width: 160px;
+    height: 44px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    letter-spacing: 0.2px;
+}
+
+.chart-toolbar .toolbar-control .flag-select-button:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chart-toolbar .toolbar-control .flag-select-button .timezone-time-display {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.chart-toolbar .toolbar-control .flag-select-button .timezone-button-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-toolbar .toolbar-control .flag-select-button .timezone-icon {
+    display: none;
+}
+
+.chart-toolbar .toolbar-control .flag-select-button img {
+    width: 24px;
+    height: 16px;
+    object-fit: cover;
+}
+
+/* Dark mode: toolbar-right controls */
+body.dark .toolbar-icon-btn {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark .toolbar-icon-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .toolbar-icon-btn[aria-expanded="true"] {
+    background: rgba(44, 193, 127, 0.12);
+    border-color: rgba(44, 193, 127, 0.3);
+}
+
+body.dark .chart-toolbar .toolbar-control .flag-select-button {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark .chart-toolbar .toolbar-control .flag-select-button:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Hide period dropdown on desktop, show on mobile */
+.toolbar-period-mobile {
+    display: none;
+}
+
+.toolbar-row.presets {
+    display: flex;
+}
+
+@media (max-width: 768px) {
+    /* Compact toolbar-group on tablet and mobile */
+    .toolbar-group {
+        gap: 8px;
+        flex: 1;
+    }
+    
+    .toolbar-label {
+        display: none;
+    }
+    
+    .tag-input {
+        flex: 1;
+        min-height: 36px;
+        padding: 6px 8px;
+    }
+    
+    .tag-input .tag-pill {
+        padding: 4px 8px;
+        font-size: 0.80rem;
+    }
+    
+    .tag-input .tag-text {
+        flex: 1 1 80px;
+        min-width: 40px;
+        padding: 6px 4px;
+        font-size: 0.80rem;
+    }
+    
+    .btn-icon-search {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+    
+    .btn-icon-search svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .chart-toolbar .toolbar-control .flag-select-button {
+        min-width: 140px;
+    }
+}
+
+@media (max-width: 600px) {
+    .toolbar-group {
+        gap: 6px;
+    }
+    
+    .tag-input {
+        min-height: 36px;
+        padding: 6px 8px;
+    }
+    
+    .tag-input .tag-pill {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .btn-icon-search {
+        width: 38px;
+        height: 38px;
+    }
+    
+    .chart-toolbar .toolbar-control .flag-select-button {
+        min-width: 40px;
+        width: 40px;
+        height: 38px;
+    }
+    .chart-toolbar .toolbar-control .flag-select-button .timezone-time-display {
+        display: none;
+    }
+    .chart-toolbar .toolbar-control .flag-select-button .timezone-icon {
+        display: block;
+    }
+    .chart-toolbar .toolbar-control .flag-select-button::after {
+        content: '';
+        width: 20px;
+        height: 20px;
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .toolbar-period-mobile {
+        display: inline-flex;
+    }
+    .toolbar-row.presets {
+        display: none;
+    }
 }

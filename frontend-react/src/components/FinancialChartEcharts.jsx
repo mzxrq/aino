@@ -87,8 +87,9 @@ export default function FinancialChartEcharts({
       ? dates.map((date, i) => [useOrdinalX ? i : date, bb.sma[i] || null])
       : [];
 
-    // Build anomaly markers
+    // Build anomaly markers and vertical bands
     let markPointData = [];
+    let markAreaData = [];
     if (showAnomaly && anomalies.length > 0) {
       markPointData = anomalies.map((anom, idx) => {
         const xVal = anomalyIndices && anomalyIndices.length > idx
@@ -97,10 +98,21 @@ export default function FinancialChartEcharts({
         return {
           coord: [xVal, anom.y],
           value: anom.y,
-          itemStyle: { color: 'red' },
+          itemStyle: { color: '#dc3545' },
           symbol: 'triangle',
           symbolSize: 8
         };
+      });
+      
+      // Build vertical bands for anomalies (semi-transparent red highlights)
+      markAreaData = anomalies.map((anom, idx) => {
+        const xVal = anomalyIndices && anomalyIndices.length > idx
+          ? anomalyIndices[idx]
+          : (useOrdinalX ? idx : anom.date);
+        return [
+          { name: 'Anomaly', xAxis: xVal, itemStyle: { color: 'rgba(220, 53, 69, 0.15)' } },
+          { xAxis: xVal }
+        ];
       });
     }
 
@@ -139,6 +151,7 @@ export default function FinancialChartEcharts({
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
+        markArea: markAreaData.length > 0 ? { data: markAreaData, silent: true } : undefined,
         markPoint: markPointData.length > 0 ? { data: markPointData } : undefined
       });
     } else {
@@ -150,6 +163,7 @@ export default function FinancialChartEcharts({
         smooth: true,
         lineStyle: { color: '#3fa34d', width: 2 },
         itemStyle: { color: '#3fa34d' },
+        markArea: markAreaData.length > 0 ? { data: markAreaData, silent: true } : undefined,
         markPoint: markPointData.length > 0 ? { data: markPointData } : undefined
       });
     }

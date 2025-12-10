@@ -19,7 +19,6 @@ const TIMEZONES = [
   'America/Denver',        // UTC-7/-6
   'America/Los_Angeles',   // UTC-8/-7
   'America/Anchorage',     // UTC-9/-8
-  'America/Honolulu',      // UTC-10
   'America/Sao_Paulo',     // UTC-3
   'America/Mexico_City',   // UTC-6/-5
   'America/Toronto',       // UTC-5/-4
@@ -68,7 +67,7 @@ const TIMEZONES = [
   'Africa/Nairobi'         // UTC+3
 ];
 
-// Format timezone with UTC offset: "(UTC+09:00) Tokyo"
+// Format timezone with UTC offset: "(-10:00) Honolulu"
 function formatTimezoneLabel(tz) {
   try {
     const now = new Date();
@@ -76,18 +75,39 @@ function formatTimezoneLabel(tz) {
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const offsetMs = tzDate - utcDate;
     const offsetHours = offsetMs / (1000 * 60 * 60);
-    const sign = offsetHours >= 0 ? '+' : '-';
     const absHours = Math.abs(Math.floor(offsetHours));
     const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
-    const offsetStr = `${sign}${absHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    const signedHours = offsetHours >= 0 ? absHours : -absHours;
+    const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
     
     // Extract city name from timezone (e.g., "Asia/Tokyo" -> "Tokyo")
     const cityName = tz.split('/').pop().replace(/_/g, ' ');
     
-    return `(UTC${offsetStr}) ${cityName}`;
+    return `${offsetStr} ${cityName}`;
   } catch (e) {
     return tz;
   }
+}
+
+// Get UTC offset for sorting (in hours)
+function getTimezoneOffset(tz) {
+  try {
+    const now = new Date();
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = tzDate - utcDate;
+    const offsetHours = offsetMs / (1000 * 60 * 60);
+    return offsetHours;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Sort timezones by UTC offset (from minimum negative to maximum positive)
+function sortTimezonesByOffset(timezones) {
+  return [...timezones].sort((a, b) => {
+    return getTimezoneOffset(a) - getTimezoneOffset(b);
+  });
 }
 
 // Auto-detect user's timezone based on browser locale
@@ -113,12 +133,31 @@ function detectUserTimezone() {
   return 'UTC'; // Ultimate fallback
 }
 
+// Get current time in specified timezone with UTC offset
+function getTimezoneTimeString(tz) {
+  try {
+    const now = new Date();
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = tzDate - utcDate;
+    const offsetHours = offsetMs / (1000 * 60 * 60);
+    const sign = offsetHours >= 0 ? '+' : '-';
+    const absHours = Math.abs(Math.floor(offsetHours));
+    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
+    const offsetStr = `${sign}${absHours.toString().padStart(2, '0')}`;
+    
+    const timeStr = now.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `${timeStr} UTC${offsetStr}`;
+  } catch (e) {
+    return 'N/A';
+  }
+}
+
   const PRESETS = [
   { label: 'Intraday', period: '1d', interval: '1m' },
   { label: '5D', period: '5d', interval: '30m' },
   { label: '1M', period: '1mo', interval: '30m' },
   { label: '6M', period: '6mo', interval: '1d' },
-  { label: 'YTD', period: '1y', interval: '1d' },
   { label: '1Y', period: '1y', interval: '1d' },
   { label: '5Y', period: '5y', interval: '1d' }
 ];
@@ -460,8 +499,11 @@ export default function Chart() {
   const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch { return 'auto'; } });
   const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const [periodIntervalOpen, setPeriodIntervalOpen] = useState(false);
+  const [timezoneTime, setTimezoneTime] = useState(getTimezoneTimeString(timezone));
   const indicatorsBtnRef = useRef(null);
   const toolbarModeBtnRef = useRef(null);
+  const periodIntervalBtnRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState({});
@@ -501,6 +543,15 @@ export default function Chart() {
     }
     fetchData();
   }, [tickers, period, interval]);
+
+  // Update timezone time display every second
+  useEffect(() => {
+    setTimezoneTime(getTimezoneTimeString(timezone));
+    const interval = setInterval(() => {
+      setTimezoneTime(getTimezoneTimeString(timezone));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timezone]);
 
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
@@ -581,35 +632,75 @@ export default function Chart() {
                 }}
               />
             </div>
-            <button className="btn btn-primary" onClick={applyTickers}>Apply</button>
+            <button className="btn btn-icon-search" onClick={applyTickers} title="Apply tickers">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+                <path d="M20 20l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
 
-          <div className="toolbar-group">
-            <label className="toolbar-label">Timezone</label>
-            <div style={{width: 200}}>
-              {/* custom flag-select replaces native select for richer UI */}
-              <FlagSelect 
-                value={timezone} 
-                onChange={setTimezone} 
-                options={TIMEZONES}
-                currentTimezone={timezone}
-                formatLabel={formatTimezoneLabel}
-              />
-            </div>
+        </div>
+
+        {/* Right-side controls: Timezone, Indicators, Chart Mode */}
+        <div className="toolbar-right">
+          <div className="toolbar-control">
+            <FlagSelect 
+              value={timezone} 
+              onChange={setTimezone} 
+              options={TIMEZONES}
+              currentTimezone={timezone}
+              formatLabel={formatTimezoneLabel}
+              displayTime={timezoneTime}
+              sortFn={sortTimezonesByOffset}
+            />
           </div>
 
-          <div className="toolbar-group">
-            <label className="toolbar-label">Indicators</label>
-            <div className="indicator-select">
-              <button
-                ref={indicatorsBtnRef}
-                className={`btn btn-mode btn-sm ${showVolume || showBB || showVWAP || showAnomaly ? 'active' : ''}`}
-                onClick={() => setIndicatorsOpen(v => !v)}
-                aria-haspopup="true"
-                aria-expanded={indicatorsOpen}
-              >
-                Indicators
-              </button>
+          <div className="toolbar-control toolbar-period-mobile">
+            <button
+              ref={periodIntervalBtnRef}
+              className="toolbar-period-btn"
+              onClick={() => setPeriodIntervalOpen(v => !v)}
+              aria-haspopup="true"
+              aria-expanded={periodIntervalOpen}
+              title="Period & Interval"
+            >
+              <span className="period-label">{PRESETS.find(p => p.period === period && p.interval === interval)?.label || 'Period'}</span>
+            </button>
+            {periodIntervalOpen && periodIntervalBtnRef.current && (
+              <PortalDropdown anchorRect={periodIntervalBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setPeriodIntervalOpen(false)} className="mode-dropdown">
+                <div role="listbox" aria-label="Period & Interval" onMouseLeave={() => setPeriodIntervalOpen(false)}>
+                  {PRESETS.map(p => (
+                    <div
+                      key={p.label}
+                      className={`mode-item ${period === p.period && interval === p.interval ? 'active' : ''}`}
+                      role="option"
+                      tabIndex={0}
+                      aria-selected={period === p.period && interval === p.interval}
+                      onClick={() => { applyPreset(p); setPeriodIntervalOpen(false); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyPreset(p); setPeriodIntervalOpen(false); } }}
+                    >
+                      {p.label}
+                    </div>
+                  ))}
+                </div>
+              </PortalDropdown>
+            )}
+          </div>
+
+          <div className="toolbar-control">
+            <button
+              ref={indicatorsBtnRef}
+              className={`toolbar-icon-btn ${showVolume || showBB || showVWAP || showAnomaly ? 'active' : ''}`}
+              onClick={() => setIndicatorsOpen(v => !v)}
+              aria-haspopup="true"
+              aria-expanded={indicatorsOpen}
+              title="Indicators"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h4v12H3V6M8 3h4v15H8V3M13 10h4v8h-4v-8M18 2h4v16h-4V2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
@@ -656,19 +747,31 @@ export default function Chart() {
                   </div>
                 </PortalDropdown>
               )}
-            </div>
           </div>
 
-          <div className="toolbar-group">
-            <label className="toolbar-label">Chart Mode</label>
-            <div className="mode-select">
-              <button
-                ref={toolbarModeBtnRef}
-                className="btn btn-mode btn-sm"
-                onClick={() => setToolbarModeOpen(v => !v)}
-                aria-haspopup="true"
-                aria-expanded={toolbarModeOpen}
-              >{globalChartMode === 'lines' ? 'Lines' : (globalChartMode === 'candlestick' ? 'Candlestick' : 'Auto')}</button>
+          <div className="toolbar-control">
+            <button
+              ref={toolbarModeBtnRef}
+              className="toolbar-icon-btn"
+              onClick={() => setToolbarModeOpen(v => !v)}
+              aria-haspopup="true"
+              aria-expanded={toolbarModeOpen}
+              title="Chart Mode"
+            >
+              {globalChartMode === 'lines' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 18l6-6 4 4 8-8M18 5h3v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : globalChartMode === 'candlestick' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 18l6-6 4 4 8-8M18 5h3v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
               {toolbarModeOpen && toolbarModeBtnRef.current && (
                 <PortalDropdown anchorRect={toolbarModeBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setToolbarModeOpen(false)} className="mode-dropdown">
                   <div role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
@@ -684,11 +787,10 @@ export default function Chart() {
                   </div>
                 </PortalDropdown>
               )}
-            </div>
           </div>
-
-          {/* top-level subscribe removed (subscriptions kept per-card) */}
         </div>
+
+        {/* top-level subscribe removed (subscriptions kept per-card) */}
 
         <div className="toolbar-row presets">
           {PRESETS.map(p => (
@@ -702,8 +804,6 @@ export default function Chart() {
             </button>
           ))}
         </div>
-
-        
       </div>
 
       {loading && <div className="status">Loading...</div>}

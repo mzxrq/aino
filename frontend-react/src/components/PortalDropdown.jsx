@@ -36,14 +36,48 @@ export default function PortalDropdown({ anchorRect, align = 'right', offsetY = 
   }, [container, onClose]);
 
   // compute position from anchorRect
+  const [dropdownWidth, setDropdownWidth] = useState(0);
+  const dropdownRef = React.useRef(null);
+
+  useEffect(() => {
+    if (dropdownRef.current) {
+      setDropdownWidth(dropdownRef.current.offsetWidth);
+    }
+  }, [children]);
+
   const style = {};
   if (anchorRect) {
     const top = anchorRect.bottom + offsetY;
+    const viewportWidth = window.innerWidth;
+    
     if (align === 'right') {
-      style.left = Math.max(8, anchorRect.right - 8) + 'px';
-      style.transform = 'translateX(-100%)';
+      // Calculate right alignment, but clamp to viewport
+      let left = anchorRect.right - 8;
+      let transform = 'translateX(-100%)';
+      
+      // If dropdown would go off-screen to the left, align to the left of anchor instead
+      const projectedLeft = left - dropdownWidth;
+      if (projectedLeft < 8) {
+        // Align to left of button, or anchor left if that fits better
+        left = Math.max(8, anchorRect.left);
+        transform = 'translateX(0)';
+      }
+      
+      // Also check if it goes off-screen to the right
+      if (left > viewportWidth - 8) {
+        left = viewportWidth - 8;
+        transform = 'translateX(-100%)';
+      }
+      
+      style.left = left + 'px';
+      style.transform = transform;
     } else {
-      style.left = anchorRect.left + 'px';
+      // Left alignment with similar viewport clamping
+      let left = anchorRect.left;
+      if (left + dropdownWidth > viewportWidth - 8) {
+        left = viewportWidth - 8 - dropdownWidth;
+      }
+      style.left = Math.max(8, left) + 'px';
     }
     style.top = top + 'px';
     style.position = 'fixed';
@@ -55,7 +89,7 @@ export default function PortalDropdown({ anchorRect, align = 'right', offsetY = 
   }
 
   return ReactDOM.createPortal(
-    <div className={className || 'portal-dropdown'} style={style}>
+    <div ref={dropdownRef} className={className || 'portal-dropdown'} style={style}>
       {children}
     </div>,
     container
