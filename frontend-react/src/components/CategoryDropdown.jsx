@@ -33,21 +33,23 @@ const styles = {
   wrapper: {
     display: 'flex',
     alignItems: 'center',
-    marginBottom: 10,
   },
   label: {
-    color: '#00FFBB',
+    color: 'var(--text-primary)',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    fontSize: 14,
+    fontSize: '0.92rem',
+    fontWeight: 600,
   },
   select: {
     marginLeft: 8,
-    padding: '6px 10px',
-    borderRadius: 6,
+    padding: '8px 12px',
+    borderRadius: 8,
     backgroundColor: 'var(--bg-secondary)',
     color: 'var(--text-primary)',
-    border: '1px solid rgba(0,255,200,0.12)'
+    border: '1px solid var(--border-color)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   }
 };

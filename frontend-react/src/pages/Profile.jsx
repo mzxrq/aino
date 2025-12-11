@@ -23,6 +23,12 @@ const Profile = () => {
     const { user, logout, token, setUser } = useAuth(); // Assume setUser is available for clean updates
     const navigate = useNavigate();
 
+    // Centralized helper to keep the cached user in sync after mutations
+    const syncUser = (updates) => {
+        if (!setUser) return;
+        setUser((prev) => ({ ...prev, ...updates }));
+    };
+
     // --- State Management ---
     const [editMode, setEditMode] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -44,37 +50,22 @@ const Profile = () => {
         saving: false,
         avatarUploading: false,
     });
-        const _hasLineMarker = (u) => {
-            if (!u) return false;
-            try {
-                // scan top-level string values/keys for 'line'
-                for (const k of Object.keys(u)) {
-                    try {
-                        const val = u[k];
-                        if (!val) continue;
-                        if (typeof val === 'string' && /line/i.test(val)) return true;
-                        if (/line/i.test(String(k))) return true;
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-            } catch (e) {
-                // ignore
+    const _hasLineMarker = (u) => {
+        if (!u) return false;
+        try {
+            for (const k of Object.keys(u)) {
+                const val = u[k];
+                if (!val) continue;
+                if (typeof val === 'string' && /line/i.test(val)) return true;
+                if (/line/i.test(String(k))) return true;
             }
-            return false;
-        };
+        } catch (e) {
+            // ignore
+        }
+        return false;
+    };
 
-        const isLineUser = _hasLineMarker(user);
-
-        // Debug resolved user shape to console to help see which fields are present
-        React.useEffect(() => {
-            if (user) console.debug('Profile: resolved user object', user);
-        }, [user]);
-
-    // Debugging: Inspect resolved user shape in console to help identify mismatches
-    useEffect(() => {
-        if (user) console.debug('Profile> resolved user:', user);
-    }, [user]);
+    const isLineUser = _hasLineMarker(user);
      
     const canChangePassword = !isLineUser && !!user?.email;
     const avatarUrl = user?.pictureUrl || user?.avatar;
@@ -143,19 +134,10 @@ const Profile = () => {
 
             updateStatus('', 'Profile updated successfully!');
             setEditMode(false);
-            
-            // ✅ IMPROVEMENT: Update context directly (data.data holds the updated user from your service)
-            // Assuming the server returns { success: true, data: updatedUser }
-            if (data.data) {
-                // If you use 'useAuth' context's setUser, you don't need reload
-                // setUser(data.data); 
-                // localStorage.setItem('user', JSON.stringify(data.data));
-            } else {
-                 // Fallback if context update isn't implemented
-                 localStorage.setItem('user', JSON.stringify(data.user || data.data));
+
+            if (data.data || data.user) {
+                syncUser(data.data || data.user);
             }
-            
-            window.location.reload(); 
         } catch (err) {
             updateStatus(err.message || "Failed to update profile");
         } finally {
@@ -165,15 +147,108 @@ const Profile = () => {
 
 
     // -----------------------------------------------
-    // Avatar Upload/Delete (Logic Unchanged)
+    // Avatar Upload/Delete
     // -----------------------------------------------
-    const handleAvatarUpload = async (e) => { /* ... (logic unchanged) ... */ };
-    const handleAvatarDelete = async () => { /* ... (logic unchanged) ... */ };
+    const handleAvatarUpload = async (e) => {
+        const file = e?.target?.files?.[0];
+        updateStatus();
+
+        if (!file) return;
+        if (!token) return updateStatus('You need to be logged in to upload an avatar.');
+
+        setLoading((l) => ({ ...l, avatarUploading: true }));
+
+        try {
+            const form = new FormData();
+            form.append('avatar', file);
+
+            const res = await fetch(`${NODE_API}/node/users/profile/avatar`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form,
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to upload avatar');
+
+            const nextUrl = data.pictureUrl || data.avatar || data.url || data.path || null;
+            if (nextUrl) syncUser({ pictureUrl: nextUrl, avatar: nextUrl });
+
+            updateStatus('', 'Avatar updated successfully');
+        } catch (err) {
+            updateStatus(err.message || 'Failed to upload avatar');
+        } finally {
+            setLoading((l) => ({ ...l, avatarUploading: false }));
+            if (e?.target) e.target.value = '';
+        }
+    };
+
+    const handleAvatarDelete = async () => {
+        updateStatus();
+        if (!token) return updateStatus('You need to be logged in to remove an avatar.');
+
+        setLoading((l) => ({ ...l, avatarUploading: true }));
+        try {
+            const res = await fetch(`${NODE_API}/node/users/profile/avatar`, {
+                method: 'DELETE',
+                headers: buildHeaders(token, false),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to delete avatar');
+
+            syncUser({ pictureUrl: null, avatar: null });
+            updateStatus('', 'Avatar removed');
+        } catch (err) {
+            updateStatus(err.message || 'Failed to delete avatar');
+        } finally {
+            setLoading((l) => ({ ...l, avatarUploading: false }));
+        }
+    };
     
     // -----------------------------------------------
-    // Password Update (Logic Unchanged)
+    // Password Update
     // -----------------------------------------------
-    const handleUpdatePassword = async (e) => { /* ... (logic unchanged) ... */ };
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        updateStatus();
+
+        if (!user?.id) return updateStatus('Missing user id for password change.');
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            return updateStatus('New password and confirmation do not match.');
+        }
+        if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
+            return updateStatus('Password must be at least 6 characters.');
+        }
+
+        const endpoint = isLineUser
+            ? `${NODE_API}/node/users/add-password`
+            : `${NODE_API}/node/users/change-password`;
+
+        const payload = isLineUser
+            ? { userId: user.id, newPassword: passwordData.newPassword }
+            : { userId: user.id, currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword };
+
+        setLoading((l) => ({ ...l, saving: true }));
+        try {
+            const res = await fetch(endpoint, {
+                method: 'PUT',
+                headers: buildHeaders(token),
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to update password');
+
+            updateStatus('', isLineUser ? 'Password added successfully' : 'Password updated successfully');
+            setShowPasswordForm(false);
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (err) {
+            updateStatus(err.message || 'Failed to update password');
+        } finally {
+            setLoading((l) => ({ ...l, saving: false }));
+        }
+    };
 
     // -----------------------------------------------
     // LINE Integration (Uses environment variables)
