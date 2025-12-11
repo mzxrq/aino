@@ -976,6 +976,11 @@ body:not(.dark) .chart-toolbar {
     align-items: center;
     justify-content: space-between;
     padding: 4px 6px 8px 6px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+body.dark .chart-card-header {
+    border-bottom-color: rgba(255,255,255,0.08);
 }
 
 .chart-card-title {
@@ -993,8 +998,8 @@ body:not(.dark) .chart-toolbar {
     height: 320px;
 }
 
-.chart-card.sleek { padding: 10px; border-radius: 12px; }
-.plot-wrapper { position: relative; }
+.chart-card.sleek { padding: 10px; border-radius: 12px; overflow: hidden; }
+.plot-wrapper { position: relative; overflow: hidden; }
 .badge-overlay {
     display: inline-flex;
     align-items: center;
@@ -1527,6 +1532,26 @@ body.dark .chart-toolbar .toolbar-control .timezone-select-button:hover {
 }
 
 @media (max-width: 768px) {
+    /* Compact chart card header on tablet */
+    .chart-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 4px 4px 6px 4px;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .chart-card-header > div:first-child {
+        flex: 1;
+        width: 100%;
+    }
+
+    .chart-card-actions {
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
     /* Compact toolbar-group on tablet and mobile */
     .toolbar-group {
         gap: 8px;
@@ -1572,6 +1597,46 @@ body.dark .chart-toolbar .toolbar-control .timezone-select-button:hover {
 }
 
 @media (max-width: 600px) {
+    /* Stack header vertically on small mobile */
+    .chart-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 4px 4px 4px 4px;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .chart-card-header > div:first-child {
+        flex: 1;
+        width: 100%;
+        min-width: unset;
+    }
+
+    .chart-card-actions {
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .chart-card-title {
+        font-size: 0.95rem;
+    }
+
+    .company-name {
+        font-size: 0.85rem;
+    }
+
+    .market-compact {
+        font-size: 0.80rem;
+    }
+
+    .chart-btn {
+        padding: 6px 10px !important;
+        font-size: 0.80rem !important;
+    }
+
     .toolbar-group {
         gap: 6px;
     }

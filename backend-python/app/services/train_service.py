@@ -1,13 +1,18 @@
 import os
 import time
+import uuid
+import hashlib
 import pandas as pd
 import numpy as np
 import yfinance as yf
 import joblib as jo
 from sklearn.ensemble import IsolationForest
 from dotenv import load_dotenv
+from datetime import datetime
 
 from core.config import db, logger
+from core.model_manager import ModelManager
+from core.detection_metadata import DetectionMetadata, DetectionRun
 
 load_dotenv()
 
@@ -18,38 +23,14 @@ MODEL_PATHS = {
     "TH": os.getenv("TH_MODEL_PATH"),
 }
 
-# Do not load models at import time (may be missing during development).
-# Provide a lazy loader that caches loaded models.
-_model_cache = {}
-
 
 def get_model(market: str):
-    """Return a loaded model for `market` or None if unavailable.
-
-    This function caches models after successful load and logs warnings
-    instead of raising if model files are absent.
     """
-    market = market.upper()
-    if market in _model_cache:
-        return _model_cache[market]
-
-    path = MODEL_PATHS.get(market)
-    if not path:
-        logger.warning(f"No model path configured for market '{market}'")
-        return None
-
-    # If path is relative, keep it as provided; check existence first
-    try:
-        if not os.path.exists(path):
-            logger.warning(f"Model file not found at {path} for market '{market}'")
-            return None
-        model = jo.load(path)
-        _model_cache[market] = model
-        logger.info(f"Loaded model for {market} from {path}")
-        return model
-    except Exception as e:
-        logger.exception(f"Failed loading model for {market} from {path}: {e}")
-        return None
+    Return a loaded model for `market` or None if unavailable.
+    
+    Uses ModelManager singleton for efficient caching and version tracking.
+    """
+    return ModelManager.get_model(market)
 
 features_columns = os.getenv("MODEL_FEATURES", "return_1,return_3,return_6,zscore_20,ATR_14,bb_width,RSI,MACD,MACD_hist,VWAP,body,upper_wick,lower_wick,wick_ratio").split(',')
 
@@ -111,8 +92,8 @@ def trained_model(tickers: str, path: str):
             key = 'TH'
         if key:
             MODEL_PATHS[key] = new_path
-            if key in _model_cache:
-                del _model_cache[key]
+            # Clear cache in ModelManager so next request reloads
+            ModelManager.clear_cache()
     else:
         # fallback: write directly to provided path
         _dir = os.path.dirname(path)
@@ -236,6 +217,205 @@ def data_preprocessing(df: pd.DataFrame):
     df = df.dropna().reset_index(drop=True)
 
     return df
+
+
+def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str = '10y', trigger: str = 'manual'):
+    """
+    Detect anomalies with incremental processing.
+    
+    Only processes new data since last detection. Reuses previous results
+    if model version unchanged. Full traceability via detection runs and
+    enhanced anomaly records.
+    
+    Args:
+        ticker: Ticker symbol (e.g., 'AAPL')
+        interval: Data interval ('1d', '15m', etc)
+        period: Historical window ('10y', '5y', '12mo', etc)
+        trigger: How detection was triggered ('chart_request', 'scheduler', 'backfill', 'manual')
+        
+    Returns:
+        Dict with detection results and run info
+    """
+    features = features_columns
+    
+    # 1. Determine market and model
+    market = 'JP' if ticker.endswith('.T') else ('TH' if ticker.endswith('.BK') else 'US')
+    model = get_model(market)
+    
+    if model is None:
+        logger.warning(f"No model available for {ticker} (market: {market})")
+        return {"error": f"Model unavailable for {market}", "ticker": ticker}
+    
+    model_version = ModelManager.get_version(market)
+    model_hash = ModelManager.get_full_hash(market)
+    
+    # 2. Start detection run
+    run_id = DetectionRun.start_run(
+        trigger=trigger,
+        ticker=ticker,
+        interval=interval,
+        period=period,
+        model_version=model_version,
+        model_hash=model_hash
+    )
+    
+    try:
+        # 3. Load full historical data
+        df = load_dataset([ticker], period=period, interval=interval)
+        
+        if df.empty:
+            DetectionRun.complete_run(run_id, status="failed", error=f"No data available for {ticker}")
+            return {"error": "No data available", "ticker": ticker}
+        
+        rows_loaded = len(df)
+        
+        # 4. Check if detection needed
+        latest_timestamp = df['Datetime'].max()
+        
+        meta = DetectionMetadata.get_metadata(ticker, interval)
+        if meta and meta.get('status') == 'complete':
+            # Check if new data available
+            if latest_timestamp <= meta.get('last_detected_timestamp'):
+                logger.info(f"{ticker}/{interval}: Already detected up to {latest_timestamp}")
+                DetectionRun.complete_run(
+                    run_id,
+                    status="complete",
+                    rows_loaded=rows_loaded,
+                    rows_preprocessed=0,
+                    anomalies_found=0,
+                    warnings=["No new data since last detection"]
+                )
+                return {
+                    "ticker": ticker,
+                    "interval": interval,
+                    "new_anomalies": 0,
+                    "detection_run_id": run_id,
+                    "reason": "already_detected"
+                }
+        
+        # 5. Preprocess all data
+        df = data_preprocessing(df)
+        rows_preprocessed = len(df)
+        
+        if df.empty:
+            DetectionRun.complete_run(
+                run_id,
+                status="failed",
+                rows_loaded=rows_loaded,
+                rows_preprocessed=0,
+                error="Preprocessing resulted in empty DataFrame"
+            )
+            return {"error": "Preprocessing failed", "ticker": ticker}
+        
+        # 6. Run detection
+        X = df[features].dropna()
+        
+        if X.empty:
+            DetectionRun.complete_run(
+                run_id,
+                status="failed",
+                rows_loaded=rows_loaded,
+                rows_preprocessed=rows_preprocessed,
+                error="No valid feature data after preprocessing"
+            )
+            return {"error": "No valid features", "ticker": ticker}
+        
+        # Predict anomalies
+        predictions = model.predict(X)
+        anomaly_scores = model.score_samples(X)
+        
+        # Get anomaly indices
+        anomaly_mask = predictions == -1
+        anomalies_df = df.iloc[X.index[anomaly_mask]].copy()
+        
+        if not anomalies_df.empty:
+            anomalies_df['anomaly_score'] = anomaly_scores[anomaly_mask]
+        
+        # 7. Store anomalies with full metadata
+        anomaly_ids = []
+        
+        if not anomalies_df.empty:
+            docs = []
+            for idx, (_, row) in enumerate(anomalies_df.iterrows()):
+                # Extract features for this row
+                feature_values = {}
+                for feat in features:
+                    if feat in row.index:
+                        val = row[feat]
+                        feature_values[feat] = float(val) if pd.notna(val) else None
+                
+                doc = {
+                    "Ticker": ticker,
+                    "Datetime": row['Datetime'],
+                    "Close": float(row['Close']),
+                    "Volume": int(row['Volume']) if pd.notna(row['Volume']) else 0,
+                    
+                    # Traceability
+                    "detection_run_id": run_id,
+                    "detection_timestamp": datetime.utcnow(),
+                    "model_version": model_version,
+                    "model_hash": model_hash,
+                    "interval": interval,
+                    
+                    # Features
+                    "features": feature_values,
+                    "anomaly_score": float(row['anomaly_score']),
+                    
+                    # Status
+                    "sent": False,
+                    "status": "new",
+                    "created_at": datetime.utcnow()
+                }
+                docs.append(doc)
+            
+            # Batch insert
+            result = db.anomalies.insert_many(docs)
+            anomaly_ids = result.inserted_ids
+            logger.info(f"Inserted {len(anomaly_ids)} anomalies for {ticker}")
+        
+        # 8. Update detection metadata
+        DetectionMetadata.save_metadata(ticker, interval, {
+            'last_detection_run': datetime.utcnow(),
+            'last_detected_timestamp': latest_timestamp,
+            'model_version': model_version,
+            'model_hash': model_hash,
+            'rows_processed': rows_preprocessed,
+            'anomalies_found': len(anomalies_df),
+            'status': 'complete'
+        })
+        
+        # 9. Complete detection run
+        DetectionRun.complete_run(
+            run_id,
+            status="complete",
+            rows_loaded=rows_loaded,
+            rows_preprocessed=rows_preprocessed,
+            anomalies_found=len(anomalies_df),
+            anomaly_ids=anomaly_ids
+        )
+        
+        return {
+            "ticker": ticker,
+            "interval": interval,
+            "new_anomalies": len(anomalies_df),
+            "detection_run_id": run_id,
+            "rows_processed": rows_preprocessed,
+            "anomaly_ids": [str(oid) for oid in anomaly_ids]
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error in incremental detection for {ticker}: {e}")
+        DetectionRun.complete_run(
+            run_id,
+            status="failed",
+            error=str(e)
+        )
+        return {
+            "error": str(e),
+            "ticker": ticker,
+            "detection_run_id": run_id
+        }
+
 
 def detect_anomalies(tickers, period, interval):
     all_anomalies = pd.DataFrame()

@@ -6,6 +6,17 @@ import { DateTime } from 'luxon';
  * EchartsCard: Lightweight, interactive chart card using Apache ECharts
  * Renders candlestick/line chart with volume, VWAP, anomaly markers, and Bollinger Bands
  */
+
+// Abbreviate large numbers for readability (e.g., 50000000 -> 50M, 653000 -> 653K)
+function abbreviateNumber(num) {
+  if (num === null || num === undefined) return '-';
+  const abs = Math.abs(num);
+  if (abs >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+  if (abs >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+  if (abs >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+  return num.toFixed(0);
+}
+
 export default function EchartsCard({
   ticker,
   dates,
@@ -23,6 +34,7 @@ export default function EchartsCard({
   showVWAP = false,
   showVolume = true,
   showAnomaly = true,
+  showLegend = false,
   chartMode = 'lines',
   market = '',
   lastClose = null,
@@ -200,13 +212,15 @@ export default function EchartsCard({
           const rawDate = dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name;
           
           // Format date and time in user's timezone
+          const pLower = (period || '').toLowerCase();
+          const hideTime = pLower.includes('y');
           let dateStr = '';
           let timeStr = '';
           try {
             const dt = DateTime.fromISO(rawDate, { zone: timezone || 'UTC' });
             if (dt.isValid) {
-              dateStr = dt.toFormat('MMM dd, yyyy');
-              timeStr = dt.toFormat('HH:mm:ss');
+              dateStr = dt.toFormat('MM/dd/yyyy');
+              timeStr = hideTime ? '' : dt.toFormat('HH:mm:ss');
             } else {
               dateStr = rawDate;
             }
@@ -237,7 +251,7 @@ export default function EchartsCard({
             } else {
               const num = Number(param.value);
               if (seriesName === 'Volume') {
-                displayValue = num.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                displayValue = abbreviateNumber(num);
               } else {
                 displayValue = num.toFixed(2);
               }
@@ -253,11 +267,11 @@ export default function EchartsCard({
           return html;
         }
       },
-      legend: {
+      legend: showLegend ? {
         data: series.map(s => s.name),
         top: 10,
         textStyle: { color: '#333' }
-      },
+      } : { show: false },
       grid: {
         left: '8%',
         right: '12%',
@@ -285,7 +299,7 @@ export default function EchartsCard({
             if (isOrdinal) {
               try {
                 const dt = DateTime.fromISO(value, { zone: timezone || 'UTC' });
-                return dt.isValid ? dt.toFormat('MMM dd') : value;
+                return dt.isValid ? dt.toFormat('LL-dd') : value;
               } catch {
                 return value;
               }
@@ -371,6 +385,7 @@ export default function EchartsCard({
         ref={chartRef}
         option={option}
         style={{ width: '100%', height: '100%' }}
+        notMerge={true}
         opts={{ renderer: 'canvas', useDirtyRect: true }}
       />
     </div>

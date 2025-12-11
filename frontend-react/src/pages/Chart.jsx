@@ -209,7 +209,19 @@ function enforceIntervalRules(period, interval) {
   return allowed.includes(interval) ? interval : '30m';
 }
 
-function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1 }) {
+// Convert an interval string (e.g., "30m", "1h", "1d", "1wk") to milliseconds.
+function intervalToMs(interval) {
+  const itv = (interval || '').toLowerCase();
+  if (itv.endsWith('m')) return parseInt(itv, 10) * 60000;
+  if (itv.endsWith('h')) return parseInt(itv, 10) * 3600000;
+  if (itv.endsWith('d')) return parseInt(itv, 10) * 86400000;
+  if (itv.endsWith('wk')) return parseInt(itv, 10) * 604800000;
+  if (itv.endsWith('mo')) return parseInt(itv, 10) * 2629800000; // approx. month
+  if (itv.endsWith('y')) return parseInt(itv, 10) * 31557600000; // approx. year
+  return 60000;
+}
+
+function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1 }) {
   const payload = data?.[ticker] || {};
   const dates = useMemo(() => (payload.dates || []).map(d => normalizeIso(d)), [payload.dates]);
   const close = useMemo(() => payload.close || [], [payload.close]);
@@ -219,33 +231,30 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
   const volume = payload.volume || [];
   const bb = payload.bollinger_bands || { lower: [], upper: [], sma: [] };
   const vwap = payload.VWAP || [];
-  // Keep anomaly timestamps as-provided by backend. For intraday (1d) we
-  // require exact data-point matches, but for ordinal axes (multi-day) we'll
-  // keep the raw anomalies and map them to the nearest available index later
-  // so small timezone/format differences don't drop valid detections.
   const rawAnomalies = useMemo(() => {
     return (payload.anomaly_markers?.dates || []).map((d, i) => ({ date: d, y: (payload.anomaly_markers?.y_values || [])[i] }))
       .filter(x => x.date && (x.y !== undefined && x.y !== null));
   }, [payload.anomaly_markers]);
 
+  // Map anomalies to the nearest data point index so ECharts can render markers reliably.
+  const intervalMs = useMemo(() => intervalToMs(interval || payload.interval || '30m'), [interval, payload.interval]);
   const anomalies = useMemo(() => {
+    if (!rawAnomalies.length || !dates.length) return [];
+    // Tolerance: 2x interval length, at least 15 minutes, to accommodate small timezone offsets.
+    const toleranceMs = Math.max(intervalMs * 2, 15 * 60 * 1000);
+    const used = new Set();
+    const mapped = rawAnomalies.map((a) => {
+      const normalized = normalizeIso(a.date);
+      const idx = findClosestIndex(dates, normalized, toleranceMs);
+      if (idx === -1 || used.has(idx)) return null;
+      used.add(idx);
+      return { ...a, date: dates[idx], i: idx };
+    }).filter(Boolean);
     try {
-      const isOrdinal = (((period || payload.period || '') + '').toLowerCase() !== '1d');
-      if (isOrdinal) {
-        // Defer strict matching to the index-mapping step so we can match by
-        // nearest timestamp (useful when server returns midnight UTC dates
-        // while anomalies may have slightly different hour offsets).
-        console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, matched: 'deferred' });
-        return rawAnomalies;
-      }
-      const matched = rawAnomalies.filter(a => dates.includes(normalizeIso(a.date)));
-      console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, matched: matched.length });
-      return matched;
-    } catch (e) {
-      console.debug('anomaly filter failed', e);
-      return [];
-    }
-  }, [rawAnomalies, dates, ticker, period, payload.period]);
+      console.debug(`anomalies:${ticker}`, { raw: rawAnomalies.length, matched: mapped.length, toleranceMs });
+    } catch {/* ignore logging errors */}
+    return mapped;
+  }, [rawAnomalies, dates, intervalMs, ticker]);
 
   const companyName = payload.companyName || ticker;
   const market = payload.market || '';
@@ -454,6 +463,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
           showVWAP={showVWAP}
           showVolume={showVolume}
           showAnomaly={showAnomaly}
+          showLegend={showLegend}
           chartMode={appliedChartMode}
           market={market}
           lastClose={lastClose}
@@ -481,7 +491,7 @@ export default function Chart() {
   const [tickers, setTickers] = useState(() => {
     try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || ['AAPL','MSFT']; } catch { return ['AAPL','MSFT']; }
   });
-  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1mo'; } catch { return '1mo'; } });
+  const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1d'; } catch { return '1d'; } });
   const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch { return '1m'; } });
   const [timezone, setTimezone] = useState(() => { 
     try { 
@@ -496,6 +506,7 @@ export default function Chart() {
   const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
   // Anomalies are now an indicator toggle like the others. Default to true to preserve visibility.
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
+  const [showLegend, setShowLegend] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showLegend !== undefined) ? p.showLegend : false; } catch { return false; } });
   const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch { return 'auto'; } });
   const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -556,7 +567,7 @@ export default function Chart() {
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
     try {
-      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, globalChartMode };
+      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode };
       localStorage.setItem(PREF_KEY, JSON.stringify(p));
       // also persist to server for authenticated users (debounced)
       if (token && user) {
@@ -572,7 +583,7 @@ export default function Chart() {
         }, 600);
       }
     } catch { /* ignore */ }
-  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, globalChartMode, token, user]);
+  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, token, user]);
 
   function applyPreset(p) {
     setPeriod(p.period);
@@ -820,6 +831,7 @@ export default function Chart() {
             showVWAP={showVWAP}
             showVolume={showVolume}
             showAnomaly={showAnomaly}
+            showLegend={showLegend}
             onExpand={onExpand}
             period={period}
             interval={interval}
