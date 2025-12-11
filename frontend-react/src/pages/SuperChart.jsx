@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/PortalDropdown';
-import FlagSelect from '../components/FlagSelect';
+import TimezoneSelect from '../components/TimezoneSelect';
 import DropdownSelect from '../components/DropdownSelect';
 import EchartsCard from '../components/EchartsCard';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
@@ -833,11 +833,11 @@ export default function SuperChart() {
           </div>
           <div className="toolbar-group">
             <label className="toolbar-label">Timezone</label>
-            <FlagSelect value={timezone} onChange={setTimezone} options={TIMEZONES} />
+            <TimezoneSelect value={timezone} onChange={setTimezone} options={TIMEZONES} />
           </div>
           <div className="toolbar-group">
             <label className="toolbar-label">Period</label>
-            {/* custom Portal-backed select matching FlagSelect style */}
+            {/* custom Portal-backed select matching TimezoneSelect style */}
             <div style={{width:120}}>
               <DropdownSelect value={period} onChange={setPeriod} placeholder="Period" options={[{value:'1d',label:'1D'},{value:'5d',label:'5D'},{value:'1mo',label:'1Mo'},{value:'6mo',label:'6Mo'},{value:'1y',label:'1Y'}]} />
             </div>

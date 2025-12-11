@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import PortalDropdown from './PortalDropdown';
 
-export default function FlagSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {
+export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {
   const btnRef = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -21,11 +21,11 @@ export default function FlagSelect({ value, onChange, options = [], currentTimez
   const displayLabel = displayTime || (formatLabel ? formatLabel(value) : value);
 
   return (
-    <div className={`flag-select ${className}`}>
+    <div className={`timezone-select ${className}`}>
       <button
         ref={btnRef}
         type="button"
-        className="flag-select-button"
+        className="timezone-select-button"
         onClick={() => setOpen(v => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -50,7 +50,7 @@ export default function FlagSelect({ value, onChange, options = [], currentTimez
       </button>
 
       {open && btnRef.current && (
-        <PortalDropdown anchorRect={btnRef.current.getBoundingClientRect()} align="left" onClose={() => setOpen(false)} className="mode-dropdown indicators-dropdown flag-dropdown timezone-dropdown">
+        <PortalDropdown anchorRect={btnRef.current.getBoundingClientRect()} align="left" onClose={() => setOpen(false)} className="mode-dropdown indicators-dropdown timezone-dropdown">
           <div role="listbox" aria-label="Timezone" tabIndex={0} style={{ maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden' }}>
             {sortedOptions.map((opt, idx) => {
               const label = formatLabel ? formatLabel(opt) : opt;
@@ -61,12 +61,12 @@ export default function FlagSelect({ value, onChange, options = [], currentTimez
                     role="option"
                     tabIndex={0}
                     aria-selected={opt === value}
-                    className={`flag-option ${opt === value ? 'active' : ''} ${isCurrent ? 'current-tz' : ''}`}
+                    className={`timezone-option ${opt === value ? 'active' : ''} ${isCurrent ? 'current-tz' : ''}`}
                     onClick={() => { onChange(opt); setOpen(false); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(opt); setOpen(false); } }}
                     style={{ padding: '6px 12px', fontSize: '0.85rem' }}
                   >
-                    <span className="flag-label">{label}</span>
+                    <span className="timezone-label">{label}</span>
                   </div>
                   {isCurrent && idx === 0 && sortedOptions.length > 1 && (
                     <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', margin: '4px 0' }}></div>

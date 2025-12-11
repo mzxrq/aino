@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/PortalDropdown';
-import FlagSelect from '../components/FlagSelect';
+import TimezoneSelect from '../components/TimezoneSelect';
 import EchartsCard from '../components/EchartsCard';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
@@ -645,7 +645,7 @@ export default function Chart() {
         {/* Right-side controls: Timezone, Indicators, Chart Mode */}
         <div className="toolbar-right">
           <div className="toolbar-control">
-            <FlagSelect 
+            <TimezoneSelect 
               value={timezone} 
               onChange={setTimezone} 
               options={TIMEZONES}

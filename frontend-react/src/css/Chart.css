@@ -562,9 +562,9 @@ body.dark .toolbar-period-btn:hover {
     color: rgba(0,0,0,0.35);
 }
 
-/* FlagSelect styles */
-.flag-select { display: inline-block; }
-.flag-select .flag-button {
+/* TimezoneSelect styles */
+.timezone-select { display: inline-block; }
+.timezone-select .timezone-button {
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -578,14 +578,14 @@ body.dark .toolbar-period-btn:hover {
     transition: all 0.2s ease;
     cursor: pointer;
 }
-.flag-select .flag-button:hover {
+.timezone-select .timezone-button:hover {
     background: rgba(255,255,255,0.7);
     border-color: rgba(0,0,0,0.12);
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
-.flag-select .flag-emoji { font-size: 18px; line-height: 1; }
-.flag-select .flag-label { font-size: 0.93rem; }
-.flag-dropdown .flag-option { 
+.timezone-select .timezone-emoji { font-size: 18px; line-height: 1; }
+.timezone-select .timezone-label { font-size: 0.93rem; }
+.timezone-dropdown .timezone-option { 
     display:flex; 
     align-items:center; 
     gap:12px; 
@@ -594,42 +594,42 @@ body.dark .toolbar-period-btn:hover {
     font-size: 0.93rem;
     transition: all 0.2s ease;
 }
-.flag-dropdown .flag-option:hover { 
+.timezone-dropdown .timezone-option:hover { 
     background: rgba(44, 193, 127, 0.08);
 }
-.flag-dropdown .flag-option.active { 
+.timezone-dropdown .timezone-option.active { 
     background: rgba(44, 193, 127, 0.15); 
     color: #0b6b3a; 
     font-weight:600; 
 }
 
-/* Dark mode tweaks for flag select */
-body.dark .flag-select .flag-button { background: rgba(255,255,255,0.02); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.04); }
-body.dark .flag-dropdown .flag-option.active { background: rgba(47,166,77,0.14); }
+/* Dark mode tweaks for timezone select */
+body.dark .timezone-select .timezone-button { background: rgba(255,255,255,0.02); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.04); }
+body.dark .timezone-dropdown .timezone-option.active { background: rgba(47,166,77,0.14); }
 
 /* Timezone dropdown - compact and scrollable */
 .timezone-dropdown {
     min-width: 240px;
     max-width: 280px;
 }
-.timezone-dropdown .flag-option {
+.timezone-dropdown .timezone-option {
     padding: 6px 12px !important;
     font-size: 0.85rem !important;
 }
-.timezone-dropdown .flag-option.current-tz {
+.timezone-dropdown .timezone-option.current-tz {
     background: rgba(44, 193, 127, 0.12);
     font-weight: 600;
     border-left: 3px solid #2cc17f;
     padding-left: 9px !important;
 }
-body.dark .timezone-dropdown .flag-option.current-tz {
+body.dark .timezone-dropdown .timezone-option.current-tz {
     background: rgba(110, 231, 183, 0.1);
     border-left-color: #6ee7b7;
 }
 
-/* Ensure inline SVG flag sizes are constrained */
-.flag-emoji svg { width: 20px; height: 14px; display: block; }
-.flag-emoji img { width: 20px; height: 14px; display: block; }
+/* Ensure inline SVG timezone sizes are constrained */
+.timezone-emoji svg { width: 20px; height: 14px; display: block; }
+.timezone-emoji img { width: 20px; height: 14px; display: block; }
 
 /* Material-style toolbar refinements are above; dropdown visuals consolidated below. */
 /* Compact, theme-aware dropdown styling */
@@ -867,14 +867,14 @@ body.dark .select:focus {
     box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.1);
 }
 
-/* Dark mode flag select */
-body.dark .flag-select .flag-button {
+/* Dark mode timezone select */
+body.dark .timezone-select .timezone-button {
     background: rgba(255,255,255,0.03);
     border-color: rgba(255,255,255,0.08);
     color: var(--text-primary);
 }
 
-body.dark .flag-select .flag-button:hover {
+body.dark .timezone-select .timezone-button:hover {
     background: rgba(255,255,255,0.06);
     border-color: rgba(255,255,255,0.15);
 }
@@ -1437,8 +1437,8 @@ body.dark .mode-dropdown-chart .mode-item.active {
     display: block;
 }
 
-/* FlagSelect inside toolbar-control */
-.chart-toolbar .toolbar-control .flag-select-button {
+/* TimezoneSelect inside toolbar-control */
+.chart-toolbar .toolbar-control .timezone-select-button {
     width: auto;
     min-width: 160px;
     height: 44px;
@@ -1458,30 +1458,30 @@ body.dark .mode-dropdown-chart .mode-item.active {
     letter-spacing: 0.2px;
 }
 
-.chart-toolbar .toolbar-control .flag-select-button:hover {
+.chart-toolbar .toolbar-control .timezone-select-button:hover {
     background: rgba(0, 0, 0, 0.04);
     border-color: rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.chart-toolbar .toolbar-control .flag-select-button .timezone-time-display {
+.chart-toolbar .toolbar-control .timezone-select-button .timezone-time-display {
     display: block;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-.chart-toolbar .toolbar-control .flag-select-button .timezone-button-content {
+.chart-toolbar .toolbar-control .timezone-select-button .timezone-button-content {
     display: inline-flex;
     align-items: center;
     gap: 8px;
 }
 
-.chart-toolbar .toolbar-control .flag-select-button .timezone-icon {
+.chart-toolbar .toolbar-control .timezone-select-button .timezone-icon {
     display: none;
 }
 
-.chart-toolbar .toolbar-control .flag-select-button img {
+.chart-toolbar .toolbar-control .timezone-select-button img {
     width: 24px;
     height: 16px;
     object-fit: cover;
@@ -1505,13 +1505,13 @@ body.dark .toolbar-icon-btn[aria-expanded="true"] {
     border-color: rgba(44, 193, 127, 0.3);
 }
 
-body.dark .chart-toolbar .toolbar-control .flag-select-button {
+body.dark .chart-toolbar .toolbar-control .timezone-select-button {
     background: transparent;
     border-color: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.85);
 }
 
-body.dark .chart-toolbar .toolbar-control .flag-select-button:hover {
+body.dark .chart-toolbar .toolbar-control .timezone-select-button:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -1566,7 +1566,7 @@ body.dark .chart-toolbar .toolbar-control .flag-select-button:hover {
         height: 18px;
     }
     
-    .chart-toolbar .toolbar-control .flag-select-button {
+    .chart-toolbar .toolbar-control .timezone-select-button {
         min-width: 140px;
     }
 }
@@ -1591,18 +1591,18 @@ body.dark .chart-toolbar .toolbar-control .flag-select-button:hover {
         height: 38px;
     }
     
-    .chart-toolbar .toolbar-control .flag-select-button {
+    .chart-toolbar .toolbar-control .timezone-select-button {
         min-width: 40px;
         width: 40px;
         height: 38px;
     }
-    .chart-toolbar .toolbar-control .flag-select-button .timezone-time-display {
+    .chart-toolbar .toolbar-control .timezone-select-button .timezone-time-display {
         display: none;
     }
-    .chart-toolbar .toolbar-control .flag-select-button .timezone-icon {
+    .chart-toolbar .toolbar-control .timezone-select-button .timezone-icon {
         display: block;
     }
-    .chart-toolbar .toolbar-control .flag-select-button::after {
+    .chart-toolbar .toolbar-control .timezone-select-button::after {
         content: '';
         width: 20px;
         height: 20px;
