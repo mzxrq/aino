@@ -1,0 +1,755 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Map admin page tokens to global design tokens (defined in index.css)
+     so theme changes can be controlled centrally (body.dark or data-theme). */
+  --primary: var(--primary-btn, #4f46e5);
+  --primary-hover: var(--focus-color, #4338ca);
+  --primary-light: var(--card-bg, #eef2ff);
+
+  --danger: var(--danger, #dc2626);
+  --danger-bg: rgba(220,38,38,0.05);
+  --success: var(--anomaly-color, #059669);
+  --success-bg: rgba(5,150,105,0.06);
+  --warning: var(--accent, #d97706);
+  --warning-bg: rgba(217,119,6,0.06);
+
+  /* Use global page/background tokens when available */
+  --bg-body: var(--bg-main, #f8fafc);
+  --bg-surface: var(--card-bg, #ffffff);
+  --bg-subtle: var(--hover-bg, #f1f5f9);
+
+  --text-main: var(--text-primary, #0f172a);
+  --text-secondary: var(--muted, #64748b);
+  --text-tertiary: #94a3b8;
+
+  --border: var(--border-color, #e2e8f0);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: var(--card-shadow, 0 4px 6px -1px rgba(0,0,0,0.1));
+  --shadow-float: 0 20px 25px -5px rgba(0,0,0,0.1);
+
+  --radius: 12px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Global Reset --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  margin: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure root fills viewport so sticky sidebar can size to 100vh */
+html, body, #root {
+  height: 100%;
+}
+
+/* --- Layout Structure --- */
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+}
+  thead {
+    /* header uses the card surface token so theme variables control appearance */
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+/* Desktop: make sure sidebar and main stretch to viewport */
+@media (min-width: 900px) {
+  .anomalies-page { height: 100vh; display: flex; align-items: stretch; }
+  /* Sidebar stays fixed width while main grows */
+  .sidebar-container { height: 100vh; flex: 0 0 260px; }
+  .main-container { height: 100vh; overflow-y: auto; flex: 1 1 auto; }
+}
+
+/* --- Typography & Headers --- */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+/* allow absolute anchoring of actions when needed */
+.admin-header { position: relative; }
+
+/* Keep action buttons visible on wide screens; allow left header to shrink */
+.admin-header > div:first-child {
+  min-width: 0; /* allow truncation of heading/description */
+}
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0; /* do not let actions shrink/hide when space is tight */
+}
+
+.admin-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Primary Button */
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* Secondary/Ghost Button */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.btn-ghost:hover {
+  border-color: var(--text-tertiary);
+  color: var(--text-main);
+  background: var(--bg-subtle);
+}
+
+/* Danger Button */
+.btn-danger {
+  background: var(--bg-surface);
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+.btn-danger:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+/* --- Card & Table --- */
+.card-table {
+  /* use the global card background so theme toggles (body.dark) control appearance */
+  background: var(--bg-surface, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Table Wrapper for Horizontal Scroll */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse; /* Cleaner than separate */
+  white-space: normal; /* allow wrapping so columns can shrink */
+  table-layout: fixed; /* respect column widths set on cells */
+}
+
+thead {
+  /* header uses a subtle surface so it remains readable on both themes */
+  background: linear-gradient(to bottom, rgba(255,255,255,0.02), rgba(255,255,255,0)) ;
+  border-bottom: 1px solid var(--border);
+}
+
+/* improve contrast in dark mode: make header and ticker visually distinct */
+/* Stronger theme selectors to handle app-controlled dark themes as well */
+@media (prefers-color-scheme: dark), body.dark, body[data-theme="dark"], html.dark, html[data-theme="dark"], :root[data-theme="dark"] {
+  /* Table surface & text in dark theme */
+  /* Strongly set card/table surfaces and text for dark theme */
+  .card-table,
+  .card-table table,
+  .card-table thead,
+  .card-table tbody,
+  .card-table th,
+  .card-table td {
+    background: transparent !important;
+    color: var(--text-main) !important;
+  }
+
+  /* Card surface (behind table) */
+  .card-table {
+    border-color: var(--card-border, rgba(255,255,255,0.06)) !important;
+    background: var(--card-bg, rgba(10,12,16,0.6)) !important;
+    box-shadow: var(--card-shadow, var(--shadow-card)) !important;
+  }
+
+  thead th {
+    background: rgba(255,255,255,0.02) !important;
+    color: rgba(255,255,255,0.85) !important;
+  }
+  thead th:first-child { border-top-left-radius: 8px; }
+  thead th:last-child { border-top-right-radius: 8px; }
+
+  /* Ticker pill styling in dark mode */
+  .col-ticker {
+    background: rgba(255,255,255,0.04) !important;
+    color: var(--primary) !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    width: auto; max-width: 120px;
+    min-width: 36px;
+    vertical-align: middle;
+  }
+
+  /* Company text should be a muted/light color in dark theme */
+  .company { color: var(--text-secondary) !important; }
+
+  /* Rows and cells: subtle separators and hover in dark */
+  td { border-bottom-color: rgba(255,255,255,0.04) !important; background: transparent !important; }
+  tr:hover td { background-color: rgba(255,255,255,0.02) !important; }
+
+  /* Badges adapt to dark background */
+  .badge { background: rgba(255,255,255,0.02) !important; color: var(--text-main) !important; }
+  .badge.status-new { background: rgba(79,70,229,0.08) !important; color: var(--primary) !important; }
+  .badge.status-clear { background: rgba(16,185,129,0.08) !important; color: var(--success) !important; }
+  .badge.status-save { background: rgba(217,119,6,0.06) !important; color: var(--warning) !important; }
+  .badge.status-error { background: rgba(220,38,38,0.06) !important; color: var(--danger) !important; }
+}
+
+/* High-specificity dark-mode rules for header and row action buttons */
+body.dark .anomalies-page .admin-actions .btn,
+html.dark .anomalies-page .admin-actions .btn,
+[data-theme="dark"] .anomalies-page .admin-actions .btn,
+:root[data-theme="dark"] .anomalies-page .admin-actions .btn,
+.dark .anomalies-page .admin-actions .btn {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border, var(--card-border, rgba(255,255,255,0.06))) !important;
+  box-shadow: none !important;
+}
+
+body.dark .anomalies-page .actions-cell .btn,
+html.dark .anomalies-page .actions-cell .btn,
+[data-theme="dark"] .anomalies-page .actions-cell .btn,
+:root[data-theme="dark"] .anomalies-page .actions-cell .btn,
+.dark .anomalies-page .actions-cell .btn {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border, var(--card-border, rgba(255,255,255,0.06))) !important;
+  box-shadow: none !important;
+}
+
+/* Ghost / Danger variants tweaks for readability */
+body.dark .anomalies-page .actions-cell .btn-ghost,
+html.dark .anomalies-page .actions-cell .btn-ghost,
+[data-theme="dark"] .anomalies-page .actions-cell .btn-ghost {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(255,255,255,0.04) !important;
+}
+
+body.dark .anomalies-page .actions-cell .btn-danger,
+html.dark .anomalies-page .actions-cell .btn-danger,
+[data-theme="dark"] .anomalies-page .actions-cell .btn-danger {
+  background: transparent !important;
+  color: var(--danger) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+}
+
+/* light-mode fallback */
+@media (prefers-color-scheme: light), body:not(.dark):not([data-theme="dark"]) {
+  thead th { background: var(--bg-subtle); }
+  .col-ticker { background: var(--primary-light); }
+}
+
+th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+td {
+  padding: 8px 10px;
+  font-size: 15px;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background-color: var(--bg-subtle);
+}
+
+/* Specific Columns */
+.col-ticker {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--input-bg, var(--primary-light));
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 96px;
+  max-width: 120px;
+  min-width: 64px;
+}
+
+.col-number {
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  font-variant-numeric: tabular-nums; /* Aligns numbers */
+  width: 90px;
+  max-width: 110px;
+}
+
+.col-date {
+  color: var(--text-secondary);
+  width: 110px;
+  max-width: 140px;
+}
+
+.actions-cell {
+  text-align: right;
+  width: 110px;
+  max-width: 140px;
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+/* company column (longer text) */
+.company {
+  width: 180px;
+  min-width: 140px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-volume { width: 110px; max-width: 140px; text-align: right; }
+.col-status { width: 72px; max-width: 88px; }
+
+/* Smaller action buttons inside table rows */
+.btn.btn-small {
+  padding: 4px 6px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* --- Badges --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badge.status-new { background: var(--primary-light); color: var(--primary); }
+.badge.status-clear { background: var(--success-bg); color: var(--success); }
+.badge.status-save { background: var(--warning-bg); color: var(--warning); }
+.badge.status-error { background: var(--danger-bg); color: var(--danger); }
+
+/* --- Modal --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6); /* Darker, slate overlay */
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-float);
+  width: 90%;
+  max-width: 520px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-surface);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.modal-close:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+/* Forms */
+.form-grid {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.form-field input, 
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-surface);
+  transition: var(--transition);
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Ensure modal content can scroll on small screens */
+@media (max-width: 768px) {
+  .modal { width: 95%; max-width: 520px; max-height: 90vh; }
+  .form-grid { max-height: calc(90vh - 140px); overflow-y: auto; }
+  .form-field textarea { min-height: 120px; }
+}
+
+/* --- Mobile / Responsive --- */
+@media (max-width: 768px) {
+  .anomalies-page { flex-direction: column; }
+  
+  .sidebar-container { 
+    width: 100%; 
+    height: auto; 
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .main-container { padding: 16px; }
+  
+  .form-grid { grid-template-columns: 1fr; }
+
+  /* Make header actions accessible on small screens */
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .admin-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    overflow-x: auto;
+    padding-right: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-actions .btn { flex: 0 0 auto; min-width: 88px; }
+
+/* Desktop: anchor actions to the right edge of the content area */
+@media (min-width: 1024px) {
+  .admin-header { padding-right: 0; }
+  .admin-actions {
+    position: absolute;
+    right: 40px; /* match main-container horizontal padding */
+    top: 24px; /* aligns vertically with header content */
+    overflow: visible;
+  }
+  .admin-actions .btn { min-width: 72px; }
+}
+
+/* Mobile: allow wrapping so buttons are always visible */
+@media (max-width: 480px) {
+  .admin-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .admin-actions .btn { min-width: 0; padding: 8px 12px; }
+}
+
+  /* stack buttons full width on very small screens */
+  @media (max-width: 420px) {
+    .admin-actions { flex-direction: column; gap: 8px; }
+    .admin-actions .btn { width: 100%; }
+  }
+}
+
+/* Larger desktop breakpoint: ensure full-height layout so sticky sidebar fills viewport */
+@media (min-width: 1024px) {
+  html, body, #root, .layout-container, .anomalies-page { height: 100vh; }
+  .anomalies-page { display:flex; align-items:stretch; }
+  .sidebar-container { height: 100vh; position: sticky; top: 0; }
+  .main-container { height: 100vh; overflow-y: auto; padding-left: 40px; padding-right: 40px; box-sizing: border-box; }
+  /* Hide native scrollbars on desktop but keep scrolling functional */
+  .main-container, .sidebar-container {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  .main-container::-webkit-scrollbar, .sidebar-container::-webkit-scrollbar {
+    width: 0; height: 0; display: none; /* Chrome/Safari */
+  }
+  /* Prevent unwanted clipping; allow horizontal scroll if needed */
+  .table-wrapper { overflow-x: auto; padding-left: 8px; padding-right: 8px; }
+
+  /* ensure header aligns with page padding */
+  .admin-header { padding-left: 8px; padding-right: 8px; box-sizing: border-box; width: 100%; }
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* Force text to use dark-theme tokens when app switches theme to dark
+   Applies to body.dark, html.dark, data-theme="dark" on any ancestor. */
+body.dark .anomalies-page,
+html.dark .anomalies-page,
+[data-theme="dark"] .anomalies-page,
+:root[data-theme="dark"] .anomalies-page,
+.dark .anomalies-page {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure table headers, cells, columns and controls use the dark text color */
+body.dark .anomalies-page .card-table,
+html.dark .anomalies-page .card-table,
+[data-theme="dark"] .anomalies-page .card-table,
+:root[data-theme="dark"] .anomalies-page .card-table,
+.dark .anomalies-page .card-table,
+body.dark .card-table th,
+body.dark .card-table td,
+html.dark .card-table th,
+html.dark .card-table td,
+[data-theme="dark"] .card-table th,
+[data-theme="dark"] .card-table td {
+  color: var(--text-primary) !important;
+}
+
+/* Specific element color fixes to override component-specific rules */
+body.dark .anomalies-page .company,
+html.dark .anomalies-page .company,
+[data-theme="dark"] .anomalies-page .company {
+  color: var(--muted) !important;
+}
+
+body.dark .anomalies-page .col-ticker,
+html.dark .anomalies-page .col-ticker,
+[data-theme="dark"] .anomalies-page .col-ticker {
+  color: var(--primary) !important;
+}
+
+body.dark .anomalies-page .badge,
+html.dark .anomalies-page .badge,
+[data-theme="dark"] .anomalies-page .badge {
+  color: var(--text-primary) !important;
+}
+
+/* Buttons in dark theme should be readable */
+body.dark .anomalies-page .btn,
+html.dark .anomalies-page .btn,
+[data-theme="dark"] .anomalies-page .btn {
+  color: var(--text-primary) !important;
+}
+
+/* Extra high-specificity dark theme fallback: force table into dark surface
+   Covers apps that toggle dark mode on <html>, on a parent wrapper, or via data-theme. */
+body.dark .anomalies-page .main-container .card-table,
+html.dark .anomalies-page .main-container .card-table,
+[data-theme="dark"] .anomalies-page .main-container .card-table,
+:root[data-theme="dark"] .anomalies-page .main-container .card-table,
+.dark .anomalies-page .main-container .card-table {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border, rgba(255,255,255,0.06)) !important;
+  box-shadow: var(--card-shadow) !important;
+  color: var(--text-main) !important;
+}
+
+body.dark .anomalies-page .main-container .card-table table,
+html.dark .anomalies-page .main-container .card-table table,
+[data-theme="dark"] .anomalies-page .main-container .card-table table,
+:root[data-theme="dark"] .anomalies-page .main-container .card-table table,
+.dark .anomalies-page .main-container .card-table table,
+body.dark .card-table th,
+body.dark .card-table td,
+.dark .card-table th,
+.dark .card-table td,
+[data-theme="dark"] .card-table th,
+[data-theme="dark"] .card-table td {
+  background: transparent !important;
+  color: var(--text-main) !important;
+}
+
+/* Ensure header cells and body cells use subtle dark separators */
+body.dark .card-table thead th,
+html.dark .card-table thead th,
+[data-theme="dark"] .card-table thead th {
+  background: rgba(255,255,255,0.02) !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+
+/* Force hover state contrast in dark */
+body.dark .card-table tr:hover td,
+html.dark .card-table tr:hover td,
+[data-theme="dark"] .card-table tr:hover td {
+  background-color: rgba(255,255,255,0.02) !important;
+}
+
+/* Badges: ensure readable on dark */
+body.dark .card-table .badge,
+html.dark .card-table .badge,
+[data-theme="dark"] .card-table .badge {
+  background: rgba(255,255,255,0.02) !important;
+  color: var(--text-main) !important;
+}
+
+/* Map status-specific badge colors in dark mode to match light-theme semantics */
+body.dark .card-table .badge.status-new,
+html.dark .card-table .badge.status-new,
+[data-theme="dark"] .card-table .badge.status-new {
+  background: rgba(79,70,229,0.12) !important; /* subtle purple pill */
+  color: var(--primary) !important;
+}
+
+body.dark .card-table .badge.status-clear,
+html.dark .card-table .badge.status-clear,
+[data-theme="dark"] .card-table .badge.status-clear {
+  background: rgba(16,185,129,0.12) !important; /* green */
+  color: var(--success) !important;
+}
+
+body.dark .card-table .badge.status-save,
+html.dark .card-table .badge.status-save,
+[data-theme="dark"] .card-table .badge.status-save {
+  background: rgba(217,119,6,0.12) !important; /* amber */
+  color: var(--warning) !important;
+}
+
+body.dark .card-table .badge.status-error,
+html.dark .card-table .badge.status-error,
+[data-theme="dark"] .card-table .badge.status-error {
+  background: rgba(220,38,38,0.12) !important; /* red */
+  color: var(--danger) !important;
+}
+
+/* Dark-mode colors for date, close (col-number), volume and status columns */
+body.dark .anomalies-page .col-date,
+html.dark .anomalies-page .col-date,
+[data-theme="dark"] .anomalies-page .col-date,
+:root[data-theme="dark"] .anomalies-page .col-date,
+.dark .anomalies-page .col-date {
+  color: var(--text-primary) !important;
+}
+
+body.dark .anomalies-page .col-number,
+html.dark .anomalies-page .col-number,
+[data-theme="dark"] .anomalies-page .col-number,
+:root[data-theme="dark"] .anomalies-page .col-number,
+.dark .anomalies-page .col-number {
+  color: var(--text-primary) !important;
+}
+
+body.dark .anomalies-page .col-volume,
+html.dark .anomalies-page .col-volume,
+[data-theme="dark"] .anomalies-page .col-volume,
+:root[data-theme="dark"] .anomalies-page .col-volume,
+.dark .anomalies-page .col-volume {
+  color: var(--text-primary) !important;
+}
+
+body.dark .anomalies-page .col-status,
+html.dark .anomalies-page .col-status,
+[data-theme="dark"] .anomalies-page .col-status,
+:root[data-theme="dark"] .anomalies-page .col-status,
+.dark .anomalies-page .col-status {
+  color: var(--text-primary) !important;
+}

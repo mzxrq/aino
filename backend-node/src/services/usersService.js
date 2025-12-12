@@ -9,7 +9,6 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
-const { login } = require('../controllers/usersController');
 
 const USERS_FILE = path.join(__dirname, '..', 'cache', 'users.json');
 

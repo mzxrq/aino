@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
 
-// --- Environment Variables (Read once) ---
+// --- Environment Variables ---
 const NODE_API = API_URL;
 const LINE_CLIENT_ID = import.meta.env.VITE_LINE_CLIENT_ID;
 const LINE_REDIRECT_URI = import.meta.env.VITE_LINE_REDIRECT_URI;
 
-// --- Small Reusable Helpers ---
+// --- Helpers ---
 const buildHeaders = (token, isJson = true) => {
     const h = isJson ? { 'Content-Type': 'application/json' } : {};
     if (token) h['Authorization'] = `Bearer ${token}`;
@@ -18,18 +18,59 @@ const buildHeaders = (token, isJson = true) => {
 
 const toggle = (setter) => setter((prev) => !prev);
 
+// Common timezone presets — extend as needed
+const TIMEZONES = [
+    'UTC',
+    'Asia/Tokyo',
+    'Asia/Bangkok',
+    'Asia/Hong_Kong',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles'
+];
 const Profile = () => {
-    // --- Context and Hooks ---
-    const { user, logout, token, setUser } = useAuth(); // Assume setUser is available for clean updates
+    const { user, logout, token, setUser } = useAuth();
     const navigate = useNavigate();
 
-    // Centralized helper to keep the cached user in sync after mutations
     const syncUser = (updates) => {
         if (!setUser) return;
         setUser((prev) => ({ ...prev, ...updates }));
     };
 
-    // --- State Management ---
+    const refreshProfile = async () => {
+        if (!token) return;
+        try {
+            let res = await fetch(`${NODE_API}/node/users/profile`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) {
+                res = await fetch(`${LINE_CLIENT_ID ? import.meta.env.VITE_LINE_API_URL || '' : ''}/profile`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => res);
+            }
+            if (!res.ok) return;
+            const profile = await res.json().catch(() => null);
+            if (profile) setUser(profile);
+        } catch (e) {
+            console.warn('Profile refresh failed', e);
+        }
+    };
+
+    // --- UPDATED LOGIC USING loginMethod ---
+    // We assume user.loginMethod is either 'line' or 'mail' (or 'email')
+    const loginMethod = (user?.loginMethod || '').toLowerCase();
+    const isLineUser = loginMethod === 'line';
+    
+    // Password Logic:
+    // 1. Password Empty? (null or empty string)
+    const isPasswordEmpty = user?.password === null || user?.password === '';
+    
+    // 2. Has Email?
+    const hasEmail = !!user?.email && user.email !== '';
+
+    // Can Change: If you have an email AND the password is NOT empty.
+    const canChangePassword = hasEmail && !isPasswordEmpty;
+
+    // Can Add: If you have an email BUT password IS empty.
+    const canAddPassword = hasEmail && isPasswordEmpty;
+
+    // --- State ---
     const [editMode, setEditMode] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
 
@@ -37,99 +78,51 @@ const Profile = () => {
         name: user?.name || '',
         username: user?.username || '',
         email: user?.email || '',
+        timeZone: user?.timeZone || user?.timezone || user?.time_zone || ''
     });
-
-    const [passwordData, setPasswordData] = useState({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-    });
+    const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
     const [status, setStatus] = useState({ error: '', success: '' });
-    const [loading, setLoading] = useState({
-        saving: false,
-        avatarUploading: false,
-    });
-    const _hasLineMarker = (u) => {
-        if (!u) return false;
-        try {
-            for (const k of Object.keys(u)) {
-                const val = u[k];
-                if (!val) continue;
-                if (typeof val === 'string' && /line/i.test(val)) return true;
-                if (/line/i.test(String(k))) return true;
-            }
-        } catch (e) {
-            // ignore
-        }
-        return false;
-    };
+    const [loading, setLoading] = useState({ saving: false, avatarUploading: false });
 
-    const isLineUser = _hasLineMarker(user);
-     
-    const canChangePassword = !isLineUser && !!user?.email;
     const avatarUrl = user?.pictureUrl || user?.avatar;
     const resolvedAvatar = avatarUrl?.startsWith('/') ? `${API_URL}${avatarUrl}` : avatarUrl;
 
-    // --- Effects ---
-    useEffect(() => {
-        if (!user) navigate('/login');
-    }, [user, navigate]);
+    useEffect(() => { if (!user) navigate('/login'); }, [user, navigate]);
 
-    // Update form data if the user context changes while not in edit mode
     useEffect(() => {
-        if (!editMode && user) {
-            setFormData({
-                name: user.name || '',
-                username: user.username || '',
-                email: user.email || '',
-            });
-        }
+        if (!editMode && user) setFormData({
+            name: user.name || '',
+            username: user.username || '',
+            email: user.email || '',
+            timeZone: user.timeZone || user.timezone || user.time_zone || ''
+        });
     }, [user, editMode]);
 
+    const updateStatus = (error = '', success = '') => setStatus({ error, success });
 
-    const updateStatus = (error = '', success = '') =>
-        setStatus({ error, success });
+    const handleInput = (e) => { setFormData((f) => ({ ...f, [e.target.name]: e.target.value })); updateStatus(); };
+    const handlePasswordInput = (e) => { setPasswordData((p) => ({ ...p, [e.target.name]: e.target.value })); updateStatus(); };
 
-    const handleInput = (e) => {
-        setFormData((f) => ({ ...f, [e.target.name]: e.target.value }));
-        updateStatus();
-    };
-
-    const handlePasswordInput = (e) => {
-        setPasswordData((p) => ({ ...p, [e.target.name]: e.target.value }));
-        updateStatus();
-    };
-
-    // -----------------------------------------------
-    // Profile Update
-    // -----------------------------------------------
+    // --- Profile Update ---
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         updateStatus();
-
-        if (!user?.id) {
-            return updateStatus("Error: User ID is missing for update.");
-        }
+        if (!user?.id) return updateStatus('Error: User ID is missing for update.');
         
         setLoading(l => ({ ...l, saving: true }));
-
         try {
             const res = await fetch(`${NODE_API}/node/users/${user.id}`, {
                 method: 'PUT',
                 headers: buildHeaders(token),
-                // Send current form state. Server should validate/filter empty fields.
-                body: JSON.stringify(formData), 
+                body: JSON.stringify(formData)
             });
 
-            const data = await res.json();
-            
+            const data = await res.json().catch(() => ({}));
+
             if (!res.ok) {
-                // Check if user was not found (404) or a conflict (400) occurred
-                if (data.error === "User not found") {
-                    throw new Error("User session invalid. Please log in again.");
-                }
-                throw new Error(data.error || "Update failed due to server error.");
+                if (data.error === "User not found") throw new Error("User session invalid. Please log in again.");
+                throw new Error(data.error || 'Update failed');
             }
 
             updateStatus('', 'Profile updated successfully!');
@@ -137,27 +130,27 @@ const Profile = () => {
 
             if (data.data || data.user) {
                 syncUser(data.data || data.user);
+                // Ensure local user object has the updated timeZone immediately
+                if (formData.timeZone) syncUser({ timeZone: formData.timeZone });
+                await refreshProfile();
+            } else {
+                // If server didn't return a user object, still update local timeZone
+                if (formData.timeZone) syncUser({ timeZone: formData.timeZone });
             }
         } catch (err) {
-            updateStatus(err.message || "Failed to update profile");
+            updateStatus(err.message || 'Failed to update profile');
         } finally {
             setLoading(l => ({ ...l, saving: false }));
         }
     };
 
-
-    // -----------------------------------------------
-    // Avatar Upload/Delete
-    // -----------------------------------------------
+    // --- Avatar Logic ---
     const handleAvatarUpload = async (e) => {
         const file = e?.target?.files?.[0];
         updateStatus();
-
-        if (!file) return;
-        if (!token) return updateStatus('You need to be logged in to upload an avatar.');
+        if (!file || !token) return;
 
         setLoading((l) => ({ ...l, avatarUploading: true }));
-
         try {
             const form = new FormData();
             form.append('avatar', file);
@@ -169,14 +162,14 @@ const Profile = () => {
             });
 
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || data.message || 'Failed to upload avatar');
+            if (!res.ok) throw new Error(data.error || 'Failed to upload avatar');
 
-            const nextUrl = data.pictureUrl || data.avatar || data.url || data.path || null;
+            const nextUrl = data.pictureUrl || data.avatar || data.url || null;
             if (nextUrl) syncUser({ pictureUrl: nextUrl, avatar: nextUrl });
 
             updateStatus('', 'Avatar updated successfully');
         } catch (err) {
-            updateStatus(err.message || 'Failed to upload avatar');
+            updateStatus(err.message);
         } finally {
             setLoading((l) => ({ ...l, avatarUploading: false }));
             if (e?.target) e.target.value = '';
@@ -185,7 +178,7 @@ const Profile = () => {
 
     const handleAvatarDelete = async () => {
         updateStatus();
-        if (!token) return updateStatus('You need to be logged in to remove an avatar.');
+        if (!token) return;
 
         setLoading((l) => ({ ...l, avatarUploading: true }));
         try {
@@ -193,27 +186,22 @@ const Profile = () => {
                 method: 'DELETE',
                 headers: buildHeaders(token, false),
             });
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || data.message || 'Failed to delete avatar');
+            if (!res.ok) throw new Error('Failed to delete avatar');
 
             syncUser({ pictureUrl: null, avatar: null });
             updateStatus('', 'Avatar removed');
         } catch (err) {
-            updateStatus(err.message || 'Failed to delete avatar');
+            updateStatus(err.message);
         } finally {
             setLoading((l) => ({ ...l, avatarUploading: false }));
         }
     };
-    
-    // -----------------------------------------------
-    // Password Update
-    // -----------------------------------------------
+
+    // --- Password Update ---
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
         updateStatus();
 
-        if (!user?.id) return updateStatus('Missing user id for password change.');
         if (passwordData.newPassword !== passwordData.confirmPassword) {
             return updateStatus('New password and confirmation do not match.');
         }
@@ -221,13 +209,15 @@ const Profile = () => {
             return updateStatus('Password must be at least 6 characters.');
         }
 
-        const endpoint = isLineUser
+        const endpoint = canAddPassword
             ? `${NODE_API}/node/users/add-password`
             : `${NODE_API}/node/users/change-password`;
 
-        const payload = isLineUser
-            ? { userId: user.id, newPassword: passwordData.newPassword }
-            : { userId: user.id, currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword };
+        const payload = {
+            userId: user.id,
+            newPassword: passwordData.newPassword,
+            ...(canChangePassword && { currentPassword: passwordData.currentPassword })
+        };
 
         setLoading((l) => ({ ...l, saving: true }));
         try {
@@ -238,37 +228,27 @@ const Profile = () => {
             });
 
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || data.message || 'Failed to update password');
+            if (!res.ok) throw new Error(data.error || 'Failed to update password');
 
-            updateStatus('', isLineUser ? 'Password added successfully' : 'Password updated successfully');
+            updateStatus('', canAddPassword ? 'Password added successfully' : 'Password updated successfully');
             setShowPasswordForm(false);
+            
+            // If they added a password, update local state (dummy 'set' string) so UI switches to "Change"
+            if (canAddPassword) syncUser({ password: 'set' });
+
             setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         } catch (err) {
-            updateStatus(err.message || 'Failed to update password');
+            updateStatus(err.message);
         } finally {
             setLoading((l) => ({ ...l, saving: false }));
         }
     };
 
-    // -----------------------------------------------
-    // LINE Integration (Uses environment variables)
-    // -----------------------------------------------
+    // --- LINE Integration ---
     const handleLineIntegration = () => {
-        if (!LINE_CLIENT_ID || !LINE_REDIRECT_URI) {
-            return updateStatus("LINE config missing in environment variables.");
-        }
-        
-        // Use user.id which is normalized from user._id or user.id by AuthProvider
+        if (!LINE_CLIENT_ID || !LINE_REDIRECT_URI) return updateStatus("LINE config missing.");
         const state = `integrate-${user.id}-${Math.random().toString(36).slice(2)}`;
-
-        const url =
-            `https://access.line.me/oauth2/v2.1/authorize?response_type=code` +
-            `&client_id=${LINE_CLIENT_ID}` +
-            `&redirect_uri=${encodeURIComponent(LINE_REDIRECT_URI)}` +
-            `&state=${state}` +
-            `&scope=openid%20profile`;
-
-        window.location.href = url;
+        window.location.href = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CLIENT_ID}&redirect_uri=${encodeURIComponent(LINE_REDIRECT_URI)}&state=${state}&scope=openid%20profile`;
     };
 
     if (!user) return null;
@@ -276,36 +256,17 @@ const Profile = () => {
     return (
         <div className="profile-container">
             <div className="profile-content">
-
-                {/* Header (Structure Unchanged) */}
                 <div className="profile-header">
                     <div className="profile-avatar-section">
-                        {resolvedAvatar ? (
-                            <img src={resolvedAvatar} alt="Profile Avatar" className="profile-avatar" />
-                        ) : (
-                            <div className="profile-avatar-placeholder">
-                                {(user.name || 'U')[0]} 
-                            </div>
-                        )}
-
+                        {resolvedAvatar ? <img src={resolvedAvatar} alt="Profile" className="profile-avatar" /> : <div className="profile-avatar-placeholder">{(user.name || 'U')[0]}</div>}
                         <div className="avatar-actions">
                             <label className="btn btn-outline">
                                 {loading.avatarUploading ? 'Uploading…' : 'Upload Avatar'}
                                 <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
                             </label>
-
-                            {resolvedAvatar && (
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={handleAvatarDelete}
-                                    disabled={loading.avatarUploading}
-                                >
-                                    Remove
-                                </button>
-                            )}
+                            {resolvedAvatar && <button className="btn btn-outline" onClick={handleAvatarDelete}>Remove</button>}
                         </div>
                     </div>
-
                     <div className="profile-greeting">
                         <h1>{user.name || user.username || 'User'}</h1>
                         <p className="login-method">
@@ -318,159 +279,112 @@ const Profile = () => {
                     </div>
                 </div>
 
-                {/* Status Messages (Unchanged) */}
                 {status.error && <div className="message message-error">{status.error}</div>}
                 {status.success && <div className="message message-success">{status.success}</div>}
 
-                {/* Profile Info Form */}
                 <div className="profile-section">
                     <div className="section-header">
                         <h2>Profile Information</h2>
-                        <button className="btn btn-toggle" onClick={() => toggle(setEditMode)}>
-                            {editMode ? 'Cancel' : 'Edit'}
-                        </button>
+                        <button className="btn btn-toggle" onClick={() => toggle(setEditMode)}>{editMode ? 'Cancel' : 'Edit'}</button>
                     </div>
-
                     <form onSubmit={handleUpdateProfile} className={`profile-form ${editMode ? 'edit-mode' : ''}`}>
+                        <FormRow label="Full Name" name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
+                        <FormRow label="Username" name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
+                        <FormRow label="Email" name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={isLineUser ? 'Add your email to enable password login' : 'your.email@example.com'} />
 
-                        <FormRow
-                            label="Full Name"
-                            name="name"
-                            disabled={!editMode}
-                            value={formData.name}
-                            onChange={handleInput}
-                        />
-
-                        <FormRow
-                            label="Username"
-                            name="username"
-                            disabled={!editMode}
-                            value={formData.username}
-                            onChange={handleInput}
-                            placeholder="Set your username"
-                        />
-
-                        <FormRow
-                            label="Email"
-                            name="email"
-                            type="email"
-                            disabled={!editMode}
-                            value={formData.email}
-                            onChange={handleInput}
-                            placeholder={isLineUser ? 'Add your email' : 'your.email@example.com'}
-                        />
-
-                        {editMode && (
-                            <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>
-                                {loading.saving ? 'Saving…' : 'Save Changes'}
-                            </button>
+                        {editMode ? (
+                            <FormRow
+                                label="Timezone"
+                                name="timeZone"
+                                type="select"
+                                disabled={!editMode}
+                                value={formData.timeZone}
+                                onChange={handleInput}
+                                options={TIMEZONES}
+                            />
+                        ) : (
+                            <div className="form-group">
+                                <label>Timezone</label>
+                                <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
+                            </div>
                         )}
+                        {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>{loading.saving ? 'Saving…' : 'Save Changes'}</button>}
                     </form>
                 </div>
 
-                {/* Password Section (Unchanged) */}
-                {canChangePassword && (
+                {/* Security Section: Shows if User CAN Change OR CAN Add (requires Email) */}
+                {(canChangePassword || canAddPassword) && (
                     <div className="profile-section">
                         <div className="section-header">
                             <h2>Security</h2>
                             <button className="btn btn-toggle" onClick={() => toggle(setShowPasswordForm)}>
-                                {showPasswordForm ? 'Cancel' : 'Change Password'}
+                                {showPasswordForm ? 'Cancel' : (canAddPassword ? 'Add Password' : 'Change Password')}
                             </button>
                         </div>
-
                         {showPasswordForm && (
                             <PasswordForm
                                 passwordData={passwordData}
                                 onChange={handlePasswordInput}
                                 onSubmit={handleUpdatePassword}
                                 loading={loading.saving}
+                                isAdding={canAddPassword}
                             />
                         )}
                     </div>
                 )}
+                
+                {/* Helper for LINE users without Email */}
+                {!canChangePassword && !canAddPassword && isLineUser && (
+                    <div className="profile-section">
+                        <div className="section-header"><h2>Security</h2></div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            Please add an email address in your Profile Information above to set a password.
+                        </p>
+                    </div>
+                )}
 
-                {/* LINE Integration Section (Unchanged) */}
+                {/* Show Connect LINE button if NOT logged in via LINE */}
                 {!isLineUser && (
                     <div className="profile-section">
                         <div className="section-header"><h2>Connected Services</h2></div>
                         <div className="service-card">
-                            <div className="service-info">
-                                <h3>LINE</h3>
-                                <p>Connect your LINE account</p>
-                            </div>
-                            <button className="btn btn-line" onClick={handleLineIntegration}>
-                                Connect LINE
-                            </button>
+                            <div className="service-info"><h3>LINE</h3><p>Connect your LINE account</p></div>
+                            <button className="btn btn-line" onClick={handleLineIntegration}>Connect LINE</button>
                         </div>
                     </div>
                 )}
 
-                {/* Logout Section (Unchanged) */}
                 <div className="profile-section">
                     <div className="section-header"><h2>Account</h2></div>
-                    <button
-                        className="btn btn-logout"
-                        onClick={() => {
-                            logout();
-                            navigate('/');
-                        }}
-                    >
-                        Logout
-                    </button>
+                    <button className="btn btn-logout" onClick={() => { logout(); navigate('/'); }}>Logout</button>
                 </div>
             </div>
         </div>
     );
 };
 
-// ---------------------------------------------------
-// Reusable Components (Unchanged)
-// ---------------------------------------------------
-
-const FormRow = ({ label, name, value, onChange, type = 'text', disabled, placeholder }) => (
+const FormRow = ({ label, name, value, onChange, type = 'text', disabled, placeholder, options = [] }) => (
     <div className="form-group">
         <label>{label}</label>
-        <input
-            type={type}
-            name={name}
-            value={value}
-            disabled={disabled}
-            onChange={onChange}
-            placeholder={placeholder}
-            className="form-input"
-        />
+        {type === 'select' ? (
+            <select name={name} value={value} disabled={disabled} onChange={onChange} className="form-input">
+                <option value="">Select timezone</option>
+                {options.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                ))}
+            </select>
+        ) : (
+            <input type={type} name={name} value={value} disabled={disabled} onChange={onChange} placeholder={placeholder} className="form-input" />
+        )}
     </div>
 );
 
-const PasswordForm = ({ passwordData, onChange, onSubmit, loading }) => (
+const PasswordForm = ({ passwordData, onChange, onSubmit, loading, isAdding }) => (
     <form onSubmit={onSubmit} className="profile-form edit-mode">
-        <FormRow
-            label="Current Password"
-            name="currentPassword"
-            type="password"
-            value={passwordData.currentPassword}
-            onChange={onChange}
-        />
-
-        <FormRow
-            label="New Password"
-            name="newPassword"
-            type="password"
-            value={passwordData.newPassword}
-            onChange={onChange}
-        />
-
-        <FormRow
-            label="Confirm Password"
-            name="confirmPassword"
-            type="password"
-            value={passwordData.confirmPassword}
-            onChange={onChange}
-        />
-
-        <button type="submit" className="btn btn-primary btn-submit" disabled={loading}>
-            {loading ? 'Updating…' : 'Update Password'}
-        </button>
+        {!isAdding && <FormRow label="Current Password" name="currentPassword" type="password" value={passwordData.currentPassword} onChange={onChange} />}
+        <FormRow label="New Password" name="newPassword" type="password" value={passwordData.newPassword} onChange={onChange} />
+        <FormRow label="Confirm Password" name="confirmPassword" type="password" value={passwordData.confirmPassword} onChange={onChange} />
+        <button type="submit" className="btn btn-primary btn-submit" disabled={loading}>{loading ? 'Updating…' : (isAdding ? 'Add Password' : 'Update Password')}</button>
     </form>
 );
 

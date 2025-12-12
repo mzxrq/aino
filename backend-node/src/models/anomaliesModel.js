@@ -38,13 +38,43 @@ const createAnomaly = async (anomalyData) => {
 const getAllAnomalies = async (filter = {}, options = {}) => {
   const collection = getCollection();
   const { limit = 100, skip = 0, sort = { datetime: -1 } } = options;
-  
-  return await collection
-    .find(filter)
-    .sort(sort)
-    .skip(skip)
-    .limit(limit)
-    .toArray();
+
+  // Aggregation pipeline: apply filters/pagination/sort first, then lookup market metadata
+  const pipeline = [];
+
+  if (filter && Object.keys(filter).length) {
+    pipeline.push({ $match: filter });
+  }
+
+  if (sort && Object.keys(sort).length) {
+    pipeline.push({ $sort: sort });
+  }
+
+  if (skip && skip > 0) pipeline.push({ $skip: skip });
+  if (limit && limit > 0) pipeline.push({ $limit: limit });
+
+  // Join with `marketlists` collection on `ticker` to include company metadata
+  pipeline.push({
+    $lookup: {
+      from: "marketlists",
+      localField: "ticker",
+      foreignField: "ticker",
+      as: "market"
+    }
+  });
+
+  // Flatten the lookup result and expose a canonical `companyName` field
+  pipeline.push({
+    $addFields: {
+      market: { $arrayElemAt: ["$market", 0] },
+      companyName: { $ifNull: ["$market.companyName", "$market.name"] }
+    }
+  });
+
+  // Remove the embedded market object from final output
+  pipeline.push({ $project: { market: 0 } });
+
+  return await collection.aggregate(pipeline).toArray();
 };
 
 /**
