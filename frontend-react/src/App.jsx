@@ -17,6 +17,7 @@ import LineCallback from './pages/LineCallback';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile'; // <-- IMPORT NEW PAGE
 import MarketList from './pages/MarketList';
+import Anomalies from './pages/Admin/AnomaliesManagementPage';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} /> {/* <-- ADD NEW ROUTE */}
             <Route path="/list" element={<MarketList />} />
+            <Route path="/anomalies" element={<Anomalies />} />
             
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />
