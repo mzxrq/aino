@@ -303,6 +303,9 @@ export default function SuperChart() {
   }, []);
 
   const dates = useMemo(() => (payload.dates || []).map(normalizeIso), [payload.dates, normalizeIso]);
+  const open = useMemo(() => payload.open || [], [payload.open]);
+  const high = useMemo(() => payload.high || [], [payload.high]);
+  const low = useMemo(() => payload.low || [], [payload.low]);
   const close = useMemo(() => payload.close || [], [payload.close]);
   const volume = useMemo(() => payload.volume || [], [payload.volume]);
   const bb = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
@@ -311,6 +314,10 @@ export default function SuperChart() {
   const anomalies = useMemo(() => (payload.anomaly_markers?.dates || []).map((d, i) => ({
     date: normalizeIso(d), y: (payload.anomaly_markers?.y_values || [])[i]
   })).filter(x => x.date && (x.y !== undefined && x.y !== null)), [payload.anomaly_markers, normalizeIso]);
+  
+  // Aliases for EchartsCard component
+  const VWAP = vwap;
+  const bollinger_bands = bb;
 
   // helper: map period -> days window (null means all)
   const periodWindowDays = React.useCallback((p) => {

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import MarketItemCard from "../components/MarketItemCard.jsx";
 import CategoryDropdown from "../components/CategoryDropdown";
+import "../css/MarketList.css";
 
 export default function MarketListScreen() {
   const [search, setSearch] = useState("");
+  const [assetType, setAssetType] = useState("stocks");
   const [category, setCategory] = useState("All");
   const [industry, setIndustry] = useState("All");
   const [country, setCountry] = useState("All");
@@ -110,20 +112,66 @@ const fetchMarketData = async () => {
     return matchCategory && matchIndustry && matchCountry;
   });
 
+  // Sort: Subscriptions at top (if item has _id from /node/subscribers/me), then alphabetically by ticker
+  const sortedData = [...filteredData].sort((a, b) => {
+    const aIsSubscription = !!a._id;
+    const bIsSubscription = !!b._id;
+    
+    if (aIsSubscription && !bIsSubscription) return -1;
+    if (!aIsSubscription && bIsSubscription) return 1;
+    
+    // Both same priority, sort alphabetically
+    return (a.ticker || '').localeCompare(b.ticker || '');
+  });
+
+  const assetTypes = [
+    { id: 'stocks', label: 'Stocks', icon: '📈' },
+    { id: 'funds', label: 'Funds', icon: '💼' },
+    { id: 'futures', label: 'Futures', icon: '📊' },
+    { id: 'forex', label: 'Forex', icon: '💱' },
+    { id: 'crypto', label: 'Crypto', icon: '₿' },
+    { id: 'indices', label: 'Indices', icon: '📉' },
+    { id: 'bonds', label: 'Bonds', icon: '📜' },
+    { id: 'economy', label: 'Economy', icon: '🏛' },
+    { id: 'options', label: 'Options', icon: '⚡' },
+  ];
+
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Market List</h1>
+    <div className="market-list-page">
+      <div className="market-list-header">
+        <div>
+          <p className="eyebrow">Explore markets</p>
+          <h1>Market Search</h1>
+          <p className="subtitle">Filter by asset class, exchange, industry, and country</p>
+        </div>
+      </div>
 
-      {/* SEARCH */}
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search ticker or company..."
-        style={styles.searchBar}
-      />
+      {/* SEARCH BAR */}
+      <div className="search-panel">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search ticker or company..."
+          className="market-search-input"
+        />
+      </div>
 
-      {/* DROPDOWNS */}
-      <div style={styles.dropdownRow}>
+      {/* ASSET TYPE PILLS */}
+      <div className="asset-type-pills">
+        {assetTypes.map(type => (
+          <button
+            key={type.id}
+            className={`asset-pill ${assetType === type.id ? 'active' : ''}`}
+            onClick={() => setAssetType(type.id)}
+          >
+            <span className="pill-icon">{type.icon}</span>
+            <span>{type.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* FILTERS ROW */}
+      <div className="filters-row">
         <CategoryDropdown
           value={category}
           onChange={setCategory}
@@ -142,51 +190,27 @@ const fetchMarketData = async () => {
           items={countries}
           label="Country"
         />
+        <div className="results-count">
+          {filteredData.length} results
+        </div>
       </div>
 
       {/* RESULTS */}
-      <div style={{ marginTop: 20 }}>
+      <div className="market-results">
         {loading ? (
-          <p style={{ color: "#fff" }}>Loading...</p>
-        ) : filteredData.length > 0 ? (
-          filteredData.map((item) => (
+          <div className="loading-state">Loading...</div>
+        ) : sortedData.length > 0 ? (
+          sortedData.map((item) => (
             <MarketItemCard key={item._id || item.ticker} item={item} />
           ))
         ) : (
-          <p style={{ color: "#fff" }}>No results found</p>
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <h3>No results found</h3>
+            <p>Try adjusting your search or filters</p>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: "100vh",
-    backgroundColor: "#050B16",
-    padding: 20,
-    paddingTop: 60,
-    boxSizing: "border-box",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 26,
-    fontWeight: 700,
-    marginBottom: 20,
-  },
-  searchBar: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    marginBottom: 15,
-    padding: "10px 12px",
-    borderRadius: 6,
-    border: "1px solid rgba(0,255,200,0.12)",
-    color: "#fff",
-    width: "100%",
-  },
-  dropdownRow: {
-    display: "flex",
-    gap: 12,
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-};

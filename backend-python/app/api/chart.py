@@ -179,8 +179,8 @@ def _save_to_cache(key: str, payload: Dict[str, Any]):
     )
 
 
-def _ensure_anomalies_for_ticker(ticker: str):
-    """Ensure anomalies have been processed for the past 12 months for `ticker`.
+def _ensure_anomalies_for_ticker(ticker: str, period: str = '5y'):
+    """Ensure anomalies have been processed for the requested period for `ticker`.
 
     Processing runs only when no prior processing metadata exists for the ticker,
     or when newer data is available (i.e. latest Datetime in yfinance > last_data_ts).
@@ -191,9 +191,9 @@ def _ensure_anomalies_for_ticker(ticker: str):
         return
     try:
         # Read anomaly metadata from the existing `cache` collection to avoid creating new collections.
-        meta = _load_from_cache(f"anomaly_meta::{ticker}", 86400 * 365)  # 1 year TTL for meta
-        # Load last 12 months of daily data to determine latest timestamp
-        df = load_dataset([ticker], period='12mo', interval='1d')
+        meta = _load_from_cache(f"anomaly_meta::{ticker}::{period}", 86400 * 365)  # 1 year TTL for meta
+        # Load data for the requested period to determine latest timestamp
+        df = load_dataset([ticker], period=period, interval='1d')
         if df.empty:
             # Nothing to process
             db.anomaly_meta.update_one({'_id': ticker}, {'$set': {'last_checked': datetime.utcnow(), 'last_data_ts': None}}, upsert=True)
@@ -210,20 +210,20 @@ def _ensure_anomalies_for_ticker(ticker: str):
             last_data_ts = (meta.get('last_data_ts') if isinstance(meta, dict) else None) or (meta.get('payload', {}) and meta.get('payload').get('last_data_ts'))
         # If never processed or new data available, run detection
         if not last_data_ts or (isinstance(last_data_ts, str) and last_data_ts < latest_iso):
-            # Run detection over the 12 month window (this will insert anomalies into db.anomalies)
+            # Run detection over the requested period (this will insert anomalies into db.anomalies)
             try:
-                detect_anomalies([ticker], period='12mo', interval='1d')
+                detect_anomalies([ticker], period=period, interval='1d')
             except Exception:
                 logger.exception(f"detect_anomalies failed for {ticker}")
-            # Record we processed up to latest_iso (store in `cache` as anomaly_meta::TICKER)
+            # Record we processed up to latest_iso (store in `cache` as anomaly_meta::TICKER::PERIOD)
             try:
-                _save_to_cache(f"anomaly_meta::{ticker}", {'last_checked': datetime.utcnow(), 'last_data_ts': latest_iso})
+                _save_to_cache(f"anomaly_meta::{ticker}::{period}", {'last_checked': datetime.utcnow(), 'last_data_ts': latest_iso})
             except Exception:
                 logger.debug('anomaly_meta cache save failed')
         else:
             # update checked timestamp
             try:
-                _save_to_cache(f"anomaly_meta::{ticker}", {'last_checked': datetime.utcnow(), 'last_data_ts': last_data_ts})
+                _save_to_cache(f"anomaly_meta::{ticker}::{period}", {'last_checked': datetime.utcnow(), 'last_data_ts': last_data_ts})
             except Exception:
                 logger.debug('anomaly_meta cache touch failed')
     except Exception:
@@ -357,9 +357,9 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
             continue
 
         if db is not None:
-            # Ensure anomalies are computed for this ticker (past 12 months) if needed
+            # Ensure anomalies are computed for this ticker (for requested period) if needed
             try:
-                _ensure_anomalies_for_ticker(t)
+                _ensure_anomalies_for_ticker(t, period=period)
             except Exception:
                 logger.debug(f"_ensure_anomalies_for_ticker raised for {t}")
             anomalies_cursor = db.anomalies.find({"Ticker": t})
@@ -441,11 +441,10 @@ def search_ticker(query: str) -> List[dict]:
 
 @router.get("/financials")
 def get_financials(ticker: str):
-    """GET /financials?ticker=...  — return balance sheet, financials, earnings and news via yfinance."""
+    """GET /financials?ticker=... — return balance sheet, income statement (net income), and news via yfinance."""
     if not ticker:
         raise HTTPException(status_code=400, detail="Query parameter 'ticker' is required")
     t = ticker.strip()
-    # check cache (best-effort)
     try:
         cache_key = f"financials::{t.upper()}"
         cached = _load_from_cache(cache_key, 60 * 60 * 6)  # 6 hours
@@ -453,24 +452,50 @@ def get_financials(ticker: str):
             return cached
     except Exception:
         logger.debug('financials cache lookup failed')
+
     try:
         yt = yf.Ticker(t)
-        # yfinance returns DataFrames for these attributes; convert to records where appropriate
-        def df_to_dict(dframe):
+
+        def df_to_dict_safe(dframe):
             try:
                 if dframe is None:
                     return {}
+                if hasattr(dframe, 'fillna'):
+                    dframe = dframe.fillna(0)
                 if hasattr(dframe, 'to_dict'):
-                    return dframe.fillna('').to_dict()
+                    return dframe.to_dict()
                 return {}
             except Exception:
                 return {}
 
-        balance = df_to_dict(getattr(yt, 'balance_sheet', None))
-        financials = df_to_dict(getattr(yt, 'financials', None))
-        quarterly = df_to_dict(getattr(yt, 'quarterly_financials', None))
-        earnings = df_to_dict(getattr(yt, 'earnings', None))
-        # yfinance exposes some news on certain builds; default to empty list
+        def extract_net_income(dframe):
+            try:
+                if dframe is None:
+                    return []
+                df = dframe.fillna(0)
+                idx_match = [idx for idx in df.index if str(idx).strip().lower() in ('net income', 'netincome', 'net_income')]
+                if not idx_match:
+                    return []
+                series = df.loc[idx_match[0]]
+                items = []
+                for col in df.columns:
+                    val = series[col]
+                    try:
+                        if val is None or (isinstance(val, float) and val != val):
+                            val = 0
+                        val = float(val)
+                    except Exception:
+                        continue
+                    items.append({'period': str(col), 'value': val})
+                return items
+            except Exception:
+                return []
+
+        balance = df_to_dict_safe(getattr(yt, 'balance_sheet', None))
+        financials = df_to_dict_safe(getattr(yt, 'financials', None))
+        quarterly = df_to_dict_safe(getattr(yt, 'quarterly_financials', None))
+        income_stmt = getattr(yt, 'income_stmt', None)
+        net_income = extract_net_income(income_stmt)
         news = getattr(yt, 'news', []) or []
 
         out = {
@@ -478,7 +503,8 @@ def get_financials(ticker: str):
             'balance_sheet': balance,
             'financials': financials,
             'quarterly_financials': quarterly,
-            'earnings': earnings,
+            'income_stmt': df_to_dict_safe(income_stmt),
+            'net_income': net_income,
             'news': news
         }
         try:

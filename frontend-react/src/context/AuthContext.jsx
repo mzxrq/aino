@@ -46,6 +46,15 @@ export function AuthProvider({ children }) {
 
     const login = (userData) => setUser(normalizeUser(userData));
 
+    // Expose a normalized setter so pages can update the cached profile after mutations
+    const setUserNormalized = (next) => {
+        if (typeof next === 'function') {
+            setUser((prev) => normalizeUser(next(prev)));
+        } else {
+            setUser(normalizeUser(next));
+        }
+    };
+
     const logout = () => {
         setUser(null);
         setTokenState(null);
@@ -202,6 +211,7 @@ export function AuthProvider({ children }) {
             login,
             logout,
             setToken,
+            setUser: setUserNormalized,
             loginWithCredentials,
             registerWithCredentials
         }}>
