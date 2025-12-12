@@ -91,7 +91,7 @@
 
 .market-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -240,6 +240,23 @@ body.dark .loading-state {
   font-weight: 700;
   color: white;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.stock-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+  background: white;
+  border-radius: 8px;
+}
+
+.stock-logo-fallback {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: white;
 }
 
 .stock-logo-badge.hidden {
@@ -289,6 +306,12 @@ body.dark .loading-state {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.stock-chart-spark {
+  width: 100%;
+  height: 30px;
+  margin-bottom: 8px;
 }
 
 .stock-meta {
@@ -387,6 +410,12 @@ body.dark .stock-card:hover {
     text-align: center;
   }
   
+  .market-results {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
   .market-results {
     grid-template-columns: 1fr;
   }

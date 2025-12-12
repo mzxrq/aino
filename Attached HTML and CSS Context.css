@@ -1,0 +1,552 @@
+Attached HTML and CSS Context
+
+<div class="market-compact" title="the market is closed"><span class="status-dot closed"></span><span class="pill-text">Closed</span><span class="market-meta-compact">US (NASDAQ) GMT+0 <span class="change-up">+30.97</span>&nbsp;(<span class="change-up">+12.50%</span>)</span></div>
+
+
+/* Matched Rule from user-agent */
+div {
+  display: block;
+}
+
+/* Matched Rule from user-agent */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Matched Rule from regular */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Matched Rule from regular */
+.market-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  row-gap: 8px;
+  column-gap: 8px;
+  background-image: initial;
+  background-position-x: initial;
+  background-position-y: initial;
+  background-size: initial;
+  background-repeat: initial;
+  background-attachment: initial;
+  background-origin: initial;
+  background-clip: initial;
+  background-color: transparent;
+  padding-top: 0px;
+  padding-right: 6px;
+  padding-bottom: 0px;
+  padding-left: 6px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Matched Rule from regular */
+.market-compact {
+  color: #d6e7f5;
+  color: rgb(214, 231, 245);
+}
+
+/* Matched Rule from regular */
+body:not(.dark) .market-compact {
+  color: var(--chart-muted);
+  color: var(--chart-muted);
+}
+
+/* Inherited from ancestor level 1 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 1 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 1 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 2 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 2 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 2 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 2 (regular) */
+.chart-card-header > div:first-child {
+  flex: 1 1 52%;
+  min-width: 160px;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 52%;
+  min-width: 160px;
+}
+
+/* Inherited from ancestor level 3 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 3 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 3 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 3 (regular) */
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 8px 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  padding-right: 6px;
+  padding-bottom: 8px;
+  padding-left: 6px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Inherited from ancestor level 3 (regular) */
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 8px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  padding-right: 6px;
+  padding-bottom: 8px;
+  padding-left: 6px;
+}
+
+/* Inherited from ancestor level 4 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 4 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 4 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 4 (regular) */
+.chart-card {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 8px 8px 12px 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: relative;
+  overflow: visible;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  padding-top: 8px;
+  padding-right: 8px;
+  padding-bottom: 12px;
+  padding-left: 8px;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
+  position: relative;
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+/* Inherited from ancestor level 4 (regular) */
+.chart-card {
+  background: rgba(10,16,26,0.6);
+  border: 1px solid rgba(255,255,255,0.03);
+  background-image: initial;
+  background-position-x: initial;
+  background-position-y: initial;
+  background-size: initial;
+  background-repeat: initial;
+  background-attachment: initial;
+  background-origin: initial;
+  background-clip: initial;
+  background-color: rgba(10, 16, 26, 0.6);
+  border-top-width: 1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-top-style: solid;
+  border-right-style: solid;
+  border-bottom-style: solid;
+  border-left-style: solid;
+  border-top-color: rgba(255, 255, 255, 0.03);
+  border-right-color: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.03);
+  border-left-color: rgba(255, 255, 255, 0.03);
+  border-image-source: initial;
+  border-image-slice: initial;
+  border-image-width: initial;
+  border-image-outset: initial;
+  border-image-repeat: initial;
+}
+
+/* Inherited from ancestor level 4 (regular) */
+.chart-card.sleek {
+  padding: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-bottom-left-radius: 12px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+/* Inherited from ancestor level 4 (regular) */
+body:not(.dark) .chart-card {
+  background: #f6f8fa;
+  color: var(--text-primary);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 4px rgba(16,24,40,0.06);
+  background-image: initial;
+  background-position-x: initial;
+  background-position-y: initial;
+  background-size: initial;
+  background-repeat: initial;
+  background-attachment: initial;
+  background-origin: initial;
+  background-clip: initial;
+  background-color: rgb(246, 248, 250);
+  color: var(--text-primary);
+  border-top-width: 1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-top-style: solid;
+  border-right-style: solid;
+  border-bottom-style: solid;
+  border-left-style: solid;
+  border-top-color: rgba(0, 0, 0, 0.06);
+  border-right-color: rgba(0, 0, 0, 0.06);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+  border-left-color: rgba(0, 0, 0, 0.06);
+  border-image-source: initial;
+  border-image-slice: initial;
+  border-image-width: initial;
+  border-image-outset: initial;
+  border-image-repeat: initial;
+  box-shadow: rgba(16, 24, 40, 0.06) 0px 1px 4px;
+}
+
+/* Inherited from ancestor level 5 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 5 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 5 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 5 (regular) */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  row-gap: 12px;
+  column-gap: 12px;
+}
+
+/* Inherited from ancestor level 6 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 6 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 6 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 6 (regular) */
+.chart-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+  column-gap: 12px;
+  padding-top: 12px;
+  padding-right: 12px;
+  padding-bottom: 12px;
+  padding-left: 12px;
+  color: var(--text-primary);
+}
+
+/* Inherited from ancestor level 7 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 7 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 7 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 8 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 8 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 8 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 9 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 9 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 9 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 9 (regular) */
+#root {
+  width: 100%;
+  height: 100%;
+  width: 100%;
+  height: 100%;
+}
+
+/* Inherited from ancestor level 9 (regular) */
+html, body, #root {
+  transition: background-color 180ms ease, color 180ms ease;
+  transition-behavior: normal, normal;
+  transition-duration: 180ms, 180ms;
+  transition-timing-function: ease, ease;
+  transition-delay: 0s, 0s;
+  transition-property: background-color, color;
+}
+
+/* Inherited from ancestor level 10 (user-agent) */
+body {
+  display: block;
+  margin-top: 8px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  margin-left: 8px;
+}
+
+/* Inherited from ancestor level 10 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 10 (regular) */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  width: 100%;
+  height: 100vh;
+  overflow-x: hidden;
+  margin-top: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+  margin-left: 0px;
+  padding-top: 0px;
+  padding-right: 0px;
+  padding-bottom: 0px;
+  padding-left: 0px;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  width: 100%;
+  height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Inherited from ancestor level 10 (regular) */
+html, body, #root {
+  transition: background-color 180ms ease, color 180ms ease;
+  transition-behavior: normal, normal;
+  transition-duration: 180ms, 180ms;
+  transition-timing-function: ease, ease;
+  transition-delay: 0s, 0s;
+  transition-property: background-color, color;
+}
+
+/* Inherited from ancestor level 10 (regular) */
+body:not(.dark) {
+  --chart-accent: #2cc17f;
+  --chart-muted: #4b5563;
+  --chart-pill-bg: rgba(44,193,127,0.06);
+  --chart-accent: #2cc17f;
+  --chart-muted: #4b5563;
+  --chart-pill-bg: rgba(44,193,127,0.06);
+}
+
+/* Inherited from ancestor level 11 (user-agent) */
+html {
+  display: block;
+}
+
+/* Inherited from ancestor level 11 (user-agent) */
+:root {
+  view-transition-name: root;
+}
+
+/* Inherited from ancestor level 11 (regular) */
+* {
+  box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Inherited from ancestor level 11 (regular) */
+html, body, #root {
+  transition: background-color 180ms ease, color 180ms ease;
+  transition-behavior: normal, normal;
+  transition-duration: 180ms, 180ms;
+  transition-timing-function: ease, ease;
+  transition-delay: 0s, 0s;
+  transition-property: background-color, color;
+}
+
+/* Inherited from ancestor level 11 (regular) */
+:root {
+  --search-width: 200px;
+  --search-mobile-width: 120px;
+  --border-color-default: #e5e7eb;
+  --card-shadow-default: 0 10px 30px rgba(2,6,23,0.08);
+  --search-width: 200px;
+  --search-mobile-width: 120px;
+  --border-color-default: #e5e7eb;
+  --card-shadow-default: 0 10px 30px rgba(2,6,23,0.08);
+}
+
+/* Inherited from ancestor level 11 (regular) */
+:root {
+  --card-btn-w: 100px;
+  --card-btn-w: 100px;
+}
+
+/* Inherited from ancestor level 11 (regular) */
+:root {
+  --bg-main: #FFFFFF;
+  --bg-secondary: #f5f7f9;
+  --text-primary: #333333;
+  --primary-btn: #00aaff;
+  --line-btn: #00c300;
+  --anomaly-color: #10b981;
+  --primary: var(--primary-btn);
+  --accent: var(--line-btn);
+  --danger: #DC2626;
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 10px 30px rgba(2,6,23,0.08);
+  --border-color: #e5e7eb;
+  --hover-bg: #f8fafc;
+  --muted: #6b7280;
+  --input-bg: #FFFFFF;
+  --focus-color: #00aaff;
+  --nav-height: 72px;
+  --bg-main: #FFFFFF;
+  --bg-secondary: #f5f7f9;
+  --text-primary: #333333;
+  --primary-btn: #00aaff;
+  --line-btn: #00c300;
+  --anomaly-color: #10b981;
+  --primary: var(--primary-btn);
+  --accent: var(--line-btn);
+  --danger: #DC2626;
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 10px 30px rgba(2,6,23,0.08);
+  --border-color: #e5e7eb;
+  --hover-bg: #f8fafc;
+  --muted: #6b7280;
+  --input-bg: #FFFFFF;
+  --focus-color: #00aaff;
+  --nav-height: 72px;
+}

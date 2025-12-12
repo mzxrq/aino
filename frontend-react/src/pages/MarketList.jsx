@@ -35,26 +35,50 @@ export default function MarketListScreen() {
     return () => clearTimeout(timer);
   }, [search]);
 
+const generateSparklineSVG = (closes) => {
+  if (!closes || closes.length < 2) return "";
+  
+  const minPrice = Math.min(...closes);
+  const maxPrice = Math.max(...closes);
+  const range = maxPrice - minPrice || 1;
+  
+  // Normalize prices to 0-30 (viewBox height)
+  const points = closes.map((price, i) => {
+    const x = (i / (closes.length - 1)) * 100;
+    const y = 30 - ((price - minPrice) / range) * 30;
+    return `${x},${y}`;
+  }).join(" ");
+  
+  return `<svg viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg"><polyline points="${points}" fill="none" stroke="#2cc17f" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+};
+
+const fetchChartDataForSparkline = async (ticker) => {
+  try {
+    const res = await fetch(`${API_URL}/cache?ticker=${ticker}&period=1mo&interval=1d`);
+    const data = await res.json();
+    
+    if (data.data && data.data.close && Array.isArray(data.data.close)) {
+      return generateSparklineSVG(data.data.close);
+    }
+  } catch (err) {
+    console.error(`Error fetching sparkline for ${ticker}:`, err);
+  }
+  return "";
+};
+
 const fetchMarketData = async () => {
   setLoading(true);
 
   try {
-    const url = search.trim() === ""
-      ? `${API_URL}/marketlists`
-      : `${API_URL}/chart/ticker?query=${encodeURIComponent(search)}`;
-
-    const res = await fetch(url);
+    // Always fetch all data, then filter client-side for live search
+    const res = await fetch(`${API_URL}/marketlists?limit=1000`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
-    // Just use basic data - logos are unreliable from yfinance
-    // Use letter badge instead which looks clean
-    const list = rawList.map(it => {
+    let list = rawList.map(it => {
       const ticker = it.ticker || it.Ticker || "";
       const companyName = it.companyName || it.name || ticker;
-      const country = it.country || it.Country || "US"; // Default to US if not specified
-      
-      console.log(`Stock: ${ticker}, Company: ${companyName}, Country: ${country}`); // Debug
+      const country = it.country || it.Country || "US";
       
       return {
         _id: it._id,
@@ -63,10 +87,26 @@ const fetchMarketData = async () => {
         primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
         sectorGroup: it.sectorGroup || it.sector || "",
         country: country,
-        logo: null,
-        currentPrice: null,
+        logo: ticker ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(ticker)}?format=png` : "",
+        sparklineSvg: "",
       };
     });
+
+    // Fetch sparklines for each ticker in parallel
+    const sparklinePromises = list.map(item =>
+      fetchChartDataForSparkline(item.ticker).then(svg => ({
+        ticker: item.ticker,
+        svg
+      }))
+    );
+    
+    const sparklines = await Promise.all(sparklinePromises);
+    const sparklineMap = Object.fromEntries(sparklines.map(s => [s.ticker, s.svg]));
+    
+    list = list.map(item => ({
+      ...item,
+      sparklineSvg: sparklineMap[item.ticker] || ""
+    }));
 
     setMarketData(list);
   } catch (err) {
@@ -178,6 +218,12 @@ const fetchRecentAnomalies = async () => {
 
   // Filtering
   const filteredData = marketData.filter((item) => {
+    // Search filter (ticker or company name)
+    const searchLower = search.toLowerCase();
+    const matchSearch = search.trim() === "" ||
+      item.ticker.toLowerCase().includes(searchLower) ||
+      item.companyName.toLowerCase().includes(searchLower);
+
     // Market filter
     const matchMarket = marketFilter === "All" || item.country === marketFilter;
 
@@ -185,7 +231,7 @@ const fetchRecentAnomalies = async () => {
     if (marketStatus === "open" && !isMarketOpen(item.country)) return false;
     if (marketStatus === "closed" && isMarketOpen(item.country)) return false;
 
-    return matchMarket;
+    return matchSearch && matchMarket;
   });
 
   // Sorting
@@ -229,14 +275,6 @@ const fetchRecentAnomalies = async () => {
 
   return (
     <div className="market-list-page">
-      <div className="market-list-header">
-        <div>
-          <p className="eyebrow">Explore markets</p>
-          <h1>Stock Market Explorer</h1>
-          <p className="subtitle">Discover interesting stocks with recent anomaly detections</p>
-        </div>
-      </div>
-
       {/* SEARCH BAR */}
       <div className="search-panel">
         <input
@@ -317,7 +355,20 @@ const fetchRecentAnomalies = async () => {
                 <div className="stock-card-header">
                   <div className="stock-logo-section">
                     <div className="stock-logo-badge">
-                      {item.ticker.substring(0, 1)}
+                      {item.logo && (
+                        <img 
+                          src={item.logo} 
+                          alt={item.ticker}
+                          className="stock-logo"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'block';
+                          }}
+                        />
+                      )}
+                      <span className="stock-logo-fallback" style={{display: item.logo ? 'none' : 'block'}}>
+                        {item.ticker.substring(0, 1)}
+                      </span>
                     </div>
                     <div className="stock-info">
                       <h3 className="stock-ticker">{item.ticker}</h3>
@@ -329,6 +380,10 @@ const fetchRecentAnomalies = async () => {
                 </div>
 
                 <div className="stock-card-body">
+                  {item.sparklineSvg && (
+                    <div className="stock-chart-spark" dangerouslySetInnerHTML={{__html: item.sparklineSvg}} />
+                  )}
+
                   <div className="stock-meta">
                     <span className="meta-item">
                       <span className="meta-label">Market:</span>
