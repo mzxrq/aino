@@ -64,10 +64,11 @@ html, body, #root {
   }
 
 /* Desktop: make sure sidebar and main stretch to viewport */
-@media (min-width: 769px) {
-  .anomalies-page { height: 100vh; }
-  .sidebar-container { height: 100vh; }
-  .main-container { height: 100vh; overflow-y: auto; }
+@media (min-width: 900px) {
+  .anomalies-page { height: 100vh; display: flex; align-items: stretch; }
+  /* Sidebar stays fixed width while main grows */
+  .sidebar-container { height: 100vh; flex: 0 0 260px; }
+  .main-container { height: 100vh; overflow-y: auto; flex: 1 1 auto; }
 }
 
 /* --- Typography & Headers --- */
