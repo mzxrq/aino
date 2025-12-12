@@ -18,6 +18,16 @@ const buildHeaders = (token, isJson = true) => {
 
 const toggle = (setter) => setter((prev) => !prev);
 
+// Common timezone presets — extend as needed
+const TIMEZONES = [
+    'UTC',
+    'Asia/Tokyo',
+    'Asia/Bangkok',
+    'Asia/Hong_Kong',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles'
+];
 const Profile = () => {
     const { user, logout, token, setUser } = useAuth();
     const navigate = useNavigate();
@@ -64,7 +74,12 @@ const Profile = () => {
     const [editMode, setEditMode] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
 
-    const [formData, setFormData] = useState({ name: user?.name || '', username: user?.username || '', email: user?.email || '' });
+    const [formData, setFormData] = useState({
+        name: user?.name || '',
+        username: user?.username || '',
+        email: user?.email || '',
+        timeZone: user?.timeZone || user?.timezone || user?.time_zone || ''
+    });
     const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
     const [status, setStatus] = useState({ error: '', success: '' });
@@ -75,7 +90,14 @@ const Profile = () => {
 
     useEffect(() => { if (!user) navigate('/login'); }, [user, navigate]);
 
-    useEffect(() => { if (!editMode && user) setFormData({ name: user.name || '', username: user.username || '', email: user.email || '' }); }, [user, editMode]);
+    useEffect(() => {
+        if (!editMode && user) setFormData({
+            name: user.name || '',
+            username: user.username || '',
+            email: user.email || '',
+            timeZone: user.timeZone || user.timezone || user.time_zone || ''
+        });
+    }, [user, editMode]);
 
     const updateStatus = (error = '', success = '') => setStatus({ error, success });
 
@@ -108,7 +130,12 @@ const Profile = () => {
 
             if (data.data || data.user) {
                 syncUser(data.data || data.user);
+                // Ensure local user object has the updated timeZone immediately
+                if (formData.timeZone) syncUser({ timeZone: formData.timeZone });
                 await refreshProfile();
+            } else {
+                // If server didn't return a user object, still update local timeZone
+                if (formData.timeZone) syncUser({ timeZone: formData.timeZone });
             }
         } catch (err) {
             updateStatus(err.message || 'Failed to update profile');
@@ -264,6 +291,23 @@ const Profile = () => {
                         <FormRow label="Full Name" name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
                         <FormRow label="Username" name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
                         <FormRow label="Email" name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={isLineUser ? 'Add your email to enable password login' : 'your.email@example.com'} />
+
+                        {editMode ? (
+                            <FormRow
+                                label="Timezone"
+                                name="timeZone"
+                                type="select"
+                                disabled={!editMode}
+                                value={formData.timeZone}
+                                onChange={handleInput}
+                                options={TIMEZONES}
+                            />
+                        ) : (
+                            <div className="form-group">
+                                <label>Timezone</label>
+                                <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
+                            </div>
+                        )}
                         {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>{loading.saving ? 'Saving…' : 'Save Changes'}</button>}
                     </form>
                 </div>
@@ -319,10 +363,19 @@ const Profile = () => {
     );
 };
 
-const FormRow = ({ label, name, value, onChange, type = 'text', disabled, placeholder }) => (
+const FormRow = ({ label, name, value, onChange, type = 'text', disabled, placeholder, options = [] }) => (
     <div className="form-group">
         <label>{label}</label>
-        <input type={type} name={name} value={value} disabled={disabled} onChange={onChange} placeholder={placeholder} className="form-input" />
+        {type === 'select' ? (
+            <select name={name} value={value} disabled={disabled} onChange={onChange} className="form-input">
+                <option value="">Select timezone</option>
+                {options.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                ))}
+            </select>
+        ) : (
+            <input type={type} name={name} value={value} disabled={disabled} onChange={onChange} placeholder={placeholder} className="form-input" />
+        )}
     </div>
 );
 

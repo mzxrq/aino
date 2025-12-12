@@ -168,7 +168,8 @@ exports.login = async (req, res) => {
           email: user.email,
           name: user.name,
           username: user.username,
-          loginMethod: user.loginMethod
+          loginMethod: user.loginMethod,
+            timeZone: user.timeZone
         },
       });
     }
@@ -300,7 +301,8 @@ exports.getProfile = async (req, res) => {
           name: user.name,
           username: user.username,
           pictureUrl: user.pictureUrl || user.avatar || null,
-          loginMethod: user.loginMethod
+          loginMethod: user.loginMethod,
+          timeZone: user.timeZone
         },
       });
     }
