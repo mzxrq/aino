@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import '../css/Navbar.css';
 import Search from './Search';
+import logoSvg from '../assets/aino.svg';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
   const [theme, setTheme] = useState(() => {
     try {
       return (typeof window !== 'undefined' && localStorage.getItem('theme')) || 'light';
@@ -26,6 +29,16 @@ export default function Navbar() {
       void e;
     }
   }, [theme]);
+
+  useEffect(() => {
+    // Scroll detection for homepage logo visibility
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 100);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -58,11 +71,16 @@ export default function Navbar() {
   // Close menu when navigating (for mobile UX)
   const handleNavClick = () => setMenuOpen(false);
 
+  const isHomepage = location.pathname === '/';
+  const showLogo = !isHomepage || scrolled;
+
   return (
     <nav className={`navbar`}>
-      {/* <div className="navbar-left">
-        <Link to="/" className="logo">Placeholder</Link>
-      </div> */}
+      <div className="navbar-left">
+        <Link to="/" className={`logo ${showLogo ? '' : 'hidden'}`}>
+          <img src={logoSvg} alt="Logo" className="logo-img" />
+        </Link>
+      </div>
 
       <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Toggle menu">
         <span className="hamburger">☰</span>
@@ -71,13 +89,14 @@ export default function Navbar() {
       <div className={`nav-links${menuOpen ? ' open' : ''}`}>
         <Link to="/chart" className="nav-link" onClick={handleNavClick}>Chart</Link>
         <Link to="/list" className="nav-link" onClick={handleNavClick}>Market List</Link>
+        <Link to="/monitoring" className="nav-link" onClick={handleNavClick}>Monitoring</Link>
         {isLoggedIn ? (
           <>
             <Link to="/dashboard" className="nav-link" onClick={handleNavClick}>Dashboard</Link>
             <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
           </>
         ) : (
-          <Link to="/login" className="nav-link" onClick={handleNavClick}></Link>
+          <Link to="/login" className="nav-link" onClick={handleNavClick}>Login</Link>
         )}
         <div className="mobile-search">
           <Search />

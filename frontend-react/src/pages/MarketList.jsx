@@ -1,30 +1,36 @@
 import React, { useState, useEffect } from "react";
-import MarketItemCard from "../components/MarketItemCard.jsx";
-import CategoryDropdown from "../components/CategoryDropdown";
+import { useNavigate } from "react-router-dom";
 import "../css/MarketList.css";
+
+const API_URL = "http://localhost:5050/node";
+const PY_API_URL = "http://localhost:8000/py";
 
 export default function MarketListScreen() {
   const [search, setSearch] = useState("");
-  const [assetType, setAssetType] = useState("stocks");
-  const [category, setCategory] = useState("All");
-  const [industry, setIndustry] = useState("All");
-  const [country, setCountry] = useState("All");
+  const [marketFilter, setMarketFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("recent_anomalies");
+  const [marketStatus, setMarketStatus] = useState("all");
 
   const [marketData, setMarketData] = useState([]);
+  const [anomaliesMap, setAnomaliesMap] = useState({});
   const [loading, setLoading] = useState(false);
-
-  // Dropdown lists
-  const [categories, setCategories] = useState(["All"]);
-  const [industries, setIndustries] = useState(["All"]);
-  const [countries, setCountries] = useState(["All"]);
+  const navigate = useNavigate();
 
   // ---------------------------------------------------
-  // Fetch data with search filter (auto-fetch + debounce)
+  // Initial data fetch
+  // ---------------------------------------------------
+  useEffect(() => {
+    fetchMarketData();
+    fetchRecentAnomalies();
+  }, []);
+
+  // ---------------------------------------------------
+  // Debounced search
   // ---------------------------------------------------
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchMarketData();
-    }, 300); // debounce 300ms
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [search]);
@@ -33,61 +39,36 @@ const fetchMarketData = async () => {
   setLoading(true);
 
   try {
-    const url =
-      search.trim() === ""
-        ? "http://localhost:5050/node/marketlists" 
-        : `http://localhost:5000/chart/ticker?query=${encodeURIComponent(search)}`;
+    const url = search.trim() === ""
+      ? `${API_URL}/marketlists`
+      : `${API_URL}/chart/ticker?query=${encodeURIComponent(search)}`;
 
     const res = await fetch(url);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
-    // Normalize list
-    const list = rawList.map((it) => {
-  const ticker = it.ticker || it.Ticker || "";
-
-  return {
-    _id: it._id,
-    ticker,
-    name: it.name || it["Company Name"] || "",
-    primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
-    industry:
-      it.sector ||
-      it.Sector ||
-      it["Sector Group"] ||
-      it["SectorGroup"] ||
-      "",
-    country: it.country || it.Country || "",
-
-    // Auto-generate ticker logo URL
-    logo: ticker
-      ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(
-          ticker
-        )}?format=png`
-      : "",
-
-    raw: it,
-  };
-});
-
+    // Just use basic data - logos are unreliable from yfinance
+    // Use letter badge instead which looks clean
+    const list = rawList.map(it => {
+      const ticker = it.ticker || it.Ticker || "";
+      const companyName = it.companyName || it.name || ticker;
+      const country = it.country || it.Country || "US"; // Default to US if not specified
+      
+      console.log(`Stock: ${ticker}, Company: ${companyName}, Country: ${country}`); // Debug
+      
+      return {
+        _id: it._id,
+        ticker: ticker,
+        companyName: companyName,
+        primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
+        sectorGroup: it.sectorGroup || it.sector || "",
+        country: country,
+        logo: null,
+        currentPrice: null,
+      };
+    });
 
     setMarketData(list);
-
-    // Populate dropdowns once
-    if (categories.length === 1) {
-      const exSet = [...new Set(list.map((i) => i.primaryExchange).filter(Boolean))];
-      setCategories(["All", ...exSet.sort()]);
-    }
-
-    if (industries.length === 1) {
-      const indSet = [...new Set(list.map((i) => i.industry).filter(Boolean))];
-      setIndustries(["All", ...indSet.sort()]);
-    }
-
-    if (countries.length === 1) {
-      const countrySet = [...new Set(list.map((i) => i.country).filter(Boolean))];
-      setCountries(["All", ...countrySet.sort()]);
-    }
   } catch (err) {
     console.error("Error fetching market list:", err);
   }
@@ -95,54 +76,164 @@ const fetchMarketData = async () => {
   setLoading(false);
 };
 
+const fetchRecentAnomalies = async () => {
+  try {
+    const res = await fetch(`${API_URL}/anomalies/recent`);
+    const data = await res.json();
+    
+    // Create a map of ticker -> anomaly data
+    const anomaliesData = {};
+    if (Array.isArray(data)) {
+      data.forEach(anomaly => {
+        const ticker = anomaly.ticker;
+        if (!anomaliesData[ticker]) {
+          anomaliesData[ticker] = {
+            count: 0,
+            lastDetected: null,
+            latestPrice: anomaly.price || null
+          };
+        }
+        anomaliesData[ticker].count += 1;
+        
+        const detectedAt = new Date(anomaly.detected_at || anomaly.date);
+        if (!anomaliesData[ticker].lastDetected || detectedAt > anomaliesData[ticker].lastDetected) {
+          anomaliesData[ticker].lastDetected = detectedAt;
+        }
+      });
+    }
+    
+    setAnomaliesMap(anomaliesData);
+  } catch (err) {
+    console.error("Error fetching recent anomalies:", err);
+  }
+};
 
-  // ---------------------------------------------------
-  // Local filtering (after backend search)
-  // ---------------------------------------------------
+
+  // Market status helper with real-time detection
+  const isMarketOpen = (country, ticker) => {
+    const now = new Date();
+    
+    // Get day of week (0 = Sunday, 6 = Saturday)
+    const dayOfWeek = now.getUTCDay();
+    
+    // Check if weekend
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    if (country === "US") {
+      if (isWeekend) return false;
+      
+      // Convert current time to US Eastern Time
+      const usTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const usHours = usTime.getHours();
+      const usMinutes = usTime.getMinutes();
+      const usTimeMinutes = usHours * 60 + usMinutes;
+      
+      // US markets: 9:30 AM - 4:00 PM ET
+      const marketOpen = 9 * 60 + 30;  // 9:30 AM
+      const marketClose = 16 * 60;      // 4:00 PM
+      
+      return usTimeMinutes >= marketOpen && usTimeMinutes < marketClose;
+    }
+
+    if (country === "JP") {
+      if (isWeekend) return false;
+      
+      // Convert to Japan Standard Time
+      const jpTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+      const jpHours = jpTime.getHours();
+      const jpMinutes = jpTime.getMinutes();
+      const jpTimeMinutes = jpHours * 60 + jpMinutes;
+      
+      // Japan markets: 9:00 AM - 3:00 PM JST (with lunch break 11:30-12:30)
+      const morningOpen = 9 * 60;      // 9:00 AM
+      const morningClose = 11 * 60 + 30; // 11:30 AM
+      const afternoonOpen = 12 * 60 + 30; // 12:30 PM
+      const afternoonClose = 15 * 60;    // 3:00 PM
+      
+      return (jpTimeMinutes >= morningOpen && jpTimeMinutes < morningClose) ||
+             (jpTimeMinutes >= afternoonOpen && jpTimeMinutes < afternoonClose);
+    }
+
+    if (country === "TH") {
+      if (isWeekend) return false;
+      
+      // Convert to Thailand time (ICT = UTC+7)
+      const thTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+      const thHours = thTime.getHours();
+      const thMinutes = thTime.getMinutes();
+      const thTimeMinutes = thHours * 60 + thMinutes;
+      
+      // Thailand markets: 10:00 AM - 4:40 PM ICT (with lunch break 12:30-14:30)
+      const morningOpen = 10 * 60;        // 10:00 AM
+      const morningClose = 12 * 60 + 30;  // 12:30 PM
+      const afternoonOpen = 14 * 60 + 30; // 2:30 PM
+      const afternoonClose = 16 * 60 + 40; // 4:40 PM
+      
+      return (thTimeMinutes >= morningOpen && thTimeMinutes < morningClose) ||
+             (thTimeMinutes >= afternoonOpen && thTimeMinutes < afternoonClose);
+    }
+
+    return false;
+  };
+
+  // Filtering
   const filteredData = marketData.filter((item) => {
-    const matchCategory =
-      category === "All" ||
-      item.primaryExchange === category ||
-      item.industry === category;
+    // Market filter
+    const matchMarket = marketFilter === "All" || item.country === marketFilter;
 
-    const matchIndustry = industry === "All" || item.industry === industry;
+    // Market status filter
+    if (marketStatus === "open" && !isMarketOpen(item.country)) return false;
+    if (marketStatus === "closed" && isMarketOpen(item.country)) return false;
 
-    const matchCountry = country === "All" || item.country === country;
-
-    return matchCategory && matchIndustry && matchCountry;
+    return matchMarket;
   });
 
-  // Sort: Subscriptions at top (if item has _id from /node/subscribers/me), then alphabetically by ticker
+  // Sorting
   const sortedData = [...filteredData].sort((a, b) => {
-    const aIsSubscription = !!a._id;
-    const bIsSubscription = !!b._id;
-    
-    if (aIsSubscription && !bIsSubscription) return -1;
-    if (!aIsSubscription && bIsSubscription) return 1;
-    
-    // Both same priority, sort alphabetically
-    return (a.ticker || '').localeCompare(b.ticker || '');
-  });
+    const aAnomalies = anomaliesMap[a.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
+    const bAnomalies = anomaliesMap[b.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
 
-  const assetTypes = [
-    { id: 'stocks', label: 'Stocks', icon: '📈' },
-    { id: 'funds', label: 'Funds', icon: '💼' },
-    { id: 'futures', label: 'Futures', icon: '📊' },
-    { id: 'forex', label: 'Forex', icon: '💱' },
-    { id: 'crypto', label: 'Crypto', icon: '₿' },
-    { id: 'indices', label: 'Indices', icon: '📉' },
-    { id: 'bonds', label: 'Bonds', icon: '📜' },
-    { id: 'economy', label: 'Economy', icon: '🏛' },
-    { id: 'options', label: 'Options', icon: '⚡' },
-  ];
+    if (sortBy === "recent_anomalies") {
+      // Sort by most recent anomaly detection
+      if (!aAnomalies.lastDetected && !bAnomalies.lastDetected) return 0;
+      if (!aAnomalies.lastDetected) return 1;
+      if (!bAnomalies.lastDetected) return -1;
+      return bAnomalies.lastDetected - aAnomalies.lastDetected;
+    }
+
+    if (sortBy === "price_low") {
+      // Sort by price low to high
+      const aPrice = aAnomalies.latestPrice || 0;
+      const bPrice = bAnomalies.latestPrice || 0;
+      if (aPrice === 0 && bPrice === 0) return 0;
+      if (aPrice === 0) return 1;
+      if (bPrice === 0) return -1;
+      return aPrice - bPrice;
+    }
+
+    if (sortBy === "price_high") {
+      // Sort by price high to low
+      const aPrice = aAnomalies.latestPrice || 0;
+      const bPrice = bAnomalies.latestPrice || 0;
+      return bPrice - aPrice;
+    }
+
+    if (sortBy === "anomaly_count") {
+      // Sort by anomaly count
+      return bAnomalies.count - aAnomalies.count;
+    }
+
+    // Default: alphabetical
+    return (a.ticker || "").localeCompare(b.ticker || "");
+  });
 
   return (
     <div className="market-list-page">
       <div className="market-list-header">
         <div>
           <p className="eyebrow">Explore markets</p>
-          <h1>Market Search</h1>
-          <p className="subtitle">Filter by asset class, exchange, industry, and country</p>
+          <h1>Stock Market Explorer</h1>
+          <p className="subtitle">Discover interesting stocks with recent anomaly detections</p>
         </div>
       </div>
 
@@ -151,62 +242,131 @@ const fetchMarketData = async () => {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search ticker or company..."
+          placeholder="Search ticker or company name..."
           className="market-search-input"
         />
       </div>
 
-      {/* ASSET TYPE PILLS */}
-      <div className="asset-type-pills">
-        {assetTypes.map(type => (
-          <button
-            key={type.id}
-            className={`asset-pill ${assetType === type.id ? 'active' : ''}`}
-            onClick={() => setAssetType(type.id)}
-          >
-            <span className="pill-icon">{type.icon}</span>
-            <span>{type.label}</span>
-          </button>
-        ))}
-      </div>
-
       {/* FILTERS ROW */}
       <div className="filters-row">
-        <CategoryDropdown
-          value={category}
-          onChange={setCategory}
-          items={categories}
-          label="Exchange"
-        />
-        <CategoryDropdown
-          value={industry}
-          onChange={setIndustry}
-          items={industries}
-          label="Industry"
-        />
-        <CategoryDropdown
-          value={country}
-          onChange={setCountry}
-          items={countries}
-          label="Country"
-        />
+        <div className="filter-group">
+          <label className="filter-label">Market</label>
+          <select 
+            value={marketFilter} 
+            onChange={(e) => setMarketFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="All">All Markets</option>
+            <option value="US">🇺🇸 US (NYSE/NASDAQ)</option>
+            <option value="JP">🇯🇵 Japan (TSE)</option>
+            <option value="TH">🇹🇭 Thailand (SET)</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label className="filter-label">Sort By</label>
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value)}
+            className="filter-select"
+          >
+            <option value="recent_anomalies">Recent Anomalies</option>
+            <option value="anomaly_count">Anomaly Count</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+            <option value="alphabetical">Alphabetical</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label className="filter-label">Market Status</label>
+          <select 
+            value={marketStatus} 
+            onChange={(e) => setMarketStatus(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All</option>
+            <option value="open">Open Now</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+
         <div className="results-count">
-          {filteredData.length} results
+          {sortedData.length} stocks
         </div>
       </div>
 
       {/* RESULTS */}
       <div className="market-results">
         {loading ? (
-          <div className="loading-state">Loading...</div>
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading stocks...</p>
+          </div>
         ) : sortedData.length > 0 ? (
-          sortedData.map((item) => (
-            <MarketItemCard key={item._id || item.ticker} item={item} />
-          ))
+          sortedData.map((item) => {
+            const anomalyData = anomaliesMap[item.ticker];
+            const marketOpen = isMarketOpen(item.country);
+
+            return (
+              <div 
+                key={item._id || item.ticker} 
+                className="stock-card"
+                onClick={() => navigate(`/chart/u/${item.ticker}`)}
+              >
+                <div className="stock-card-header">
+                  <div className="stock-logo-section">
+                    <div className="stock-logo-badge">
+                      {item.ticker.substring(0, 1)}
+                    </div>
+                    <div className="stock-info">
+                      <h3 className="stock-ticker">{item.ticker}</h3>
+                      <p className="stock-name">{item.companyName}</p>
+                    </div>
+                  </div>
+                  {marketOpen && <span className="status-badge open">● Open</span>}
+                  {!marketOpen && <span className="status-badge closed">○ Closed</span>}
+                </div>
+
+                <div className="stock-card-body">
+                  <div className="stock-meta">
+                    <span className="meta-item">
+                      <span className="meta-label">Market:</span>
+                      <span className="meta-value">{item.country} - {item.primaryExchange}</span>
+                    </span>
+                    {item.sectorGroup && (
+                      <span className="meta-item">
+                        <span className="meta-label">Sector:</span>
+                        <span className="meta-value">{item.sectorGroup}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {anomalyData && (
+                    <div className="anomaly-info">
+                      <span className="anomaly-badge">
+                        🚨 {anomalyData.count} {anomalyData.count === 1 ? 'anomaly' : 'anomalies'}
+                      </span>
+                      {anomalyData.lastDetected && (
+                        <span className="anomaly-time">
+                          Last: {new Date(anomalyData.lastDetected).toLocaleDateString()}
+                        </span>
+                      )}
+                      {anomalyData.latestPrice && (
+                        <span className="anomaly-price">
+                          ${anomalyData.latestPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
         ) : (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <h3>No results found</h3>
+            <h3>No stocks found</h3>
             <p>Try adjusting your search or filters</p>
           </div>
         )}

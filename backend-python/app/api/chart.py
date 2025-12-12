@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List, Optional, Union
-from datetime import datetime, date, time as dtime
+from datetime import datetime, date, time as dtime, timedelta
 try:
     from zoneinfo import ZoneInfo
 except Exception:
@@ -182,50 +182,32 @@ def _save_to_cache(key: str, payload: Dict[str, Any]):
 def _ensure_anomalies_for_ticker(ticker: str, period: str = '5y'):
     """Ensure anomalies have been processed for the requested period for `ticker`.
 
-    Processing runs only when no prior processing metadata exists for the ticker,
-    or when newer data is available (i.e. latest Datetime in yfinance > last_data_ts).
-    The function updates a small meta document in `db.anomaly_meta` to record the
-    last processed timestamp so repeated calls do not re-run expensive detection.
+    Now aggressively runs detect_anomalies for each period to ensure anomalies are always present.
+    This is period-aware and will capture anomalies specific to shorter windows (6mo vs 1y, etc).
     """
     if db is None:
         return
     try:
-        # Read anomaly metadata from the existing `cache` collection to avoid creating new collections.
-        meta = _load_from_cache(f"anomaly_meta::{ticker}::{period}", 86400 * 365)  # 1 year TTL for meta
-        # Load data for the requested period to determine latest timestamp
+        logger.debug(f"_ensure_anomalies_for_ticker: {ticker} period={period}")
+        # Load data for the requested period
         df = load_dataset([ticker], period=period, interval='1d')
         if df.empty:
-            # Nothing to process
-            db.anomaly_meta.update_one({'_id': ticker}, {'$set': {'last_checked': datetime.utcnow(), 'last_data_ts': None}}, upsert=True)
+            logger.debug(f"  No data for {ticker} period={period}")
             return
+        
+        logger.debug(f"  Loaded {len(df)} rows, preprocessing...")
         df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
         if df.empty:
-            db.anomaly_meta.update_one({'_id': ticker}, {'$set': {'last_checked': datetime.utcnow(), 'last_data_ts': None}}, upsert=True)
+            logger.debug(f"  Empty after preprocessing")
             return
-        latest = df['Datetime'].max()
-        latest_iso = latest.isoformat() if hasattr(latest, 'isoformat') else str(latest)
-        last_data_ts = None
-        if meta:
-            # meta may be the payload dict saved via _save_to_cache
-            last_data_ts = (meta.get('last_data_ts') if isinstance(meta, dict) else None) or (meta.get('payload', {}) and meta.get('payload').get('last_data_ts'))
-        # If never processed or new data available, run detection
-        if not last_data_ts or (isinstance(last_data_ts, str) and last_data_ts < latest_iso):
-            # Run detection over the requested period (this will insert anomalies into db.anomalies)
-            try:
-                detect_anomalies([ticker], period=period, interval='1d')
-            except Exception:
-                logger.exception(f"detect_anomalies failed for {ticker}")
-            # Record we processed up to latest_iso (store in `cache` as anomaly_meta::TICKER::PERIOD)
-            try:
-                _save_to_cache(f"anomaly_meta::{ticker}::{period}", {'last_checked': datetime.utcnow(), 'last_data_ts': latest_iso})
-            except Exception:
-                logger.debug('anomaly_meta cache save failed')
-        else:
-            # update checked timestamp
-            try:
-                _save_to_cache(f"anomaly_meta::{ticker}::{period}", {'last_checked': datetime.utcnow(), 'last_data_ts': last_data_ts})
-            except Exception:
-                logger.debug('anomaly_meta cache touch failed')
+        
+        # Always run detection for this period (ensures anomalies are present)
+        logger.debug(f"  Running detect_anomalies for {ticker} period={period}")
+        try:
+            detect_anomalies([ticker], period=period, interval='1d')
+            logger.debug(f"  detect_anomalies completed for {ticker} period={period}")
+        except Exception as e:
+            logger.debug(f"  detect_anomalies failed for {ticker}: {e}")
     except Exception:
         logger.exception(f"_ensure_anomalies_for_ticker failed for {ticker}")
 
@@ -324,6 +306,76 @@ def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+def _enrich_anomalies_from_db_if_missing(ticker: str, payload: Dict[str, Any]):
+    """Best-effort anomaly injection when cache lacks anomaly_markers.
+
+    Scenario: a cached payload may have empty anomaly_markers (older cache, or
+    a client period change). If MongoDB is available and we have date bounds
+    from the payload, re-fetch anomalies for the ticker and inject only those
+    within the payload window. Uses both old (Ticker, Datetime) and new (ticker, datetime) schemas.
+    """
+    if db is None:
+        return payload
+    try:
+        anomalies = payload.get('anomaly_markers') or {}
+        has_markers = bool(anomalies.get('dates'))
+        if has_markers:
+            return payload
+
+        dates = payload.get('dates') or []
+        if not dates:
+            return payload
+
+        def _to_dt_safe(x):
+            try:
+                return datetime.fromisoformat(str(x).replace('Z', '+00:00'))
+            except Exception:
+                return None
+
+        start = _to_dt_safe(dates[0])
+        end = _to_dt_safe(dates[-1])
+        if not start or not end:
+            return payload
+
+        # Add small buffer to include anomalies on boundary days
+        window_start = start - timedelta(days=1)
+        window_end = end + timedelta(days=1)
+
+        # Query both old and new schemas
+        cursor = db.anomalies.find({
+            "$or": [
+                {"Ticker": ticker, "Datetime": {"$gte": window_start, "$lte": window_end}},
+                {"ticker": ticker, "datetime": {"$gte": window_start, "$lte": window_end}},
+                {"ticker": ticker.lower(), "datetime": {"$gte": window_start, "$lte": window_end}}
+            ]
+        })
+        anomalies_df = pd.DataFrame(list(cursor))
+        if anomalies_df.empty:
+            logger.debug(f"No anomalies found for {ticker} in window {window_start} to {window_end}")
+            return payload
+        
+        # Normalize field names
+        rename_map = {}
+        if 'datetime' in anomalies_df.columns: rename_map['datetime'] = 'Datetime'
+        if 'close' in anomalies_df.columns: rename_map['close'] = 'Close'
+        if 'ticker' in anomalies_df.columns: rename_map['ticker'] = 'Ticker'
+        anomalies_df = anomalies_df.rename(columns=rename_map)
+        anomalies_df['Datetime'] = pd.to_datetime(anomalies_df['Datetime'], utc=True, errors='coerce')
+        anomalies_df = anomalies_df.dropna(subset=['Datetime']).sort_values('Datetime')
+        
+        logger.debug(f"Enriched {ticker} with {len(anomalies_df)} anomalies from window")
+
+
+        payload = dict(payload)  # shallow copy
+        payload['anomaly_markers'] = {
+            'dates': [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies_df['Datetime'].tolist()],
+            'y_values': [float(x) if pd.notna(x) else None for x in anomalies_df['Close'].tolist()]
+        }
+    except Exception:
+        logger.debug('anomaly enrichment failed', exc_info=True)
+    return payload
+
+
 # -------------------------
 # Chart endpoint
 # -------------------------
@@ -343,7 +395,8 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
             meta = _get_ticker_meta(t)
             cached['companyName'] = cached.get('companyName') or meta.get('companyName')
             cached['market'] = cached.get('market') or meta.get('market')
-            result[t] = _ensure_payload_shape(cached)
+            enriched = _enrich_anomalies_from_db_if_missing(t, cached)
+            result[t] = _ensure_payload_shape(enriched)
             continue
 
         df = load_dataset([t], period=period, interval=interval)
@@ -356,16 +409,65 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
             result[t] = {}
             continue
 
+        anomalies_df = pd.DataFrame()
         if db is not None:
             # Ensure anomalies are computed for this ticker (for requested period) if needed
             try:
                 _ensure_anomalies_for_ticker(t, period=period)
             except Exception:
                 logger.debug(f"_ensure_anomalies_for_ticker raised for {t}")
-            anomalies_cursor = db.anomalies.find({"Ticker": t})
-            anomalies_df = pd.DataFrame(list(anomalies_cursor))
-        else:
-            anomalies_df = pd.DataFrame()
+
+            # Determine date window from loaded data
+            date_window = None
+            if not df.empty and 'Datetime' in df.columns:
+                try:
+                    dates = pd.to_datetime(df['Datetime'], utc=True, errors='coerce')
+                    date_window = (dates.min(), dates.max())
+                except Exception:
+                    pass
+
+            def _query_anomalies() -> pd.DataFrame:
+                query = {
+                    "$or": [
+                        {"Ticker": t},
+                        {"ticker": t},
+                        {"ticker": t.lower() if isinstance(t, str) else t}
+                    ]
+                }
+                # Filter by date window if available
+                if date_window:
+                    date_filter = {"$gte": date_window[0], "$lte": date_window[1]}
+                    query["$or"] = [
+                        {"Ticker": t, "Datetime": date_filter},
+                        {"ticker": t, "datetime": date_filter},
+                        {"ticker": t.lower() if isinstance(t, str) else t, "datetime": date_filter}
+                    ]
+                cursor = db.anomalies.find(query)
+                return pd.DataFrame(list(cursor))
+
+            anomalies_df = _query_anomalies()
+
+            # If nothing found, attempt detection now (best-effort), then re-query
+            if anomalies_df.empty:
+                logger.debug(f"No anomalies found for {t}, running detect_anomalies")
+                try:
+                    detect_anomalies([t], period=period, interval='1d')
+                    anomalies_df = _query_anomalies()
+                except Exception as e:
+                    logger.debug(f"detect_anomalies on-demand failed for {t}: {e}")
+
+            if not anomalies_df.empty:
+                logger.debug(f"Found {len(anomalies_df)} anomalies for {t}")
+                # Normalize column names to expected casing
+                rename_map = {}
+                if 'datetime' in anomalies_df.columns: rename_map['datetime'] = 'Datetime'
+                if 'close' in anomalies_df.columns: rename_map['close'] = 'Close'
+                if 'ticker' in anomalies_df.columns: rename_map['ticker'] = 'Ticker'
+                anomalies_df = anomalies_df.rename(columns=rename_map)
+                # Ensure datetime is datetime64 and sorted
+                if 'Datetime' in anomalies_df.columns:
+                    anomalies_df['Datetime'] = pd.to_datetime(anomalies_df['Datetime'], utc=True, errors='coerce')
+                    anomalies_df = anomalies_df.dropna(subset=['Datetime']).sort_values('Datetime')
 
         payload = _build_chart_response_for_ticker(df, anomalies_df)
         meta = _get_ticker_meta(t)
@@ -550,3 +652,36 @@ def chart_debug(ticker: Optional[str] = None, period: str = "1mo", interval: str
     return out
 
 
+# -------------------------
+# Stock info endpoint (logo, company name)
+# -------------------------
+@router.get('/stock/info')
+def get_stock_info(ticker: str):
+    """
+    Get stock logo and company name from yfinance
+    """
+    try:
+        ticker = ticker.upper().strip()
+        stock = yf.Ticker(ticker)
+        info = stock.info or {}
+        
+        logo_url = info.get('logo_url') or None
+        company_name = info.get('longName') or info.get('shortName') or ticker
+        
+        return {
+            'ticker': ticker,
+            'companyName': company_name,
+            'logo': logo_url,
+            'sector': info.get('sector'),
+            'industry': info.get('industry'),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching stock info for {ticker}: {str(e)}")
+        return {
+            'ticker': ticker,
+            'companyName': ticker,
+            'logo': None,
+            'sector': None,
+            'industry': None,
+            'error': str(e)
+        }

@@ -245,7 +245,14 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     const used = new Set();
     const mapped = rawAnomalies.map((a) => {
       const normalized = normalizeIso(a.date);
-      const idx = findClosestIndex(dates, normalized, toleranceMs);
+      let idx = findClosestIndex(dates, normalized, toleranceMs);
+
+      // Fallback: match by calendar day when anomaly timestamps are daily but chart data is intraday
+      if (idx === -1) {
+        const targetDay = normalized.split('T')[0];
+        idx = dates.findIndex(d => normalizeIso(d).split('T')[0] === targetDay);
+      }
+
       if (idx === -1 || used.has(idx)) return null;
       used.add(idx);
       return { ...a, date: dates[idx], i: idx };

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../css/Home.css';
+import logoSvg from '../assets/aino.svg';
 
 const SAMPLE_ANOMALIES = [
   { id: '1', ticker: 'TICK', company: 'CompanyName', price: 3768, change: -2.3, anomalies: 1 },
@@ -46,19 +47,36 @@ export default function Home() {
     return () => { isMounted = false; };
   }, [API_URL]);
 
+  const handleDemoChart = () => {
+    const first = (anomalies && anomalies.length > 0) ? anomalies[0] : SAMPLE_ANOMALIES[0];
+    navigate('/chart', { state: { ticker: first.ticker } });
+  };
+
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Enter') {
+        handleDemoChart();
+      }
+    };
+    window.addEventListener('keypress', handleKeyPress);
+    return () => window.removeEventListener('keypress', handleKeyPress);
+  }, [anomalies]);
+
   return (
     <div className="home-container">
       {/* Hero Section - Appears First */}
       <section className="hero-section-full">
-        <div className="hero-content">
-          <h1 className="hero-title">Stock Trading<br/><span>Anomaly</span> Detector</h1>
+        <div className="hero-content-centered">
+          <img src={logoSvg} alt="Logo" className="hero-logo" />
+          <p className="hero-motto">Stock Trading Anomaly Detector</p>
           <p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p>
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={() => {
-              const first = (anomalies && anomalies.length > 0) ? anomalies[0] : SAMPLE_ANOMALIES[0];
-              navigate('/chart', { state: { ticker: first.ticker } });
-            }}>View Demo Chart</button>
-            <Link to="/login" className="btn btn-line">Login with LINE</Link>
+            <button className="btn btn-primary" onClick={handleDemoChart}>View Demo Chart</button>
+            <button className="btn btn-line" onClick={handleLogin}>Login with LINE</button>
           </div>
         </div>
       </section>

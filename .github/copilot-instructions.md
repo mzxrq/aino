@@ -207,13 +207,43 @@ Invoke-RestMethod "http://localhost:8000/py/chart?ticker=AAPL&period=1d&interval
 
 ## Documentation
 
+ALWAYS reference these documentation files when working on the project:
+
+PRIMARY REFERENCES:
 - Architecture: `docs/specs/ARCHITECTURE.md`
 - API contracts: `docs/specs/API.md`
 - Database schema: `docs/specs/database-schema.md`
 - Environment setup: `docs/specs/ENVIRONMENT.md`
 - Deployment: `docs/specs/README-deploy.md`
 
+FEATURE DOCUMENTATION:
+- Check `docs/features/` for detailed feature implementations
+- Check `docs/specs/` for technical specifications
+- All documentation includes timestamps in JST (UTC+9 Osaka time)
+
+DOCUMENTATION REQUIREMENTS:
+When creating or updating documentation:
+1. Always add timestamps: Created and Last Updated in JST (UTC+9)
+2. Use minimal markdown, maximum content
+3. Include file paths and line numbers for code references
+4. Place technical docs in `docs/specs/`
+5. Place feature docs in `docs/features/`
+6. Follow guide in `docs/DOCUMENTATION_GUIDE.md`
+
+BEFORE implementing features:
+- Read related docs in `docs/specs/` for context
+- Check `docs/features/` for similar implementations
+- Verify API contracts in `docs/specs/API.md`
+- Check database schema in `docs/specs/database-schema.md`
+
+AFTER implementing features:
+- Update or create documentation with JST timestamp
+- Document API changes in `docs/specs/API.md`
+- Update architecture docs if structure changed
+- Create feature doc in `docs/features/` for major additions
+
 ---
 
 **For clarification or examples on specific patterns, reference the file paths and line numbers provided above.**
+**For documentation standards, see `docs/DOCUMENTATION_GUIDE.md`.**
 ---

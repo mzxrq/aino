@@ -15,8 +15,9 @@ import Chart from './pages/Chart';
 import LargeChart from './pages/LargeChart';
 import LineCallback from './pages/LineCallback';
 import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile'; // <-- IMPORT NEW PAGE
+import Profile from './pages/Profile';
 import MarketList from './pages/MarketList';
+import MonitoringDashboard from './pages/MonitoringDashboard';
 
 function App() {
   return (
@@ -40,8 +41,9 @@ function App() {
             <Route path="/superchart/:ticker" element={<LargeChart />} />
             <Route path="/superchart" element={<LargeChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} /> {/* <-- ADD NEW ROUTE */}
+            <Route path="/profile" element={<Profile />} />
             <Route path="/list" element={<MarketList />} />
+            <Route path="/monitoring" element={<MonitoringDashboard />} />
             
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />

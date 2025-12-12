@@ -47,6 +47,13 @@ app.use('/node/users', usersRoutes);
 const mailRoutes = require('./routes/mailRoute');
 app.use('/node/mail', mailRoutes);
 
+// Stock info routes (proxy to Python)
+const stockInfoRoutes = require('./routes/stockInfoRoute');
+app.use('/node/stock', stockInfoRoutes);
+
+// Seed routes
+const seedRoutes = require('./routes/seedRoute');
+app.use('/node/seed', seedRoutes);
 
 /* =======================
    Basic Routes / Healthchecks

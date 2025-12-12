@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "../css/Search.css";
 
 export default function Search() {
@@ -7,6 +7,7 @@ export default function Search() {
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
+  const navigate = useNavigate();
   const API_URL = "http://localhost:5000";
 
   // Debounced AJAX search
@@ -19,8 +20,8 @@ export default function Search() {
       }
 
       try {
-const res = await fetch(`${API_URL}/chart/ticker?query=${encodeURIComponent(query)}`);
-const data = await res.json();
+        const res = await fetch(`${API_URL}/chart/ticker?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
 
         setResults(data);
         setShowDropdown(data.length > 0);
@@ -45,6 +46,18 @@ const data = await res.json();
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleResultClick = (ticker) => {
+    setShowDropdown(false);
+    setQuery("");
+    navigate(`/chart/u/${ticker}`);
+  };
+
+  const handleShowMore = () => {
+    setShowDropdown(false);
+    setQuery("");
+    navigate("/list");
+  };
+
   return (
     <div className="search-container" ref={containerRef}>
       <input
@@ -56,19 +69,26 @@ const data = await res.json();
         onFocus={() => query && results.length && setShowDropdown(true)}
       />
       {showDropdown && (
-        <ul className="search-dropdown">
-          {results.map((item) => (
-            <li key={item.ticker} className="search-item">
-              <Link
-                to={`/chart?ticker=${item.ticker}`}
-                className="search-link"
-                onClick={() => setShowDropdown(false)}
-              >
-                <span className="ticker">{item.ticker}</span> - <span className="name">{item.name}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="search-dropdown">
+          <ul className="search-results-list">
+            {results.slice(0, 5).map((item) => (
+              <li key={item.ticker} className="search-item">
+                <button
+                  className="search-link"
+                  onClick={() => handleResultClick(item.ticker)}
+                >
+                  <span className="ticker">{item.ticker}</span>
+                  <span className="name">{item.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {results.length > 0 && (
+            <button className="search-show-more" onClick={handleShowMore}>
+              Show More →
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

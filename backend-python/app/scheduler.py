@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from core.config import db, logger
 from services.train_service import detect_anomalies
 from services.message import send_test_message
+from services.user_notifications import notify_users_of_anomalies
+from config.monitored_stocks import get_stocks_by_market, get_all_stocks, get_market_count
 
 load_dotenv()
 
@@ -51,42 +53,84 @@ def get_market_for_ticker(ticker: str):
 
 
 def job_for_market(market_name: str):
-    logger.info(f"Running job for {market_name}")
+    """Run anomaly detection for all monitored stocks in a market."""
+    logger.info(f"=== Running job for {market_name} market ===")
     if db is None:
         logger.warning("Database not available, skipping job")
         return
 
-    subscribers = db.get_collection("subscribers")
-    all_tickers = subscribers.distinct("tickers")
-    tickers = [t for sublist in all_tickers for t in (sublist if isinstance(sublist, (list, tuple)) else [sublist])]
-    market_tickers = [t for t in tickers if get_market_for_ticker(t) == market_name]
-    if not market_tickers:
-        logger.info(f"No subscribed tickers for {market_name}")
-        return
-
+    # Get monitored stocks for this market
+    market_tickers = get_stocks_by_market(market_name)
+    
+    # Also check for user-subscribed tickers from database
     try:
-        anomaly_df = detect_anomalies(tickers, period="7d", interval="15m")
+        subscribers = db.get_collection("subscribers")
+        subscribed = subscribers.distinct("tickers")
+        subscribed_list = [t for sublist in subscribed for t in (sublist if isinstance(sublist, (list, tuple)) else [sublist])]
+        subscribed_for_market = [t for t in subscribed_list if get_market_for_ticker(t) == market_name]
+        
+        # Merge lists (unique)
+        market_tickers = list(set(market_tickers + subscribed_for_market))
     except Exception as e:
-        logger.exception(f"detect_anomalies failed for {market_tickers}: {e}")
+        logger.warning(f"Could not fetch user subscriptions: {e}")
+    
+    if not market_tickers:
+        logger.info(f"No tickers to monitor for {market_name}")
         return
 
-    if anomaly_df.empty:
-        logger.info(f"No anomalies detected for {market_tickers}")
-        return
+    logger.info(f"Monitoring {len(market_tickers)} stocks for {market_name}: {', '.join(market_tickers[:10])}{'...' if len(market_tickers) > 10 else ''}")
 
-    for ticker in tickers:
+    # Batch process in groups of 10 to avoid memory issues
+    batch_size = 10
+    total_anomalies = 0
+    
+    for i in range(0, len(market_tickers), batch_size):
+        batch = market_tickers[i:i+batch_size]
+        logger.info(f"Processing batch {i//batch_size + 1}/{(len(market_tickers) + batch_size - 1)//batch_size}: {batch}")
+        
         try:
-            unsent = list(db.anomalies.find({"ticker": ticker, "sent": False}))
-            if not unsent:
-                logger.info(f"No unsent anomalies for {ticker}, skipping")
-                continue
-            else:
-                send_test_message(unsent)
-                ids = [doc["_id"] for doc in unsent]
-                db.anomalies.update_many({"_id": {"$in": ids}}, {"$set": {"sent": True}})
-                logger.info(f"Marked {len(ids)} anomalies as sent for {ticker}")
+            # Use 1d interval for intraday monitoring during market hours
+            anomaly_df = detect_anomalies(batch, period="5d", interval="1d")
+            
+            if not anomaly_df.empty:
+                batch_count = len(anomaly_df)
+                total_anomalies += batch_count
+                logger.info(f"Detected {batch_count} anomalies in batch")
+            
         except Exception as e:
-            logger.exception(f"Failed updating anomalies for {ticker}: {e}")
+            logger.exception(f"detect_anomalies failed for batch {batch}: {e}")
+            continue
+
+    logger.info(f"=== {market_name} job complete: {total_anomalies} total anomalies detected ===")
+
+    # Send user-specific notifications for new anomalies
+    if total_anomalies > 0:
+        try:
+            # Get all unsent anomalies for this market
+            unsent_anomalies = list(db.anomalies.find({
+                "$or": [
+                    {"Ticker": {"$in": market_tickers}},
+                    {"ticker": {"$in": market_tickers}}
+                ],
+                "sent": False
+            }))
+            
+            if unsent_anomalies:
+                logger.info(f"Found {len(unsent_anomalies)} unsent anomalies for {market_name}")
+                
+                # Send notifications via new system
+                notification_stats = notify_users_of_anomalies(unsent_anomalies)
+                logger.info(f"Notification stats: {notification_stats}")
+                
+                # Mark as sent
+                anomaly_ids = [a["_id"] for a in unsent_anomalies]
+                db.anomalies.update_many(
+                    {"_id": {"$in": anomaly_ids}},
+                    {"$set": {"sent": True}}
+                )
+                logger.info(f"Marked {len(anomaly_ids)} anomalies as sent")
+        except Exception as e:
+            logger.exception(f"Failed sending notifications: {e}")
 
 
 def combined_market_runner():

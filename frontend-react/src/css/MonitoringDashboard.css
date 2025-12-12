@@ -1,0 +1,429 @@
+/* MonitoringDashboard.css - Redesigned for practical user workflows */
+
+.monitoring-dashboard {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.monitoring-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, #2cc17f 0%, #1fa85b 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(44, 193, 127, 0.2);
+}
+
+.monitoring-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: white;
+    font-weight: 700;
+}
+
+.monitoring-status {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.status-badge {
+    padding: 0.7rem 1.2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+}
+
+.status-badge.active {
+    background: #10b981;
+    color: white;
+    border: none;
+}
+
+.last-update {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Main Content Area */
+.monitoring-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Quick Actions Section */
+.quick-actions-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.quick-actions-section h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.action-buttons {
+    display: grid;
+    grid-template-columns: 1fr repeat(3, 1fr);
+    gap: 1rem;
+}
+
+button.btn-primary {
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #2cc17f 0%, #1fa85b 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
+}
+
+button.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(44, 193, 127, 0.4);
+}
+
+button.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button.btn-secondary {
+    padding: 1rem 1.5rem;
+    background: white;
+    color: #2cc17f;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+button.btn-secondary:hover:not(:disabled) {
+    border-color: #2cc17f;
+    background: #f0fdf7;
+    transform: translateY(-2px);
+}
+
+button.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-icon {
+    font-size: 1.2rem;
+}
+
+/* Status Overview */
+.status-overview {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.status-overview h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.status-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.status-item {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+    border-radius: 8px;
+    border-left: 4px solid #2cc17f;
+}
+
+.status-item label {
+    display: block;
+    font-size: 0.85rem;
+    color: #7f8a9b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.status-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.status-value.anomaly-count {
+    color: #dc3545;
+}
+
+.status-value.status-active {
+    color: #10b981;
+    font-size: 1.5rem;
+}
+
+/* Anomaly Breakdown */
+.anomaly-breakdown {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.anomaly-breakdown h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.breakdown-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.breakdown-item {
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+    border-top: 3px solid #999;
+}
+
+.breakdown-item.us-market {
+    border-top-color: #3b82f6;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, #ffffff 100%);
+}
+
+.breakdown-item.jp-market {
+    border-top-color: #ef4444;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, #ffffff 100%);
+}
+
+.breakdown-item.th-market {
+    border-top-color: #f59e0b;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, #ffffff 100%);
+}
+
+.market-label {
+    font-size: 0.9rem;
+    color: #7f8a9b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.market-count {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Testing Section */
+.testing-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-left: 4px solid #f59e0b;
+}
+
+.testing-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.testing-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+button.btn-test {
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    align-self: flex-start;
+}
+
+button.btn-test:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
+button.btn-test:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Stocks Reference */
+.stocks-reference {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stocks-reference h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.stocks-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.stock-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #2cc17f 0%, #1fa85b 100%);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(44, 193, 127, 0.2);
+    transition: all 0.2s ease;
+}
+
+.stock-badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
+}
+
+/* Loading & Error States */
+.monitoring-loading,
+.monitoring-error {
+    text-align: center;
+    padding: 4rem;
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+.monitoring-error {
+    color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .monitoring-dashboard {
+        padding: 1rem;
+    }
+
+    .monitoring-header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .monitoring-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .monitoring-status {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .status-row {
+        grid-template-columns: 1fr;
+    }
+
+    .breakdown-row {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-actions-section,
+    .status-overview,
+    .anomaly-breakdown,
+    .testing-section,
+    .stocks-reference {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .monitoring-dashboard {
+        padding: 0.75rem;
+    }
+
+    .monitoring-header {
+        padding: 1rem 0.75rem;
+    }
+
+    .monitoring-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .status-value {
+        font-size: 1.75rem;
+    }
+
+    .market-count {
+        font-size: 1.5rem;
+    }
+
+    button.btn-primary,
+    button.btn-secondary,
+    button.btn-test {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-icon {
+        font-size: 1rem;
+    }
+}

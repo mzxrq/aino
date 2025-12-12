@@ -18,8 +18,10 @@ from core.config import logger, db
 from core.detection_metadata import DetectionRun
 from api.auth import router as auth_router
 from api.chart import router as chart_router
-from scheduler import combined_market_runner, scheduler_stop_event
-from services.train_service import detect_anomalies_incremental
+from scheduler import combined_market_runner, scheduler_stop_event, job_for_market
+from services.train_service import detect_anomalies_incremental, detect_anomalies
+from services.user_notifications import notify_users_of_anomalies
+from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
 
 app = FastAPI(title="Stock Fraud Detection API")
 
@@ -92,6 +94,71 @@ def toggle_scheduler(toggle: SchedulerToggle):
 @app.get("/py/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/py/seed/marketlists")
+async def seed_marketlists():
+    """Seed MongoDB marketlists collection from tickers.json for search functionality."""
+    if db is None:
+        raise HTTPException(status_code=500, detail="MongoDB is not configured")
+    
+    import json
+    from pathlib import Path
+    
+    tickers_file = Path(__file__).parent.parent / "docs" / "others" / "tickers.json"
+    
+    if not tickers_file.exists():
+        raise HTTPException(status_code=404, detail=f"tickers.json not found at {tickers_file}")
+    
+    try:
+        with open(tickers_file, 'r', encoding='utf-8') as f:
+            tickers_data = json.load(f)
+        
+        logger.info(f"Loaded {len(tickers_data)} tickers for seeding")
+        
+        # Clear existing data
+        result = db.marketlists.delete_many({})
+        deleted_count = result.deleted_count
+        logger.info(f"Cleared {deleted_count} existing records from marketlists collection")
+        
+        # Prepare documents
+        documents = []
+        for ticker_info in tickers_data:
+            doc = {
+                "ticker": ticker_info.get("ticker", "").upper(),
+                "companyName": ticker_info.get("companyName", ""),
+                "country": ticker_info.get("country", ""),
+                "primaryExchange": ticker_info.get("primaryExchange", ""),
+                "sectorGroup": ticker_info.get("sectorGroup", ""),
+            }
+            if doc["ticker"]:
+                documents.append(doc)
+        
+        # Insert all documents
+        if documents:
+            result = db.marketlists.insert_many(documents)
+            inserted_count = len(result.inserted_ids)
+            
+            # Create indexes
+            db.marketlists.create_index([("ticker", 1)])
+            db.marketlists.create_index([("companyName", 1)])
+            logger.info(f"Created indexes on ticker and companyName")
+            
+            return {
+                "status": "success",
+                "inserted": inserted_count,
+                "deleted": deleted_count,
+                "message": f"Successfully seeded {inserted_count} tickers into marketlists collection"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="No valid ticker documents to insert")
+    
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse tickers.json: {e}")
+        raise HTTPException(status_code=500, detail=f"Invalid JSON in tickers.json: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error seeding marketlists: {e}")
+        raise HTTPException(status_code=500, detail=f"Seeding failed: {str(e)}")
 
 
 # ========== ANOMALY DETECTION IMPROVEMENTS ==========
@@ -343,3 +410,258 @@ async def get_model_stats():
     except Exception as e:
         logger.exception(f"Error getting model stats: {e}")
         return {"error": str(e)}
+
+@app.get("/py/monitoring/status")
+async def get_monitoring_status():
+    """
+    Get current monitoring status and statistics.
+    
+    Returns info about:
+    - Monitored stocks count by market
+    - Scheduler status
+    - Recent anomaly counts
+    - Last detection runs
+    """
+    try:
+        # Get stock counts
+        counts = get_market_count()
+        
+        # Get recent anomaly stats (last 24h)
+        from datetime import datetime, timedelta
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        
+        anomaly_stats = {}
+        if db is not None:
+            for market in ['US', 'JP', 'TH']:
+                tickers = get_stocks_by_market(market)
+                count = db.anomalies.count_documents({
+                    "Ticker": {"$in": tickers},
+                    "detection_timestamp": {"$gte": yesterday}
+                })
+                anomaly_stats[market] = count
+        
+        # Get last 5 detection runs
+        recent_runs = []
+        if db is not None:
+            runs = db.detection_runs.find().sort("created_at", -1).limit(5)
+            for run in runs:
+                recent_runs.append({
+                    "run_id": run.get('_id'),
+                    "ticker": run.get('ticker'),
+                    "status": run.get('status'),
+                    "created_at": run.get('created_at'),
+                    "anomalies_found": run.get('anomalies_found', 0)
+                })
+        
+        return {
+            "monitored_stocks": counts,
+            "scheduler_enabled": scheduler_enabled,
+            "anomalies_last_24h": anomaly_stats,
+            "recent_detection_runs": recent_runs,
+            "all_stocks": get_all_stocks()
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error getting monitoring status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class MonitoringRequest(BaseModel):
+    market: str = None
+    tickers: list = None
+    period: str = "5d"
+    interval: str = "1d"
+
+
+@app.post("/py/monitoring/run")
+async def trigger_manual_monitoring(request: MonitoringRequest):
+    """
+    Manually trigger anomaly detection for monitored stocks.
+    
+    Args:
+        market: Specific market to scan ('US', 'JP', 'TH'), or None for all
+        tickers: Specific tickers to scan, or None to use monitored list
+        period: Data period (default '5d')
+        interval: Data interval (default '1d')
+    
+    Returns:
+        Detection results summary
+    """
+    try:
+        if request.tickers:
+            # Scan specific tickers
+            tickers_to_scan = request.tickers
+        elif request.market:
+            # Scan specific market
+            tickers_to_scan = get_stocks_by_market(request.market.upper())
+        else:
+            # Scan all monitored stocks
+            tickers_to_scan = get_all_stocks()
+        
+        if not tickers_to_scan:
+            raise HTTPException(status_code=400, detail="No tickers to scan")
+        
+        logger.info(f"Manual monitoring triggered for {len(tickers_to_scan)} stocks")
+        
+        # Run detection
+        anomaly_df = detect_anomalies(
+            tickers_to_scan,
+            period=request.period,
+            interval=request.interval
+        )
+        
+        anomaly_count = len(anomaly_df) if not anomaly_df.empty else 0
+        
+        # Get breakdown by ticker
+        ticker_breakdown = {}
+        if not anomaly_df.empty and 'Ticker' in anomaly_df.columns:
+            ticker_breakdown = anomaly_df.groupby('Ticker').size().to_dict()
+        
+        return {
+            "status": "completed",
+            "tickers_scanned": len(tickers_to_scan),
+            "total_anomalies": anomaly_count,
+            "anomalies_by_ticker": ticker_breakdown,
+            "tickers": tickers_to_scan[:20]  # First 20 for response size
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error in manual monitoring: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/py/monitoring/market/{market}")
+async def trigger_market_job(market: str):
+    """
+    Manually trigger a market-specific monitoring job (same as scheduler).
+    
+    Args:
+        market: Market code ('US', 'JP', 'TH')
+    
+    Returns:
+        Job execution status
+    """
+    market = market.upper()
+    if market not in ['US', 'JP', 'TH']:
+        raise HTTPException(status_code=400, detail="Invalid market. Use US, JP, or TH")
+    
+    try:
+        # Run in thread to avoid blocking
+        thread = threading.Thread(target=job_for_market, args=(market,))
+        thread.start()
+        
+        return {
+            "status": "started",
+            "market": market,
+            "message": f"Monitoring job started for {market} market"
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error starting market job: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/py/notifications/test")
+async def test_notifications():
+    """
+    Test notification system by sending alerts for recent unsent anomalies.
+    
+    Returns:
+        Notification statistics
+    """
+    try:
+        # Get recent unsent anomalies (last 60 days)
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(days=60)
+        
+        anomalies = list(db.anomalies.find({
+            "sent": False,
+            "detection_timestamp": {"$gte": cutoff}
+        }).limit(100))
+        
+        if not anomalies:
+            return {
+                "status": "no_anomalies",
+                "message": "No unsent anomalies found in the last 30 days"
+            }
+        
+        # Send notifications
+        stats = notify_users_of_anomalies(anomalies)
+        
+        return {
+            "status": "completed",
+            "anomalies_processed": len(anomalies),
+            "notification_stats": stats
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error testing notifications: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/py/notifications/preview/{user_id}")
+async def preview_user_notifications(user_id: str):
+    """
+    Preview what anomalies a specific user would receive.
+    
+    Args:
+        user_id: User ID to preview
+    
+    Returns:
+        User's subscription info and matching anomalies
+    """
+    try:
+        # Get user info
+        user = db.users.find_one({"_id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get user subscriptions
+        subscriber = db.subscribers.find_one({"_id": user_id})
+        user_tickers = subscriber.get("tickers", []) if subscriber else []
+        
+        if not user_tickers:
+            return {
+                "user_id": user_id,
+                "email": user.get("email"),
+                "tickers_subscribed": [],
+                "anomalies": [],
+                "message": "User has no subscribed tickers"
+            }
+        
+        # Get recent unsent anomalies for user's tickers
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(days=60)
+        
+        anomalies = list(db.anomalies.find({
+            "$or": [
+                {"Ticker": {"$in": user_tickers}},
+                {"ticker": {"$in": user_tickers}}
+            ],
+            "sent": False,
+            "detection_timestamp": {"$gte": cutoff}
+        }).limit(50))
+        
+        return {
+            "user_id": user_id,
+            "email": user.get("email"),
+            "line_id": user.get("lineid"),
+            "sent_option": user.get("sentOption", "mail"),
+            "timezone": user.get("timeZone", "UTC"),
+            "tickers_subscribed": user_tickers,
+            "anomaly_count": len(anomalies),
+            "anomalies": [
+                {
+                    "ticker": a.get("Ticker") or a.get("ticker"),
+                    "datetime": a.get("Datetime") or a.get("datetime"),
+                    "close": a.get("Close") or a.get("close"),
+                    "volume": a.get("Volume") or a.get("volume"),
+                    "score": a.get("anomaly_score")
+                }
+                for a in anomalies[:20]  # First 20 for preview
+            ]
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error previewing notifications: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

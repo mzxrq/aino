@@ -282,7 +282,7 @@ body.dark .mode-select .btn.active {
 .chart-card-actions { display: flex; gap: 8px; align-items:center; flex: 0 0 auto; max-width: 48%; justify-content: flex-end; flex-wrap: wrap; }
 
 /* Ensure title area can shrink and wrap when actions are wide */
-.chart-card-header > div:first-child { flex: 1 1 52%; min-width: 160px; }
+.chart-card-header > div:first-child { flex: 1 1 auto; min-width: 0; }
 
 .company-name { font-size: 0.92rem; color: var(--text-secondary); margin-left: 8px; font-weight: 500; }
 
@@ -919,7 +919,7 @@ body.dark .toolbar-label {
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
     gap: 12px;
 }
 
@@ -1164,18 +1164,21 @@ body.dark .chart-card-header {
 }
 .chart-card-buttons {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     align-items: center;
 }
 
 .chart-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
+    justify-content: center;
+    gap: 0;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
     border: none;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1185,6 +1188,55 @@ body.dark .chart-card-header {
     white-space: nowrap;
     position: relative;
 }
+
+.chart-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.chart-btn-follow .icon-stack {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-btn-follow .icon-plus,
+.chart-btn-follow .icon-check,
+.chart-btn-follow .icon-minus {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.chart-btn-follow:not(.followed) {
+    background: rgba(44, 193, 127, 0.08);
+    border-color: rgba(44, 193, 127, 0.2);
+    color: #1f9d62;
+}
+
+.chart-btn-follow:not(.followed) .icon-plus { opacity: 1; }
+
+.chart-btn-follow.followed {
+    background: #22c55e;
+    border-color: #16a34a;
+    color: #ffffff;
+}
+
+.chart-btn-follow.followed .icon-check { opacity: 1; }
+
+.chart-btn-follow.followed:hover {
+    background: #e03b3b;
+    border-color: #c53030;
+    color: #ffffff;
+}
+
+.chart-btn-follow.followed:hover .icon-check { opacity: 0; }
+.chart-btn-follow.followed:hover .icon-minus { opacity: 1; }
 
 .chart-btn:hover:not(:disabled) {
     transform: translateY(-1px);
