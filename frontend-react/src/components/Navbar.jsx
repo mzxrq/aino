@@ -18,6 +18,9 @@ export default function Navbar() {
     }
   });
   const { user, isLoggedIn, logout } = useAuth();
+  const isAdmin =
+  user && (user.role === 'admin' || user.role === 'superadmin');
+
   // no pin/collapsed behavior: navbar is static/sticky full-width
 
   useEffect(() => {
@@ -93,6 +96,16 @@ export default function Navbar() {
         {isLoggedIn ? (
           <>
             <Link to="/dashboard" className="nav-link" onClick={handleNavClick}>Dashboard</Link>
+            {isAdmin && (
+  <Link
+    to="/anomalies"
+    className="nav-link admin-link"
+    onClick={handleNavClick}
+  >
+    🚨 Anomalies
+  </Link>
+)}
+
             <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
           </>
         ) : (

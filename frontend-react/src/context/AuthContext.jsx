@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
         const createdAt = fmtDate(createdRaw);
         const lastLogin = fmtDate(lastRaw);
 
-        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin };
+        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role };
     };
 
     const [user, setUser] = useState(() => {
