@@ -1,3 +1,6 @@
+import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
+import Sidebar from '../../components/Sidebar';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from '../../components/Sidebar'; // Adjust the path if necessary
 import API_BASE from '../../config/api';
@@ -102,9 +105,22 @@ const sortedItems = useMemo(() => {
       setItems((it) => [mapped, ...it]);
       setForm({ id: null, ticker: '', date: '', value: '', note: '' });
       setModalOpen(false);
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Created',
+        text: 'Anomaly created successfully.',
+        timer: 1500,
+        confirmButtonColor: '#00aaff'
+      });
     } catch (err) {
       console.error('Create error', err);
-      alert('Create failed: ' + err.message);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Create failed: ' + err.message,
+        confirmButtonColor: '#dc2626'
+      });
     }
   }
 
@@ -143,22 +159,59 @@ const sortedItems = useMemo(() => {
       setItems((it) => it.map((i) => ((i._id === mapped._id || i.id === mapped.id) ? mapped : i)));
       cancelEdit();
       setModalOpen(false);
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Updated',
+        text: 'Anomaly updated successfully.',
+        timer: 1500,
+        confirmButtonColor: '#00aaff'
+      });
     } catch (err) {
       console.error('Update error', err);
-      alert('Update failed: ' + err.message);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Update failed: ' + err.message,
+        confirmButtonColor: '#dc2626'
+      });
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this anomaly?')) return;
+    const result = await Swal.fire({
+      title: 'Delete',
+      text: 'Are you sure you want to delete this anomaly?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await fetch(`${API_BASE}/node/anomalies/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       setItems((it) => it.filter((i) => (i._id !== id && i.id !== id)));
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted',
+        text: 'Anomaly deleted successfully.',
+        timer: 1500,
+        confirmButtonColor: '#00aaff'
+      });
     } catch (err) {
       console.error('Delete error', err);
-      alert('Delete failed: ' + err.message);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Delete failed: ' + err.message,
+        confirmButtonColor: '#dc2626'
+      });
     }
   }
   async function loadItems(query = '') {

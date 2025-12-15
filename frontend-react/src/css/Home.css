@@ -89,16 +89,16 @@ body.dark .hero-section-full {
 }
 
 .hero-logo {
-    width: 120px;
-    height: 120px;
+    width: 200px;
+    height: 200px;
     margin-bottom: 20px;
     filter: drop-shadow(0 4px 12px rgba(44, 193, 127, 0.3));
-    animation: float 3s ease-in-out infinite;
+    animation: float 8s ease-in-out infinite;
 }
 
 @keyframes float {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-15px); }
 }
 
 .hero-motto {
@@ -136,9 +136,8 @@ body.dark .hero-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: auto;
-    min-width: 150px;
-    max-width: fit-content;
+    width: 180px;
+    height: 48px;
     white-space: nowrap;
 }
 
@@ -177,7 +176,12 @@ body.dark .card {
 .card-body { display:flex; flex-direction:column; gap:10px; }
 .anomaly-row { display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px; background: linear-gradient(135deg, rgba(191, 246, 219, 0.4), rgba(255,255,255,0.6)); transition: all 0.18s ease; border: 1px solid var(--cute-outline); }
 .anomaly-row:hover { background: linear-gradient(135deg, rgba(191, 246, 219, 0.6), rgba(255,255,255,0.72)); box-shadow: 0 6px 20px rgba(44, 193, 127, 0.15); border-color: rgba(44, 193, 127, 0.28); }
-.logo-circle { width:48px; height:48px; border-radius:50%; background: linear-gradient(135deg, var(--cute-green-700), var(--cute-green-500)); box-shadow: 0 6px 14px rgba(44,193,127,0.22); flex: none; animation: bob 3s ease-in-out infinite; }
+
+/* Company indicator circle in anomaly rows */
+.logo-circle { width:48px; height:48px; border-radius:50%; background: linear-gradient(135deg, var(--cute-green-700), var(--cute-green-500)); box-shadow: 0 6px 14px rgba(44,193,127,0.22); flex: none; }
+
+/* Website branding logo - animated */
+.website-logo { animation: bob 3s ease-in-out infinite; }
 .anomaly-meta { min-width:160px; }
 .ticker { font-weight:700; }
 .company { font-size:0.9rem; color: var(--cute-muted); }

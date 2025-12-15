@@ -109,7 +109,7 @@ export default function Navbar() {
             <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
           </>
         ) : (
-          <Link to="/login" className="nav-link" onClick={handleNavClick}>Login</Link>
+          <></>
         )}
         <div className="mobile-search">
           <Search />

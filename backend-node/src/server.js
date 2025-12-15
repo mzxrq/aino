@@ -51,6 +51,10 @@ app.use('/node/mail', mailRoutes);
 const stockInfoRoutes = require('./routes/stockInfoRoute');
 app.use('/node/stock', stockInfoRoutes);
 
+// Stock groups routes (save/load user stock preferences)
+const stockGroupsRoutes = require('./routes/stockGroupsRoutes');
+app.use('/node/stock-groups', stockGroupsRoutes);
+
 // Seed routes
 const seedRoutes = require('./routes/seedRoute');
 app.use('/node/seed', seedRoutes);

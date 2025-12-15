@@ -71,7 +71,7 @@ export default function Home() {
       {/* Hero Section - Appears First */}
       <section className="hero-section-full">
         <div className="hero-content-centered">
-          <img src={logoSvg} alt="Logo" className="hero-logo" />
+          <img src={logoSvg} alt="Stock Dashboard Website Logo" className="hero-logo website-logo" />
           <p className="hero-motto">Stock Trading Anomaly Detector</p>
           <p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p>
           <div className="hero-buttons">
@@ -91,8 +91,8 @@ export default function Home() {
             </div>
             <div className="card-body">
               {(anomalies.length ? anomalies : SAMPLE_ANOMALIES).map(a => (
-                <div key={a.id} className="anomaly-row">
-                  <div className="logo-circle" aria-hidden></div>
+                <div key={a.id} className="anomaly-row" onClick={() => navigate('/chart', { state: { ticker: a.ticker } })} style={{cursor: 'pointer'}}>
+                  <div className="logo-circle" title={a.company}></div>
                   <div className="anomaly-meta">
                     <div className="ticker">{a.ticker}</div>
                     <div className="company">{a.company}</div>
@@ -118,8 +118,8 @@ export default function Home() {
             </div>
             <div className="card-body">
               {(anomalies.length ? anomalies : SAMPLE_ANOMALIES).map(a => (
-                <div key={a.id} className="anomaly-row">
-                  <div className="logo-circle"></div>
+                <div key={a.id} className="anomaly-row" onClick={() => navigate('/chart', { state: { ticker: a.ticker } })} style={{cursor: 'pointer'}}>
+                  <div className="logo-circle" title={a.company}></div>
                   <div className="anomaly-meta">
                     <div className="ticker">{a.ticker}</div>
                     <div className="company">{a.company}</div>

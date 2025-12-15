@@ -1,0 +1,133 @@
+/* Profile Sidebar - GitHub Style */
+.profile-sidebar {
+  width: 100%;
+  height: 100%;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border-color);
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 1.5rem 1.2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-nav {
+  list-style: none;
+  padding: 0.5rem 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.2rem;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--hover-bg);
+  color: var(--primary-btn);
+}
+
+.sidebar-nav-item.active {
+  background: rgba(0, 170, 255, 0.08);
+  border-left-color: var(--primary-btn);
+  color: var(--primary-btn);
+  font-weight: 600;
+}
+
+.nav-icon {
+  display: inline-flex;
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-label {
+  flex: 1;
+}
+
+/* Dark mode */
+body.dark .profile-sidebar {
+  background: rgba(255, 255, 255, 0.02);
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark .sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark .sidebar-nav-item {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark .sidebar-nav-item:hover {
+  background: rgba(0, 170, 255, 0.1);
+  color: #00ccff;
+}
+
+body.dark .sidebar-nav-item.active {
+  background: rgba(0, 170, 255, 0.15);
+  border-left-color: #00ccff;
+  color: #00ccff;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .profile-sidebar {
+    width: 100%;
+    position: relative;
+    top: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    height: auto;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+  }
+
+  .sidebar-nav-item {
+    padding: 0.6rem 1rem;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav-item.active {
+    border-left: none;
+    border-bottom-color: var(--primary-btn);
+  }
+}

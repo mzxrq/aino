@@ -14,6 +14,18 @@ const PERIOD_PRESETS = [
   { label: '5y', period: '5y', interval: '1wk' }
 ];
 
+const TIMEZONES = [
+  { offset: 0, label: 'UTC', name: 'UTC' },
+  { offset: 1, label: 'UTC+1', name: 'Europe/London' },
+  { offset: 2, label: 'UTC+2', name: 'Europe/Paris' },
+  { offset: 3, label: 'UTC+3', name: 'Europe/Moscow' },
+  { offset: 5.5, label: 'UTC+5:30', name: 'Asia/Kolkata' },
+  { offset: 8, label: 'UTC+8', name: 'Asia/Singapore' },
+  { offset: 9, label: 'UTC+9', name: 'Asia/Tokyo' },
+  { offset: -5, label: 'UTC-5', name: 'America/New_York' },
+  { offset: -8, label: 'UTC-8', name: 'America/Los_Angeles' }
+];
+
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
   if (p === '1d') return ['1m', '5m', '30m', '1h'].includes(interval) ? interval : '1m';
@@ -25,20 +37,20 @@ export default function LargeChart() {
   const { ticker: paramTicker } = useParams();
   const navigate = useNavigate();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
-  const [tickerInput, setTickerInput] = useState((paramTicker || 'AAPL').toUpperCase());
   const [period, setPeriod] = useState('1d');
   const [interval, setInterval] = useState('1m');
   const [payload, setPayload] = useState({});
-  const [financials, setFinancials] = useState({ net_income: [], news: [], balance_sheet: {} });
+  const [financials, setFinancials] = useState({ net_income: [], news: [], balance_sheet: {}, income_stmt: {}, cash_flow: {} });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showCandles, setShowCandles] = useState(true);
   const [timezone, setTimezone] = useState('UTC');
+  const [financialTab, setFinancialTab] = useState('income');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   useEffect(() => {
     if (!paramTicker) return;
     setTicker(paramTicker.toUpperCase());
-    setTickerInput(paramTicker.toUpperCase());
   }, [paramTicker]);
 
   useEffect(() => {
@@ -101,57 +113,77 @@ export default function LargeChart() {
   const change = (lastClose !== null && prevClose !== null) ? (lastClose - prevClose) : null;
   const changePct = (change !== null && prevClose) ? (change / prevClose) * 100 : null;
 
-  const netIncome = useMemo(() => (financials.net_income || []).slice(0, 4), [financials.net_income]);
-  const news = useMemo(() => Array.isArray(financials.news) ? financials.news.slice(0, 3) : [], [financials.news]);
+  const netIncome = useMemo(() => {
+    const data = financials.income_stmt || {};
+    return Object.entries(data).slice(0, 4).map(([key, value]) => ({
+      period: key,
+      value: value || 0
+    }));
+  }, [financials.income_stmt]);
+
+  const balanceSheetData = useMemo(() => {
+    const data = financials.balance_sheet || {};
+    return Object.entries(data).slice(0, 8).map(([key, value]) => ({
+      period: key,
+      value: value || 0
+    }));
+  }, [financials.balance_sheet]);
+
+  const cashFlowData = useMemo(() => {
+    const data = financials.cash_flow || {};
+    return Object.entries(data).slice(0, 4).map(([key, value]) => ({
+      period: key,
+      value: value || 0
+    }));
+  }, [financials.cash_flow]);
+
+  const news = useMemo(() => Array.isArray(financials.news) ? financials.news.slice(0, 5) : [], [financials.news]);
 
   const handlePreset = (p) => {
     setPeriod(p.period);
     setInterval(p.interval);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const next = (tickerInput || '').trim().toUpperCase() || 'AAPL';
-    setTicker(next);
-    navigate(`/chart/u/${next}`);
+  const downloadFinancialsCSV = () => {
+    const currentData = financialTab === 'income' ? netIncome : financialTab === 'balance' ? balanceSheetData : cashFlowData;
+    if (!currentData.length) return;
+
+    const header = ['Period', 'Value'];
+    const rows = currentData.map(item => [item.period, item.value]);
+    const csv = [header, ...rows].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${ticker}-${financialTab}-financials.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="lc-shell">
+      {/* Navbar with period controls only */}
       <div className="lc-navbar">
-        <form className="lc-ticker-form" onSubmit={handleSubmit}>
-          <input
-            className="lc-ticker-input"
-            value={tickerInput}
-            onChange={(e) => setTickerInput(e.target.value)}
-            placeholder="Ticker"
-          />
-          <button type="submit" className="lc-btn">Go</button>
-        </form>
+        <div className="lc-ticker-display">{ticker}</div>
         <div className="lc-preset-row">
           {PERIOD_PRESETS.map(p => (
             <button
               key={p.label}
               type="button"
-              className={`lc-pill ${period === p.period ? 'active' : ''}`}
+              className={`lc-pill ${period === p.period && interval === p.interval ? 'active' : ''}`}
               onClick={() => handlePreset(p)}
             >
               {p.label}
             </button>
           ))}
-          <div className="lc-field">
-            <label>Period</label>
-            <input value={period} onChange={(e) => setPeriod(e.target.value)} />
-          </div>
-          <div className="lc-field">
-            <label>Interval</label>
-            <input value={interval} onChange={(e) => setInterval(e.target.value)} />
-          </div>
         </div>
       </div>
 
       <div className="lc-body">
+        {/* Sidebar with ticker info, financials, news */}
         <aside className="lc-sidebar">
+          {/* Ticker Card */}
           <div className="lc-card lc-ticker-card">
             <div className="lc-row">
               <div className="lc-ticker-name">{ticker}</div>
@@ -170,27 +202,78 @@ export default function LargeChart() {
             <button className="lc-btn follow" type="button">Follow</button>
           </div>
 
+          {/* Financials Card - TradingView Style */}
           <div className="lc-card">
             <div className="lc-card-header">
               <span>Financials</span>
             </div>
-            <div className="lc-mini-bars">
-              {netIncome.length === 0 && <div className="lc-muted">No net income data</div>}
-              {netIncome.map((item) => (
-                <div key={item.period} className="lc-bar-row">
-                  <span className="lc-bar-label">{item.period}</span>
-                  <div className="lc-bar-track">
-                    <div
-                      className="lc-bar-fill"
-                      style={{ width: `${Math.min(100, Math.abs(item.value) / 1_000_000 * 10)}%` }}
-                    />
-                  </div>
-                  <span className="lc-bar-value">{item.value.toLocaleString()}</span>
+            <div className="lc-financial-tabs">
+              <button
+                className={`lc-tab ${financialTab === 'income' ? 'active' : ''}`}
+                onClick={() => setFinancialTab('income')}
+              >
+                Income
+              </button>
+              <button
+                className={`lc-tab ${financialTab === 'balance' ? 'active' : ''}`}
+                onClick={() => setFinancialTab('balance')}
+              >
+                Balance
+              </button>
+              <button
+                className={`lc-tab ${financialTab === 'cash' ? 'active' : ''}`}
+                onClick={() => setFinancialTab('cash')}
+              >
+                Cash Flow
+              </button>
+            </div>
+            <div className="lc-financials-content">
+              {financialTab === 'income' && (
+                <div className="lc-financial-table">
+                  {netIncome.length === 0 ? (
+                    <div className="lc-muted">No income data available</div>
+                  ) : (
+                    netIncome.map(item => (
+                      <div key={item.period} className="lc-fin-row">
+                        <div className="lc-fin-label">{item.period}</div>
+                        <div className="lc-fin-value">${(item.value / 1_000_000_000).toFixed(2)}B</div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
+              )}
+              {financialTab === 'balance' && (
+                <div className="lc-financial-table">
+                  {balanceSheetData.length === 0 ? (
+                    <div className="lc-muted">No balance sheet data available</div>
+                  ) : (
+                    balanceSheetData.map(item => (
+                      <div key={item.period} className="lc-fin-row">
+                        <div className="lc-fin-label">{item.period}</div>
+                        <div className="lc-fin-value">${(item.value / 1_000_000_000).toFixed(2)}B</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              {financialTab === 'cash' && (
+                <div className="lc-financial-table">
+                  {cashFlowData.length === 0 ? (
+                    <div className="lc-muted">No cash flow data available</div>
+                  ) : (
+                    cashFlowData.map(item => (
+                      <div key={item.period} className="lc-fin-row">
+                        <div className="lc-fin-label">{item.period}</div>
+                        <div className="lc-fin-value">${(item.value / 1_000_000_000).toFixed(2)}B</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
+          {/* News Card */}
           <div className="lc-card">
             <div className="lc-card-header">
               <span>News</span>
@@ -198,25 +281,64 @@ export default function LargeChart() {
             <div className="lc-news-list">
               {news.length === 0 && <div className="lc-muted">No recent news</div>}
               {news.map((n, idx) => (
-                <a key={idx} className="lc-news-item" href={n.link || n.url || '#'} target="_blank" rel="noreferrer">
+                <a
+                  key={idx}
+                  className="lc-news-item"
+                  href={n.link || n.url || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <div className="lc-news-source">{n.source || 'News'}</div>
                   <div className="lc-news-title">{n.title || 'Headline'}</div>
-                  <div className="lc-news-summary">{n.summary || n.text || ''}</div>
                   <div className="lc-news-date">{n.date || n.providerPublishTime || ''}</div>
                 </a>
               ))}
             </div>
           </div>
 
+          {/* Footer Controls */}
           <div className="lc-footer">
-            <button type="button" className="lc-btn ghost">CSV</button>
-            <button type="button" className="lc-btn ghost">More</button>
-            <button type="button" className="lc-btn ghost">Follow</button>
-            <button type="button" className="lc-btn ghost" onClick={() => setTimezone(timezone === 'UTC' ? 'Asia/Tokyo' : 'UTC')}>
-              {timezone === 'UTC' ? 'UTC' : 'UTC+9'}
+            <button
+              type="button"
+              className="lc-btn ghost"
+              onClick={downloadFinancialsCSV}
+              title="Download financial data as CSV"
+            >
+              CSV
             </button>
+            <div className="lc-more-menu">
+              <button
+                type="button"
+                className="lc-btn ghost"
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+              >
+                More
+              </button>
+              {showMoreMenu && (
+                <div className="lc-more-options">
+                  <button className="lc-menu-item">Subscribe</button>
+                  <button className="lc-menu-item">Share</button>
+                  <button className="lc-menu-item">Settings</button>
+                </div>
+              )}
+            </div>
+            <div className="lc-timezone-selector">
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="lc-tz-select"
+              >
+                {TIMEZONES.map(tz => (
+                  <option key={tz.name} value={tz.name}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </aside>
 
+        {/* Main chart area */}
         <main className="lc-main">
           {loading && <div className="lc-muted">Loading chart…</div>}
           {error && <div className="lc-error">{error}</div>}
