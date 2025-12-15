@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/useAuth';
 import ChartCardButtons from './ChartCardButtons';
 
@@ -52,7 +53,12 @@ export default function FollowableChartCard({
 
   async function handleFollowToggle() {
     if (!user || !token) {
-      alert('Please login to follow tickers');
+      await Swal.fire({
+        icon: 'info',
+        title: 'Please Login',
+        text: 'You need to be signed in to follow tickers.',
+        confirmButtonColor: '#00aaff'
+      });
       return;
     }
 
@@ -61,7 +67,6 @@ export default function FollowableChartCard({
 
     try {
       if (followed) {
-        // Unfollow
         const res = await fetch(`${front}/node/tickers/remove`, {
           method: 'POST',
           headers: {
@@ -76,7 +81,6 @@ export default function FollowableChartCard({
         if (!res.ok) throw new Error('Failed to unfollow');
         setFollowed(false);
       } else {
-        // Follow
         const res = await fetch(`${front}/node/subscribers`, {
           method: 'POST',
           headers: {
@@ -93,7 +97,12 @@ export default function FollowableChartCard({
         setFollowed(true);
       }
     } catch (e) {
-      alert(e.message || e.toString());
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: e.message || e.toString(),
+        confirmButtonColor: '#dc2626'
+      });
     } finally {
       setIsLoadingFollow(false);
     }

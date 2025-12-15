@@ -37,10 +37,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/chart" element={<Chart />} />
             <Route path="/chart/u/:ticker" element={<LargeChart />} />
-            <Route path="/chart/u" element={<LargeChart />} />
-            {/* Backward compatibility for old superchart links */}
-            <Route path="/superchart/:ticker" element={<LargeChart />} />
-            <Route path="/superchart" element={<LargeChart />} />
+            <Route path="/chart/u" element={<LargeChart />} />          
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/list" element={<MarketList />} />

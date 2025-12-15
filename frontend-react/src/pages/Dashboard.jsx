@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import '../css/Dashboard.css';
 
 const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
@@ -11,8 +12,7 @@ export default function Dashboard() {
 
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTicker, setSearchTicker] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch subscriptions on mount
   useEffect(() => {
@@ -42,7 +42,8 @@ export default function Dashboard() {
               }
         );
 
-        setSubscriptions(normalizedSubs);
+        // Sort by ticker name
+        setSubscriptions(normalizedSubs.sort((a, b) => a.ticker.localeCompare(b.ticker)));
       } catch (err) {
         console.error("Failed to fetch subscriptions:", err);
         setSubscriptions([]);
@@ -54,36 +55,36 @@ export default function Dashboard() {
     fetchSubscriptions();
   }, [user, token, navigate]);
 
-  const resolveStatusKey = (status) => {
+  const getStatusClass = (status) => {
     const s = (status || '').toLowerCase();
-    if (s.includes('anomaly')) return 'anomaly';
-    if (s.includes('safe') || s.includes('active')) return 'safe';
-    return 'unknown';
+    if (s.includes('anomaly')) return 'status-anomaly';
+    if (s.includes('safe') || s.includes('active')) return 'status-safe';
+    return 'status-unknown';
   };
 
-  const normalizedStats = useMemo(() => {
-    const total = subscriptions.length;
-    const anomaly = subscriptions.filter(s => resolveStatusKey(s.status) === 'anomaly').length;
-    const stable = subscriptions.filter(s => resolveStatusKey(s.status) === 'safe').length;
-    const unknown = total - anomaly - stable;
-    return { total, anomaly, stable, unknown };
-  }, [subscriptions]);
-
-  const filteredSubscriptions = useMemo(() => {
-    if (statusFilter === 'all') return subscriptions;
-    return subscriptions.filter(sub => resolveStatusKey(sub.status) === statusFilter);
-  }, [subscriptions, statusFilter]);
+  // Filter by search query
+  const filteredSubscriptions = subscriptions.filter(sub =>
+    sub.ticker.toUpperCase().includes(searchQuery.toUpperCase())
+  );
 
   // Handle unsubscribe
   const handleUnsubscribe = async (ticker) => {
-    if (!window.confirm(`Unsubscribe from ${ticker}?`)) return;
+    const result = await Swal.fire({
+      title: 'Unsubscribe',
+      text: `Remove ${ticker} from your watchlist?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Remove'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      // Ensure we send normalized id (frontend normalizes to `user.id`)
-      // Keep fallback to legacy `user.userId` for safety
       const response = await fetch(`${NODE_API_URL}/node/subscribers`, {
         method: 'DELETE',
         headers,
@@ -92,39 +93,35 @@ export default function Dashboard() {
 
       if (!response.ok) throw new Error('Failed to unsubscribe');
 
-      // Remove ticker from state
       setSubscriptions(subs => subs.filter(s => s.ticker !== ticker));
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Removed',
+        text: `${ticker} removed from watchlist.`,
+        timer: 1200,
+        confirmButtonColor: '#00aaff'
+      });
     } catch (err) {
       console.error("Unsubscribe error:", err);
-      alert("Failed to unsubscribe. Please try again.");
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to unsubscribe. Please try again.',
+        confirmButtonColor: '#dc2626'
+      });
     }
   };
 
-  const handleSearch = () => {
-    if (searchTicker.trim()) {
-      navigate("/chart", { state: { ticker: searchTicker.toUpperCase() } });
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
-
-  const statusClass = (status) => {
-    const key = resolveStatusKey(status);
-    if (key === 'anomaly') return 'status-pill danger';
-    if (key === 'safe') return 'status-pill success';
-    return 'status-pill muted';
+  const handleViewChart = (ticker) => {
+    navigate('/chart', { state: { ticker } });
   };
 
   if (isLoading || !user) {
     return (
       <div className="dashboard-shell">
-        <div className="panel loading-panel">
-          <div className="skeleton skeleton-lg" />
-          <div className="skeleton" />
+        <div className="loading-state">
+          <p>Loading watchlist...</p>
         </div>
       </div>
     );
@@ -132,125 +129,81 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-shell">
-      <section className="hero-card">
-        <div className="hero-text">
-          <p className="eyebrow">Portfolio pulse</p>
-          <h1>Welcome back, <span className="accent">{user.name}</span></h1>
-          <p className="lede">Track subscriptions, jump into charts, and act on anomalies faster.</p>
-          <div className="hero-actions">
-            <div className="search-wrap">
-              <input
-                type="text"
-                placeholder="Jump to a ticker (AAPL, NVDA, TSLA)"
-                value={searchTicker}
-                onChange={(e) => setSearchTicker(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="search-input"
-              />
-              <button onClick={handleSearch} className="btn btn-primary">Chart</button>
-            </div>
-            <button className="btn ghost" onClick={() => navigate('/chart')}>Markets</button>
-          </div>
+      {/* Header Section */}
+      <div className="dashboard-header">
+        <div>
+          <h1>My Watchlist</h1>
+          <p className="text-secondary">{subscriptions.length} {subscriptions.length === 1 ? 'stock' : 'stocks'} followed</p>
         </div>
-        <div className="hero-stats">
-          <div className="stat-card">
-            <p className="stat-label">Tracked tickers</p>
-            <h3>{normalizedStats.total}</h3>
-            <span className="chip muted">live watchlist</span>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Anomaly flags</p>
-            <h3 className="text-danger">{normalizedStats.anomaly}</h3>
-            <span className="chip danger">needs review</span>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Stable</p>
-            <h3 className="text-success">{normalizedStats.stable}</h3>
-            <span className="chip success">steady</span>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Unknown</p>
-            <h3>{normalizedStats.unknown}</h3>
-            <span className="chip muted">waiting data</span>
-          </div>
+        <button className="btn btn-primary" onClick={() => navigate('/chart')}>+ Add Stock</button>
+      </div>
+
+      {/* Search/Filter */}
+      <div className="dashboard-toolbar">
+        <input
+          type="text"
+          placeholder="Search by ticker..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="search-box"
+        />
+        <span className="results-count">{filteredSubscriptions.length} results</span>
+      </div>
+
+      {/* Content */}
+      {subscriptions.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📊</div>
+          <h2>No stocks yet</h2>
+          <p>Start building your watchlist by exploring the market</p>
+          <button className="btn btn-primary" onClick={() => navigate('/chart')}>Browse Markets</button>
         </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">My following</p>
-            <h2>Watchlist</h2>
-          </div>
-          <div className="panel-actions">
-            <div className="filter-pills">
-              {['all', 'safe', 'anomaly', 'unknown'].map(val => (
-                <button
-                  key={val}
-                  className={`pill ${statusFilter === val ? 'active' : ''}`}
-                  onClick={() => setStatusFilter(val)}
-                >
-                  {val === 'all' ? 'All' : val.charAt(0).toUpperCase() + val.slice(1)}
-                </button>
-              ))}
-            </div>
-            <span className="badge">{filteredSubscriptions.length} shown</span>
-          </div>
+      ) : filteredSubscriptions.length === 0 ? (
+        <div className="empty-state">
+          <p>No results for "{searchQuery}"</p>
         </div>
-
-        {subscriptions.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📈</div>
-            <h3>No subscriptions yet</h3>
-            <p>Search above to add a ticker, or open charts to explore trending symbols.</p>
-            <Link to="/chart" className="btn btn-primary">Go to charts</Link>
+      ) : (
+        <div className="stocks-table">
+          <div className="table-header">
+            <div className="col-ticker">Ticker</div>
+            <div className="col-status">Status</div>
+            <div className="col-frequency">Frequency</div>
+            <div className="col-actions">Actions</div>
           </div>
-        ) : (
-          <div className="subscriptions-grid">
-            {filteredSubscriptions.map(sub => (
-              <div key={sub.ticker} className="subscription-card">
-                <div className="subscription-head">
-                  <div>
-                    <p className="eyebrow">Ticker</p>
-                    <h3 className="ticker">{sub.ticker}</h3>
-                    <p className="muted">{sub.frequency}</p>
-                  </div>
-                  <div className="status-stack">
-                    <span className={statusClass(sub.status)}>{sub.status}</span>
-                    <button
-                      className="icon-btn"
-                      onClick={() => handleUnsubscribe(sub.ticker)}
-                      aria-label={`Unsubscribe from ${sub.ticker}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                <div className="subscription-body">
-                  <div className="pill ghost">Frequency: {sub.frequency}</div>
-                  <div className="pill ghost">Status: {sub.status}</div>
-                </div>
-
-                <div className="subscription-actions">
-                  <button
-                    className="btn ghost"
-                    onClick={() => navigate('/chart', { state: { ticker: sub.ticker } })}
-                  >
-                    View chart
-                  </button>
-                  <button
-                    className="btn danger"
-                    onClick={() => handleUnsubscribe(sub.ticker)}
-                  >
-                    Unsubscribe
-                  </button>
-                </div>
+          
+          {filteredSubscriptions.map(sub => (
+            <div key={sub.ticker} className="table-row">
+              <div className="col-ticker">
+                <span className="ticker-name">{sub.ticker}</span>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+              <div className="col-status">
+                <span className={`status-badge ${getStatusClass(sub.status)}`}>
+                  {sub.status}
+                </span>
+              </div>
+              <div className="col-frequency">
+                <span className="frequency-text">{sub.frequency}</span>
+              </div>
+              <div className="col-actions">
+                <button
+                  className="btn-icon"
+                  onClick={() => handleViewChart(sub.ticker)}
+                  title="View chart"
+                >
+                  📈
+                </button>
+                <button
+                  className="btn-icon danger"
+                  onClick={() => handleUnsubscribe(sub.ticker)}
+                  title="Remove from watchlist"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

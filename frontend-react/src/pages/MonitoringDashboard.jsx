@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import '../css/MonitoringDashboard.css';
 
 const MonitoringDashboard = () => {
@@ -34,11 +35,21 @@ const MonitoringDashboard = () => {
                 body: JSON.stringify(body)
             });
             const data = await response.json();
-            alert(`Scan complete: ${data.total_anomalies} anomalies detected in ${data.tickers_scanned} stocks`);
-            fetchStatus(); // Refresh stats
+            await Swal.fire({
+              icon: 'success',
+              title: 'Scan Complete',
+              text: `${data.total_anomalies} anomalies detected in ${data.tickers_scanned} stocks`,
+              confirmButtonColor: '#00aaff'
+            });
+            fetchStatus();
         } catch (error) {
             console.error('Error triggering scan:', error);
-            alert('Scan failed: ' + error.message);
+            await Swal.fire({
+              icon: 'error',
+              title: 'Scan Failed',
+              text: error.message,
+              confirmButtonColor: '#dc2626'
+            });
         } finally {
             setScanning(false);
         }
@@ -162,19 +173,35 @@ const MonitoringDashboard = () => {
                                     });
                                     const data = await response.json();
                                     if (data.status === 'no_anomalies') {
-                                        alert('No unsent anomalies found in the last 60 days');
+                                        await Swal.fire({
+                                          icon: 'info',
+                                          title: 'No Anomalies',
+                                          text: 'No unsent anomalies found in the last 60 days',
+                                          confirmButtonColor: '#00aaff'
+                                        });
                                     } else {
                                         const stats = data.notification_stats;
-                                        alert(
-                                            `✅ Notifications sent!\n\n` +
-                                            `Users notified: ${stats.notified_users}\n` +
-                                            `LINE messages: ${stats.line_sent}\n` +
-                                            `Emails: ${stats.email_sent}\n` +
-                                            `Anomalies processed: ${data.anomalies_processed}`
-                                        );
+                                        await Swal.fire({
+                                          icon: 'success',
+                                          title: 'Notifications Sent!',
+                                          html: `
+                                            <div style="text-align: left;">
+                                              <p><strong>Users notified:</strong> ${stats.notified_users}</p>
+                                              <p><strong>LINE messages:</strong> ${stats.line_sent}</p>
+                                              <p><strong>Emails:</strong> ${stats.email_sent}</p>
+                                              <p><strong>Anomalies processed:</strong> ${data.anomalies_processed}</p>
+                                            </div>
+                                          `,
+                                          confirmButtonColor: '#00aaff'
+                                        });
                                     }
                                 } catch (error) {
-                                    alert('Failed to send notifications: ' + error.message);
+                                    await Swal.fire({
+                                      icon: 'error',
+                                      title: 'Error',
+                                      text: 'Failed to send notifications: ' + error.message,
+                                      confirmButtonColor: '#dc2626'
+                                    });
                                 }
                             }}
                             className="btn-test"

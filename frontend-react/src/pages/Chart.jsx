@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DateTime } from 'luxon';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/PortalDropdown';
@@ -11,67 +12,71 @@ import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBa
 
 const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
 
-// Comprehensive timezone list (full-hour offsets only)
-const TIMEZONES = [
-  'UTC',
-  'America/New_York',      // UTC-5/-4
-  'America/Chicago',       // UTC-6/-5
-  'America/Denver',        // UTC-7/-6
-  'America/Los_Angeles',   // UTC-8/-7
-  'America/Anchorage',     // UTC-9/-8
-  'America/Sao_Paulo',     // UTC-3
-  'America/Mexico_City',   // UTC-6/-5
-  'America/Toronto',       // UTC-5/-4
-  'Europe/London',         // UTC+0/+1
-  'Europe/Paris',          // UTC+1/+2
-  'Europe/Berlin',         // UTC+1/+2
-  'Europe/Rome',           // UTC+1/+2
-  'Europe/Madrid',         // UTC+1/+2
-  'Europe/Amsterdam',      // UTC+1/+2
-  'Europe/Brussels',       // UTC+1/+2
-  'Europe/Zurich',         // UTC+1/+2
-  'Europe/Vienna',         // UTC+1/+2
-  'Europe/Stockholm',      // UTC+1/+2
-  'Europe/Copenhagen',     // UTC+1/+2
-  'Europe/Oslo',           // UTC+1/+2
-  'Europe/Helsinki',       // UTC+2/+3
-  'Europe/Athens',         // UTC+2/+3
-  'Europe/Istanbul',       // UTC+3
-  'Europe/Moscow',         // UTC+3
-  'Europe/Warsaw',         // UTC+1/+2
-  'Europe/Prague',         // UTC+1/+2
-  'Asia/Tokyo',            // UTC+9
-  'Asia/Seoul',            // UTC+9
-  'Asia/Shanghai',         // UTC+8
-  'Asia/Hong_Kong',        // UTC+8
-  'Asia/Singapore',        // UTC+8
-  'Asia/Bangkok',          // UTC+7
-  'Asia/Jakarta',          // UTC+7
-  'Asia/Manila',           // UTC+8
-  'Asia/Taipei',           // UTC+8
-  'Asia/Kuala_Lumpur',     // UTC+8
-  'Asia/Dubai',            // UTC+4
-  'Asia/Karachi',          // UTC+5
-  'Asia/Tashkent',         // UTC+5
-  'Asia/Almaty',           // UTC+6
-  'Australia/Sydney',      // UTC+10/+11
-  'Australia/Melbourne',   // UTC+10/+11
-  'Australia/Brisbane',    // UTC+10
-  'Australia/Perth',       // UTC+8
-  'Pacific/Auckland',      // UTC+12/+13
-  'Pacific/Fiji',          // UTC+12
-  'Pacific/Honolulu',      // UTC-10
-  'Africa/Cairo',          // UTC+2
-  'Africa/Johannesburg',   // UTC+2
-  'Africa/Lagos',          // UTC+1
-  'Africa/Nairobi'         // UTC+3
-];
+// City-based timezone labels mapped to IANA identifiers
+const CITY_TZ_MAP = {
+  UTC: 'UTC',
+  'New York': 'America/New_York',
+  Chicago: 'America/Chicago',
+  Denver: 'America/Denver',
+  'Los Angeles': 'America/Los_Angeles',
+  Anchorage: 'America/Anchorage',
+  'São Paulo': 'America/Sao_Paulo',
+  'Mexico City': 'America/Mexico_City',
+  Toronto: 'America/Toronto',
+  London: 'Europe/London',
+  Paris: 'Europe/Paris',
+  Berlin: 'Europe/Berlin',
+  Rome: 'Europe/Rome',
+  Madrid: 'Europe/Madrid',
+  Amsterdam: 'Europe/Amsterdam',
+  Brussels: 'Europe/Brussels',
+  Zurich: 'Europe/Zurich',
+  Vienna: 'Europe/Vienna',
+  Stockholm: 'Europe/Stockholm',
+  Copenhagen: 'Europe/Copenhagen',
+  Oslo: 'Europe/Oslo',
+  Helsinki: 'Europe/Helsinki',
+  Athens: 'Europe/Athens',
+  Istanbul: 'Europe/Istanbul',
+  Moscow: 'Europe/Moscow',
+  Warsaw: 'Europe/Warsaw',
+  Prague: 'Europe/Prague',
+  Tokyo: 'Asia/Tokyo',
+  Seoul: 'Asia/Seoul',
+  Shanghai: 'Asia/Shanghai',
+  'Hong Kong': 'Asia/Hong_Kong',
+  Singapore: 'Asia/Singapore',
+  Bangkok: 'Asia/Bangkok',
+  Jakarta: 'Asia/Jakarta',
+  Manila: 'Asia/Manila',
+  Taipei: 'Asia/Taipei',
+  'Kuala Lumpur': 'Asia/Kuala_Lumpur',
+  Dubai: 'Asia/Dubai',
+  Karachi: 'Asia/Karachi',
+  Tashkent: 'Asia/Tashkent',
+  Almaty: 'Asia/Almaty',
+  Sydney: 'Australia/Sydney',
+  Melbourne: 'Australia/Melbourne',
+  Brisbane: 'Australia/Brisbane',
+  Perth: 'Australia/Perth',
+  Auckland: 'Pacific/Auckland',
+  Fiji: 'Pacific/Fiji',
+  Honolulu: 'Pacific/Honolulu',
+  Cairo: 'Africa/Cairo',
+  Johannesburg: 'Africa/Johannesburg',
+  Lagos: 'Africa/Lagos',
+  Nairobi: 'Africa/Nairobi'
+};
+
+const TIMEZONES = Object.keys(CITY_TZ_MAP);
 
 // Format timezone with UTC offset: "(-10:00) Honolulu"
+// tz is city label now; resolve to IANA for calculations
 function formatTimezoneLabel(tz) {
   try {
     const now = new Date();
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const iana = CITY_TZ_MAP[tz] || tz;
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const offsetMs = tzDate - utcDate;
     const offsetHours = offsetMs / (1000 * 60 * 60);
@@ -79,11 +84,7 @@ function formatTimezoneLabel(tz) {
     const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
     const signedHours = offsetHours >= 0 ? absHours : -absHours;
     const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
-    
-    // Extract city name from timezone (e.g., "Asia/Tokyo" -> "Tokyo")
-    const cityName = tz.split('/').pop().replace(/_/g, ' ');
-    
-    return `${offsetStr} ${cityName}`;
+    return `${offsetStr} ${tz}`;
   } catch (e) {
     return tz;
   }
@@ -93,7 +94,8 @@ function formatTimezoneLabel(tz) {
 function getTimezoneOffset(tz) {
   try {
     const now = new Date();
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const iana = CITY_TZ_MAP[tz] || tz;
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const offsetMs = tzDate - utcDate;
     const offsetHours = offsetMs / (1000 * 60 * 60);
@@ -114,19 +116,18 @@ function sortTimezonesByOffset(timezones) {
 function detectUserTimezone() {
   try {
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // Check if detected timezone is in our list
-    if (TIMEZONES.includes(detected)) {
-      return detected;
-    }
+    // Try to map detected IANA to a city label
+    const cityFromDetected = Object.keys(CITY_TZ_MAP).find(city => CITY_TZ_MAP[city] === detected);
+    if (cityFromDetected) return cityFromDetected;
     // Fallback: find closest matching timezone
     const offset = new Date().getTimezoneOffset();
     // Common mappings based on offset
-    if (offset === -540) return 'Asia/Tokyo'; // UTC+9
-    if (offset === -480) return 'Asia/Singapore'; // UTC+8
-    if (offset === -420) return 'Asia/Bangkok'; // UTC+7
-    if (offset === 0) return 'Europe/London'; // UTC+0
-    if (offset === 300) return 'America/New_York'; // UTC-5
-    if (offset === 420) return 'America/Los_Angeles'; // UTC-7
+    if (offset === -540) return 'Tokyo'; // UTC+9
+    if (offset === -480) return 'Singapore'; // UTC+8
+    if (offset === -420) return 'Bangkok'; // UTC+7
+    if (offset === 0) return 'London'; // UTC+0
+    if (offset === 300) return 'New York'; // UTC-5
+    if (offset === 420) return 'Los Angeles'; // UTC-7
   } catch (e) {
     console.warn('Timezone detection failed:', e);
   }
@@ -137,7 +138,8 @@ function detectUserTimezone() {
 function getTimezoneTimeString(tz) {
   try {
     const now = new Date();
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const iana = CITY_TZ_MAP[tz] || tz;
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const offsetMs = tzDate - utcDate;
     const offsetHours = offsetMs / (1000 * 60 * 60);
@@ -145,8 +147,7 @@ function getTimezoneTimeString(tz) {
     const absHours = Math.abs(Math.floor(offsetHours));
     const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
     const offsetStr = `${sign}${absHours.toString().padStart(2, '0')}`;
-    
-    const timeStr = now.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const timeStr = now.toLocaleString('en-US', { timeZone: iana, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     return `${timeStr} UTC${offsetStr}`;
   } catch (e) {
     return 'N/A';
@@ -159,7 +160,7 @@ function getTimezoneTimeString(tz) {
   { label: '1M', period: '1mo', interval: '30m' },
   { label: '6M', period: '6mo', interval: '1d' },
   { label: '1Y', period: '1y', interval: '1d' },
-  { label: '5Y', period: '5y', interval: '1d' }
+  { label: '5Y', period: '5y', interval: '1wk' }
 ];
 
 // Format numbers: add commas for thousands and show decimals when value has fraction
@@ -302,7 +303,12 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
 
   async function handleFollowToggle() {
     if (!user || !token) {
-      alert('Please login to follow tickers');
+      await Swal.fire({
+        icon: 'info',
+        title: 'Please Login',
+        text: 'You need to be signed in to follow tickers.',
+        confirmButtonColor: '#00aaff'
+      });
       return;
     }
     const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
@@ -327,7 +333,12 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
         setFollowed(true);
       }
     } catch (e) {
-      alert(e.message || e.toString());
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: e.message || e.toString(),
+        confirmButtonColor: '#dc2626'
+      });
     } finally {
       setIsLoadingFollow(false);
     }
@@ -379,10 +390,13 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     return () => clearTimeout(id);
   }, [dates, close, lastClose, plotRef]);
 
+  // Resolve city label to IANA for Luxon/Date APIs
+  const toIana = (tz) => CITY_TZ_MAP[tz] || tz || 'UTC';
+
   // market timezone label (GMT offset)
   let gmtLabel = '';
   try {
-    const off = DateTime.now().setZone(timezone).offset; // minutes
+    const off = DateTime.now().setZone(toIana(timezone)).offset; // minutes
     const hrs = off / 60;
     const sign = hrs >= 0 ? '+' : '-';
     gmtLabel = `GMT${sign}${Math.abs(hrs)}`;
@@ -401,9 +415,10 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     // Use payload-provided market_open/market_close if available (ISO strings), otherwise assume open if recent data exists
     try {
       if (payload.market_open && payload.market_close) {
-        const now = DateTime.now().setZone(timezone);
-        const openT = DateTime.fromISO(payload.market_open, { zone: timezone });
-        const closeT = DateTime.fromISO(payload.market_close, { zone: timezone });
+        const zone = toIana(timezone);
+        const now = DateTime.now().setZone(zone);
+        const openT = DateTime.fromISO(payload.market_open, { zone });
+        const closeT = DateTime.fromISO(payload.market_close, { zone });
         return now >= openT && now <= closeT;
       }
     } catch { /* ignore */ }
@@ -493,10 +508,10 @@ export default function Chart() {
   const savePrefsTimer = useRef(null);
 
   const [tickersInput, setTickersInput] = useState(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickersInput || 'AAPL,MSFT'; } catch { return 'AAPL,MSFT'; }
+    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickersInput || ''; } catch { return ''; }
   });
   const [tickers, setTickers] = useState(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || ['AAPL','MSFT']; } catch { return ['AAPL','MSFT']; }
+    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || []; } catch { return []; }
   });
   const [period, setPeriod] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.period || '1d'; } catch { return '1d'; } });
   const [interval, setInterval] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.interval || '1m'; } catch { return '1m'; } });
@@ -599,11 +614,151 @@ export default function Chart() {
 
   function applyTickers() {
     const parts = tickersInput.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    setTickers(parts.length ? parts : ['AAPL']);
+    setTickers(parts.length ? parts : []);
+  }
+
+  function clearAllTags() {
+    setTickers([]);
+    setTickersInput('');
+  }
+
+  async function saveToStockGroup() {
+    if (!token || !user) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Please Login',
+        text: 'You need to be signed in to save stock groups.',
+        confirmButtonText: 'Go to Login',
+        confirmButtonColor: '#00aaff'
+      }).then((result) => {
+        if (result.isConfirmed) navigate('/login');
+      });
+      return;
+    }
+
+    if (tickers.length === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'No Tickers',
+        text: 'Please add at least one ticker before saving.',
+        confirmButtonColor: '#00aaff'
+      });
+      return;
+    }
+
+    const { value: groupName } = await Swal.fire({
+      title: 'Save Stock Group',
+      input: 'text',
+      inputPlaceholder: 'e.g., Tech Stocks, Watchlist 1',
+      inputLabel: 'Group Name',
+      showCancelButton: true,
+      confirmButtonColor: '#00aaff',
+      inputValidator: (value) => {
+        if (!value) return 'Group name cannot be empty';
+        if (value.length > 50) return 'Group name must be 50 characters or less';
+      }
+    });
+
+    if (groupName) {
+      try {
+        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const res = await fetch(`${front}/node/stock-groups`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ 
+            userId: user.id || user._id || user.userId,
+            name: groupName,
+            tickers: tickers
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save group');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Saved!',
+          text: `Stock group "${groupName}" saved successfully.`,
+          confirmButtonColor: '#00aaff'
+        });
+      } catch (error) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Failed to save stock group',
+          confirmButtonColor: '#dc2626'
+        });
+      }
+    }
+  }
+
+  async function loadFromStockGroup() {
+    if (!token || !user) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Please Login',
+        text: 'You need to be signed in to load stock groups.',
+        confirmButtonText: 'Go to Login',
+        confirmButtonColor: '#00aaff'
+      }).then((result) => {
+        if (result.isConfirmed) navigate('/login');
+      });
+      return;
+    }
+
+    try {
+      const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+      const res = await fetch(`${front}/node/stock-groups`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const groups = await res.json();
+      if (!res.ok) throw new Error(groups.message || 'Failed to fetch groups');
+      
+      if (!groups || groups.length === 0) {
+        await Swal.fire({
+          icon: 'info',
+          title: 'No Groups',
+          text: 'You have no saved stock groups yet.',
+          confirmButtonColor: '#00aaff'
+        });
+        return;
+      }
+
+      const { value: selectedGroup } = await Swal.fire({
+        title: 'Load Stock Group',
+        input: 'select',
+        inputOptions: groups.reduce((acc, g) => ({ ...acc, [g._id]: g.name }), {}),
+        inputPlaceholder: 'Select a group',
+        showCancelButton: true,
+        confirmButtonColor: '#00aaff',
+        inputValidator: (value) => {
+          if (!value) return 'Please select a group';
+        }
+      });
+
+      if (selectedGroup) {
+        const group = groups.find(g => g._id === selectedGroup);
+        setTickers(group.tickers || []);
+        setTickersInput('');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Loaded!',
+          text: `Stock group "${group.name}" loaded with ${group.tickers.length} ticker(s).`,
+          timer: 1500,
+          confirmButtonColor: '#00aaff'
+        });
+      }
+    } catch (error) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to load stock groups',
+        confirmButtonColor: '#dc2626'
+      });
+    }
   }
 
   function onExpand(ticker) {
-    navigate(`/superchart/${encodeURIComponent(ticker)}`);
+    navigate(`/chart/u/${encodeURIComponent(ticker)}`);
   }
 
   // `subscribe` helper removed (not used in toolbar); per-card SubscribeButton handles subscriptions.
@@ -655,6 +810,19 @@ export default function Chart() {
                 <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
                 <path d="M20 20l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
+            </button>
+            {tickers.length > 0 && (
+              <button className="btn btn-icon-clear" onClick={clearAllTags} title="Clear all tags">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+            <button className="btn btn-stock-group" onClick={saveToStockGroup} title="Save as stock group">
+              💾
+            </button>
+            <button className="btn btn-stock-group" onClick={loadFromStockGroup} title="Load stock group">
+              📂
             </button>
           </div>
 

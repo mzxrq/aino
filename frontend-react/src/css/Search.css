@@ -1,7 +1,7 @@
 /* Consolidated Search Component styles - pill input matching navbar */
 :root {
-  --search-width: 240px;
-  --search-mobile-width: 140px;
+  --search-width: 180px;
+  --search-mobile-width: 100px;
   --border-color-default: #e5e7eb;
   --card-shadow-default: 0 10px 30px rgba(2,6,23,0.08);
 }
@@ -14,12 +14,12 @@
 
 .search-input {
   width: 100%;
-  padding: 8px 14px;
-  border-radius: 9999px;
+  padding: 6px 12px;
+  border-radius: 20px;
   border: 1px solid #ffffff;
   background-color: #ffffff;
   color: #333333;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 500;
   transition: all 0.2s ease;
   box-sizing: border-box;
@@ -27,9 +27,9 @@
   /* Pseudo icon effect */
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='m21 21-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 16px 16px;
-  padding-right: 36px;
+  background-position: right 8px center;
+  background-size: 14px 14px;
+  padding-right: 30px;
 }
 
 .search-input:focus {

@@ -7,6 +7,79 @@ import { DateTime } from 'luxon';
  * Renders candlestick/line chart with volume, VWAP, anomaly markers, and Bollinger Bands
  */
 
+// City-based timezone labels mapped to IANA identifiers (mirror from Chart.jsx)
+const CITY_TZ_MAP = {
+  UTC: 'UTC',
+  'New York': 'America/New_York',
+  Chicago: 'America/Chicago',
+  Denver: 'America/Denver',
+  'Los Angeles': 'America/Los_Angeles',
+  Anchorage: 'America/Anchorage',
+  'São Paulo': 'America/Sao_Paulo',
+  'Mexico City': 'America/Mexico_City',
+  Toronto: 'America/Toronto',
+  London: 'Europe/London',
+  Paris: 'Europe/Paris',
+  Berlin: 'Europe/Berlin',
+  Rome: 'Europe/Rome',
+  Madrid: 'Europe/Madrid',
+  Amsterdam: 'Europe/Amsterdam',
+  Brussels: 'Europe/Brussels',
+  Zurich: 'Europe/Zurich',
+  Vienna: 'Europe/Vienna',
+  Stockholm: 'Europe/Stockholm',
+  Copenhagen: 'Europe/Copenhagen',
+  Oslo: 'Europe/Oslo',
+  Helsinki: 'Europe/Helsinki',
+  Athens: 'Europe/Athens',
+  Istanbul: 'Europe/Istanbul',
+  Moscow: 'Europe/Moscow',
+  Warsaw: 'Europe/Warsaw',
+  Prague: 'Europe/Prague',
+  Tokyo: 'Asia/Tokyo',
+  Seoul: 'Asia/Seoul',
+  Shanghai: 'Asia/Shanghai',
+  'Hong Kong': 'Asia/Hong_Kong',
+  Singapore: 'Asia/Singapore',
+  Bangkok: 'Asia/Bangkok',
+  Jakarta: 'Asia/Jakarta',
+  Manila: 'Asia/Manila',
+  Taipei: 'Asia/Taipei',
+  'Kuala Lumpur': 'Asia/Kuala_Lumpur',
+  Dubai: 'Asia/Dubai',
+  Karachi: 'Asia/Karachi',
+  Tashkent: 'Asia/Tashkent',
+  Almaty: 'Asia/Almaty',
+  Sydney: 'Australia/Sydney',
+  Melbourne: 'Australia/Melbourne',
+  Brisbane: 'Australia/Brisbane',
+  Perth: 'Australia/Perth',
+  Auckland: 'Pacific/Auckland',
+  Fiji: 'Pacific/Fiji',
+  Honolulu: 'Pacific/Honolulu',
+  Cairo: 'Africa/Cairo',
+  Johannesburg: 'Africa/Johannesburg',
+  Lagos: 'Africa/Lagos',
+  Nairobi: 'Africa/Nairobi'
+};
+
+// Helper: convert city name to IANA identifier
+function toIana(tz) {
+  return CITY_TZ_MAP[tz] || tz || 'UTC';
+}
+
+// Helper: parse ISO string and convert to target timezone
+function parseToTimezone(isoString, timezone) {
+  try {
+    const iana = toIana(timezone);
+    // Parse ISO string in UTC first, then convert to target timezone
+    const dt = DateTime.fromISO(isoString, { zone: 'UTC' });
+    return dt.isValid ? dt.setZone(iana) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Abbreviate large numbers for readability (e.g., 50000000 -> 50M, 653000 -> 653K)
 function abbreviateNumber(num) {
   if (num === null || num === undefined) return '-';
@@ -217,8 +290,8 @@ export default function EchartsCard({
           let dateStr = '';
           let timeStr = '';
           try {
-            const dt = DateTime.fromISO(rawDate, { zone: timezone || 'UTC' });
-            if (dt.isValid) {
+            const dt = parseToTimezone(rawDate, timezone);
+            if (dt) {
               dateStr = dt.toFormat('MM/dd/yyyy');
               timeStr = hideTime ? '' : dt.toFormat('HH:mm:ss');
             } else {
@@ -298,16 +371,16 @@ export default function EchartsCard({
             // For ordinal (multi-day), show date only
             if (isOrdinal) {
               try {
-                const dt = DateTime.fromISO(value, { zone: timezone || 'UTC' });
-                return dt.isValid ? dt.toFormat('LL-dd') : value;
+                const dt = parseToTimezone(value, timezone);
+                return dt ? dt.toFormat('LL-dd') : value;
               } catch {
                 return value;
               }
             }
             // For intraday, show just time
             try {
-              const dt = DateTime.fromISO(value, { zone: timezone || 'UTC' });
-              return dt.isValid ? dt.toFormat('HH:mm') : value;
+              const dt = parseToTimezone(value, timezone);
+              return dt ? dt.toFormat('HH:mm') : value;
             } catch {
               return value;
             }

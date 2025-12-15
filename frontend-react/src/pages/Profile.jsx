@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import ProfileSidebar from '../components/ProfileSidebar';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
 
@@ -31,6 +32,10 @@ const TIMEZONES = [
 const Profile = () => {
     const { user, logout, token, setUser } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Get current section from URL query parameter
+    const currentSection = new URLSearchParams(location.search).get('section') || 'general';
 
     const syncUser = (updates) => {
         if (!setUser) return;
@@ -254,110 +259,16 @@ const Profile = () => {
     if (!user) return null;
 
     return (
-        <div className="profile-container">
-            <div className="profile-content">
-                <div className="profile-header">
-                    <div className="profile-avatar-section">
-                        {resolvedAvatar ? <img src={resolvedAvatar} alt="Profile" className="profile-avatar" /> : <div className="profile-avatar-placeholder">{(user.name || 'U')[0]}</div>}
-                        <div className="avatar-actions">
-                            <label className="btn btn-outline">
-                                {loading.avatarUploading ? 'Uploading…' : 'Upload Avatar'}
-                                <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
-                            </label>
-                            {resolvedAvatar && <button className="btn btn-outline" onClick={handleAvatarDelete}>Remove</button>}
-                        </div>
-                    </div>
-                    <div className="profile-greeting">
-                        <h1>{user.name || user.username || 'User'}</h1>
-                        <p className="login-method">
-                            {isLineUser ? (
-                                <span className="badge badge-line">Logged in with LINE</span>
-                            ) : (
-                                <span className="badge badge-email">Logged in with Email</span>
-                            )}
-                        </p>
-                    </div>
-                </div>
-
-                {status.error && <div className="message message-error">{status.error}</div>}
-                {status.success && <div className="message message-success">{status.success}</div>}
-
-                <div className="profile-section">
-                    <div className="section-header">
-                        <h2>Profile Information</h2>
-                        <button className="btn btn-toggle" onClick={() => toggle(setEditMode)}>{editMode ? 'Cancel' : 'Edit'}</button>
-                    </div>
-                    <form onSubmit={handleUpdateProfile} className={`profile-form ${editMode ? 'edit-mode' : ''}`}>
-                        <FormRow label="Full Name" name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
-                        <FormRow label="Username" name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
-                        <FormRow label="Email" name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={isLineUser ? 'Add your email to enable password login' : 'your.email@example.com'} />
-
-                        {editMode ? (
-                            <FormRow
-                                label="Timezone"
-                                name="timeZone"
-                                type="select"
-                                disabled={!editMode}
-                                value={formData.timeZone}
-                                onChange={handleInput}
-                                options={TIMEZONES}
-                            />
-                        ) : (
-                            <div className="form-group">
-                                <label>Timezone</label>
-                                <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
-                            </div>
-                        )}
-                        {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>{loading.saving ? 'Saving…' : 'Save Changes'}</button>}
-                    </form>
-                </div>
-
-                {/* Security Section: Shows if User CAN Change OR CAN Add (requires Email) */}
-                {(canChangePassword || canAddPassword) && (
-                    <div className="profile-section">
-                        <div className="section-header">
-                            <h2>Security</h2>
-                            <button className="btn btn-toggle" onClick={() => toggle(setShowPasswordForm)}>
-                                {showPasswordForm ? 'Cancel' : (canAddPassword ? 'Add Password' : 'Change Password')}
-                            </button>
-                        </div>
-                        {showPasswordForm && (
-                            <PasswordForm
-                                passwordData={passwordData}
-                                onChange={handlePasswordInput}
-                                onSubmit={handleUpdatePassword}
-                                loading={loading.saving}
-                                isAdding={canAddPassword}
-                            />
-                        )}
-                    </div>
-                )}
-                
-                {/* Helper for LINE users without Email */}
-                {!canChangePassword && !canAddPassword && isLineUser && (
-                    <div className="profile-section">
-                        <div className="section-header"><h2>Security</h2></div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                            Please add an email address in your Profile Information above to set a password.
-                        </p>
-                    </div>
-                )}
-
-                {/* Show Connect LINE button if NOT logged in via LINE */}
-                {!isLineUser && (
-                    <div className="profile-section">
-                        <div className="section-header"><h2>Connected Services</h2></div>
-                        <div className="service-card">
-                            <div className="service-info"><h3>LINE</h3><p>Connect your LINE account</p></div>
-                            <button className="btn btn-line" onClick={handleLineIntegration}>Connect LINE</button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="profile-section">
-                    <div className="section-header"><h2>Account</h2></div>
-                    <button className="btn btn-logout" onClick={() => { logout(); navigate('/'); }}>Logout</button>
-                </div>
+        <div className="profile-layout">
+            <div className="profile-sidebar-wrapper">
+                <ProfileSidebar />
+            </div>
+            <div className="profile-main-content">
+                {currentSection === 'general' && <GeneralSection user={user} formData={formData} setFormData={setFormData} editMode={editMode} setEditMode={setEditMode} status={status} handleUpdateProfile={handleUpdateProfile} handleInput={handleInput} loading={loading} resolvedAvatar={resolvedAvatar} handleAvatarUpload={handleAvatarUpload} handleAvatarDelete={handleAvatarDelete} logout={logout} navigate={navigate} />}
+                {currentSection === 'security' && (canChangePassword || canAddPassword) && <SecuritySection user={user} canChangePassword={canChangePassword} canAddPassword={canAddPassword} isLineUser={isLineUser} showPasswordForm={showPasswordForm} setShowPasswordForm={setShowPasswordForm} passwordData={passwordData} handlePasswordInput={handlePasswordInput} handleUpdatePassword={handleUpdatePassword} loading={loading} status={status} />}
+                {currentSection === 'connected' && <ConnectedServicesSection isLineUser={isLineUser} handleLineIntegration={handleLineIntegration} />}
+                {currentSection === 'notifications' && <NotificationsSection />}
+                {currentSection === 'appearance' && <AppearanceSection />}
             </div>
         </div>
     );
@@ -386,6 +297,148 @@ const PasswordForm = ({ passwordData, onChange, onSubmit, loading, isAdding }) =
         <FormRow label="Confirm Password" name="confirmPassword" type="password" value={passwordData.confirmPassword} onChange={onChange} />
         <button type="submit" className="btn btn-primary btn-submit" disabled={loading}>{loading ? 'Updating…' : (isAdding ? 'Add Password' : 'Update Password')}</button>
     </form>
+);
+
+const GeneralSection = ({ user, formData, setFormData, editMode, setEditMode, status, handleUpdateProfile, handleInput, loading, resolvedAvatar, handleAvatarUpload, handleAvatarDelete, logout, navigate }) => (
+    <div className="profile-container">
+        <div className="profile-content">
+            <div className="profile-header">
+                <div className="profile-avatar-section">
+                    {resolvedAvatar ? <img src={resolvedAvatar} alt="Profile" className="profile-avatar" /> : <div className="profile-avatar-placeholder">{(user.name || 'U')[0]}</div>}
+                    <div className="avatar-actions">
+                        <label className="btn btn-outline">
+                            {loading.avatarUploading ? 'Uploading…' : 'Upload Avatar'}
+                            <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
+                        </label>
+                        {resolvedAvatar && <button className="btn btn-outline" onClick={handleAvatarDelete}>Remove</button>}
+                    </div>
+                </div>
+                <div className="profile-greeting">
+                    <h1>{user.name || user.username || 'User'}</h1>
+                    <p className="login-method">
+                        {(user?.loginMethod || '').toLowerCase() === 'line' ? (
+                            <span className="badge badge-line">Logged in with LINE</span>
+                        ) : (
+                            <span className="badge badge-email">Logged in with Email</span>
+                        )}
+                    </p>
+                </div>
+            </div>
+
+            {status.error && <div className="message message-error">{status.error}</div>}
+            {status.success && <div className="message message-success">{status.success}</div>}
+
+            <div className="profile-section">
+                <div className="section-header">
+                    <h2>Profile Information</h2>
+                    <button className="btn btn-toggle" onClick={() => setEditMode(!editMode)}>{editMode ? 'Cancel' : 'Edit'}</button>
+                </div>
+                <form onSubmit={handleUpdateProfile} className={`profile-form ${editMode ? 'edit-mode' : ''}`}>
+                    <FormRow label="Full Name" name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
+                    <FormRow label="Username" name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
+                    <FormRow label="Email" name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={(user?.loginMethod || '').toLowerCase() === 'line' ? 'Add your email to enable password login' : 'your.email@example.com'} />
+
+                    {editMode ? (
+                        <FormRow
+                            label="Timezone"
+                            name="timeZone"
+                            type="select"
+                            disabled={!editMode}
+                            value={formData.timeZone}
+                            onChange={handleInput}
+                            options={TIMEZONES}
+                        />
+                    ) : (
+                        <div className="form-group">
+                            <label>Timezone</label>
+                            <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
+                        </div>
+                    )}
+                    {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>{loading.saving ? 'Saving…' : 'Save Changes'}</button>}
+                </form>
+            </div>
+        </div>
+    </div>
+);
+
+const SecuritySection = ({ user, canChangePassword, canAddPassword, isLineUser, showPasswordForm, setShowPasswordForm, passwordData, handlePasswordInput, handleUpdatePassword, loading, status }) => (
+    <div className="profile-container">
+        <div className="profile-content">
+            {status.error && <div className="message message-error">{status.error}</div>}
+            {status.success && <div className="message message-success">{status.success}</div>}
+            
+            {(canChangePassword || canAddPassword) && (
+                <div className="profile-section">
+                    <div className="section-header">
+                        <h2>Password Management</h2>
+                        <button className="btn btn-toggle" onClick={() => setShowPasswordForm(!showPasswordForm)}>
+                            {showPasswordForm ? 'Cancel' : (canAddPassword ? 'Add Password' : 'Change Password')}
+                        </button>
+                    </div>
+                    {showPasswordForm && (
+                        <PasswordForm
+                            passwordData={passwordData}
+                            onChange={handlePasswordInput}
+                            onSubmit={handleUpdatePassword}
+                            loading={loading.saving}
+                            isAdding={canAddPassword}
+                        />
+                    )}
+                </div>
+            )}
+            
+            {!canChangePassword && !canAddPassword && isLineUser && (
+                <div className="profile-section">
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        Please add an email address in General settings above to set a password.
+                    </p>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+const ConnectedServicesSection = ({ isLineUser, handleLineIntegration }) => (
+    <div className="profile-container">
+        <div className="profile-content">
+            {!isLineUser && (
+                <div className="profile-section">
+                    <h2>LINE Integration</h2>
+                    <div className="service-card">
+                        <div className="service-info"><h3>LINE</h3><p>Connect your LINE account for easier login</p></div>
+                        <button className="btn btn-line" onClick={handleLineIntegration}>Connect LINE</button>
+                    </div>
+                </div>
+            )}
+            {isLineUser && (
+                <div className="profile-section">
+                    <p style={{ color: 'var(--text-secondary)' }}>Your account is connected with LINE.</p>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+const NotificationsSection = () => (
+    <div className="profile-container">
+        <div className="profile-content">
+            <div className="profile-section">
+                <h2>Notifications</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Notification preferences coming soon...</p>
+            </div>
+        </div>
+    </div>
+);
+
+const AppearanceSection = () => (
+    <div className="profile-container">
+        <div className="profile-content">
+            <div className="profile-section">
+                <h2>Appearance</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Toggle dark mode from the navbar. More appearance options coming soon...</p>
+            </div>
+        </div>
+    </div>
 );
 
 export default Profile;

@@ -286,7 +286,14 @@ export default function FinancialChartEcharts({
         borderColor: '#777',
         formatter: function(params) {
           if (!Array.isArray(params) || params.length === 0) return '';
-          let result = params[0].axisValueLabel + '<br/>';
+          let ts = params[0].axisValue;
+          try {
+            const dt = DateTime.fromISO(ts, { zone: 'utc' }).setZone(timezone);
+            const top = isIntraday ? dt.toFormat('HH:mm') : dt.toFormat('yyyy-LL-dd');
+            var result = top + '<br/>';
+          } catch {
+            var result = params[0].axisValueLabel + '<br/>';
+          }
           params.forEach(p => {
             if (p.componentSubType === 'candlestick') {
               // Format candlestick tooltip
@@ -319,7 +326,18 @@ export default function FinancialChartEcharts({
         type: useOrdinalX ? 'category' : 'time',
         gridIndex: 0,
         data: useOrdinalX ? xAxisData : undefined,
-        axisLabel: { color: plotTextColor, rotate: 45 },
+        axisLabel: {
+          color: plotTextColor,
+          rotate: 45,
+          formatter: function(value) {
+            try {
+              const dt = DateTime.fromISO(value, { zone: 'utc' }).setZone(timezone);
+              return isIntraday ? dt.toFormat('HH:mm') : dt.toFormat('MM-dd');
+            } catch {
+              return value;
+            }
+          }
+        },
         axisLine: { lineStyle: { color: plotTextColor } },
         splitLine: { show: false }
       },
