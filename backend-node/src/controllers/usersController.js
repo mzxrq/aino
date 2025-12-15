@@ -169,7 +169,8 @@ exports.login = async (req, res) => {
           name: user.name,
           username: user.username,
           loginMethod: user.loginMethod,
-            timeZone: user.timeZone
+          timeZone: user.timeZone,
+          role: user.role
         },
       });
     }
@@ -182,7 +183,7 @@ exports.login = async (req, res) => {
     const token = createToken(u.id);
     return res.json({
       token,
-      user: { id: u.id, email: u.email, name: u.name, username: u.username },
+      user: { id: u.id, email: u.email, name: u.name, username: u.username, timeZone: u.timeZone, role: u.role, createdAt: u.createdAt, lastLogin: u.lastLogin },
     });
   } catch (err) {
     console.error("login error:", err);
@@ -302,7 +303,10 @@ exports.getProfile = async (req, res) => {
           username: user.username,
           pictureUrl: user.pictureUrl || user.avatar || null,
           loginMethod: user.loginMethod,
-          timeZone: user.timeZone
+          createdAt: user.createdAt,
+          lastLogin: user.lastLogin,
+          timeZone: user.timeZone,
+          role: user.role
         },
       });
     }
@@ -317,6 +321,10 @@ exports.getProfile = async (req, res) => {
         name: u.name,
         username: u.username,
         pictureUrl: u.pictureUrl || u.avatar || null,
+        createdAt: u.createdAt,
+        lastLogin: u.lastLogin,
+        timeZone: u.timeZone,
+        role: u.role
       },
     });
   } catch (err) {

@@ -1,37 +1,51 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 // 1. Import Auth Provider
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from "./context/AuthContext";
 
 // 2. Import Components
-import Navbar from './components/Navbar';
+import Navbar from "./components/Navbar";
 
 // 3. Import Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Chart from './pages/Chart';
-import LargeChart from './pages/LargeChart';
-import LineCallback from './pages/LineCallback';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import MarketList from './pages/MarketList';
-import MonitoringDashboard from './pages/MonitoringDashboard';
-import Anomalies from './pages/Admin/AnomaliesManagementPage';
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Chart from "./pages/Chart";
+import LargeChart from "./pages/LargeChart";
+import LineCallback from "./pages/LineCallback";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import MarketList from "./pages/MarketList";
+import MonitoringDashboard from "./pages/MonitoringDashboard";
+
+import AdminRoute from "./pages/Admin/AdminRouteGuard";
+import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
 
 function App() {
   return (
     // Wrap the *entire app* in AuthProvider
-    <AuthProvider> 
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        
+    <AuthProvider>
+      <div
+        style={{ height: "100vh", display: "flex", flexDirection: "column" }}
+      >
         {/* Navbar is outside Routes, so it stays on every page */}
         <Navbar />
 
         {/* The main content area that changes */}
-        <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-secondary)' }}>
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            background: "var(--bg-secondary)",
+          }}
+        >
           <Routes>
+            {/* 🔐 ADMIN ONLY */}
+            <Route element={<AdminRoute />}>
+              <Route path="/anomalies" element={<AnomaliesManagementPage />} />
+            </Route>
+
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -42,16 +56,11 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/list" element={<MarketList />} />
             <Route path="/monitoring" element={<MonitoringDashboard />} />
-            <Route path="/anomalies" element={<Anomalies />} />
-            
+
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />
-            
-            {/* Catch-all: Redirect unknown URLs to Home */}
-            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
-        
       </div>
     </AuthProvider>
   );
