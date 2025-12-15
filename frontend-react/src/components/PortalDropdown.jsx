@@ -37,50 +37,80 @@ export default function PortalDropdown({ anchorRect, align = 'right', offsetY = 
 
   // compute position from anchorRect
   const [dropdownWidth, setDropdownWidth] = useState(0);
+  const [dropdownHeight, setDropdownHeight] = useState(0);
   const dropdownRef = React.useRef(null);
 
+  // measure dropdown size whenever children change or on explicit reposition events
   useEffect(() => {
-    if (dropdownRef.current) {
-      setDropdownWidth(dropdownRef.current.offsetWidth);
+    function measure() {
+      if (dropdownRef.current) {
+        setDropdownWidth(dropdownRef.current.offsetWidth || 0);
+        setDropdownHeight(dropdownRef.current.offsetHeight || 0);
+      }
     }
+    measure();
+    // reposition on resize/scroll to keep it visible
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure);
+    };
   }, [children]);
 
   const style = {};
   if (anchorRect) {
-    const top = anchorRect.bottom + offsetY;
     const viewportWidth = window.innerWidth;
-    
+    const viewportHeight = window.innerHeight;
+
+    // Decide whether to open below or above the anchor depending on space
+    const spaceBelow = viewportHeight - anchorRect.bottom - offsetY;
+    const spaceAbove = anchorRect.top - offsetY;
+    let openAbove = false;
+    let maxHeight = undefined;
+
+    if (dropdownHeight && spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+      openAbove = true;
+      maxHeight = Math.max(80, Math.min(dropdownHeight, spaceAbove - 12));
+    } else {
+      maxHeight = Math.max(80, Math.min(dropdownHeight || 1000, spaceBelow - 12));
+    }
+
+    // vertical placement
+    if (openAbove) {
+      style.top = (anchorRect.top - (maxHeight || dropdownHeight) - offsetY) + 'px';
+    } else {
+      style.top = (anchorRect.bottom + offsetY) + 'px';
+    }
+
+    // horizontal placement with clamping
     if (align === 'right') {
-      // Calculate right alignment, but clamp to viewport
       let left = anchorRect.right - 8;
       let transform = 'translateX(-100%)';
-      
-      // If dropdown would go off-screen to the left, align to the left of anchor instead
       const projectedLeft = left - dropdownWidth;
       if (projectedLeft < 8) {
-        // Align to left of button, or anchor left if that fits better
         left = Math.max(8, anchorRect.left);
         transform = 'translateX(0)';
       }
-      
-      // Also check if it goes off-screen to the right
       if (left > viewportWidth - 8) {
         left = viewportWidth - 8;
         transform = 'translateX(-100%)';
       }
-      
       style.left = left + 'px';
       style.transform = transform;
     } else {
-      // Left alignment with similar viewport clamping
       let left = anchorRect.left;
       if (left + dropdownWidth > viewportWidth - 8) {
         left = viewportWidth - 8 - dropdownWidth;
       }
       style.left = Math.max(8, left) + 'px';
     }
-    style.top = top + 'px';
+
     style.position = 'fixed';
+    if (maxHeight) {
+      style.maxHeight = (maxHeight) + 'px';
+      style.overflowY = 'auto';
+    }
   } else {
     style.left = '50%';
     style.top = '50%';
