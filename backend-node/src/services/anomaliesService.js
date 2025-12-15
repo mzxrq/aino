@@ -26,6 +26,7 @@ const createAnomaly = async (data) => {
     sent: data.sent || false,
     status: data.status || "new",
     note: data.note || "",
+    updatePerson: data.updatePerson || "",
   };
 
   return await anomaliesModel.createAnomaly(anomalyData);
@@ -104,7 +105,7 @@ const getAnomalyById = async (id) => {
  */
 const updateAnomaly = async (id, updateData) => {
   // Sanitize update data
-  const allowedFields = ['ticker', 'datetime', 'close', 'volume', 'sent','status', 'note'];
+  const allowedFields = ['ticker', 'datetime', 'close', 'volume', 'sent','status', 'note', 'updatePerson'];
   const sanitizedData = {};
 
   for (const key of allowedFields) {

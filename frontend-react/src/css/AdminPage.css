@@ -1,6 +1,136 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* AdminPage.css — cleaned and deduplicated */
 
+/* === Base / Reset === */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  margin: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Layout --- */
+.layout-container { display: flex; min-height: 100vh; }
+.anomalies-page { min-height: 100vh; --primary: #2563EB; --primary-hover: #1D4ED8; --secondary: #10B981; --danger: #DC2626; }
+.sidebar-container { flex: 0 0 260px; }
+.main-container { flex: 1 1 auto; }
+
+/* --- Typography & header --- */
+.admin-header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:32px; position:relative; }
+.admin-header h2 { font-size:28px; font-weight:700; color:var(--text-primary); margin:0; }
+.admin-subtitle { color:var(--text-secondary); margin:4px 0 0 0; font-size:14px; }
+
+/* Search input in admin header */
+.search-input { height:40px; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-surface); color:var(--text-main); width:280px; box-shadow:none; font-size:14px; }
+.search-input:focus { outline:none; box-shadow:0 0 0 4px rgba(59,130,246,0.08); border-color:var(--primary); }
+
+@media (max-width: 768px) {
+  .search-input { width:160px; }
+  .admin-actions { display:flex; gap:8px; align-items:center; }
+}
+
+/* --- Buttons (core) --- */
+.btn { display:inline-flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, background-color .12s ease; border:1px solid transparent; gap:8px; white-space:nowrap; background: var(--bg-surface); box-shadow:0 1px 0 rgba(0,0,0,0.04); }
+.btn:active { transform: translateY(1px) scale(.997); }
+.btn:focus { outline:none; box-shadow:0 0 0 4px rgba(79,70,229,0.12); }
+.btn .icon { margin-right:8px; }
+
+.btn-primary { background: var(--primary); color:#fff; box-shadow:0 6px 18px rgba(79,70,229,0.12); border-color:transparent; }
+.btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
+
+.btn-ghost { background: var(--bg-surface); color:var(--text-secondary); border:1px solid var(--border); }
+
+.btn-danger { color:var(--danger); border:1px solid var(--border); }
+
+/* Smaller button size */
+.btn.btn-small { padding:6px 8px; font-size:13px; border-radius:8px; }
+
+/* --- Card / Table --- */
+.card-table { background: var(--bg-surface, transparent); border-radius: var(--radius); box-shadow: var(--shadow-card); border:1px solid var(--border); overflow:hidden; }
+.table-wrapper { width:100%; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; table-layout:auto; white-space:normal; }
+
+.anomalies-page .card-table table th,
+.anomalies-page .card-table table td { display:table-cell !important; vertical-align:middle !important; background:transparent !important; border-bottom:1px solid var(--border) !important; padding:12px 10px !important; }
+.anomalies-page .card-table table td.actions-cell { white-space:nowrap !important; padding-right:12px !important; }
+.anomalies-page .card-table table td .actions { display:inline-flex !important; gap:8px; align-items:center; flex-wrap:wrap; }
+
+/* Columns */
+.col-ticker { font-family:'JetBrains Mono', monospace; font-weight:600; color:var(--primary); padding:4px 8px; border-radius:4px; font-size:13px; max-width:96px; overflow:hidden; text-overflow:ellipsis; }
+.col-number { text-align:right; font-variant-numeric:tabular-nums; max-width:90px; }
+.col-date { color:var(--text-secondary); max-width:140px; }
+.company { min-width:80px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Badges */
+.badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:20px; font-size:12px; font-weight:600; }
+.badge.status-new { background:var(--primary-light); color:var(--primary); }
+.badge.status-safe { background:var(--success-bg); color:var(--success); }
+.badge.status-clear { background:var(--secondary-bg); color:var(--secondary); }
+.badge.status-review { background:var(--warning-bg); color:var(--warning); }
+.badge.status-confirm { background:var(--danger-bg); color:var(--danger); }
+
+/* --- Modal --- */
+.modal-overlay { position:fixed; inset:0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; }
+.modal { background:var(--bg-surface); border-radius:16px; box-shadow:var(--shadow-float); width:90%; max-width:520px; max-height:calc(100vh - 40px); display:flex; flex-direction:column; overflow:hidden; }
+.modal-header { padding:24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-title { margin:0; font-size:20px; font-weight:600; color:var(--text-primary); }
+.modal-close { background:transparent; border:none; padding:4px; color:var(--text-secondary); cursor:pointer; }
+.modal-close:hover { background:var(--bg-subtle); color:var(--text-main); }
+.modal-footer { padding:20px 24px; display:flex; justify-content:flex-end; gap:12px; }
+
+/* Remove visible top divider line inside modal (fixes white strip) */
+.anomalies-page .modal .modal-footer { border-top: none !important; background: transparent !important; }
+
+/* Modal action buttons — per-button colors */
+.anomalies-page .modal .btn { width:100% !important; padding:10px 12px !important; font-size:14px !important; border-radius:8px !important; box-shadow:none !important; }
+.anomalies-page .modal .btn + .btn { margin-top:6px !important; }
+
+/* --- Theme: consolidated --- */
+/* Dark theme */
+body.dark .anomalies-page,
+html.dark .anomalies-page,
+[data-theme="dark"] .anomalies-page,
+.dark .anomalies-page {
+  color: var(--text-primary) !important;
+}
+
+body.dark .card-table { background:var(--card-bg) !important; border-color:var(--card-border, rgba(255,255,255,0.06)) !important; box-shadow:var(--card-shadow) !important; }
+body.dark .card-table th, body.dark .card-table td { background:transparent !important; color:var(--text-main) !important; border-bottom:1px solid var(--card-border, rgba(255,255,255,0.06)) !important; }
+body.dark .col-ticker { background: rgba(255,255,255,0.04) !important; color: var(--primary) !important; }
+body.dark .badge { background: rgba(255,255,255,0.03) !important; color: var(--text-main) !important; }
+
+/* Keep base button shadow consistent */
+.anomalies-page .btn { box-shadow: 0 6px 18px rgba(16,24,40,0.04) !important; }
+
+/* --- Responsive tweaks --- */
+@media (max-width: 768px) {
+  .anomalies-page { flex-direction:column; }
+  .table-wrapper table { min-width:640px; }
+  .actions-cell { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
+  .anomalies-page .modal { width:95%; max-width:520px; max-height:90vh; }
+}
+@media (min-width:769px) and (max-width:1024px) {
+  .table-wrapper table { min-width:720px; }
+  .actions-cell { display:flex; flex-wrap:wrap; gap:8px; }
+}
+@media (max-width:420px) {
+  .actions-cell { flex-direction:column; align-items:flex-end; gap:6px; max-width:140px; }
+  .admin-actions { flex-direction:column; gap:8px; }
+  .admin-actions .btn { width:100%; }
+}
+
+/* Utility */
+.sort-icon { margin-left:6px; font-size:11px; opacity:.7; }
+.number-stepper { display:inline-flex; gap:8px; align-items:center; }
+
+/* Keyframes */
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(.98) } to { opacity:1; transform:translateY(0) scale(1) } }
 
 /* Tablet / iPad: treat as mobile for table & action wrapping (769px - 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
@@ -23,15 +153,6 @@
   /* ensure header actions also behave like mobile on tablet */
   .admin-actions { flex-wrap: wrap; gap: 8px; }
 }
-
-/*
-  MAINTAINABILITY NOTES
-  - Keep theme-specific overrides grouped under a single dark-mode block where possible.
-  - Avoid repeating the long dark-mode selector list; prefer adding rules under
-    the existing dark-mode block near the top of this file.
-  - Use semantic utility classes (e.g. `.admin-subtitle`) for inline styles to
-    keep JSX clean and enable easier visual tweaks from CSS.
-*/
 
 /* --- Global Reset --- */
 *, *::before, *::after {
@@ -122,7 +243,7 @@ html, body, #root {
   border: 1px solid transparent;
   gap: 8px;
   white-space: nowrap;
-  background: linear-gradient(180deg, var(--btn-bg, var(--bg-surface)) 0%, rgba(0,0,0,0.02) 100%);
+  background: var(--bg-surface);
   box-shadow: 0 1px 0 rgba(0,0,0,0.04), inset 0 -1px 0 rgba(255,255,255,0.02);
 }
 
@@ -134,12 +255,12 @@ html, body, #root {
 
 /* Primary Button */
 .btn-primary {
-  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+  background: var(--primary);
   color: #fff;
   box-shadow: 0 6px 18px rgba(79,70,229,0.12);
   border-color: transparent;
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(79,70,229,0.14); }
+.btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
 .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(79,70,229,0.12); }
 
 
@@ -154,7 +275,7 @@ html, body, #root {
 
 /* Danger Button */
 .btn-danger {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.02) 100%);
+  background: var(--bg-surface);
   color: var(--danger);
   border: 1px solid var(--border);
 }
@@ -180,7 +301,43 @@ table {
   width: 100%;
   border-collapse: collapse; /* Cleaner than separate */
   white-space: normal; /* allow wrapping so columns can shrink */
-  table-layout: fixed; /* respect column widths set on cells */
+  table-layout: auto; /* allow browser to size columns so they can shrink */
+}
+
+/* Strong page-scoped overrides to prevent other global rules from turning
+   table cells into flex containers (fixes border misalignment). Keep flex
+   behavior inside an inner `.actions` wrapper only. */
+.anomalies-page .card-table table {
+  border-collapse: collapse !important;
+  table-layout: auto !important;
+  width: 100% !important;
+}
+.anomalies-page .card-table table th,
+.anomalies-page .card-table table td {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  background: transparent !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 12px 10px !important;
+}
+
+/* Ensure action buttons don't convert the TD into a flex container that breaks borders */
+.anomalies-page .card-table table td.actions-cell {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  padding-right: 12px !important;
+}
+.anomalies-page .card-table table td .actions {
+  display: inline-flex !important;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* On small screens stack action buttons inside the inner wrapper */
+@media (max-width: 768px) {
+  .anomalies-page .card-table table td .actions { flex-direction: column; align-items: stretch; }
 }
 
 thead {
@@ -212,7 +369,7 @@ thead {
   }
 
   thead th {
-    background: rgba(255,255,255,0.02) !important;
+    background: #f00b0b05 !important;
     color: rgba(255,255,255,0.85) !important;
   }
   thead th:first-child { border-top-left-radius: 8px; }
@@ -239,30 +396,31 @@ thead {
   /* Badges adapt to dark background */
   .badge { background: rgba(255,255,255,0.02) !important; color: var(--text-main) !important; }
 
-.badge.status-new {
-  background: #e0f2fe;
-  color: var(--primary) !important;
-}
+  /* Dark-mode friendly badge colors (muted backgrounds + clear text) */
+  .badge.status-new {
+    background: rgba(110,231,183,0.12) !important; /* muted mint */
+    color: var(--anomaly-color) !important;
+  }
 
-.badge.status-review {
-  background: #fef9c3;
-  color: var(--warning) !important;
-}
+  .badge.status-review {
+    background: rgba(217,119,6,0.10) !important; /* muted amber */
+    color: var(--warning) !important;
+  }
 
-.badge.status-confirm {
-  background: #fee2e2;
-  color: var(--danger) !important;
-}
+  .badge.status-confirm {
+    background: rgba(220,38,38,0.10) !important; /* muted red */
+    color: var(--danger) !important;
+  }
 
-.badge.status-safe {
-  background: #dcfce7;
-  color: var(--success) !important;
-}
+  .badge.status-safe {
+    background: rgba(16,185,129,0.10) !important; /* muted green */
+    color: var(--success) !important;
+  }
 
-.badge.status-clear {
-  background: #f3f4f6;
-  color: var(--text-secondary) !important;
-}
+  .badge.status-clear {
+    background: rgba(255,255,255,0.04) !important; /* subtle light */
+    color: var(--text-secondary) !important;
+  }
 
 }
 
@@ -307,8 +465,8 @@ html.dark .anomalies-page .actions-cell .btn-danger,
 }
 
 /* light-mode fallback */
-@media (prefers-color-scheme: light), body:not(.dark):not([data-theme="dark"]) {
-  thead th { background: var(--bg-subtle); }
+@media (prefers-color-scheme: light) {
+  thead th { background: var(--bg-primary); }
   .col-ticker { background: var(--primary-light); }
 }
 
@@ -321,6 +479,10 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+/* utility: right-align headers/cells for numeric columns */
+.center-right { text-align: right; }
+.center-right .sort-icon { margin-left: 6px; }
 
 td {
   padding: 12px 10px;
@@ -347,50 +509,51 @@ tr:hover td {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 13px;
-  width: 96px;
-  max-width: 120px;
-  min-width: 64px;
+  width: auto;
+  max-width: 96px;
+  min-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .col-number {
   font-family: 'JetBrains Mono', monospace;
   text-align: right;
   font-variant-numeric: tabular-nums; /* Aligns numbers */
-  width: 90px;
-  max-width: 110px;
+  width: auto;
+  max-width: 90px;
+  min-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .col-date {
   color: var(--text-secondary);
-  width: 110px;
+  width: auto;
   max-width: 140px;
+  min-width: 64px;
 }
 
 .actions-cell {
-  display: flex;
-  justify-content: flex-end;   /* align all items to the right */
-  align-items: center;
-  gap: 6px;                    /* equal spacing between buttons */
-  width: 140px;
-  max-width: 140px;
+  /* keep TD as table-cell; inner .actions handles layout */
   padding-right: 6px;
-  min-height: 44px; /* increase clickable area and keep separators straight */
+  min-height: 36px;
   white-space: nowrap;
 }
 
 
 /* company column (longer text) */
 .company {
-  width: 180px;
-  min-width: 140px;
-  max-width: 200px;
+  width: auto;
+  min-width: 80px;
+  max-width: 220px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.col-volume { width: 110px; max-width: 140px; text-align: right; }
-.col-status { width: 72px; max-width: 88px; }
+.col-volume { width: auto; max-width: 100px; min-width: 48px; text-align: right; }
+.col-status { width: auto; max-width: 88px; min-width: 48px; }
 
 /* Smaller action buttons inside table rows */
 .btn.btn-small {
@@ -544,6 +707,104 @@ tr:hover td {
   .form-field textarea { min-height: 120px; }
 }
 
+/* Minimal, modern modal and action buttons for admin row-actions */
+.anomalies-page .modal {
+  max-width: 420px !important;
+  background: var(--card-bg) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.55) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.anomalies-page .modal .modal-header {
+  padding: 14px 18px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: transparent !important;
+}
+
+.anomalies-page .modal .modal-title {
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+.anomalies-page .modal .modal-close {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+  font-size: 20px !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+}
+.anomalies-page .modal .modal-close:hover { background: rgba(255,255,255,0.02) !important; color: var(--text-primary) !important; }
+
+/* Modal body: use a compact vertical stack for actions */
+.anomalies-page .modal > div:nth-of-type(2) {
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+
+/* Small, minimal buttons inside modal */
+
+.anomalies-page .modal .btn.btn-small {
+  width: 100% !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.03) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  transition: background-color 140ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.anomalies-page .modal .btn.btn-small:hover { background: rgba(255,255,255,0.03) !important; transform: translateY(-1px) !important; }
+
+/* View Note: Solid Green (Secondary) */
+.anomalies-page .modal .btn-secondary {
+  background: #10B981 !important; /* Solid Green/Emerald */
+  border: 1px solid transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.2) !important;
+}
+.anomalies-page .modal .btn-secondary:hover { filter: brightness(0.95) !important; }
+
+/* Edit: Solid Blue (Primary) */
+.anomalies-page .modal .btn-primary {
+  background: #2563EB !important; /* Solid Blue */
+  border: 1px solid transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+}
+.anomalies-page .modal .btn-primary:hover { filter: brightness(0.95) !important; }
+
+/* Delete: Solid Red (Danger) */
+.anomalies-page .modal .btn-danger {
+  background: #DC2626 !important; /* Solid Red */
+  border: 1px solid transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(220,38,38,0.2) !important;
+}
+.anomalies-page .modal .btn-danger:hover { filter: brightness(0.95) !important; }
+
+/* Tight spacing for stacked buttons to look minimal */
+.anomalies-page .modal .btn + .btn { margin-top: 6px !important; }
+
+/* Reduce overall modal footprint on very small screens */
+@media (max-width: 420px) {
+  .anomalies-page .modal { max-width: 360px !important; width: 92% !important; }
+}
+
 /* --- Mobile / Responsive --- */
 @media (max-width: 768px) {
   .anomalies-page { flex-direction: column; }
@@ -561,7 +822,7 @@ tr:hover td {
   .form-grid { grid-template-columns: 1fr; }
 
     /* Mobile: ensure table can scroll horizontally and allow columns to
-      size naturally (prevents table collapse on narrow screens) */
+       size naturally (prevents table collapse on narrow screens) */
     .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table-wrapper table { table-layout: auto; min-width: 640px; }
     .table-wrapper th, .table-wrapper td { white-space: nowrap; }
@@ -950,7 +1211,6 @@ body.dark .card-table td,
 body.dark .card-table thead th,
 html.dark .card-table thead th,
 [data-theme="dark"] .card-table thead th {
-  background: rgba(255,255,255,0.02) !important;
   color: rgba(255,255,255,0.85) !important;
 }
 
@@ -1196,8 +1456,48 @@ body.dark .indicators-dropdown,
 body.dark .custom-select-portal,
 .dark .custom-select-portal {
   background: var(--card-bg) !important;
+
+}
+
+/* Force Delete button to be vivid red in dark mode (very high specificity) */
+body.dark .anomalies-page .modal .btn.btn-small.btn-danger,
+html.dark .anomalies-page .modal .btn.btn-small.btn-danger,
+[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-danger,
+:root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-danger,
+.dark .anomalies-page .modal .btn.btn-small.btn-danger {
+  background-color: var(--danger) !important;
+  background-image: none !important;
+  background: #DC2626 !important; /* Solid Red */
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: rgba(220,38,38,0.22) !important;
+  box-shadow: 0 8px 20px rgba(220,38,38,0.14) !important;
+  background-clip: padding-box !important;
+
   border-color: var(--card-border) !important;
   box-shadow: var(--card-shadow) !important;
+}
+
+/* Force View Note (secondary) to be vivid Green in dark mode */
+body.dark .anomalies-page .modal .btn.btn-small.btn-secondary,
+html.dark .anomalies-page .modal .btn.btn-small.btn-secondary,
+[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-secondary,
+:root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-secondary,
+.dark .anomalies-page .modal .btn.btn-small.btn-secondary {
+  background-color: #10B981 !important; /* Solid Green */
+  background: #10B981 !important;
+  color: #fff !important;
+}
+
+/* Force Edit (primary) to be vivid Blue in dark mode */
+body.dark .anomalies-page .modal .btn.btn-small.btn-primary,
+html.dark .anomalies-page .modal .btn.btn-small.btn-primary,
+[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
+:root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
+.dark .anomalies-page .modal .btn.btn-small.btn-primary {
+  background-color: #2563EB !important; /* Solid Blue */
+  background: #2563EB !important;
+  color: #fff !important;
 }
 
 body.dark .mode-dropdown .flag-option,
@@ -1292,3 +1592,20 @@ html.dark input[type="date"]::-moz-calendar-picker-indicator,
 /* Hint the control honors dark mode; helps some browsers render appropriate native chrome */
 input[type="date"] { color-scheme: light dark; }
 
+/* ==========================
+   Light-theme: borderless buttons + per-button colors
+   Remove borders in light mode and assign distinct colors per variant
+   ========================== */
+body:not(.dark) .anomalies-page .btn,
+html:not(.dark) .anomalies-page .btn,
+[data-theme="light"] .anomalies-page .btn,
+:root[data-theme="light"] .anomalies-page .btn {
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04) !important;
+}
+
+/* Ensure modal small buttons follow the same color rules in light theme */
+body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-secondary { background: #10B981 !important; color:#fff !important; }
+body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-danger { background: #DC2626 !important; color:#fff !important; }
+body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #2563EB !important; color:#fff !important; }
