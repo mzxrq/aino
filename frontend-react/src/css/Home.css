@@ -130,7 +130,7 @@ body.dark .hero-logo {
 .guest-link { color: var(--line-btn); margin-top: 16px; }
 .guest-link a { color: #ffd700; text-decoration: none; font-weight: 600; }
 
-.hero-buttons { display:flex; gap:16px; align-items:center; margin-top:24px; flex-wrap: wrap; }
+.hero-buttons { display:flex; gap:16px; align-items:center; margin-top:24px; flex-wrap: nowrap; }
 
 .hero-buttons .btn {
     display: inline-flex;
@@ -139,6 +139,8 @@ body.dark .hero-logo {
     width: 180px;
     height: 48px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .guest-link { color: rgba(255,255,255,0.9); margin-top: 16px; }
@@ -240,14 +242,21 @@ body.dark .card {
 }
 
 .btn-line {
-    background: linear-gradient(135deg, var(--cute-green-700), var(--cute-green-500));
-    color: #fff;
-    box-shadow: 0 6px 20px rgba(44,193,127,0.28);
+    background: #00c300 !important;
+    color: white !important;
+    box-shadow: 0 6px 20px rgba(0, 195, 0, 0.3) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    font-size: 0.85rem !important;
 }
 
 .btn-line:hover {
+    background: #00a300 !important;
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(44,193,127,0.36);
+    box-shadow: 0 10px 30px rgba(0, 195, 0, 0.4) !important;
 }
 
 /* --- Hero Image --- */

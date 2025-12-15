@@ -149,15 +149,56 @@ body.dark .btn-login {
   border: none;
 }
 
+.btn-line {
+  background: #00c300 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline-block !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 0.95rem !important;
+}
+
+.btn-line:hover {
+  background: #00a300 !important;
+  box-shadow: 0 4px 12px rgba(0, 195, 0, 0.3) !important;
+}
+
+body.dark .btn-line {
+  background: #00ff00 !important;
+  color: #000 !important;
+  font-weight: 600 !important;
+}
+
+body.dark .btn-line:hover {
+  background: #33ff33 !important;
+  box-shadow: 0 2px 12px rgba(0, 255, 0, 0.4) !important;
+}
+
 .btn-outline {
-  background: transparent;
-  border: 1px solid #aca2a2;
-  color: #333;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 body.dark .btn-outline {
+  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
-  color: #E6EEF8;
+  color: white;
+}
+
+body.dark .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .menu-toggle {

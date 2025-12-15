@@ -535,10 +535,14 @@ tr:hover td {
 }
 
 .actions-cell {
-  /* keep TD as table-cell; inner .actions handles layout */
-  padding-right: 6px;
-  min-height: 36px;
-  white-space: nowrap;
+  display: flex;
+  justify-content: center;   /* align all items to center */
+  align-items: center;
+  gap: 6px;                    /* equal spacing between buttons */
+  width: 280px;
+  max-width: 280px;
+  padding: 6px;
+  min-height: 44px; /* increase clickable area and keep separators straight */
 }
 
 
@@ -560,6 +564,7 @@ tr:hover td {
   padding: 6px 8px;
   font-size: 13px;
   border-radius: 8px;
+  text-align: center;
 }
 
 /* --- Badges --- */
@@ -828,14 +833,14 @@ tr:hover td {
     .table-wrapper th, .table-wrapper td { white-space: nowrap; }
     .col-ticker { max-width: 96px; min-width: 56px; }
     .company { min-width: 120px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .actions-cell { width: auto; max-width: 160px; }
+    .actions-cell { width: auto; max-width: 280px; }
 
     /* Mobile: allow action buttons to wrap and avoid colliding with status badge */
     .actions-cell {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      justify-content: flex-end;
+      justify-content: center;
       align-items: center;
       white-space: normal;
       padding-left: 8px;
@@ -873,7 +878,7 @@ tr:hover td {
 }
 /* On very small screens, stack row action buttons vertically for clarity */
 @media (max-width: 420px) {
-  .actions-cell { flex-direction: column; align-items: flex-end; gap: 6px; max-width: 140px; }
+  .actions-cell { flex-direction: column; align-items: flex-end; gap: 6px; max-width: 200px; }
   .actions-cell .btn { width: auto; }
 }
   /* stack buttons full width on very small screens */

@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import * as echarts from "echarts/core";
+import { LineChart } from "echarts/charts";
+import { GridComponent } from "echarts/components";
+import { SVGRenderer } from "echarts/renderers";
 import "../css/MarketList.css";
 
+echarts.use([LineChart, GridComponent, SVGRenderer]);
+
 const API_URL = "http://localhost:5050/node";
-const PY_API_URL = "http://localhost:8000/py";
+const PY_API_URL = "http://localhost:5000/py";
 
 export default function MarketListScreen() {
   const [search, setSearch] = useState("");
@@ -37,19 +43,55 @@ export default function MarketListScreen() {
 
 const generateSparklineSVG = (closes) => {
   if (!closes || closes.length < 2) return "";
-  
-  const minPrice = Math.min(...closes);
-  const maxPrice = Math.max(...closes);
-  const range = maxPrice - minPrice || 1;
-  
-  // Normalize prices to 0-30 (viewBox height)
-  const points = closes.map((price, i) => {
-    const x = (i / (closes.length - 1)) * 100;
-    const y = 30 - ((price - minPrice) / range) * 30;
-    return `${x},${y}`;
-  }).join(" ");
-  
-  return `<svg viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg"><polyline points="${points}" fill="none" stroke="#2cc17f" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+
+  try {
+    const chart = echarts.init(null, null, {
+      renderer: "svg",
+      ssr: true,
+      width: 120,
+      height: 36,
+    });
+
+    chart.setOption({
+      animation: false,
+      grid: { left: 0, right: 0, top: 0, bottom: 0 },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        data: closes.map((_, idx) => idx),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: "value",
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      },
+      series: [
+        {
+          type: "line",
+          data: closes,
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { width: 1.5, color: "#2cc17f" },
+          areaStyle: { opacity: 0 },
+          emphasis: { disabled: true },
+        },
+      ],
+      tooltip: { show: false },
+    });
+
+    const svg = chart.renderToSVGString();
+    chart.dispose();
+    return svg;
+  } catch (err) {
+    console.error("Sparkline render error:", err);
+    return "";
+  }
 };
 
 const fetchChartDataForSparkline = async (ticker) => {

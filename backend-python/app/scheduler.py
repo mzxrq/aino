@@ -21,9 +21,9 @@ DEFAULT_MARKET_TZ = {
 }
 
 MARKETS = {
-    "US": {"sessions": [("09:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
+    "US": {"sessions": [("09:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("US")},
     "JP": {"sessions": [("09:00", "11:30"), ("12:30", "18:00")], "tz": DEFAULT_MARKET_TZ.get("JP")},
-    "TH": {"sessions": [("08:00", "12:30"), ("13:30", "16:30")], "tz": DEFAULT_MARKET_TZ.get("JP")},
+    "TH": {"sessions": [("08:00", "12:30"), ("13:30", "16:30")], "tz": DEFAULT_MARKET_TZ.get("TH")},
 }
 
 for market_name, market in MARKETS.items():
