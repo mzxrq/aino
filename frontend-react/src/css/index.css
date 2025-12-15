@@ -2,15 +2,29 @@
   box-sizing: border-box;
 }
 :root {
+  /* Core global tokens */
   --bg-main: #FFFFFF;
   --bg-secondary: #f5f7f9;
   --text-primary: #333333;
   --primary-btn: #00aaff; /* bright blue */
   --line-btn: #00c300; /* LINE-like green */
   --anomaly-color: #10b981;
-  --primary: var(--primary-btn);
+
+  /* Primary / accent mappings */
+  --primary: var(--primary-btn, #00aaff);
+  --primary-hover: var(--focus-color, #4338ca);
+  --primary-light: var(--card-bg, #eef2ff);
   --accent: var(--line-btn);
+
+  /* Semantic colors */
+  --success: #16a34a;
+  --success-bg: rgba(5,150,105,0.06);
+  --warning: #d97706;
+  --warning-bg: rgba(217,119,6,0.06);
+  --secondary: #6b7280;
   --danger: #DC2626;
+  --danger-bg: rgba(220,38,38,0.05);
+
   /* Global design tokens used across components */
   --card-bg: #FFFFFF;
   --card-shadow: 0 10px 30px rgba(2,6,23,0.08);
@@ -19,8 +33,25 @@
   --muted: #6b7280;
   --input-bg: #FFFFFF;
   --focus-color: #00aaff;
-  /* navbar offset used to keep fixed navbar from overlapping content */
   --nav-height: 72px;
+
+  /* Admin/page-specific mappings (derive from globals where possible) */
+  --bg-body: var(--bg-main, #f8fafc);
+  --bg-surface: var(--card-bg, #ffffff);
+  --bg-subtle: var(--hover-bg, #f1f5f9);
+
+  --text-main: var(--text-primary, #0f172a);
+  --text-secondary: var(--muted, #64748b);
+  --text-tertiary: #94a3b8;
+
+  --border: var(--border-color, #e2e8f0);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: var(--card-shadow, 0 4px 6px -1px rgba(0,0,0,0.1));
+  --shadow-float: 0 20px 25px -5px rgba(0,0,0,0.1);
+
+  --radius: 12px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {

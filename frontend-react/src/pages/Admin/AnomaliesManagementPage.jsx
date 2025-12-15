@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import Sidebar from '../../components/Sidebar';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Sidebar from '../../components/Sidebar'; // Adjust the path if necessary
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
+import DropdownSelect from '../../components/DropdownSelect';
 
 const AnomaliesManagementPage = () => {
   const [items, setItems] = useState([]);
@@ -11,6 +14,7 @@ const AnomaliesManagementPage = () => {
   const [editing, setEditing] = useState(null); // will hold the item object when editing
   const [modalOpen, setModalOpen] = useState(false);
   const [filters, setFilters] = useState({ ticker: '', startDate: '', endDate: '' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,14 +24,59 @@ const AnomaliesManagementPage = () => {
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(null);
 
+const [sortConfig, setSortConfig] = useState({
+  key: null,
+  direction: 'asc', // 'asc' | 'desc'
+});
+
+const SELECT_OPTIONS_STATUS = [
+  { value: '', label: 'Select status' },
+  { value: 'new', label: 'New' },
+  { value: 'review', label: 'Review' },
+  { value: 'confirm', label: 'Confirm' },
+  { value: 'safe', label: 'Safe' },
+  { value: 'clear', label: 'Clear' },
+];
+
+function toggleSort(key) {
+  setSortConfig((prev) => {
+    if (prev.key === key) {
+      return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+    }
+    return { key, direction: 'asc' };
+  });
+}
+
+function getSortIcon(key) {
+  if (sortConfig.key !== key) return '⇅';
+  return sortConfig.direction === 'asc' ? '▲' : '▼';
+}
+
+const sortedItems = useMemo(() => {
+  if (!sortConfig.key) return items;
+
+  return [...items].sort((a, b) => {
+    let v1 = a[sortConfig.key];
+    let v2 = b[sortConfig.key];
+
+    if (v1 == null) return 1;
+    if (v2 == null) return -1;
+
+    if (typeof v1 === 'number' && typeof v2 === 'number') {
+      return sortConfig.direction === 'asc' ? v1 - v2 : v2 - v1;
+    }
+
+    return sortConfig.direction === 'asc'
+      ? String(v1).localeCompare(String(v2))
+      : String(v2).localeCompare(String(v1));
+  });
+}, [items, sortConfig]);
+
+
+
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
-  }
-
-  function handleFilterChange(e) {
-    const { name, value } = e.target;
-    setFilters((f) => ({ ...f, [name]: value }));
   }
 
   async function handleAdd(e) {
@@ -169,11 +218,18 @@ const AnomaliesManagementPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // attach pagination params
-      const params = new URLSearchParams(query ? query.replace(/^\?/, '') : '');
-      params.set('limit', String(limit));
-      params.set('skip', String((page - 1) * limit));
-      const url = `${API_BASE}/node/anomalies?${params.toString()}`;
+      // attach pagination params; if a query param 'query' is present, fetch full dataset then filter/paginate client-side
+      const provided = new URLSearchParams(query ? query.replace(/^\?/, '') : '');
+      const queryTerm = (provided.get('query') || searchTerm || '').trim();
+      let url;
+      const fetchingAllForQuery = !!queryTerm;
+      if (fetchingAllForQuery) {
+        url = `${API_BASE}/node/anomalies`;
+      } else {
+        provided.set('limit', String(limit));
+        provided.set('skip', String((page - 1) * limit));
+        url = `${API_BASE}/node/anomalies?${provided.toString()}`;
+      }
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Fetch failed');
@@ -181,8 +237,24 @@ const AnomaliesManagementPage = () => {
       // try to read total count from response (common fields: total, totalCount, count)
       const totalCount = data.total || data.totalCount || data.count || data.totalItems || null;
       if (totalCount !== null && totalCount !== undefined) setTotal(Number(totalCount));
-      const mapped = (list || []).map((a) => ({ _id: a._id || a.id, id: a._id || a.id, ticker: a.ticker, date: (a.datetime || a.Datetime || '').slice(0,10), value: a.close, note: a.note, companyName: a.companyName, volume: a.volume, status: a.status }));
-      setItems(mapped);
+      let mapped = (list || []).map((a) => ({ _id: a._id || a.id, id: a._id || a.id, ticker: a.ticker, date: (a.datetime || a.Datetime || '').slice(0,10), value: a.close, note: a.note, companyName: a.companyName, volume: a.volume, status: a.status }));
+
+      // if searching, filter mapped results by ticker or company name (client-side)
+      if (fetchingAllForQuery && queryTerm) {
+        const qLower = queryTerm.toLowerCase();
+        mapped = mapped.filter((row) => {
+          const hay = `${row.ticker || ''} ${row.companyName || row.company || row.name || ''} ${row.note || ''}`.toLowerCase();
+          return hay.indexOf(qLower) !== -1;
+        });
+        // update total to filtered count
+        setTotal(mapped.length);
+        // paginate filtered results
+        const startIdx = (page - 1) * limit;
+        const pageSlice = mapped.slice(startIdx, startIdx + limit);
+        setItems(pageSlice);
+      } else {
+        setItems(mapped);
+      }
       // after refresh, on mobile ensure user sees top of list
       setTimeout(() => {
         const main = document.querySelector('.main-container');
@@ -245,6 +317,42 @@ const AnomaliesManagementPage = () => {
     return new Intl.NumberFormat().format(n);
   }
 
+  const TableRow = useCallback(function TableRow({ r }) {
+    const rowId = r._id || r.id;
+    const isHovered = hovered === rowId;
+    return (
+      <tr
+        key={rowId}
+        onMouseEnter={() => setHovered(rowId)}
+        onMouseLeave={() => setHovered(null)}
+        style={{
+          backgroundColor: isHovered ? "var(--bg-hover)" : "transparent",
+          transition: "background-color 0.15s ease",
+        }}
+      >
+        <td className="col-ticker">{r.ticker}</td>
+        <td className="company">{r.companyName || r.name || r.company || "-"}</td>
+        <td className="col-date">{fmtDate(r.date)}</td>
+        <td className="col-number">{fmtClose(r.value)}</td>
+        <td className="col-volume col-number">{fmtVolume(r.volume)}</td>
+        <td className="col-status">
+          <span className={`badge status-${(r.status || 'new').toLowerCase()}`}>
+            {r.status || 'New'}
+          </span>
+        </td>
+        <td className="actions-cell">
+          {r.note && (
+            <button onClick={() => setNoteView(r)} className="btn btn-ghost btn-small" title="View Note">
+              Note
+            </button>
+          )}
+          <button onClick={() => startEdit(r)} className="btn btn-small">Add / Insert Note</button>
+          <button onClick={() => handleDelete(r._id || r.id)} className="btn btn-danger btn-small">Delete</button>
+        </td>
+      </tr>
+    );
+  }, [hovered, startEdit, setNoteView, handleDelete]);
+
   return (
     <div className="anomalies-page">
       {/* Sidebar Section */}
@@ -257,14 +365,12 @@ const AnomaliesManagementPage = () => {
         <div className="admin-header">
           <div>
              <h2>Anomalies Management</h2>
-             <p style={{color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '14px'}}>Monitor and manage market irregularities.</p>
+             <p className="admin-subtitle">Monitor and manage market irregularities.</p>
           </div>
           <div className="admin-actions">
+
             <button onClick={openCreate} className="btn">
               + Create New
-            </button>
-            <button onClick={loadItems} className="btn">
-              Refresh
             </button>
           </div>
         </div>
@@ -274,59 +380,29 @@ const AnomaliesManagementPage = () => {
 
         {!loading && !error && (
           <div className="card-table">
-            <table>
+            <div className="table-wrapper">
+              <table>
               <thead>
                 <tr>
-                  <th>Ticker</th>
-                  <th>Company</th>
-                  <th>Date</th>
-                  <th className="center-right">Close</th>
-                  <th className="center-right">Volume</th>
-                  <th className="center-right">Status</th>
+                  <th onClick={() => toggleSort('ticker')}>Ticker <span className="sort-icon">{getSortIcon('ticker')}</span></th>
+                  <th onClick={() => toggleSort('companyName')}>Company<span className="sort-icon">{getSortIcon('companyName')}</span></th>
+                  <th onClick={() => toggleSort('date')}>Date <span className="sort-icon">{getSortIcon('date')}</span></th>
+                  <th className="center-right" onClick={() => toggleSort('value')}>Close <span className="sort-icon">{getSortIcon('value')}</span></th>
+                  <th className="center-right" onClick={() => toggleSort('volume')}>Volume <span className="sort-icon">{getSortIcon('volume')}</span></th>
+                  <th className="center-left" onClick={() => toggleSort('status')}>Status <span className="sort-icon">{getSortIcon('status')}</span></th>
                   <th></th>
                 </tr>
               </thead>
-              <tbody>
-                {items.map((r) => {
-                  const rowId = r._id || r.id;
-                  const isHovered = hovered === rowId;
-                  return (
-                    <tr
-                      key={r._id || r.id}
-                      onMouseEnter={() => setHovered(rowId)}
-                      onMouseLeave={() => setHovered(null)}
-                      style={{
-                        backgroundColor: isHovered ? "var(--bg-hover)" : "transparent",
-                        transition: "background-color 0.15s ease",
-                      }}
-                    >
-                      <td className="col-ticker">{r.ticker}</td>
-                      <td className="company">{r.companyName || r.name || r.company || "-"}</td>
-                      <td className="col-date">{fmtDate(r.date)}</td>
-                      <td className="col-number">{fmtClose(r.value)}</td>
-                      <td className="col-volume col-number">{fmtVolume(r.volume)}</td>
-                      <td className="col-status center-right">
-                        <span className={`badge status-${(r.status || 'new').toLowerCase()}`}>
-                          {r.status || 'New'}
-                        </span>
-                      </td>
-                        <td className="actions-cell">
-                        {r.note && (
-                          <button onClick={() => setNoteView(r)} className="btn btn-ghost btn-small" title="View Note">
-                            Note
-                          </button>
-                        )}
-                        <button onClick={() => startEdit(r)} className="btn btn-small">Edit</button>
-                        <button onClick={() => handleDelete(r._id || r.id)} className="btn btn-danger btn-small">Delete</button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                <tbody>
+                {sortedItems.map((r) => (
+                  <TableRow key={r._id || r.id} r={r} />
+                ))}
                 {items.length === 0 && (
                    <tr><td colSpan="7" style={{textAlign:'center', padding: '32px'}}>No anomalies found.</td></tr>
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
 
@@ -340,12 +416,18 @@ const AnomaliesManagementPage = () => {
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Rows:</label>
-            <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+            <div style={{ minWidth: 88 }}>
+              <DropdownSelect
+                value={String(limit)}
+                onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+                options={[
+                  { value: '10', label: '10' },
+                  { value: '20', label: '20' },
+                  { value: '50', label: '50' },
+                  { value: '100', label: '100' },
+                ]}
+              />
+            </div>
             <button className="btn btn-small" onClick={() => { setPage(1); loadItems(); }}>Refresh</button>
           </div>
         </div>
@@ -389,12 +471,12 @@ const AnomaliesManagementPage = () => {
 
                     <label className="form-field">
                       <span>Status</span>
-                      <select value={form.status || ''} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                        <option value="">Select status</option>
-                        <option value="new">New</option>
-                        <option value="safe">Safe</option>
-                        <option value="clear">Clear</option>
-                      </select>
+                      <DropdownSelect
+                        value={form.status || ''}
+                        onChange={(v) => setForm({ ...form, status: v })}
+                        placeholder="Select status"
+                        options={SELECT_OPTIONS_STATUS}
+                      />
                     </label>
                     <label className="form-field" style={{ gridColumn: '1 / -1' }}>
                       <span>Analyst Note</span>
@@ -418,11 +500,47 @@ const AnomaliesManagementPage = () => {
                     </label>
                     <label className="form-field">
                       <span>Close Price</span>
-                      <input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder="Close price" />
+                      <div className="number-stepper">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          onClick={() => setForm((s) => ({ ...s, value: (Math.max(0, (Number(s.value || 0) - 0.01))).toFixed(2) }))}
+                          aria-label="Decrease close price"
+                        >
+                          −
+                        </button>
+                        <input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder="Close price" />
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          onClick={() => setForm((s) => ({ ...s, value: (Number(s.value || 0) + 0.01).toFixed(2) }))}
+                          aria-label="Increase close price"
+                        >
+                          +
+                        </button>
+                      </div>
                     </label>
                     <label className="form-field">
                       <span>Volume</span>
-                      <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder="Volume" />
+                      <div className="number-stepper">
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          onClick={() => setForm((s) => ({ ...s, volume: String(Math.max(0, (Number(s.volume || 0) - 1))) }))}
+                          aria-label="Decrease volume"
+                        >
+                          −
+                        </button>
+                        <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder="Volume" />
+                        <button
+                          type="button"
+                          className="stepper-btn"
+                          onClick={() => setForm((s) => ({ ...s, volume: String((Number(s.volume || 0) + 1)) }))}
+                          aria-label="Increase volume"
+                        >
+                          +
+                        </button>
+                      </div>
                     </label>
                     <label className="form-field" style={{ gridColumn: '1 / -1' }}>
                       <span>Date</span>
@@ -433,11 +551,11 @@ const AnomaliesManagementPage = () => {
 
                     <label className="form-field">
                       <span>Status</span>
-                      <select name="status" value={form.status || 'new'} onChange={handleChange}>
-                        <option value="new">New</option>
-                        <option value="safe">Safe</option>
-                        <option value="clear">Clear</option>
-                      </select>
+                      <DropdownSelect
+                        value={form.status || 'new'}
+                        onChange={(v) => setForm((s) => ({ ...s, status: v }))}
+                        options={SELECT_OPTIONS_STATUS}
+                      />
                     </label>
                     <label className="form-field" style={{ gridColumn: '1 / -1' }}>
                       <span>Analyst Note</span>
@@ -453,8 +571,7 @@ const AnomaliesManagementPage = () => {
                 )}
               </div>
               <div className="modal-footer">
-                <button onClick={() => cancelEdit()} className="btn" style={{ marginRight: 8 }}>Cancel</button>
-                <button onClick={save} className="btn btn-primary">Save Changes</button>
+                <button onClick={save} className="btn btn-large">Save Changes</button>
               </div>
             </div>
           </div>
@@ -473,10 +590,6 @@ const AnomaliesManagementPage = () => {
 
               <div style={{ padding: '24px', lineHeight: '1.6', color: 'var(--text-main)' }}>
                 {noteView.note || '(No note provided)'}
-              </div>
-
-              <div className="modal-footer">
-                <button onClick={() => setNoteView(null)} className="btn">Close</button>
               </div>
             </div>
           </div>
