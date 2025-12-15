@@ -113,13 +113,55 @@ export default function EchartsCard({
   lastClose = null,
   companyName = ticker,
   isMarketOpen = false,
-  height = 300
+  height = 300,
+  movingAverages,
+  parabolicSAR,
+  showMA = false,
+  showSAR = false,
+  bbSigma = '2sigma'
 }) {
   // Build candlestick data: each item is [open, close, low, high]
   const candleData = useMemo(() => {
     if (!open || !close || !low || !high) return [];
     return open.map((o, i) => [o, close[i], low[i], high[i]]);
   }, [open, close, low, high]);
+
+  // Calculate Heiken-Ashi data from candlestick data
+  // HA Close = (O + H + L + C) / 4
+  // HA Open = (Previous HA Open + Previous HA Close) / 2
+  // HA High = max(H, HA Open, HA Close)
+  // HA Low = min(L, HA Open, HA Close)
+  const heikinAshiData = useMemo(() => {
+    if (candleData.length === 0) return [];
+    
+    const ha = [];
+    let prevHAOpen = candleData[0][0];
+    let prevHAClose = (candleData[0][0] + candleData[0][3] + candleData[0][2] + candleData[0][1]) / 4;
+    
+    for (let i = 0; i < candleData.length; i++) {
+      const [o, c, l, h] = candleData[i];
+      
+      // HA Close = (O + H + L + C) / 4
+      const haClose = (o + h + l + c) / 4;
+      
+      // HA Open = (Previous HA Open + Previous HA Close) / 2
+      const haOpen = (prevHAOpen + prevHAClose) / 2;
+      
+      // HA High = max(H, HA Open, HA Close)
+      const haHigh = Math.max(h, haOpen, haClose);
+      
+      // HA Low = min(L, HA Open, HA Close)
+      const haLow = Math.min(l, haOpen, haClose);
+      
+      // Store as [HA Open, HA Close, HA Low, HA High] for candlestick format
+      ha.push([haOpen, haClose, haLow, haHigh]);
+      
+      prevHAOpen = haOpen;
+      prevHAClose = haClose;
+    }
+    
+    return ha;
+  }, [candleData]);
 
   // For line mode, use close prices
   const lineData = useMemo(() => close || [], [close]);
@@ -133,9 +175,26 @@ export default function EchartsCard({
   // VWAP series (line)
   const vwapData = useMemo(() => vwap || [], [vwap]);
 
-  // Bollinger Bands upper and lower
-  const bbUpperData = useMemo(() => bb?.upper || [], [bb]);
-  const bbLowerData = useMemo(() => bb?.lower || [], [bb]);
+  // Bollinger Bands upper and lower (select based on sigma preference)
+  const bbUpperData = useMemo(() => {
+    if (!bb) return [];
+    if (bbSigma === '1_5sigma') return bb.upper_1_5sigma || [];
+    return bb.upper || [];
+  }, [bb, bbSigma]);
+  
+  const bbLowerData = useMemo(() => {
+    if (!bb) return [];
+    if (bbSigma === '1_5sigma') return bb.lower_1_5sigma || [];
+    return bb.lower || [];
+  }, [bb, bbSigma]);
+
+  // Moving Averages data
+  const ma5Data = useMemo(() => movingAverages?.MA5 || [], [movingAverages]);
+  const ma25Data = useMemo(() => movingAverages?.MA25 || [], [movingAverages]);
+  const ma75Data = useMemo(() => movingAverages?.MA75 || [], [movingAverages]);
+
+  // Parabolic SAR data
+  const sarData = useMemo(() => parabolicSAR?.SAR || [], [parabolicSAR]);
 
   // Anomaly markers: convert to ECharts markPoint format
   // markPoint expects { coord: [xIndex, yValue], itemStyle, symbol, symbolSize, ... }
@@ -166,32 +225,102 @@ export default function EchartsCard({
       };
     }
 
-    const isLine = chartMode === 'lines';
-    
-    // Prepare series array
+    // Prepare series array based on chart mode
     const series = [];
 
-    // 1. Main price series (candlestick or line)
-    if (isLine) {
+    // 1. Main price series based on selected chart mode
+    if (chartMode === 'line') {
       series.push({
         name: `${ticker} Close`,
         type: 'line',
         data: lineData,
         smooth: false,
-        itemStyle: { color: '#3fa34d' },
-        lineStyle: { color: '#3fa34d', width: 2 },
+        itemStyle: { color: '#1e88e5' },
+        lineStyle: { color: '#1e88e5', width: 2 },
         symbolSize: 0,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else {
-      // Candlestick
+    } else if (chartMode === 'candlestick') {
       series.push({
         name: `${ticker} OHLC`,
         type: 'candlestick',
         data: candleData,
         itemStyle: {
-          color: '#26a69a',        // up color
-          color0: '#e03b3b',       // down color
+          color: '#26a69a',
+          color0: '#e03b3b',
+          borderColor: '#26a69a',
+          borderColor0: '#e03b3b'
+        },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (chartMode === 'ohlc') {
+      // OHLC chart - Heiken-Ashi candlestick
+      series.push({
+        name: `${ticker} Heiken-Ashi`,
+        type: 'candlestick',
+        data: heikinAshiData,
+        itemStyle: {
+          color: '#26a69a',
+          color0: '#e03b3b',
+          borderColor: '#26a69a',
+          borderColor0: '#e03b3b'
+        },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (chartMode === 'bar') {
+      // Bar chart using open prices
+      series.push({
+        name: `${ticker} Open`,
+        type: 'bar',
+        data: open || [],
+        itemStyle: { color: '#3fa34d' },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (chartMode === 'column') {
+      // Column chart using close prices
+      series.push({
+        name: `${ticker} Close`,
+        type: 'bar',
+        data: close || [],
+        itemStyle: { color: 'rgba(44, 193, 127, 0.8)' },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (chartMode === 'area') {
+      // Area chart using close prices
+      series.push({
+        name: `${ticker} Close`,
+        type: 'line',
+        data: lineData,
+        smooth: true,
+        areaStyle: { color: 'rgba(44, 193, 127, 0.3)' },
+        lineStyle: { color: '#2cc17f', width: 2 },
+        symbolSize: 0,
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (chartMode === 'hlc') {
+      // HLC (High-Low-Close) chart - use candlestick as it's most similar
+      const hlcData = candleData.map((item, i) => [item[0], item[3], item[2], item[1]]);
+      series.push({
+        name: `${ticker} HLC`,
+        type: 'candlestick',
+        data: hlcData,
+        itemStyle: {
+          color: '#26a69a',
+          color0: '#e03b3b',
+          borderColor: '#26a69a',
+          borderColor0: '#e03b3b'
+        },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else {
+      // Default to candlestick
+      series.push({
+        name: `${ticker} OHLC`,
+        type: 'candlestick',
+        data: candleData,
+        itemStyle: {
+          color: '#26a69a',
+          color0: '#e03b3b',
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
@@ -223,8 +352,9 @@ export default function EchartsCard({
 
     // 4. Bollinger Bands
     if (showBB && bbUpperData.length > 0) {
+      const bbLabel = bbSigma === '1_5sigma' ? 'BB (1.5σ)' : 'BB (2σ)';
       series.push({
-        name: 'BB Upper',
+        name: `${bbLabel} Upper`,
         type: 'line',
         data: bbUpperData,
         smooth: false,
@@ -232,7 +362,7 @@ export default function EchartsCard({
         symbolSize: 0
       });
       series.push({
-        name: 'BB Lower',
+        name: `${bbLabel} Lower`,
         type: 'line',
         data: bbLowerData,
         smooth: false,
@@ -241,7 +371,7 @@ export default function EchartsCard({
       });
       if (bb?.sma && bb.sma.length > 0) {
         series.push({
-          name: 'BB SMA',
+          name: `${bbLabel} SMA`,
           type: 'line',
           data: bb.sma,
           smooth: false,
@@ -249,6 +379,51 @@ export default function EchartsCard({
           symbolSize: 0
         });
       }
+    }
+
+    // 5. Moving Averages
+    if (showMA) {
+      if (ma5Data.length > 0) {
+        series.push({
+          name: 'MA5',
+          type: 'line',
+          data: ma5Data,
+          smooth: false,
+          lineStyle: { color: '#2563EB', width: 1.5 },
+          symbolSize: 0
+        });
+      }
+      if (ma25Data.length > 0) {
+        series.push({
+          name: 'MA25',
+          type: 'line',
+          data: ma25Data,
+          smooth: false,
+          lineStyle: { color: '#F97316', width: 1.5 },
+          symbolSize: 0
+        });
+      }
+      if (ma75Data.length > 0) {
+        series.push({
+          name: 'MA75',
+          type: 'line',
+          data: ma75Data,
+          smooth: false,
+          lineStyle: { color: '#EF4444', width: 1.5 },
+          symbolSize: 0
+        });
+      }
+    }
+
+    // 6. Parabolic SAR
+    if (showSAR && sarData.length > 0) {
+      series.push({
+        name: 'SAR',
+        type: 'scatter',
+        data: sarData.map((val, i) => val ? [i, val] : null).filter(Boolean),
+        symbolSize: 4,
+        itemStyle: { color: '#10B981' }
+      });
     }
 
     // Determine if using ordinal (multi-day) or date axis
@@ -447,17 +622,24 @@ export default function EchartsCard({
     showVolume,
     chartMode,
     anomalyMarkers,
-    period
+    period,
+    ma5Data,
+    ma25Data,
+    ma75Data,
+    sarData,
+    showMA,
+    showSAR,
+    bbSigma
   ]);
 
   const chartRef = React.useRef(null);
 
   return (
-    <div style={{ width: '100%', height: `${height}px` }}>
+    <div style={{ width: '100%', height: typeof height === 'number' ? `${height}px` : height, flex: 1, display: 'flex', flexDirection: 'column' }}>
       <ReactEcharts
         ref={chartRef}
         option={option}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', flex: 1 }}
         notMerge={true}
         opts={{ renderer: 'canvas', useDirtyRect: true }}
       />

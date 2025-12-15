@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import Sidebar from '../../components/Sidebar';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Sidebar from '../../components/Sidebar'; // Adjust the path if necessary
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import DropdownSelect from '../../components/DropdownSelect';

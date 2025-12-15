@@ -222,7 +222,7 @@ function intervalToMs(interval) {
   return 60000;
 }
 
-function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1 }) {
+function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1, showMA, showSAR, bbSigma }) {
   const payload = data?.[ticker] || {};
   const dates = useMemo(() => (payload.dates || []).map(d => normalizeIso(d)), [payload.dates]);
   const close = useMemo(() => payload.close || [], [payload.close]);
@@ -232,6 +232,8 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
   const volume = payload.volume || [];
   const bb = payload.bollinger_bands || { lower: [], upper: [], sma: [] };
   const vwap = payload.VWAP || [];
+  const movingAverages = payload.moving_averages || { MA5: [], MA25: [], MA75: [] };
+  const parabolicSAR = payload.parabolic_sar || { SAR: [] };
   const rawAnomalies = useMemo(() => {
     return (payload.anomaly_markers?.dates || []).map((d, i) => ({ date: d, y: (payload.anomaly_markers?.y_values || [])[i] }))
       .filter(x => x.date && (x.y !== undefined && x.y !== null));
@@ -269,7 +271,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
 
   const plotRef = useRef(null);
   const [badgeTopPx, setBadgeTopPx] = useState(null);
-  const [chartMode, setChartMode] = useState('lines'); // 'lines' or 'candlestick'
+  const [chartMode, setChartMode] = useState('line'); // 'candlestick', 'line', 'ohlc', 'bar', 'column', 'area', 'hlc'
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [isLoadingFollow, setIsLoadingFollow] = useState(false);
@@ -352,13 +354,9 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
       setModeDropdownOpen(false);
     } else if (e.key === 'Escape') {
       setModeDropdownOpen(false);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      // toggle between the two modes for quick keyboard navigation
-      setChartMode(prev => (prev === 'lines' ? 'candlestick' : 'lines'));
     }
   };
-  const appliedChartMode = (globalChartMode === 'auto') ? chartMode : globalChartMode;
+  const appliedChartMode = (globalChartMode === 'auto') ? chartMode : (globalChartMode === 'lines' ? 'line' : globalChartMode === 'candlestick' ? 'candlestick' : globalChartMode);
 
   // compute simple price change based on last close vs previous_close/open
   const lastClose = close.length ? close[close.length - 1] : null;
@@ -491,6 +489,11 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
           lastClose={lastClose}
           companyName={companyName}
           isMarketOpen={isMarketOpen}
+          movingAverages={movingAverages}
+          parabolicSAR={parabolicSAR}
+          showMA={showMA}
+          showSAR={showSAR}
+          bbSigma={bbSigma}
         />
         {lastClose != null && (
           <div className="badge-overlay" style={{ position: 'absolute', right: 10, top: badgeTopPx != null ? `${badgeTopPx}px` : '50%', transform: 'translateY(-50%)', background: (price_change != null && price_change < 0) ? '#e03b3b' : '#26a69a', color: '#fff', padding: '6px 8px', borderRadius: 8, fontSize: 12 }}>
@@ -528,8 +531,11 @@ export default function Chart() {
   const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
   // Anomalies are now an indicator toggle like the others. Default to true to preserve visibility.
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
+  const [showMA, setShowMA] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showMA !== undefined) ? p.showMA : false; } catch { return false; } });
+  const [showSAR, setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
+  const [bbSigma, setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
   const [showLegend, setShowLegend] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return (p.showLegend !== undefined) ? p.showLegend : false; } catch { return false; } });
-  const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'auto'; } catch { return 'auto'; } });
+  const [globalChartMode, setGlobalChartMode] = useState(() => { try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.globalChartMode || 'candlestick'; } catch { return 'candlestick'; } });
   const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [periodIntervalOpen, setPeriodIntervalOpen] = useState(false);
@@ -589,7 +595,7 @@ export default function Chart() {
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
     try {
-      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode };
+      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA, showSAR, bbSigma };
       localStorage.setItem(PREF_KEY, JSON.stringify(p));
       // also persist to server for authenticated users (debounced)
       if (token && user) {
@@ -605,7 +611,7 @@ export default function Chart() {
         }, 600);
       }
     } catch { /* ignore */ }
-  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, token, user]);
+  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA, showSAR, bbSigma, token, user]);
 
   function applyPreset(p) {
     setPeriod(p.period);
@@ -930,6 +936,54 @@ export default function Chart() {
                           </span>
                           Anomalies
                         </div>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA} onClick={() => setShowMA(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA(v => !v); } }}>
+                          <span className={`indicator-dot ${showMA ? 'checked' : ''}`} aria-hidden>
+                            {showMA && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          Moving Averages
+                        </div>
+                        <div className="mode-item" role="option" tabIndex={0} aria-checked={showSAR} onClick={() => setShowSAR(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSAR(v => !v); } }}>
+                          <span className={`indicator-dot ${showSAR ? 'checked' : ''}`} aria-hidden>
+                            {showSAR && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          Parabolic SAR
+                        </div>
+                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
+                        <div style={{ padding: '8px 12px', fontSize: '12px', color: '#666' }}>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500 }}>BB Bands Width</label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                              <input 
+                                type="radio" 
+                                name="bbSigma" 
+                                value="2sigma" 
+                                checked={bbSigma === '2sigma'}
+                                onChange={() => setBbSigma('2sigma')}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              2σ (Standard)
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                              <input 
+                                type="radio" 
+                                name="bbSigma" 
+                                value="1_5sigma" 
+                                checked={bbSigma === '1_5sigma'}
+                                onChange={() => setBbSigma('1_5sigma')}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              1.5σ (Tight)
+                            </label>
+                          </div>
+                        </div>
                   </div>
                 </PortalDropdown>
               )}
@@ -952,6 +1006,26 @@ export default function Chart() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
+              ) : globalChartMode === 'ohlc' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : globalChartMode === 'bar' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : globalChartMode === 'column' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : globalChartMode === 'area' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : globalChartMode === 'hlc' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 8h2v8H4V8M7 5h2v11H7V5M10 9h2v7h-2v-7M13 6h2v10h-2V6M16 8h2v8h-2V8M19 7h2v9h-2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M3 18l6-6 4 4 8-8M18 5h3v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -964,11 +1038,26 @@ export default function Chart() {
                     <div className={`mode-item ${globalChartMode === 'auto' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'auto'} onClick={() => { setGlobalChartMode('auto'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('auto'); setToolbarModeOpen(false); } }}>
                       Auto
                     </div>
-                    <div className={`mode-item ${globalChartMode === 'lines' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'lines'} onClick={() => { setGlobalChartMode('lines'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('lines'); setToolbarModeOpen(false); } }}>
-                      Lines
-                    </div>
                     <div className={`mode-item ${globalChartMode === 'candlestick' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'candlestick'} onClick={() => { setGlobalChartMode('candlestick'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('candlestick'); setToolbarModeOpen(false); } }}>
                       Candlestick
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'line' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'line'} onClick={() => { setGlobalChartMode('line'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('line'); setToolbarModeOpen(false); } }}>
+                      Line
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'ohlc' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'ohlc'} onClick={() => { setGlobalChartMode('ohlc'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('ohlc'); setToolbarModeOpen(false); } }}>
+                      OHLC (Heiken-Ashi)
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'bar' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'bar'} onClick={() => { setGlobalChartMode('bar'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('bar'); setToolbarModeOpen(false); } }}>
+                      Bar
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'column' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'column'} onClick={() => { setGlobalChartMode('column'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('column'); setToolbarModeOpen(false); } }}>
+                      Column
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'area' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'area'} onClick={() => { setGlobalChartMode('area'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('area'); setToolbarModeOpen(false); } }}>
+                      Area
+                    </div>
+                    <div className={`mode-item ${globalChartMode === 'hlc' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'hlc'} onClick={() => { setGlobalChartMode('hlc'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('hlc'); setToolbarModeOpen(false); } }}>
+                      HLC
                     </div>
                   </div>
                 </PortalDropdown>
@@ -1012,6 +1101,9 @@ export default function Chart() {
             interval={interval}
             globalChartMode={globalChartMode}
             totalTickersCount={tickers.length}
+            showMA={showMA}
+            showSAR={showSAR}
+            bbSigma={bbSigma}
           />
         ))}
       </div>

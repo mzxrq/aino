@@ -11,7 +11,7 @@ import yfinance as yf
 from pydantic import BaseModel, Field
 
 from core.config import db, logger
-from services.train_service import load_dataset, data_preprocessing, detect_anomalies
+from services.train_service import load_dataset, data_preprocessing, detect_anomalies, detect_anomalies_adaptive
 
 router = APIRouter()
 
@@ -179,35 +179,70 @@ def _save_to_cache(key: str, payload: Dict[str, Any]):
     )
 
 
+def _is_cache_payload_suspect(ticker: str, payload: Dict[str, Any]) -> bool:
+    """Return True when cached payload looks wrong for the ticker (e.g., price far off).
+
+    Uses a lightweight live quote check; if the cache last close deviates >50% from the
+    latest price, the cache is considered stale/incorrect and will be invalidated.
+    """
+    try:
+        closes = payload.get('close') or payload.get('Close') or []
+        cached_close = next((float(x) for x in reversed(closes) if x is not None), None)
+        if cached_close is None or cached_close <= 0:
+            return True
+
+        try:
+            yt = yf.Ticker(ticker)
+            ref_price = None
+            finfo = getattr(yt, 'fast_info', None)
+            if finfo is not None:
+                ref_price = getattr(finfo, 'last_price', None)
+            if ref_price is None:
+                hist = yt.history(period="5d", interval="1d", auto_adjust=True)
+                if not hist.empty:
+                    ref_price = float(hist['Close'].iloc[-1])
+
+            if ref_price is None or ref_price <= 0:
+                return False  # cannot validate without a reference price
+
+            diff_ratio = abs(cached_close - ref_price) / ref_price
+            if diff_ratio > 0.50:
+                logger.warning(f"Invalidating cache for {ticker}: cached_close={cached_close}, live={ref_price}")
+                return True
+        except Exception:
+            return False
+    except Exception:
+        return False
+    return False
+
+
 def _ensure_anomalies_for_ticker(ticker: str, period: str = '5y'):
     """Ensure anomalies have been processed for the requested period for `ticker`.
 
-    Now aggressively runs detect_anomalies for each period to ensure anomalies are always present.
-    This is period-aware and will capture anomalies specific to shorter windows (6mo vs 1y, etc).
+    Uses adaptive anomaly detection that adjusts sensitivity based on individual stock volatility.
+    Captures anomalies specific to the requested time window.
     """
     if db is None:
         return
     try:
         logger.debug(f"_ensure_anomalies_for_ticker: {ticker} period={period}")
-        # Load data for the requested period
-        df = load_dataset([ticker], period=period, interval='1d')
-        if df.empty:
-            logger.debug(f"  No data for {ticker} period={period}")
-            return
         
-        logger.debug(f"  Loaded {len(df)} rows, preprocessing...")
-        df = df.groupby('Ticker', group_keys=False).apply(data_preprocessing).reset_index(drop=True)
-        if df.empty:
-            logger.debug(f"  Empty after preprocessing")
-            return
-        
-        # Always run detection for this period (ensures anomalies are present)
-        logger.debug(f"  Running detect_anomalies for {ticker} period={period}")
+        # Use adaptive detection which fits contamination to this ticker's volatility
+        logger.debug(f"  Running adaptive anomaly detection for {ticker} period={period}")
         try:
-            detect_anomalies([ticker], period=period, interval='1d')
-            logger.debug(f"  detect_anomalies completed for {ticker} period={period}")
+            anomalies = detect_anomalies_adaptive(ticker, period=period, interval='1d')
+            if not anomalies.empty:
+                logger.info(f"  Found {len(anomalies)} anomalies for {ticker} (adaptive detection)")
+            else:
+                logger.debug(f"  No anomalies found for {ticker} (or already cached)")
         except Exception as e:
-            logger.debug(f"  detect_anomalies failed for {ticker}: {e}")
+            logger.debug(f"  Adaptive detection failed for {ticker}: {e}")
+            # Fallback to standard detection if adaptive fails
+            try:
+                detect_anomalies([ticker], period=period, interval='1d')
+                logger.debug(f"  Fallback detect_anomalies completed for {ticker} period={period}")
+            except Exception as e2:
+                logger.debug(f"  Fallback also failed: {e2}")
     except Exception:
         logger.exception(f"_ensure_anomalies_for_ticker failed for {ticker}")
 
@@ -246,10 +281,21 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         'bollinger_bands': {
             'lower': _safe_list(df.get('bb_lower')),
             'upper': _safe_list(df.get('bb_upper')),
+            'lower_1_5sigma': _safe_list(df.get('bb_lower_1_5sigma')),
+            'upper_1_5sigma': _safe_list(df.get('bb_upper_1_5sigma')),
             'sma': _safe_list(df.get('roll_mean_20')),
         },
         'VWAP': _safe_list(df.get('VWAP')),
         'RSI': _safe_list(df.get('RSI')),
+        'moving_averages': {
+            'MA5': _safe_list(df.get('MA5')),
+            'MA25': _safe_list(df.get('MA25')),
+            'MA75': _safe_list(df.get('MA75')),
+        },
+        'parabolic_sar': {
+            'SAR': _safe_list(df.get('SAR')),
+            'EP': _safe_list(df.get('SAR_ep')),
+        },
         'anomaly_markers': {
             'dates': [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies['Datetime'].tolist()] if anomalies is not None and not anomalies.empty else [],
             'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] if anomalies is not None and not anomalies.empty else []
@@ -288,10 +334,21 @@ def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
         'bollinger_bands': {
             'lower': _safe(bb.get('lower') if isinstance(bb, dict) else None, []),
             'upper': _safe(bb.get('upper') if isinstance(bb, dict) else None, []),
+            'lower_1_5sigma': _safe(bb.get('lower_1_5sigma') if isinstance(bb, dict) else None, []),
+            'upper_1_5sigma': _safe(bb.get('upper_1_5sigma') if isinstance(bb, dict) else None, []),
             'sma': _safe(bb.get('sma') if isinstance(bb, dict) else None, []),
         },
         'VWAP': _safe(payload.get('VWAP'), []),
         'RSI': _safe(payload.get('RSI'), []),
+        'moving_averages': {
+            'MA5': _safe(payload.get('moving_averages', {}).get('MA5') if isinstance(payload.get('moving_averages'), dict) else None, []),
+            'MA25': _safe(payload.get('moving_averages', {}).get('MA25') if isinstance(payload.get('moving_averages'), dict) else None, []),
+            'MA75': _safe(payload.get('moving_averages', {}).get('MA75') if isinstance(payload.get('moving_averages'), dict) else None, []),
+        },
+        'parabolic_sar': {
+            'SAR': _safe(payload.get('parabolic_sar', {}).get('SAR') if isinstance(payload.get('parabolic_sar'), dict) else None, []),
+            'EP': _safe(payload.get('parabolic_sar', {}).get('EP') if isinstance(payload.get('parabolic_sar'), dict) else None, []),
+        },
         'anomaly_markers': {
             'dates': _safe(anomaly.get('dates') if isinstance(anomaly, dict) else None, []),
             'y_values': _safe(anomaly.get('y_values') if isinstance(anomaly, dict) else None, []),
@@ -392,12 +449,19 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
         ttl = _ttl_for_period(period)
         cached = _load_from_cache(key, ttl)
         if cached:
-            meta = _get_ticker_meta(t)
-            cached['companyName'] = cached.get('companyName') or meta.get('companyName')
-            cached['market'] = cached.get('market') or meta.get('market')
-            enriched = _enrich_anomalies_from_db_if_missing(t, cached)
-            result[t] = _ensure_payload_shape(enriched)
-            continue
+            if _is_cache_payload_suspect(t, cached):
+                try:
+                    db.cache.delete_one({"_id": key})
+                    logger.debug(f"Deleted suspect cache entry {key}")
+                except Exception:
+                    logger.debug(f"Failed deleting suspect cache entry {key}")
+            else:
+                meta = _get_ticker_meta(t)
+                cached['companyName'] = cached.get('companyName') or meta.get('companyName')
+                cached['market'] = cached.get('market') or meta.get('market')
+                enriched = _enrich_anomalies_from_db_if_missing(t, cached)
+                result[t] = _ensure_payload_shape(enriched)
+                continue
 
         df = load_dataset([t], period=period, interval=interval)
         if df.empty:

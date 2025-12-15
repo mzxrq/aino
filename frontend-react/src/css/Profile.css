@@ -323,14 +323,17 @@
 }
 
 .btn-line {
-  background: #06c755;
-  color: white;
+  background: #00c300 !important;
+  color: white !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline-block !important;
 }
 
 .btn-line:hover:not(:disabled) {
-  background: #05b043;
+  background: #00a300 !important;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 195, 0, 0.3) !important;
 }
 
 .btn-logout {

@@ -33,6 +33,7 @@ __pycache__/
 venv/
 env/
 .venv/
+backend-python/archive
 
 # IDEs and OS files
 .vscode/

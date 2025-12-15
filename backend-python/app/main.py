@@ -42,8 +42,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(chart_router)
 
-# ⭐ Toggle state
-scheduler_enabled = False
+# ⭐ Toggle state - ENABLED BY DEFAULT
+scheduler_enabled = True
 
 
 def _scheduler_loop(stop_event):

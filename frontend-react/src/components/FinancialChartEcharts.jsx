@@ -161,8 +161,8 @@ export default function FinancialChartEcharts({
         type: 'line',
         data: dates.map((date, i) => [useOrdinalX ? i : date, close[i] || null]),
         smooth: true,
-        lineStyle: { color: '#3fa34d', width: 2 },
-        itemStyle: { color: '#3fa34d' },
+        lineStyle: { color: '#1e88e5', width: 2 },
+        itemStyle: { color: '#1e88e5' },
         markArea: markAreaData.length > 0 ? { data: markAreaData, silent: true } : undefined,
         markPoint: markPointData.length > 0 ? { data: markPointData } : undefined
       });
@@ -281,31 +281,36 @@ export default function FinancialChartEcharts({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross' },
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        textStyle: { color: '#fff' },
-        borderColor: '#777',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        textStyle: { color: '#fff', fontSize: 13 },
+        borderColor: '#888',
+        confine: false,
+        z: 1000,
+        alwaysShowContent: false,
         formatter: function(params) {
           if (!Array.isArray(params) || params.length === 0) return '';
           let ts = params[0].axisValue;
           try {
             const dt = DateTime.fromISO(ts, { zone: 'utc' }).setZone(timezone);
             const top = isIntraday ? dt.toFormat('HH:mm') : dt.toFormat('yyyy-LL-dd');
-            var result = top + '<br/>';
+            var result = `<div style="font-weight: 600; margin-bottom: 8px;">${top}</div>`;
           } catch {
-            var result = params[0].axisValueLabel + '<br/>';
+            var result = `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].axisValueLabel}</div>`;
           }
           params.forEach(p => {
             if (p.componentSubType === 'candlestick') {
-              // Format candlestick tooltip
+              // ECharts candlestick data format: [open, close, low, high]
               const data = p.value;
-              result += `Open: ${data[1]?.toFixed(2) || '-'}<br/>`;
-              result += `High: ${data[4]?.toFixed(2) || '-'}<br/>`;
-              result += `Low: ${data[3]?.toFixed(2) || '-'}<br/>`;
-              result += `Close: ${data[2]?.toFixed(2) || '-'}<br/>`;
+              const o = data[0]?.toFixed(2) || '-';
+              const c = data[1]?.toFixed(2) || '-';
+              const l = data[2]?.toFixed(2) || '-';
+              const h = data[3]?.toFixed(2) || '-';
+              result += `<div style="margin: 4px 0;"><span style="color: #aaa;">OHLC:</span> <span style="font-family: monospace; font-weight: 600;">O: ${o} | H: ${h}</span></div>`;
+              result += `<div style="margin: 4px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.2);"><span style="font-family: monospace; font-weight: 600;">L: ${l} | C: ${c}</span></div>`;
             } else if (p.componentSubType === 'bar') {
-              result += `${p.seriesName}: ${(p.value[1] || 0).toLocaleString()}<br/>`;
+              result += `<div style="margin: 4px 0;"><span style="color: #aaa;">${p.seriesName}:</span> <span style="font-weight: 600;">${(p.value[1] || 0).toLocaleString()}</span></div>`;
             } else {
-              result += `${p.seriesName}: ${(p.value[1] || '-').toFixed(2)}<br/>`;
+              result += `<div style="margin: 4px 0;"><span style="color: #aaa;">${p.seriesName}:</span> <span style="font-weight: 600;">${(p.value[1] || '-').toFixed(2)}</span></div>`;
             }
           });
           return result;
