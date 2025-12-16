@@ -436,7 +436,7 @@ def _enrich_anomalies_from_db_if_missing(ticker: str, payload: Dict[str, Any]):
 # -------------------------
 # Chart endpoint
 # -------------------------
-def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str, Any]:
+def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bool = False) -> Dict[str, Any]:
     """Shared processing for one-or-more tickers; returns mapping ticker->payload.
 
     Keeps cache behavior, metadata enrichment, anomaly lookups and saves cleaned payloads.
@@ -444,10 +444,10 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
     result: Dict[str, Any] = {}
     for t in tickers:
         t = t.upper()
-        # Try cache first
+        # Try cache first (unless disabled)
         key = _cache_key(t, period, interval)
         ttl = _ttl_for_period(period)
-        cached = _load_from_cache(key, ttl)
+        cached = None if nocache else _load_from_cache(key, ttl)
         if cached:
             if _is_cache_payload_suspect(t, cached):
                 try:
@@ -561,14 +561,14 @@ def _process_tickers(tickers: List[str], period: str, interval: str) -> Dict[str
 
 
 @router.get("/chart", response_model=Dict[str, Any])
-def get_chart(ticker: Optional[str] = None, period: str = "1mo", interval: str = "30m"):
+def get_chart(ticker: Optional[str] = None, period: str = "1mo", interval: str = "30m", nocache: Optional[int] = 0):
     """GET /chart?ticker=AAPL or ticker=AAPL,GOOG - returns mapping of ticker->payload."""
     if not ticker:
         return {"error": "Query parameter 'ticker' is required"}
 
     # Support comma-separated tickers in the `ticker` query param
     tickers = [t.strip().upper() for t in ticker.split(',') if t.strip()]
-    return _process_tickers(tickers, period, interval)
+    return _process_tickers(tickers, period, interval, nocache=bool(nocache))
 
 
 @router.post("/chart", response_model=Dict[str, Any])

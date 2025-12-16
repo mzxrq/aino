@@ -225,6 +225,62 @@ def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
                 df['Datetime'] = pd.to_datetime(df['Datetime'], errors='coerce', utc=True)
                 df = df.dropna().reset_index(drop=True)
                 
+                # Heuristic: yfinance sometimes returns only a handful of rows for 1wk on long periods (e.g., MSFT).
+                # If we requested weekly and got suspiciously few rows for a multi-year period, fallback:
+                def _needs_weekly_fallback(_df: pd.DataFrame, _period: str, _interval: str) -> bool:
+                    try:
+                        itv = str(_interval or '').lower()
+                        per = str(_period or '').lower()
+                        if itv != '1wk':
+                            return False
+                        nrows = len(_df) if _df is not None else 0
+                        # If asking for >= 2y and received < 50 rows, assume bad weekly response
+                        if per.endswith('y'):
+                            years = int(per.replace('y', '') or '1')
+                            return years >= 2 and nrows < 50
+                        if per.endswith('mo'):
+                            months = int(per.replace('mo', '') or '1')
+                            return months >= 24 and nrows < 50
+                        return False
+                    except Exception:
+                        return False
+
+                if _needs_weekly_fallback(df, period, interval):
+                    try:
+                        logger.warning(f"⚠️  Weekly data looks too short for {ticker} ({len(df)} rows). Falling back to 1d then resampling→1wk")
+                        alt = yf.download(ticker, period=period, interval='1d', auto_adjust=True)
+                        if alt is not None and not getattr(alt, 'empty', True):
+                            if isinstance(alt.columns, pd.MultiIndex):
+                                alt.columns = [c[0] for c in alt.columns]
+                            else:
+                                alt.columns = alt.columns.map(str)
+                            alt = alt.reset_index()
+                            alt.rename(columns={alt.columns[0]: 'Datetime'}, inplace=True)
+                            alt['Ticker'] = ticker
+                            if ensure_columns_exist(alt, required_columns=['Open', 'High', 'Low', 'Close', 'Volume']):
+                                alt['Datetime'] = pd.to_datetime(alt['Datetime'], errors='coerce', utc=True)
+                                alt = alt.dropna().reset_index(drop=True)
+                                if len(alt) > 0:
+                                    wk = (
+                                        alt.set_index('Datetime')
+                                           .resample('W-FRI')
+                                           .agg({
+                                               'Open': 'first',
+                                               'High': 'max',
+                                               'Low': 'min',
+                                               'Close': 'last',
+                                               'Volume': 'sum',
+                                               'Ticker': 'first'
+                                           })
+                                           .dropna()
+                                           .reset_index()
+                                    )
+                                    if len(wk) > 0:
+                                        df = wk
+                                        logger.debug(f"✅ Resampled weekly rows for {ticker}: {len(df)}")
+                    except Exception as _e:
+                        logger.warning(f"⚠️  Weekly fallback failed for {ticker}: {_e}")
+
                 if len(df) > 0:
                     dataframes.append(df)
                     logger.debug(f"✅ Loaded {len(df)} rows for {ticker}")

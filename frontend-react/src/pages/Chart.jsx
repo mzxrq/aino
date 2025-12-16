@@ -196,18 +196,45 @@ function changeColorClass(val) {
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
-  const validIntraday = ['1m', '5m', '30m', '1h'];
+
+  // Intraday: only intraday granularities
   if (p === '1d') {
-    return validIntraday.includes(interval) ? interval : '1m';
+    const allowed = ['1m', '2m', '5m', '15m', '30m', '1h'];
+    return allowed.includes((interval || '').toLowerCase()) ? interval : '1m';
   }
+
+  // 5 trading days: allow finer intraday but default to 30m
   if (p === '5d') {
-    // 30m or above for >= 5d
-    const allowed = ['30m', '1h', '1d', '1wk', '1y'];
-    return allowed.includes(interval) ? interval : '30m';
+    const allowed = ['5m', '15m', '30m', '1h', '1d'];
+    return allowed.includes((interval || '').toLowerCase()) ? interval : '30m';
   }
-  // For >= 1mo, prefer >= 30m
-  const allowed = ['30m', '1h', '1d', '1wk', '1y'];
-  return allowed.includes(interval) ? interval : '30m';
+
+  // Month-based periods
+  if (p.endsWith('mo')) {
+    const n = parseInt(p.replace('mo', ''), 10) || 1;
+    if (n <= 1) {
+      const allowed = ['15m', '30m', '1h', '1d'];
+      return allowed.includes((interval || '').toLowerCase()) ? interval : '30m';
+    }
+    // For >= 2mo, 1d or coarser is reliable
+    const allowed = ['1d', '1wk', '1mo'];
+    return allowed.includes((interval || '').toLowerCase()) ? interval : '1d';
+  }
+
+  // Year-based periods
+  if (p.endsWith('y')) {
+    const n = parseInt(p.replace('y', ''), 10) || 1;
+    if (n <= 1) {
+      const allowed = ['1d', '1wk'];
+      return allowed.includes((interval || '').toLowerCase()) ? interval : '1d';
+    }
+    const allowed = ['1wk', '1mo', '1y'];
+    return allowed.includes((interval || '').toLowerCase()) ? interval : '1wk';
+  }
+
+  // Fallback for 'max' or unknown: use weekly
+  const allowed = ['1d', '1wk', '1mo'];
+  return allowed.includes((interval || '').toLowerCase()) ? interval : '1wk';
 }
 
 // Convert an interval string (e.g., "30m", "1h", "1d", "1wk") to milliseconds.
@@ -553,11 +580,43 @@ export default function Chart() {
     async function fetchData() {
       setLoading(true); setError(null);
       const enforced = enforceIntervalRules(period, interval);
+      
+      // Update interval state if it was enforced differently
+      if (enforced !== interval) {
+        setInterval(enforced);
+      }
+      
       try {
         const q = tickers.join(',');
         const url = `${PY_API}/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
         const res = await fetch(url);
         const json = await res.json();
+        
+        // If all requested tickers returned no data, attempt a coarser interval automatically.
+        try {
+          const allEmpty = Array.isArray(tickers) && tickers.length > 0 && tickers.every(t => {
+            const pl = (json && json[t]) || {};
+            return !pl.dates || pl.dates.length === 0;
+          });
+
+          if (allEmpty) {
+            const order = ['1m','2m','5m','15m','30m','1h','1d','1wk','1mo'];
+            const currentIdx = Math.max(0, order.indexOf(enforced));
+            let next = enforced;
+            for (let i = currentIdx + 1; i < order.length; i++) {
+              const candidate = order[i];
+              const allowed = enforceIntervalRules(period, candidate);
+              if (allowed === candidate) { next = candidate; break; }
+            }
+            if (next !== enforced) {
+              // Notify once and retry by updating state; effect will re-fetch.
+              try { await Swal.fire({ icon: 'info', title: 'Switched interval', text: `No data for ${enforced}. Trying ${next} instead.`, timer: 2000, showConfirmButton: false }); } catch {}
+              setInterval(next);
+              setLoading(false);
+              return; // skip setting data for this response
+            }
+          }
+        } catch {}
         // Temporary debug logging to diagnose period/interval/date-range issues
         try {
           console.debug('Chart fetch', { url, requested: { period, interval: enforced, tickers }, returnedKeys: Object.keys(json || {}) });
@@ -614,8 +673,9 @@ export default function Chart() {
   }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA, showSAR, bbSigma, token, user]);
 
   function applyPreset(p) {
+    const enforced = enforceIntervalRules(p.period, p.interval);
     setPeriod(p.period);
-    setInterval(p.interval);
+    setInterval(enforced);
   }
 
   function applyTickers() {
