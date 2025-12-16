@@ -23,6 +23,7 @@ import AdminRoute from "./pages/Admin/AdminRouteGuard";
 import AdminLayout from "../src/layouts/AdminLayout";
 import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
 import CacheManagementPage from "./pages/Admin/AdminCachePage";
+import MarketlistsManagementPage from "./pages/Admin/AdminMarketlistsPage";
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
                 />
 
                 <Route path="/cache" element={<CacheManagementPage />} />
+                <Route path="/marketlists" element={<MarketlistsManagementPage />} />
               </Route>
             </Route>
             <Route path="/" element={<Home />} />
