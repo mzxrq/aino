@@ -551,6 +551,25 @@ tr:hover td {
   transition: var(--transition);
 }
 
+/* Keep dropdown button visually aligned with inputs but not full-width */
+.form-field .select-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-field .select-input .flag-button {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 14px;
+  min-height: 40px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Constrain textarea so it never expands the row width but can grow vertically.
    - `min-width: 0` allows flex/grid children to shrink in constrained containers.
    - `resize: vertical` enables only height adjustments by the user. */
@@ -815,6 +834,10 @@ body.dark .form-field input,
 html.dark .form-field input,
 [data-theme="dark"] .form-field input,
 .dark .form-field input,
+body.dark .form-field input,
+html.dark .form-field input,
+[data-theme="dark"] .form-field input,
+.dark .form-field input,
 body.dark .form-field select,
 html.dark .form-field select,
 [data-theme="dark"] .form-field select,
@@ -823,6 +846,16 @@ body.dark .form-field textarea,
 html.dark .form-field textarea,
 [data-theme="dark"] .form-field textarea,
 .dark .form-field textarea {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border, var(--card-border, rgba(255,255,255,0.06))) !important;
+}
+
+/* Dark-mode: ensure dropdown button inside form-field matches input tokens */
+body.dark .form-field .select-input .flag-button,
+html.dark .form-field .select-input .flag-button,
+[data-theme="dark"] .form-field .select-input .flag-button,
+.dark .form-field .select-input .flag-button {
   background: var(--input-bg) !important;
   color: var(--text-primary) !important;
   border-color: var(--input-border, var(--card-border, rgba(255,255,255,0.06))) !important;
@@ -1418,6 +1451,69 @@ html:not(.dark) .anomalies-page .btn,
   border: none !important;
   border-color: transparent !important;
   box-shadow: 0 6px 18px rgba(16,24,40,0.04) !important;
+}
+
+/* ==========================
+   Colorful dark-theme enhancements
+   Add vivid accents for admin pages (headers, buttons, badges)
+   ========================== */
+.dark .modal .modal-header,
+body.dark .modal .modal-header,
+html.dark .modal .modal-header,
+[data-theme="dark"] .modal .modal-header {
+  background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
+  border-bottom: 1px solid rgba(79,70,229,0.12) !important;
+}
+
+.dark .modal .modal-title,
+body.dark .modal .modal-title {
+  color: #F8FAFF !important;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+.dark .btn-primary,
+body.dark .btn-primary,
+html.dark .btn-primary,
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(180deg,#7C3AED 0%,#4F46E5 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 30px rgba(79,70,229,0.22) !important;
+  border: none !important;
+}
+
+/* Role badges (class-based) so JS can toggle look easily) */
+.badge.role-admin {
+  background: linear-gradient(90deg,#7C3AED,#4F46E5);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.12);
+}
+.badge.role-user {
+  background: linear-gradient(90deg,#06B6D4,#0EA5B7);
+  color: #012429;
+}
+
+/* Dark-mode overrides for badges */
+body.dark .badge.role-admin,
+html.dark .badge.role-admin,
+[data-theme="dark"] .badge.role-admin {
+  background: linear-gradient(90deg,#553CFF,#2563EB) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.18) !important;
+}
+
+body.dark .badge.role-user,
+html.dark .badge.role-user,
+[data-theme="dark"] .badge.role-user {
+  background: linear-gradient(90deg,#0891B2,#06B6D4) !important;
+  color: #062426 !important;
+  box-shadow: 0 4px 12px rgba(6,182,212,0.12) !important;
+}
+
+/* Ghost button tweak in dark admin pages */
+.dark .btn-ghost, body.dark .btn-ghost {
+  background: rgba(255,255,255,0.02) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Ensure modal small buttons follow the same color rules in light theme */
