@@ -1,23 +1,26 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import Sidebar from '../../components/Sidebar';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import DropdownSelect from '../../components/DropdownSelect';
+import { useAuth } from '../../context/useAuth';
 
 const AnomaliesManagementPage = () => {
   const [items, setItems] = useState([]);
+  const { user } = useAuth();
 
-  const [form, setForm] = useState({ id: null, ticker: '', date: '', value: '', note: '', companyName: '', volume: '', status: 'New' });
+  const [form, setForm] = useState({ id: null, ticker: '', date: '', value: '', note: '', companyName: '', volume: '', status: 'New'  });
   const [editing, setEditing] = useState(null); // will hold the item object when editing
   const [modalOpen, setModalOpen] = useState(false);
-  const [filters, setFilters] = useState({ ticker: '', startDate: '', endDate: '' });
+  // filters not used in current UI; remove to avoid stale state
   const [searchTerm, setSearchTerm] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [noteView, setNoteView] = useState(null);
+  const [rowActions, setRowActions] = useState(null); // { _id, ... }
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(null);
@@ -26,6 +29,29 @@ const [sortConfig, setSortConfig] = useState({
   key: null,
   direction: 'asc', // 'asc' | 'desc'
 });
+
+  // Inline modal button styles to guarantee color across theme cascades
+  const modalButtonStyles = {
+    primary: { background: 'linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff', border: 'none' },
+    secondary: { background: 'linear-gradient(180deg, #10B981 0%, #059669 100%)', color: '#fff', border: 'none' },
+    danger: { background: 'linear-gradient(180deg, #DC2626 0%, #B91C1C 100%)', color: '#fff', border: 'none' },
+  };
+
+  const searchDebounce = useRef(null);
+
+  function handleSearchChange(e) {
+    const v = e.target.value;
+    setSearchTerm(v);
+    setPage(1);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => {
+      loadItems(`?query=${encodeURIComponent(v)}`);
+    }, 300);
+  }
+
+  useEffect(() => {
+    return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
+  }, []);
 
 const SELECT_OPTIONS_STATUS = [
   { value: '', label: 'Select status' },
@@ -124,7 +150,7 @@ const sortedItems = useMemo(() => {
 
   function startEdit(item) {
     // map UI row back to edit form
-    setForm({ id: item.id || item._id, _id: item._id || item.id, ticker: item.ticker, date: item.date, value: item.value, note: item.note });
+    setForm({ id: item.id || item._id, _id: item._id || item.id, ticker: item.ticker, date: item.date, value: item.value, note: item.note  });
     setEditing(item);
     setModalOpen(true);
   }
@@ -135,6 +161,14 @@ const sortedItems = useMemo(() => {
     setModalOpen(false);
   }
 
+  function openRowActions(item) {
+    setRowActions(item);
+  }
+
+  function closeRowActions() {
+    setRowActions(null);
+  }
+
   async function saveEdit(e) {
     e.preventDefault();
     try {
@@ -142,6 +176,7 @@ const sortedItems = useMemo(() => {
         ticker: form.ticker,
         note: form.note || '',
         status: form.status || 'new',
+        updatePerson: user?.username || ''
       };
       const targetId = form._id || form.id;
       const res = await fetch(`${API_BASE}/node/anomalies/${targetId}`, {
@@ -218,9 +253,11 @@ const sortedItems = useMemo(() => {
     try {
       // attach pagination params; if a query param 'query' is present, fetch full dataset then filter/paginate client-side
       const provided = new URLSearchParams(query ? query.replace(/^\?/, '') : '');
-      const queryTerm = (provided.get('query') || searchTerm || '').trim();
+      const rawQuery = provided.get('query');
+      const queryTerm = (rawQuery !== null ? rawQuery : (searchTerm || '')).trim();
       let url;
-      const fetchingAllForQuery = !!queryTerm;
+      // If the caller provided an explicit `?query=` (even empty), treat it as "fetch all" then client-side filter.
+      const fetchingAllForQuery = rawQuery !== null ? true : !!queryTerm;
       if (fetchingAllForQuery) {
         url = `${API_BASE}/node/anomalies`;
       } else {
@@ -235,7 +272,7 @@ const sortedItems = useMemo(() => {
       // try to read total count from response (common fields: total, totalCount, count)
       const totalCount = data.total || data.totalCount || data.count || data.totalItems || null;
       if (totalCount !== null && totalCount !== undefined) setTotal(Number(totalCount));
-      let mapped = (list || []).map((a) => ({ _id: a._id || a.id, id: a._id || a.id, ticker: a.ticker, date: (a.datetime || a.Datetime || '').slice(0,10), value: a.close, note: a.note, companyName: a.companyName, volume: a.volume, status: a.status }));
+      let mapped = (list || []).map((a) => ({ _id: a._id || a.id, id: a._id || a.id, ticker: a.ticker, date: (a.datetime || a.Datetime || '').slice(0,10), value: a.close, note: a.note, companyName: a.companyName, volume: a.volume, status: a.status , updatePerson: a.updatePerson  }));
 
       // if searching, filter mapped results by ticker or company name (client-side)
       if (fetchingAllForQuery && queryTerm) {
@@ -305,7 +342,7 @@ const sortedItems = useMemo(() => {
     if (v === null || v === undefined || v === '') return '-';
     const n = Number(v);
     if (Number.isNaN(n)) return '-';
-    return n.toFixed(2);
+    return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   }
 
   function fmtVolume(v) {
@@ -323,9 +360,11 @@ const sortedItems = useMemo(() => {
         key={rowId}
         onMouseEnter={() => setHovered(rowId)}
         onMouseLeave={() => setHovered(null)}
+        onClick={() => openRowActions(r)}
         style={{
           backgroundColor: isHovered ? "var(--bg-hover)" : "transparent",
           transition: "background-color 0.15s ease",
+          cursor: 'pointer'
         }}
       >
         <td className="col-ticker">{r.ticker}</td>
@@ -333,23 +372,19 @@ const sortedItems = useMemo(() => {
         <td className="col-date">{fmtDate(r.date)}</td>
         <td className="col-number">{fmtClose(r.value)}</td>
         <td className="col-volume col-number">{fmtVolume(r.volume)}</td>
-        <td className="col-status">
+        <td className="col-date">
           <span className={`badge status-${(r.status || 'new').toLowerCase()}`}>
             {r.status || 'New'}
           </span>
         </td>
         <td className="actions-cell">
-          {r.note && (
-            <button onClick={() => setNoteView(r)} className="btn btn-ghost btn-small" title="View Note">
-              Note
-            </button>
-          )}
-          <button onClick={() => startEdit(r)} className="btn btn-small">Add / Insert Note</button>
-          <button onClick={() => handleDelete(r._id || r.id)} className="btn btn-danger btn-small">Delete</button>
+          <div className="actions">
+            <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); openRowActions(r); }}>•••</button>
+          </div>
         </td>
       </tr>
     );
-  }, [hovered, startEdit, setNoteView, handleDelete]);
+  }, [hovered]);
 
   return (
     <div className="anomalies-page">
@@ -366,6 +401,15 @@ const sortedItems = useMemo(() => {
              <p className="admin-subtitle">Monitor and manage market irregularities.</p>
           </div>
           <div className="admin-actions">
+            <input
+              type="search"
+              className="search-input"
+              placeholder="Search ticker or company"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onKeyDown={(e) => { if (e.key === 'Enter') { if (searchDebounce.current) clearTimeout(searchDebounce.current); loadItems(`?query=${encodeURIComponent(searchTerm)}`); } }}
+              aria-label="Search ticker or company"
+            />
 
             <button onClick={openCreate} className="btn">
               + Create New
@@ -581,13 +625,41 @@ const sortedItems = useMemo(() => {
             <div className="modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h3 className="modal-title">
-                  Note: {noteView.ticker}
+                  Note: {noteView.ticker} {noteView.date ? `on ${fmtDate(noteView.date)}` : ''}
                 </h3>
                 <button className="modal-close" onClick={() => setNoteView(null)}>×</button>
               </div>
 
-              <div style={{ padding: '24px', lineHeight: '1.6', color: 'var(--text-main)' }}>
+              <div style={{
+                padding: '24px',
+                lineHeight: '1.6',
+                color: 'var(--text-primary)',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word'
+              }}>
                 {noteView.note || '(No note provided)'}
+                {noteView.updatePerson && (
+                  <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-primary)' }}>
+                    <em>Last updated by {noteView.updatePerson}</em>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Row actions modal */}
+        {rowActions && (
+          <div className="modal-overlay" onClick={() => closeRowActions()}>
+            <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">Actions</h3>
+                <button className="modal-close" onClick={() => closeRowActions()}>×</button>
+              </div>
+              <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button style={modalButtonStyles.secondary} className="btn btn-small btn-secondary" onClick={() => { setNoteView(rowActions); closeRowActions(); }}>View Note</button>
+                <button style={modalButtonStyles.primary} className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); closeRowActions(); }}>Edit</button>
+                <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}>Delete</button>
               </div>
             </div>
           </div>
