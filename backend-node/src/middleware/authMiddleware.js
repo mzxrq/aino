@@ -95,3 +95,21 @@ module.exports = {
   optionalAuthenticate,
   requireAuth,
 };
+
+// Admin check: ensure authenticated and has admin role
+async function requireAdmin(req, res, next) {
+  try {
+    await requireAuth(req, res, async () => {
+      const user = req.user;
+      if (!user) return res.status(403).json({ error: 'Forbidden' });
+      const role = (user.role || '').toLowerCase();
+      if (role !== 'admin' && role !== 'superadmin') return res.status(403).json({ error: 'Admin access required' });
+      return next();
+    });
+  } catch (err) {
+    console.error('requireAdmin error', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports.requireAdmin = requireAdmin;

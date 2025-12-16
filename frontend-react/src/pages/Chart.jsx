@@ -6,6 +6,7 @@ import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/PortalDropdown/PortalDropdown';
 import TimezoneSelect from '../components/TimezoneSelect';
+import TickerSearch from '../components/TickerSearch';
 import EchartsCard from '../components/EchartsCard';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
@@ -555,9 +556,6 @@ export default function Chart() {
 
   const savePrefsTimer = useRef(null);
 
-  const [tickersInput, setTickersInput] = useState(() => {
-    try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickersInput || ''; } catch { return ''; }
-  });
   const [tickers, setTickers] = useState(() => {
     try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || []; } catch { return []; }
   });
@@ -674,7 +672,7 @@ export default function Chart() {
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
     try {
-      const p = { tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA5, showMA25, showMA75, showMA: showMA5 || showMA25 || showMA75, showSAR, bbSigma };
+      const p = { tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA5, showMA25, showMA75, showMA: showMA5 || showMA25 || showMA75, showSAR, bbSigma };
       localStorage.setItem(PREF_KEY, JSON.stringify(p));
       // also persist to server for authenticated users (debounced)
       if (token && user) {
@@ -690,7 +688,7 @@ export default function Chart() {
         }, 600);
       }
     } catch { /* ignore */ }
-  }, [tickersInput, tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA5, showMA25, showMA75, showSAR, bbSigma, token, user]);
+  }, [tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA5, showMA25, showMA75, showSAR, bbSigma, token, user]);
 
   function applyPreset(p) {
     const enforced = enforceIntervalRules(p.period, p.interval);
@@ -698,14 +696,8 @@ export default function Chart() {
     setInterval(enforced);
   }
 
-  function applyTickers() {
-    const parts = tickersInput.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    setTickers(parts.length ? parts : []);
-  }
-
   function clearAllTags() {
     setTickers([]);
-    setTickersInput('');
   }
 
   async function saveToStockGroup() {
@@ -824,7 +816,6 @@ export default function Chart() {
       if (selectedGroup) {
         const group = groups.find(g => g._id === selectedGroup);
         setTickers(group.tickers || []);
-        setTickersInput('');
         await Swal.fire({
           icon: 'success',
           title: 'Loaded!',
@@ -855,48 +846,22 @@ export default function Chart() {
         <div className="toolbar-row">
           <div className="toolbar-group">
             <label className="toolbar-label">Tickers</label>
-            <div className="tag-input" onClick={() => document.getElementById('ticker-input')?.focus()}>
+            <div className="tag-input">
               {tickers.map((t) => (
                 <span className="tag-pill" key={t} tabIndex={0} role="option" aria-label={`Ticker ${t}`} onKeyDown={(e) => { if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setTickers(prev => prev.filter(x => x !== t)); } }}>
                   {t}
                   <button aria-label={`Remove ${t}`} className="tag-x" onClick={(e) => { e.stopPropagation(); setTickers(prev => prev.filter(x => x !== t)); }}>{'\u00d7'}</button>
                 </span>
               ))}
-              <input
-                id="ticker-input"
-                className="input tag-text"
-                value={tickersInput}
-                onChange={e => setTickersInput(e.target.value)}
-                placeholder={tickers.length ? '' : 'e.g. 9020.T, AAPL'}
-                onKeyDown={(e) => {
-                  const v = e.target.value;
-                  if (e.key === ' ' || e.key === ',' || e.key === 'Enter') {
-                    e.preventDefault();
-                    const parts = v.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-                    if (parts.length) {
-                      setTickers(prev => Array.from(new Set([...prev, ...parts])));
-                      setTickersInput('');
-                    }
-                  } else if (e.key === 'Backspace' && !v) {
-                    setTickers(prev => prev.slice(0, Math.max(0, prev.length - 1)));
-                  }
-                }}
-                onBlur={() => {
-                  const v = tickersInput.trim();
-                  if (v) {
-                    const parts = v.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-                    setTickers(prev => Array.from(new Set([...prev, ...parts])));
-                    setTickersInput('');
-                  }
-                }}
-              />
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <TickerSearch 
+                  onSelect={(symbol) => {
+                    setTickers(prev => Array.from(new Set([...prev, symbol])));
+                  }}
+                  placeholder={tickers.length ? 'Add another ticker...' : 'Search stocks by name or symbol...'}
+                />
+              </div>
             </div>
-            <button className="btn btn-icon-search" onClick={applyTickers} title="Apply tickers">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-                <path d="M20 20l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
             {tickers.length > 0 && (
               <button className="btn btn-icon-clear" onClick={clearAllTags} title="Clear all tags">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

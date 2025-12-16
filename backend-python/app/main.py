@@ -18,7 +18,7 @@ from core.config import logger, db
 from core.detection_metadata import DetectionRun
 from api.auth import router as auth_router
 from api.chart import router as chart_router
-from scheduler import combined_market_runner, scheduler_stop_event, job_for_market
+from scheduler import combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
@@ -226,6 +226,55 @@ async def backfill_ticker_history(request: BackfillRequest):
     except Exception as e:
         logger.exception(f"Error starting backfill for {ticker}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ScanAllRequest(BaseModel):
+    background: bool = True
+
+
+@app.post("/py/anomalies/scan-all")
+async def scan_all(req: ScanAllRequest):
+    """Trigger a forced full-scan of all monitored markets/tickers.
+
+    If `background` is true (default), this spawns an async background task and returns immediately.
+    Otherwise it will run synchronously (may block the request).
+    """
+    try:
+        if req.background:
+            asyncio.create_task(_scan_all_async())
+            return {"status": "scan_started", "message": "Full scan started in background"}
+        else:
+            # Run synchronously
+            _scan_all_async_sync()
+            return {"status": "scan_complete", "message": "Full scan completed"}
+    except Exception as e:
+        logger.exception(f"Error triggering full scan: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _scan_all_async():
+    try:
+        run_full = globals().get('run_full_scan_all')
+        if callable(run_full):
+            run_full()
+        else:
+            # fallback: call job_for_market for each market
+            for m in get_stocks_by_market.keys():
+                threading.Thread(target=job_for_market, args=(m,)).start()
+    except Exception as e:
+        logger.exception(f"_scan_all_async failed: {e}")
+
+
+def _scan_all_async_sync():
+    run_full = globals().get('run_full_scan_all')
+    if callable(run_full):
+        threads = run_full()
+        # join threads to wait for completion
+        for t in threads:
+            t.join()
+    else:
+        for market_name in MARKETS.keys():
+            job_for_market(market_name)
 
 
 async def _backfill_async(ticker: str, max_period: str, interval: str):

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import '../css/Navbar.css';
-import Search from './Search';
 import logoSvg from '../assets/aino.svg';
 
 export default function Navbar() {
@@ -17,7 +16,7 @@ export default function Navbar() {
       return 'light';
     }
   });
-  const { user, isLoggedIn, logout } = useAuth();
+  const { user, token, isLoggedIn, logout } = useAuth();
   const isAdmin =
   user && (user.role === 'admin' || user.role === 'superadmin');
 
@@ -111,12 +110,35 @@ export default function Navbar() {
         ) : (
           <></>
         )}
-        <div className="mobile-search">
-          <Search />
-        </div>
       </div>
-      <div className="search-inline"><Search /></div>
       <div className="nav-actions">
+        {isAdmin && (
+          <button
+            className="btn btn-danger"
+            title="Run full anomaly scan"
+            onClick={async () => {
+              try {
+                const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+                const res = await fetch(`${front}/node/admin/scan-all`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+                  body: JSON.stringify({})
+                });
+                const j = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  alert('Scan request failed: ' + (j.error || res.statusText));
+                } else {
+                  alert('Full scan started');
+                }
+              } catch (e) {
+                console.error('Run scan error', e);
+                alert('Failed to start scan: ' + e.message);
+              }
+            }}
+          >
+            ⚡ Run Full Scan
+          </button>
+        )}
         <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle color theme">
           {theme === 'dark' ? (
             // Moon icon

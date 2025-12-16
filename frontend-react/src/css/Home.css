@@ -212,6 +212,17 @@ body.dark .anomaly-row:hover {
 /* Company indicator circle in anomaly rows */
 .logo-circle { width:48px; height:48px; border-radius:50%; background: linear-gradient(135deg, var(--cute-green-700), var(--cute-green-500)); box-shadow: 0 6px 14px rgba(44,193,127,0.22); flex: none; }
 
+/* initials shown when no logo */
+.logo-initials { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; background:rgba(0,0,0,0.12); font-weight:700; }
+
+/* small spinner for loading ticker info */
+.ticker-loader {
+    width:18px; height:18px; border-radius:50%; border:2px solid rgba(255,255,255,0.2); border-top-color: rgba(255,255,255,0.9); animation: spin 0.8s linear infinite; margin:auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.logo-circle img { width:36px; height:36px; border-radius:50%; display:block; margin:auto; }
+
 /* Website branding logo - animated */
 .website-logo { animation: bob 3s ease-in-out infinite; }
 .anomaly-meta { min-width:160px; }
