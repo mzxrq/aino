@@ -47,6 +47,18 @@ app.use('/node/users', usersRoutes);
 const mailRoutes = require('./routes/mailRoute');
 app.use('/node/mail', mailRoutes);
 
+// News proxy route (fetches from external news provider via backend)
+const newsRoutes = require('./routes/newsRoutes');
+app.use('/node/news', newsRoutes);
+
+// Debug routes
+const debugRoutes = require('./routes/debugRoutes');
+app.use('/node/debug', debugRoutes);
+
+// Admin routes (protected)
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/node/admin', adminRoutes);
+
 // Stock info routes (proxy to Python)
 const stockInfoRoutes = require('./routes/stockInfoRoute');
 app.use('/node/stock', stockInfoRoutes);
@@ -58,6 +70,10 @@ app.use('/node/stock-groups', stockGroupsRoutes);
 // Seed routes
 const seedRoutes = require('./routes/seedRoute');
 app.use('/node/seed', seedRoutes);
+
+// Search routes (ticker search API)
+const searchRoutes = require('./routes/searchRoutes');
+app.use('/node', searchRoutes);
 
 /* =======================
    Basic Routes / Healthchecks

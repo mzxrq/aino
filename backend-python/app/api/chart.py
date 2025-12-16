@@ -728,16 +728,75 @@ def get_stock_info(ticker: str):
         ticker = ticker.upper().strip()
         stock = yf.Ticker(ticker)
         info = stock.info or {}
-        
         logo_url = info.get('logo_url') or None
         company_name = info.get('longName') or info.get('shortName') or ticker
-        
+
+        # Try to obtain latest price and previous close for change calculations
+        price = None
+        prev_close = None
+        change = None
+        change_pct = None
+        last_trade_time = None
+        try:
+            fast = getattr(stock, 'fast_info', None)
+            if fast is not None:
+                # fast_info may expose last_price
+                price = getattr(fast, 'last_price', None) or getattr(fast, 'lastPrice', None) if hasattr(fast, 'last_price') or hasattr(fast, 'lastPrice') else None
+            # Fallback to info fields
+            if price is None:
+                price = info.get('regularMarketPrice') or info.get('previousClose') or None
+            prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose') or None
+            # Try to format last trade time if present (UNIX epoch or ISO)
+            last_trade_time = info.get('regularMarketTime') or info.get('lastTradeTime') or None
+            if last_trade_time is not None:
+                try:
+                    # convert numeric UNIX epoch to ISO
+                    if isinstance(last_trade_time, (int, float)):
+                        from datetime import datetime
+                        last_trade_time = datetime.utcfromtimestamp(int(last_trade_time)).isoformat() + 'Z'
+                except Exception:
+                    pass
+
+            # If price or prev_close still missing, try quick history lookup
+            if (price is None or prev_close is None):
+                try:
+                    hist = stock.history(period="2d", interval="1d", auto_adjust=False)
+                    if hist is not None and not hist.empty:
+                        try:
+                            price = float(hist['Close'].iloc[-1]) if price is None else price
+                        except Exception:
+                            pass
+                        try:
+                            if len(hist) > 1:
+                                prev_close = float(hist['Close'].iloc[-2]) if prev_close is None else prev_close
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            if price is not None and prev_close is not None:
+                try:
+                    change = float(price) - float(prev_close)
+                    change_pct = (change / float(prev_close) * 100) if float(prev_close) != 0 else None
+                except Exception:
+                    change = None
+                    change_pct = None
+        except Exception:
+            # best-effort; don't fail the whole endpoint
+            price = price or None
+            prev_close = prev_close or None
+
         return {
             'ticker': ticker,
             'companyName': company_name,
             'logo': logo_url,
             'sector': info.get('sector'),
             'industry': info.get('industry'),
+            'price': price,
+            'previous_close': prev_close,
+            'change': change,
+            'change_pct': change_pct,
+            'last_trade_time': last_trade_time
         }
     except Exception as e:
         logger.error(f"Error fetching stock info for {ticker}: {str(e)}")
@@ -747,5 +806,10 @@ def get_stock_info(ticker: str):
             'logo': None,
             'sector': None,
             'industry': None,
+            'price': None,
+            'previous_close': None,
+            'change': None,
+            'change_pct': None,
+            'last_trade_time': None,
             'error': str(e)
         }

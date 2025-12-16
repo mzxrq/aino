@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
@@ -20,6 +20,9 @@ export default function MarketListScreen() {
   const [marketData, setMarketData] = useState([]);
   const [anomaliesMap, setAnomaliesMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loadMoreRef = useRef(null);
   const navigate = useNavigate();
 
   // ---------------------------------------------------
@@ -324,6 +327,28 @@ const fetchRecentAnomalies = async () => {
     return (a.ticker || "").localeCompare(b.ticker || "");
   });
 
+  // Visible slice for infinite scroll
+  const visibleData = sortedData.slice(0, visibleCount);
+
+  const loadMore = () => {
+    if (visibleCount < sortedData.length) {
+      setVisibleCount((c) => Math.min(c + PAGE_SIZE, sortedData.length));
+    }
+  };
+
+  // IntersectionObserver to auto-load more when scrolled near bottom
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) loadMore();
+      });
+    }, { root: null, rootMargin: '400px', threshold: 0 });
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [loadMoreRef.current, sortedData.length, visibleCount]);
+
   return (
     <div className="market-list-page">
       {/* SEARCH BAR */}
@@ -392,8 +417,8 @@ const fetchRecentAnomalies = async () => {
             <div className="spinner"></div>
             <p>Loading stocks...</p>
           </div>
-        ) : sortedData.length > 0 ? (
-          sortedData.map((item) => {
+        ) : visibleData.length > 0 ? (
+          visibleData.map((item) => {
             const anomalyData = anomaliesMap[item.ticker];
             const marketOpen = isMarketOpen(item.country);
 
@@ -467,14 +492,23 @@ const fetchRecentAnomalies = async () => {
                   )}
                 </div>
               </div>
-            );
-          })
+              );
+            })
         ) : (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
             <h3>No stocks found</h3>
             <p>Try adjusting your search or filters</p>
           </div>
+        )}
+      </div>
+      {/* Sentinel for infinite scroll + load more fallback */}
+      <div className="marketlist-load-more">
+        {visibleCount < sortedData.length && (
+          <>
+            <button className="load-more-btn" onClick={loadMore}>Load more</button>
+            <div ref={loadMoreRef} style={{height: 1}} aria-hidden="true" />
+          </>
         )}
       </div>
     </div>

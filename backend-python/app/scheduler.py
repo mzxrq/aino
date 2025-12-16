@@ -143,6 +143,18 @@ def combined_market_runner():
     return
 
 
+def run_full_scan_all():
+    """Run anomaly detection for all markets and all monitored tickers regardless of market hours."""
+    logger.info("Running full-scan across all markets (forced)")
+    threads = []
+    for market_name in MARKETS.keys():
+        t = threading.Thread(target=job_for_market, args=(market_name,))
+        t.start()
+        threads.append(t)
+    # Optionally join threads here or let them run detached
+    return threads
+
+
 def scheduler_loop():
     logger.info("Scheduler started")
     try:
