@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import PortalDropdown from './PortalDropdown';
+import PortalDropdown from '../PortalDropdown/PortalDropdown';
 
 export default function DropdownSelect({ value, onChange, options = [], className = '', placeholder = '' }) {
   const btnRef = useRef(null);

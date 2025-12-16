@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
-import PortalDropdown from '../components/PortalDropdown';
+import PortalDropdown from '../components/PortalDropdown/PortalDropdown';
 import TimezoneSelect from '../components/TimezoneSelect';
 import TickerSearch from '../components/TickerSearch';
 import EchartsCard from '../components/EchartsCard';

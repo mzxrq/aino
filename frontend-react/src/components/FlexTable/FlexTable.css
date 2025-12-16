@@ -1,0 +1,110 @@
+.flex-table-root { --gap: 12px; display: block; }
+.flex-table-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
+.flex-table-left { display:flex; gap:8px; align-items:center; }
+.flex-table-right { display:flex; gap:8px; align-items:center; }
+.search-input { padding:6px 8px; border:1px solid var(--border); border-radius:4px; background:var(--card-bg); color:var(--text); }
+.card-table { background: var(--card-bg); border: 1px solid var(--border); border-radius:6px; overflow:hidden; }
+/* Ensure the table wrapper doesn't introduce extra horizontal padding that
+	can offset header vs body alignment (AdminPage had extra padding). */
+.table-wrapper { overflow:auto; padding: 0; }
+
+/* Make table cells use border-box so padding doesn't shift measured widths */
+table, thead th, tbody td { box-sizing: border-box; }
+
+/* Use consistent table layout to keep header and body columns aligned when
+	explicit column widths are provided. Setting fixed layout makes the
+	browser allocate column widths based on explicit widths (or evenly)
+	so header and body align reliably across browsers. */
+table { width:100%; table-layout: fixed; border-collapse: collapse; font-size:14px; }
+/* Ensure matching padding and box-sizing so measured column widths are
+   identical between thead and tbody. */
+/* Enforce matching padding for header/body within the card to override
+	broader admin page rules that set different paddings. */
+.card-table thead th { text-align:left; padding:10px 16px !important; background:var(--table-head-bg); color:var(--table-head-color); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:2; box-sizing: border-box !important; }
+.card-table tbody td { padding:10px 16px !important; border-bottom:1px solid var(--row-border); box-sizing: border-box !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align: middle !important; }
+.row-hover { background: rgba(0,0,0,0.03); }
+.center-right { text-align:right; }
+.btn { padding:6px 10px; border-radius:4px; background:var(--btn-bg); color:var(--btn-color); border:1px solid var(--btn-border); cursor:pointer; }
+.btn-small { padding:4px 8px; }
+.pagination-controls { margin-top:14px; }
+.sort-icon { font-size:12px; color:var(--text-secondary); }
+.badge { display:inline-block; padding:3px 8px; border-radius:12px; font-size:12px; }
+/* Dark mode overrides */
+:root[data-theme='dark'] .card-table { background: #111; border-color: rgba(255,255,255,0.06); }
+:root[data-theme='dark'] thead th { background: #0b0b0b; color: #e6eef8; }
+:root[data-theme='dark'] tbody td { color: #cfe3ff; border-bottom-color: rgba(255,255,255,0.03); }
+
+/* Prevent header cell corner radii from conflicting with the outer card's
+	border radius — keep rounding on the outer `.card-table` only. */
+.card-table thead th:first-child, .card-table thead th:last-child {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+/* Ensure the table sits flush inside the card so the card border is the
+	authoritative rounded corner and table borders line up exactly. */
+.card-table table { margin: 0; }
+
+/* If cells have internal rounded elements (e.g. `.col-ticker` pill), make
+	sure they don't escape the cell box. */
+.card-table td .col-ticker, .card-table td.col-ticker { overflow: hidden; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; }
+
+/* Style pagination rows-per-page select to match status badges */
+.rows-select {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-radius: 16px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	background: var(--card-bg);
+	border: 1px solid var(--border);
+	color: var(--text-main);
+	cursor: pointer;
+}
+.rows-select option { background: var(--card-bg); color: var(--text-main); }
+
+/* dark mode variant */
+:root[data-theme='dark'] .rows-select {
+	background: var(--bg-secondary);
+	border-color: var(--card-border);
+	color: var(--text-primary);
+}
+
+/* Mobile-specific table scrolling and sizing rules (moved from AdminPage.css)
+	 These ensure the table used inside admin pages can scroll horizontally
+	 on small screens and keep sensible minimum widths. */
+@media (max-width: 768px) {
+	.table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	.table-wrapper table { table-layout: auto; min-width: 640px; }
+	.table-wrapper th, .table-wrapper td { white-space: nowrap; }
+	.col-ticker { max-width: 96px; min-width: 56px; }
+	.company { min-width: 120px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.actions-cell { width: auto; max-width: 280px; }
+
+	/* Allow action buttons to wrap gracefully on narrow screens */
+	.actions-cell { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; white-space: normal; padding-left: 8px; }
+	.actions-cell .btn { white-space: nowrap; }
+	.col-status { padding-right: 8px; }
+
+	/* Admin header responsiveness adjustments used on smaller screens */
+	.admin-header { flex-direction: column; align-items: stretch; gap: 12px; }
+	.admin-actions { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: flex-end; overflow-x: auto; padding-right: 8px; -webkit-overflow-scrolling: touch; }
+	.admin-actions .btn { flex: 0 0 auto; min-width: 88px; }
+
+	@media (max-width: 480px) {
+		.admin-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+		.admin-actions .btn { min-width: 0; padding: 8px 12px; }
+	}
+
+	@media (max-width: 420px) {
+		.actions-cell { flex-direction: column; align-items: flex-end; gap: 6px; max-width: 200px; }
+		.actions-cell .btn { width: auto; }
+		.admin-actions { flex-direction: column; gap: 8px; }
+		.admin-actions .btn { width: 100%; }
+	}
+}

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import PortalDropdown from './PortalDropdown';
+import PortalDropdown from './PortalDropdown/PortalDropdown';
 
 export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {
   const btnRef = useRef(null);

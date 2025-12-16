@@ -20,10 +20,17 @@ import MarketList from "./pages/MarketList";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
+import AdminLayout from "../src/layouts/AdminLayout";
 import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
+import CacheManagementPage from "./pages/Admin/AdminCachePage";
+import MarketlistsManagementPage from "./pages/Admin/AdminMarketlistsPage";
+import UsersManagementPage from "./pages/Admin/AdminUsersPage";
+import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
 
 function App() {
   return (
+
+    
     // Wrap the *entire app* in AuthProvider
     <AuthProvider>
       <div
@@ -43,15 +50,24 @@ function App() {
           <Routes>
             {/* 🔐 ADMIN ONLY */}
             <Route element={<AdminRoute />}>
-              <Route path="/anomalies" element={<AnomaliesManagementPage />} />
-            </Route>
+              <Route element={<AdminLayout />}>
+                <Route
+                  path="/anomalies"
+                  element={<AnomaliesManagementPage />}
+                />
 
+                <Route path="/cache" element={<CacheManagementPage />} />
+                <Route path="/marketlists" element={<MarketlistsManagementPage />} />
+                <Route path="/users" element={<UsersManagementPage />} />
+                <Route path="/subscribers" element={<SubscribersManagementPage />} />
+              </Route>
+            </Route>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/chart" element={<Chart />} />
             <Route path="/chart/u/:ticker" element={<LargeChart />} />
-            <Route path="/chart/u" element={<LargeChart />} />          
+            <Route path="/chart/u" element={<LargeChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/list" element={<MarketList />} />
