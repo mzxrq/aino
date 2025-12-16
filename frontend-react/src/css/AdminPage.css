@@ -1142,6 +1142,16 @@ html.dark .card-table td,
   background-color: transparent !important;
 }
 
+/* Ensure most table row text uses the primary dark text color unless a
+   more-specific selector (badges, muted text, small captions) overrides it. */
+body.dark .card-table tr td,
+html.dark .card-table tr td,
+[data-theme="dark"] .card-table tr td,
+:root[data-theme="dark"] .card-table tr td,
+.dark .card-table tr td {
+  color: var(--text-primary) !important;
+}
+
 body.dark .card-table th,
 html.dark .card-table th,
 [data-theme="dark"] .card-table th,

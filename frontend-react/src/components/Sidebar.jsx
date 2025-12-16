@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 
 const defaultMenu = [
-  { key: "dashboard", label: "Dashboard", href: "/#" },
-  { key: "charts", label: "Charts", href: "/charts" },
-  { key: "subscriptions", label: "Subscriptions", href: "/subscriptions" },
-  { key: "marketlists", label: "Marketlists", href: "/marketlists" },
-  { key: "settings", label: "Settings", href: "/settings" },
+  // Admin management links
+  { key: "admin-anomalies", label: "Admin: Anomalies", href: "/anomalies" },
+  { key: "admin-users", label: "Admin: Users", href: "/users" },
+  { key: "admin-subscribers", label: "Admin: Subscribers", href: "/subscribers" },
+  { key: "admin-marketlists", label: "Admin: Marketlists", href: "/marketlists" },
+  { key: "admin-cache", label: "Admin: Cache", href: "/cache" },
 ];
 
 export default function Sidebar({
