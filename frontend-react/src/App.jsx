@@ -22,6 +22,7 @@ import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
 import AdminLayout from "../src/layouts/AdminLayout";
 import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
+import CacheManagementPage from "./pages/Admin/AdminCachePage";
 
 function App() {
   return (
@@ -51,6 +52,8 @@ function App() {
                   path="/anomalies"
                   element={<AnomaliesManagementPage />}
                 />
+
+                <Route path="/cache" element={<CacheManagementPage />} />
               </Route>
             </Route>
             <Route path="/" element={<Home />} />

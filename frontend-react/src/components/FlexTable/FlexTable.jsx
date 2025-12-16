@@ -7,6 +7,7 @@ export default function FlexTable({
   columns = [],
   keyField = '_id',
   renderRow,
+  transformRow,
   emptyText = 'No items.',
   fetchUrl,
   refreshSignal = 0,
@@ -52,6 +53,56 @@ export default function FlexTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+            const parseDurationToMinutes = (s) => {
+            if (s == null) return NaN;
+            const str = String(s).trim().toLowerCase();
+            if (!str) return NaN;
+            // plain number => treat as minutes
+            if (/^\d+$/.test(str)) return Number(str);
+            // patterns like 1m, 5m, 1h, 1d, 1w, 1mo
+            const m = str.match(/^(\d+(?:\.\d+)?)(s|m|h|d|w|mo|y)?$/);
+            if (!m) return NaN;
+            const val = Number(m[1]);
+            const unit = m[2] || 'm';
+            switch (unit) {
+              case 's': return val / 60;
+              case 'm': return val;
+              case 'h': return val * 60;
+              case 'd': return val * 60 * 24;
+              case 'w': return val * 60 * 24 * 7;
+              case 'mo': return val * 60 * 24 * 30;
+              case 'y': return val * 60 * 24 * 365;
+              default: return NaN;
+            }
+          };
+
+          const cmp = (a, b) => {
+            const vaRaw = a && (a[sortField] !== undefined ? a[sortField] : a[sortKey]);
+            const vbRaw = b && (b[sortField] !== undefined ? b[sortField] : b[sortKey]);
+            if (vaRaw == null && vbRaw == null) return 0;
+            if (vaRaw == null) return -1 * dir;
+            if (vbRaw == null) return 1 * dir;
+
+            // special-case duration-like fields
+            if (sortField === 'period' || sortField === 'interval') {
+              const na = parseDurationToMinutes(vaRaw);
+              const nb = parseDurationToMinutes(vbRaw);
+              if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;
+              // fallthrough to string compare if parse fails
+            }
+
+            // numbers
+            const na = Number(vaRaw);
+            const nb = Number(vbRaw);
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;
+            // dates
+            const da = Date.parse(vaRaw);
+            const db = Date.parse(vbRaw);
+            if (!Number.isNaN(da) && !Number.isNaN(db)) return (da - db) * dir;
+            // fallback string
+            return String(vaRaw).localeCompare(String(vbRaw)) * dir;
+          };
+
   async function load() {
     if (!fetchUrl) return;
     setLoading(true);
@@ -91,6 +142,10 @@ export default function FlexTable({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Fetch failed');
       let list = data.data || data || [];
+      // apply optional transformRow to shape data for client-side filtering
+      if (typeof transformRow === 'function' && Array.isArray(list)) {
+        list = list.map((r) => transformRow(r) || r);
+      }
       list = Array.isArray(list) ? list : [];
 
       // If searching, apply client-side filtering across ticker/companyName/note
