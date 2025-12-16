@@ -198,7 +198,7 @@ def _is_cache_payload_suspect(ticker: str, payload: Dict[str, Any]) -> bool:
             if finfo is not None:
                 ref_price = getattr(finfo, 'last_price', None)
             if ref_price is None:
-                hist = yt.history(period="5d", interval="1d", auto_adjust=True)
+                hist = yt.history(period="5d", interval="1d", auto_adjust=False)
                 if not hist.empty:
                     ref_price = float(hist['Close'].iloc[-1])
 

@@ -5,7 +5,7 @@ import pytz
 import os
 from dotenv import load_dotenv
 from core.config import db, logger
-from services.train_service import detect_anomalies
+from services.train_service import detect_anomalies, detect_anomalies_adaptive
 from services.message import send_test_message
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_stocks_by_market, get_all_stocks, get_market_count
@@ -80,26 +80,22 @@ def job_for_market(market_name: str):
 
     logger.info(f"Monitoring {len(market_tickers)} stocks for {market_name}: {', '.join(market_tickers[:10])}{'...' if len(market_tickers) > 10 else ''}")
 
-    # Batch process in groups of 10 to avoid memory issues
-    batch_size = 10
+    # Process each ticker individually with adaptive detection for better sensitivity
     total_anomalies = 0
     
-    for i in range(0, len(market_tickers), batch_size):
-        batch = market_tickers[i:i+batch_size]
-        logger.info(f"Processing batch {i//batch_size + 1}/{(len(market_tickers) + batch_size - 1)//batch_size}: {batch}")
-        
+    for ticker in market_tickers:
         try:
-            # Use 1d interval for intraday monitoring during market hours
-            anomaly_df = detect_anomalies(batch, period="5d", interval="1d")
+            # Use adaptive anomaly detection (adjusts sensitivity per stock's volatility)
+            # Use 3mo period to ensure enough data for rolling window features (20-period MA, etc)
+            anomaly_df = detect_anomalies_adaptive(ticker, period="3mo", interval="1d")
             
             if not anomaly_df.empty:
                 batch_count = len(anomaly_df)
                 total_anomalies += batch_count
-                logger.info(f"Detected {batch_count} anomalies in batch")
+                logger.info(f"Detected {batch_count} anomalies for {ticker}")
             
         except Exception as e:
-            logger.exception(f"detect_anomalies failed for batch {batch}: {e}")
-            continue
+            logger.debug(f"Error processing {ticker}: {e}")
 
     logger.info(f"=== {market_name} job complete: {total_anomalies} total anomalies detected ===")
 

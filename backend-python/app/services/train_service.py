@@ -39,9 +39,9 @@ def get_adaptive_contamination(df: pd.DataFrame, ticker: str) -> float:
     """
     Calculate adaptive contamination threshold based on stock volatility.
     
-    High volatility stocks (>20%) → higher contamination (0.08) - expect more "outliers"
+    High volatility stocks (>20%) → higher contamination (0.10)
     Normal volatility (10-20%) → default (0.05)
-    Low volatility (<10%) → lower contamination (0.02) - only catch real anomalies
+    Low volatility (<10%) → moderate (0.05 - at least 2-3 anomalies expected)
     """
     if df.empty or 'Close' not in df.columns:
         return 0.05  # Default
@@ -52,44 +52,12 @@ def get_adaptive_contamination(df: pd.DataFrame, ticker: str) -> float:
         volatility = returns.std()
         
         if volatility > 0.20:  # >20% volatility
-            contamination = 0.08
-            logger.debug(f"{ticker}: High volatility ({volatility*100:.1f}%) → contamination=0.08")
+            contamination = 0.10
+            logger.debug(f"{ticker}: High volatility ({volatility*100:.1f}%) → contamination=0.10")
         elif volatility < 0.10:  # <10% volatility
-            contamination = 0.02
-            logger.debug(f"{ticker}: Low volatility ({volatility*100:.1f}%) → contamination=0.02")
-        else:  # 10-20% volatility (normal)
+            # For low-volatility stocks, use 0.05 (5%) to ensure at least some anomaly detection
             contamination = 0.05
-            logger.debug(f"{ticker}: Normal volatility ({volatility*100:.1f}%) → contamination=0.05")
-        
-        return contamination
-    except Exception as e:
-        logger.debug(f"Error calculating contamination for {ticker}: {e}")
-        return 0.05  # Default
-
-
-
-def get_adaptive_contamination(df: pd.DataFrame, ticker: str) -> float:
-    """
-    Calculate adaptive contamination threshold based on stock volatility.
-    
-    High volatility stocks (>20%) → higher contamination (0.08) - expect more "outliers"
-    Normal volatility (10-20%) → default (0.05)
-    Low volatility (<10%) → lower contamination (0.02) - only catch real anomalies
-    """
-    if df.empty or 'Close' not in df.columns:
-        return 0.05  # Default
-    
-    try:
-        # Calculate returns volatility
-        returns = df['Close'].pct_change()
-        volatility = returns.std()
-        
-        if volatility > 0.20:  # >20% volatility
-            contamination = 0.08
-            logger.debug(f"{ticker}: High volatility ({volatility*100:.1f}%) → contamination=0.08")
-        elif volatility < 0.10:  # <10% volatility
-            contamination = 0.02
-            logger.debug(f"{ticker}: Low volatility ({volatility*100:.1f}%) → contamination=0.02")
+            logger.debug(f"{ticker}: Low volatility ({volatility*100:.1f}%) → contamination=0.05")
         else:  # 10-20% volatility (normal)
             contamination = 0.05
             logger.debug(f"{ticker}: Normal volatility ({volatility*100:.1f}%) → contamination=0.05")
@@ -199,7 +167,8 @@ def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
         for attempt in range(max_retries):
             try:
                 # Download individual ticker data
-                df = yf.download(ticker, period=period, interval=interval, auto_adjust=True)
+                # auto_adjust=False to match Yahoo Finance website prices (not retroactively adjusted for splits/dividends)
+                df = yf.download(ticker, period=period, interval=interval, auto_adjust=False)
                 
                 if df is None or getattr(df, "empty", True):
                     logger.warning(f"⚠️  No data found for ticker: {ticker}")
@@ -248,7 +217,7 @@ def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
                 if _needs_weekly_fallback(df, period, interval):
                     try:
                         logger.warning(f"⚠️  Weekly data looks too short for {ticker} ({len(df)} rows). Falling back to 1d then resampling→1wk")
-                        alt = yf.download(ticker, period=period, interval='1d', auto_adjust=True)
+                        alt = yf.download(ticker, period=period, interval='1d', auto_adjust=False)
                         if alt is not None and not getattr(alt, 'empty', True):
                             if isinstance(alt.columns, pd.MultiIndex):
                                 alt.columns = [c[0] for c in alt.columns]
@@ -493,7 +462,12 @@ def data_preprocessing(df: pd.DataFrame):
 
     df['wick_ratio'] = df['wick_ratio'].ffill().fillna(0).clip(upper=20)
 
-    df = df.dropna().reset_index(drop=True)
+    # Fill remaining NaNs using ffill->bfill strategy to preserve historical date range
+    # This ensures charts show the full period without losing early/late rows
+    df = df.ffill().bfill()
+    
+    # Final safety check: drop any rows where critical OHLCV columns are still NaN
+    df = df.dropna(subset=['Open', 'High', 'Low', 'Close', 'Volume']).reset_index(drop=True)
 
     return df
 
@@ -711,13 +685,6 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
     if df.empty:
         return pd.DataFrame()
     
-    # Determine market and get model
-    market = 'JP' if ticker.endswith('.T') else ('TH' if ticker.endswith('.BK') else 'US')
-    model = get_model(market)
-    if model is None:
-        logger.warning(f"No model for {ticker} ({market})")
-        return pd.DataFrame()
-    
     features = features_columns
     X = df[features].dropna()
     if X.empty:
@@ -727,6 +694,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
     contamination = get_adaptive_contamination(df, ticker)
     
     # Create new IsolationForest with adaptive contamination
+    # This DOES NOT require a pre-trained model - fits fresh on the data
     adaptive_model = IsolationForest(
         n_estimators=100,
         contamination=contamination,
