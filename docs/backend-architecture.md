@@ -214,7 +214,7 @@ async function getUser(userId) {
 
 ```bash
 # FastAPI server
-# (Run with: uvicorn app.main:app --reload --port 8000)
+# (Run with: uvicorn app.main:app --reload --port 5000)
 
 # MongoDB
 MONGO_URI=mongodb://localhost:27017

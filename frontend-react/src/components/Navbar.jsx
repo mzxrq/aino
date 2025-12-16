@@ -39,8 +39,8 @@ export default function Navbar() {
       setScrolled(window.scrollY > 100);
     };
     
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll, { passive: true });
   }, []);
 
   const toggleTheme = () => {

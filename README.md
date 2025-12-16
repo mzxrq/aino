@@ -43,7 +43,7 @@
          │ Proxy
          ▼
 ┌─────────────────┐
-│  Python API     │  Port 8000 (Internal)
+│  Python API     │  Port 5000 (Internal)
 │  FastAPI        │  - Routes: /py/*
 │  yfinance       │  - ML Models
 │  IsolationForest│  - Scheduler

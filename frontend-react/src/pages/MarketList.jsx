@@ -117,22 +117,31 @@ const fetchMarketData = async () => {
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
-    let list = rawList.map(it => {
-      const ticker = it.ticker || it.Ticker || "";
-      const companyName = it.companyName || it.name || ticker;
-      const country = it.country || it.Country || "US";
-      
-      return {
-        _id: it._id,
-        ticker: ticker,
-        companyName: companyName,
-        primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
-        sectorGroup: it.sectorGroup || it.sector || "",
-        country: country,
-        logo: ticker ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(ticker)}?format=png` : "",
-        sparklineSvg: "",
-      };
-    });
+    let list = rawList
+      .filter(it => {
+        // Filter out indices (not actual stocks)
+        const exchange = it.primaryExchange || it["Primary Exchange"] || "";
+        return exchange !== "Index";
+      })
+      .map(it => {
+        const ticker = it.ticker || it.Ticker || "";
+        const companyName = it.companyName || it.name || ticker;
+        const country = it.country || it.Country || "US";
+        
+        // Add .BK suffix for Thai stocks for logo API
+        const logoTicker = country === "TH" && !ticker.includes(".BK") ? `${ticker}.BK` : ticker;
+        
+        return {
+          _id: it._id,
+          ticker: ticker,
+          companyName: companyName,
+          primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
+          sectorGroup: it.sectorGroup || it.sector || "",
+          country: country,
+          logo: logoTicker ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(logoTicker)}?format=png` : "",
+          sparklineSvg: "",
+        };
+      });
 
     // Fetch sparklines for each ticker in parallel
     const sparklinePromises = list.map(item =>

@@ -4,7 +4,7 @@
 The system uses a dual-backend architecture with a single public port:
 
 - **Node Gateway (Express)**: Public entry on port `5050`. Serves Node’s own routes and proxies `/py/*` to FastAPI.
-- **FastAPI Service**: Runs on port `8000`. Implements chart, search, and LINE-auth endpoints and hosts the scheduler logic.
+- **FastAPI Service**: Runs on port `5000`. Implements chart, search, and LINE-auth endpoints and hosts the scheduler logic.
 - **MongoDB**: Shared persistence for users, anomalies, cache, and ticker list.
 - **Frontend (React)**: Talks to `http://localhost:5050` only; uses `/py/*` for FastAPI features.
 

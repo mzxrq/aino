@@ -116,7 +116,9 @@ export default function EchartsCard({
   height = 300,
   movingAverages,
   parabolicSAR,
-  showMA = false,
+  showMA5 = false,
+  showMA25 = false,
+  showMA75 = false,
   showSAR = false,
   bbSigma = '2sigma'
 }) {
@@ -381,38 +383,36 @@ export default function EchartsCard({
       }
     }
 
-    // 5. Moving Averages
-    if (showMA) {
-      if (ma5Data.length > 0) {
-        series.push({
-          name: 'MA5',
-          type: 'line',
-          data: ma5Data,
-          smooth: false,
-          lineStyle: { color: '#2563EB', width: 1.5 },
-          symbolSize: 0
-        });
-      }
-      if (ma25Data.length > 0) {
-        series.push({
-          name: 'MA25',
-          type: 'line',
-          data: ma25Data,
-          smooth: false,
-          lineStyle: { color: '#F97316', width: 1.5 },
-          symbolSize: 0
-        });
-      }
-      if (ma75Data.length > 0) {
-        series.push({
-          name: 'MA75',
-          type: 'line',
-          data: ma75Data,
-          smooth: false,
-          lineStyle: { color: '#EF4444', width: 1.5 },
-          symbolSize: 0
-        });
-      }
+    // 5. Moving Averages (individually toggleable)
+    if (showMA5 && ma5Data.length > 0) {
+      series.push({
+        name: 'MA5',
+        type: 'line',
+        data: ma5Data,
+        smooth: false,
+        lineStyle: { color: '#2563EB', width: 1.5 },
+        symbolSize: 0
+      });
+    }
+    if (showMA25 && ma25Data.length > 0) {
+      series.push({
+        name: 'MA25',
+        type: 'line',
+        data: ma25Data,
+        smooth: false,
+        lineStyle: { color: '#F97316', width: 1.5 },
+        symbolSize: 0
+      });
+    }
+    if (showMA75 && ma75Data.length > 0) {
+      series.push({
+        name: 'MA75',
+        type: 'line',
+        data: ma75Data,
+        smooth: false,
+        lineStyle: { color: '#EF4444', width: 1.5 },
+        symbolSize: 0
+      });
     }
 
     // 6. Parabolic SAR
@@ -493,15 +493,33 @@ export default function EchartsCard({
             
             // Handle different value types
             if (Array.isArray(param.value)) {
-              // OHLC candlestick: [open, close, low, high]
-              const [o, c, l, h] = param.value;
-              displayValue = `O: ${o.toFixed(2)} | C: ${c.toFixed(2)} | L: ${l.toFixed(2)} | H: ${h.toFixed(2)}`;
+              // Check if it's OHLC candlestick (4 elements) or SAR/line data (2 elements)
+              if (param.value.length === 4) {
+                // OHLC candlestick: [open, close, low, high]
+                const [o, c, l, h] = param.value;
+                displayValue = `O: ${o?.toFixed?.(2) || '-'} | C: ${c?.toFixed?.(2) || '-'} | L: ${l?.toFixed?.(2) || '-'} | H: ${h?.toFixed?.(2) || '-'}`;
+              } else if (param.value.length === 2) {
+                // Line/SAR/other: [xIndex, yValue]
+                const [, val] = param.value;
+                const num = Number(val);
+                if (seriesName === 'Volume') {
+                  displayValue = abbreviateNumber(num);
+                } else if (!isNaN(num)) {
+                  displayValue = num.toFixed(2);
+                } else {
+                  displayValue = '-';
+                }
+              } else {
+                displayValue = '-';
+              }
             } else {
               const num = Number(param.value);
               if (seriesName === 'Volume') {
                 displayValue = abbreviateNumber(num);
-              } else {
+              } else if (!isNaN(num)) {
                 displayValue = num.toFixed(2);
+              } else {
+                displayValue = '-';
               }
             }
             
@@ -627,7 +645,9 @@ export default function EchartsCard({
     ma25Data,
     ma75Data,
     sarData,
-    showMA,
+    showMA5,
+    showMA25,
+    showMA75,
     showSAR,
     bbSigma
   ]);

@@ -175,6 +175,10 @@ const status = async (req, res) => {
 
     res.status(200).json({ subscribed: !!subscribed });
   } catch (error) {
+    // Subscriber not found is normal - user hasn't subscribed to anything yet
+    if (error.message === "Subscriber not found") {
+      return res.status(200).json({ subscribed: false });
+    }
     console.error("status error:", error);
     res.status(500).json({ subscribed: false });
   }

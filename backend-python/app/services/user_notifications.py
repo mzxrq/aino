@@ -375,6 +375,12 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
 
 def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezone="UTC"):
     """Send LINE notification with summary + detailed anomalies."""
+    from core.config import ENABLE_LINE_NOTIFICATIONS
+    
+    if not ENABLE_LINE_NOTIFICATIONS:
+        logger.debug("LINE notifications disabled via config")
+        return False
+    
     if not CHANNEL_ACCESS_TOKEN:
         logger.warning("CHANNEL_ACCESS_TOKEN not set, skipping LINE notification")
         return False
@@ -424,8 +430,17 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
         
         return True
         
+    except requests.exceptions.HTTPError as e:
+        # Log detailed error for debugging LINE API issues
+        error_detail = ""
+        try:
+            error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        except:
+            error_detail = str(e)
+        logger.error(f"Failed to send LINE notification (HTTP {e.response.status_code if hasattr(e, 'response') else 'error'}): {error_detail[:200]}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send LINE notification: {e}")
+        logger.error(f"Failed to send LINE notification: {type(e).__name__}: {str(e)[:200]}")
         return False
 
 # -------------------------
@@ -574,6 +589,12 @@ def create_email_html(anomalies: List[Dict], user_timezone="UTC"):
 
 def send_email_notification(user_email: str, anomalies: List[Dict], user_timezone="UTC"):
     """Send email notification with anomaly summary."""
+    from core.config import ENABLE_EMAIL_NOTIFICATIONS
+    
+    if not ENABLE_EMAIL_NOTIFICATIONS:
+        logger.debug("Email notifications disabled via config")
+        return False
+    
     if not MAIL_API_URL:
         logger.warning("MAIL_API_URL not set, skipping email notification")
         return False
@@ -602,8 +623,17 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         logger.info(f"Email notification sent to {user_email}")
         return True
         
+    except requests.exceptions.HTTPError as e:
+        # Log detailed error for debugging email API issues
+        error_detail = ""
+        try:
+            error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        except:
+            error_detail = str(e)
+        logger.error(f"Failed to send email notification (HTTP {e.response.status_code if hasattr(e, 'response') else 'error'}): {error_detail[:200]}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send email notification: {e}")
+        logger.error(f"Failed to send email notification: {type(e).__name__}: {str(e)[:200]}")
         return False
 
 # -------------------------
