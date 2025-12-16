@@ -1,0 +1,202 @@
+/* GenericModal component styles */
+/* Alias selectors for legacy classnames (`modal`, `modal-overlay`, etc.) used across the app */
+.modal-overlay, .generic-modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1100;
+	animation: fadeIn 160ms ease;
+}
+
+.modal, .generic-modal {
+	width: 100%;
+	max-width: 820px;
+	margin: 24px;
+	background: var(--bg-surface);
+	color: var(--text-primary);
+	border-radius: 12px;
+	box-shadow: 0 10px 30px rgba(2,6,23,0.35);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	animation: slideUp 200ms cubic-bezier(.2,.9,.3,1);
+}
+
+.generic-modal.small { max-width: 460px; }
+.generic-modal.large { max-width: 1100px; }
+
+.modal-header, .generic-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--border-color);
+	background: transparent;
+}
+
+.modal-title, .generic-modal-title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--text-primary);
+}
+
+.modal-close, .generic-modal-close {
+	border: none;
+	background: transparent;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	color: var(--text-secondary);
+	transition: background 0.12s ease, color 0.12s ease;
+}
+.generic-modal-close:hover, .modal-close:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+.modal-body, .generic-modal-body {
+	padding: 18px 20px;
+	max-height: 70vh;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.modal-footer, .generic-modal-footer {
+	display: flex;
+	gap: 10px;
+	padding: 12px 16px;
+	border-top: 1px solid var(--border-color);
+	justify-content: flex-end;
+	background: transparent;
+}
+
+.modal .btn, .generic-modal .btn { min-width: 96px; }
+.modal .btn + .btn, .generic-modal .btn + .btn { margin-left: 8px; }
+
+/* Compact form grid that matches AdminPage form-grid conventions */
+.modal .form-grid, .generic-modal .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.modal .form-grid .form-field, .generic-modal .form-grid .form-field { display: flex; flex-direction: column; }
+.modal .form-grid .form-field span, .generic-modal .form-grid .form-field span { margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
+
+@media (max-width: 720px) {
+	.generic-modal { margin: 12px; border-radius: 10px; }
+	.generic-modal .form-grid { grid-template-columns: 1fr; }
+	.generic-modal-body { padding: 14px; }
+	.generic-modal-header, .generic-modal-footer { padding: 12px 14px; }
+}
+
+/* Dark-mode overrides (respect app tokens) */
+body.dark .modal, body.dark .generic-modal,
+html.dark .modal, html.dark .generic-modal,
+[data-theme="dark"] .modal, [data-theme="dark"] .generic-modal,
+.dark .modal, .dark .generic-modal {
+	background: var(--bg-elevated, #0b1220);
+	color: var(--text-primary);
+	border: 1px solid rgba(255,255,255,0.03);
+}
+
+body.dark .modal-close, .dark .modal-close,
+body.dark .generic-modal-close, .dark .generic-modal-close { color: var(--text-secondary); }
+
+/* Anomalies page specific modal overrides (moved from AdminPage.css)
+	 Kept here so the `GenericModal` used by admin pages renders compact
+	 action buttons and matches admin page tokens without duplicating rules. */
+.anomalies-page .modal {
+	max-width: 420px !important;
+	background: var(--card-bg) !important;
+	border: 1px solid rgba(255,255,255,0.04) !important;
+	box-shadow: 0 6px 18px rgba(2,6,23,0.55) !important;
+	border-radius: 12px !important;
+	padding: 0 !important;
+	overflow: visible !important;
+}
+
+.anomalies-page .modal .modal-header {
+	padding: 14px 18px !important;
+	border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 12px !important;
+	background: transparent !important;
+}
+
+.anomalies-page .modal .modal-title {
+	margin: 0 !important;
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	color: var(--text-primary) !important;
+}
+
+.anomalies-page .modal .modal-close {
+	background: transparent !important;
+	border: none !important;
+	color: var(--text-secondary) !important;
+	font-size: 20px !important;
+	padding: 6px !important;
+	border-radius: 8px !important;
+	cursor: pointer !important;
+}
+.anomalies-page .modal .modal-close:hover { background: rgba(255,255,255,0.02) !important; color: var(--text-primary) !important; }
+
+/* Modal body: compact stack */
+.anomalies-page .modal > div:nth-of-type(2) {
+	padding: 16px !important;
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 10px !important;
+	align-items: stretch !important;
+}
+
+.anomalies-page .modal .btn.btn-small {
+	width: 100% !important;
+	padding: 10px 12px !important;
+	font-size: 14px !important;
+	border-radius: 8px !important;
+	background: transparent !important;
+	border: 1px solid rgba(255,255,255,0.03) !important;
+	color: var(--text-primary) !important;
+	box-shadow: none !important;
+	transition: background-color 140ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.anomalies-page .modal .btn.btn-small:hover { background: rgba(255,255,255,0.03) !important; transform: translateY(-1px) !important; }
+
+.anomalies-page .modal .btn-secondary {
+	background: #10B981 !important; /* Solid Green/Emerald */
+	border: 1px solid transparent !important;
+	color: #fff !important;
+	box-shadow: 0 4px 12px rgba(16,185,129,0.2) !important;
+}
+.anomalies-page .modal .btn-secondary:hover { filter: brightness(0.95) !important; }
+
+.anomalies-page .modal .btn-primary {
+	background: #2563EB !important; /* Solid Blue */
+	border: 1px solid transparent !important;
+	color: #fff !important;
+	box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+}
+.anomalies-page .modal .btn-primary:hover { filter: brightness(0.95) !important; }
+
+.anomalies-page .modal .btn-danger {
+	background: #DC2626 !important; /* Solid Red */
+	border: 1px solid transparent !important;
+	color: #fff !important;
+	box-shadow: 0 4px 12px rgba(220,38,38,0.2) !important;
+}
+.anomalies-page .modal .btn-danger:hover { filter: brightness(0.95) !important; }
+
+.anomalies-page .modal .btn + .btn { margin-top: 6px !important; }
+
+@media (max-width: 420px) {
+	.anomalies-page .modal { max-width: 360px !important; width: 92% !important; }
+}
+
+/* Utility animations (re-use from AdminPage global file) */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+

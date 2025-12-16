@@ -7,182 +7,58 @@
 html, body, #root { height: 100%; }
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-body);
-  color: var(--text-main);
-  margin: 0;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* --- Layout --- */
-.layout-container { display: flex; min-height: 100vh; }
-.anomalies-page { min-height: 100vh; --primary: #2563EB; --primary-hover: #1D4ED8; --secondary: #10B981; --danger: #DC2626; }
-.sidebar-container { flex: 0 0 260px; }
-.main-container { flex: 1 1 auto; }
-
-/* --- Typography & header --- */
-.admin-header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:32px; position:relative; }
-.admin-header h2 { font-size:28px; font-weight:700; color:var(--text-primary); margin:0; }
-.admin-subtitle { color:var(--text-secondary); margin:4px 0 0 0; font-size:14px; }
-
-/* Search input in admin header */
-.search-input { height:40px; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-surface); color:var(--text-main); width:280px; box-shadow:none; font-size:14px; }
-.search-input:focus { outline:none; box-shadow:0 0 0 4px rgba(59,130,246,0.08); border-color:var(--primary); }
-
-@media (max-width: 768px) {
-  .search-input { width:160px; }
-  .admin-actions { display:flex; gap:8px; align-items:center; }
-}
-
-/* --- Buttons (core) --- */
-.btn { display:inline-flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, background-color .12s ease; border:1px solid transparent; gap:8px; white-space:nowrap; background: var(--bg-surface); box-shadow:0 1px 0 rgba(0,0,0,0.04); }
-.btn:active { transform: translateY(1px) scale(.997); }
-.btn:focus { outline:none; box-shadow:0 0 0 4px rgba(79,70,229,0.12); }
-.btn .icon { margin-right:8px; }
-
-.btn-primary { background: var(--primary); color:#fff; box-shadow:0 6px 18px rgba(79,70,229,0.12); border-color:transparent; }
-.btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
-
-.btn-ghost { background: var(--bg-surface); color:var(--text-secondary); border:1px solid var(--border); }
-
-.btn-danger { color:var(--danger); border:1px solid var(--border); }
-
-/* Smaller button size */
-.btn.btn-small { padding:6px 8px; font-size:13px; border-radius:8px; }
-
-/* --- Card / Table --- */
-.card-table { background: var(--bg-surface, transparent); border-radius: var(--radius); box-shadow: var(--shadow-card); border:1px solid var(--border); overflow:hidden; }
-.table-wrapper { width:100%; overflow-x:auto; }
-table { width:100%; border-collapse:collapse; table-layout:auto; white-space:normal; }
-
-.anomalies-page .card-table table th,
-.anomalies-page .card-table table td { display:table-cell !important; vertical-align:middle !important; background:transparent !important; border-bottom:1px solid var(--border) !important; padding:12px 10px !important; }
-.anomalies-page .card-table table td.actions-cell { white-space:nowrap !important; padding-right:12px !important; }
-.anomalies-page .card-table table td .actions { display:inline-flex !important; gap:8px; align-items:center; flex-wrap:wrap; }
-
-/* Columns */
-.col-ticker { font-family:'JetBrains Mono', monospace; font-weight:600; color:var(--primary); padding:4px 8px; border-radius:4px; font-size:13px; max-width:96px; overflow:hidden; text-overflow:ellipsis; }
-.col-number { text-align:right; font-variant-numeric:tabular-nums; max-width:90px; }
-.col-date { color:var(--text-secondary); max-width:140px; }
-.company { min-width:80px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-/* Badges */
-.badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:20px; font-size:12px; font-weight:600; }
-.badge.status-new { background:var(--primary-light); color:var(--primary); }
-.badge.status-safe { background:var(--success-bg); color:var(--success); }
-.badge.status-clear { background:var(--secondary-bg); color:var(--secondary); }
-.badge.status-review { background:var(--warning-bg); color:var(--warning); }
-.badge.status-confirm { background:var(--danger-bg); color:var(--danger); }
-
-/* --- Modal --- */
-.modal-overlay { position:fixed; inset:0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; }
-.modal { background:var(--bg-surface); border-radius:16px; box-shadow:var(--shadow-float); width:90%; max-width:520px; max-height:calc(100vh - 40px); display:flex; flex-direction:column; overflow:hidden; }
-.modal-header { padding:24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.modal-title { margin:0; font-size:20px; font-weight:600; color:var(--text-primary); }
-.modal-close { background:transparent; border:none; padding:4px; color:var(--text-secondary); cursor:pointer; }
-.modal-close:hover { background:var(--bg-subtle); color:var(--text-main); }
-.modal-footer { padding:20px 24px; display:flex; justify-content:flex-end; gap:12px; }
-
-/* Remove visible top divider line inside modal (fixes white strip) */
-.anomalies-page .modal .modal-footer { border-top: none !important; background: transparent !important; }
-
-/* Modal action buttons — per-button colors */
-.anomalies-page .modal .btn { width:100% !important; padding:10px 12px !important; font-size:14px !important; border-radius:8px !important; box-shadow:none !important; }
-.anomalies-page .modal .btn + .btn { margin-top:6px !important; }
-
-/* --- Theme: consolidated --- */
-/* Dark theme */
-body.dark .anomalies-page,
-html.dark .anomalies-page,
-[data-theme="dark"] .anomalies-page,
-.dark .anomalies-page {
-  color: var(--text-primary) !important;
-}
-
-body.dark .card-table { background:var(--card-bg) !important; border-color:var(--card-border, rgba(255,255,255,0.06)) !important; box-shadow:var(--card-shadow) !important; }
-body.dark .card-table th, body.dark .card-table td { background:transparent !important; color:var(--text-main) !important; border-bottom:1px solid var(--card-border, rgba(255,255,255,0.06)) !important; }
-body.dark .col-ticker { background: rgba(255,255,255,0.04) !important; color: var(--primary) !important; }
-body.dark .badge { background: rgba(255,255,255,0.03) !important; color: var(--text-main) !important; }
-
-/* Keep base button shadow consistent */
-.anomalies-page .btn { box-shadow: 0 6px 18px rgba(16,24,40,0.04) !important; }
-
-/* --- Responsive tweaks --- */
-@media (max-width: 768px) {
-  .anomalies-page { flex-direction:column; }
-  .table-wrapper table { min-width:640px; }
-  .actions-cell { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
-  .anomalies-page .modal { width:95%; max-width:520px; max-height:90vh; }
-}
-@media (min-width:769px) and (max-width:1024px) {
-  .table-wrapper table { min-width:720px; }
-  .actions-cell { display:flex; flex-wrap:wrap; gap:8px; }
-}
-@media (max-width:420px) {
-  .actions-cell { flex-direction:column; align-items:flex-end; gap:6px; max-width:140px; }
-  .admin-actions { flex-direction:column; gap:8px; }
-  .admin-actions .btn { width:100%; }
-}
-
-/* Utility */
-.sort-icon { margin-left:6px; font-size:11px; opacity:.7; }
-.number-stepper { display:inline-flex; gap:8px; align-items:center; }
-
-/* Keyframes */
-@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(.98) } to { opacity:1; transform:translateY(0) scale(1) } }
-
-/* Tablet / iPad: treat as mobile for table & action wrapping (769px - 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-wrapper table { table-layout: auto; min-width: 720px; }
-  .table-wrapper th, .table-wrapper td { white-space: nowrap; }
-
-  .actions-cell {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-end;
-    align-items: center;
-    white-space: normal;
-    padding-left: 8px;
+  /* Portal/dropdown styles moved to component-scoped files:
+     - src/components/DropdownSelect/DropdownSelect.css
+     - src/components/PortalDropdown/PortalDropdown.css
+     These component files include the portal container, scrollbar, and option styles.
+  */
   }
-  .actions-cell .btn { white-space: nowrap; }
-  .col-status { padding-right: 8px; }
 
-  /* ensure header actions also behave like mobile on tablet */
-  .admin-actions { flex-wrap: wrap; gap: 8px; }
+/* Custom small dark scrollbar */
+/* Applies in dark theme contexts: body.dark, .dark, or [data-theme="dark"] */
+:root[data-theme="dark"] *,
+.dark * ,
+body.dark * {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255,255,255,0.12) transparent; /* thumb track */
 }
 
-/* --- Global Reset --- */
-*, *::before, *::after {
-  box-sizing: border-box;
+/* WebKit-based browsers */
+:root[data-theme="dark"] ::-webkit-scrollbar,
+.dark ::-webkit-scrollbar,
+body.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-body);
-  color: var(--text-main);
-  margin: 0;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+:root[data-theme="dark"] ::-webkit-scrollbar-track,
+.dark ::-webkit-scrollbar-track,
+body.dark ::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* Ensure root fills viewport so sticky sidebar can size to 100vh */
-html, body, #root {
-  height: 100%;
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb,
+.dark ::-webkit-scrollbar-thumb,
+body.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.12);
+  border-radius: 8px;
+  border: 2px solid transparent; /* creates padding-like visual */
+  background-clip: padding-box;
 }
 
-/* --- Layout Structure --- */
-.layout-container {
-  display: flex;
-  min-height: 100vh;
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+.dark ::-webkit-scrollbar-thumb:hover,
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255,255,255,0.18);
 }
-  thead {
-    /* header uses the card surface token so theme variables control appearance */
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border);
-  }
+
+/* Make small select dropdown lists use the same thin scrollbar */
+:root[data-theme="dark"] select::-webkit-scrollbar,
+.dark select::-webkit-scrollbar,
+body.dark select::-webkit-scrollbar {
+  height: 6px;
+}
+
 
 /* Desktop: make sure sidebar and main stretch to viewport */
 @media (min-width: 900px) {
@@ -826,66 +702,9 @@ tr:hover td {
   
   .form-grid { grid-template-columns: 1fr; }
 
-    /* Mobile: ensure table can scroll horizontally and allow columns to
-       size naturally (prevents table collapse on narrow screens) */
-    .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-wrapper table { table-layout: auto; min-width: 640px; }
-    .table-wrapper th, .table-wrapper td { white-space: nowrap; }
-    .col-ticker { max-width: 96px; min-width: 56px; }
-    .company { min-width: 120px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .actions-cell { width: auto; max-width: 280px; }
-
-    /* Mobile: allow action buttons to wrap and avoid colliding with status badge */
-    .actions-cell {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-      align-items: center;
-      white-space: normal;
-      padding-left: 8px;
-    }
-    .actions-cell .btn { white-space: nowrap; }
-    .col-status { padding-right: 8px; }
-
-  /* Make header actions accessible on small screens */
-  .admin-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .admin-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: nowrap;
-    justify-content: flex-end;
-    overflow-x: auto;
-    padding-right: 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .admin-actions .btn { flex: 0 0 auto; min-width: 88px; }
-
-/* Note: desktop positioning for admin header/actions is handled in
-   the larger desktop breakpoint further below to avoid nested media
-   queries inside the mobile block which break CSS parsing. */
-
-/* Mobile: allow wrapping so buttons are always visible */
-@media (max-width: 480px) {
-  .admin-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-  .admin-actions .btn { min-width: 0; padding: 8px 12px; }
-}
-/* On very small screens, stack row action buttons vertically for clarity */
-@media (max-width: 420px) {
-  .actions-cell { flex-direction: column; align-items: flex-end; gap: 6px; max-width: 200px; }
-  .actions-cell .btn { width: auto; }
-}
-  /* stack buttons full width on very small screens */
-  @media (max-width: 420px) {
-    .admin-actions { flex-direction: column; gap: 8px; }
-    .admin-actions .btn { width: 100%; }
-  }
+    /* Mobile table and admin action responsiveness moved to
+       `src/components/FlexTable/FlexTable.css` to scope table-specific
+       behavior to the component and avoid duplication. */
 }
 
 /* Larger desktop breakpoint: ensure full-height layout so sticky sidebar fills viewport */
@@ -1340,6 +1159,58 @@ html.dark .anomalies-page .col-status,
   color: var(--text-primary) !important;
 }
 
+/* Force the small dropdown trigger to use the dark card surface in admin pages
+   This CSS is here because `AdminPage.css` is guaranteed to be loaded for
+   admin pages; component-scoped CSS files may not be imported in all entry
+   points during development. */
+body.dark .anomalies-page .flag-button.btn-sm,
+html.dark .anomalies-page .flag-button.btn-sm,
+[data-theme="dark"] .anomalies-page .flag-button.btn-sm,
+:root[data-theme="dark"] .anomalies-page .flag-button.btn-sm,
+.dark .anomalies-page .flag-button.btn-sm {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  background-image: none !important;
+  background-clip: padding-box !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border, rgba(255,255,255,0.06)) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark .anomalies-page .flag-button.btn-sm svg,
+html.dark .anomalies-page .flag-button.btn-sm svg,
+[data-theme="dark"] .anomalies-page .flag-button.btn-sm svg,
+.dark .anomalies-page .flag-button.btn-sm svg {
+  color: var(--text-primary) !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Ensure native/select-based status dropdowns use dark surface and readable text
+   in dark theme (covers browser-native select elements used as quick status
+   editors inside rows). */
+body.dark .anomalies-page .col-status select,
+html.dark .anomalies-page .col-status select,
+[data-theme="dark"] .anomalies-page .col-status select,
+:root[data-theme="dark"] .anomalies-page .col-status select,
+.dark .anomalies-page .col-status select {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border, rgba(255,255,255,0.06)) !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+body.dark .anomalies-page .col-status select option,
+html.dark .anomalies-page .col-status select option,
+[data-theme="dark"] .anomalies-page .col-status select option,
+.dark .anomalies-page .col-status select option {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
 th {
   cursor: pointer;
   user-select: none;
@@ -1505,71 +1376,10 @@ html.dark .anomalies-page .modal .btn.btn-small.btn-primary,
   color: #fff !important;
 }
 
-body.dark .mode-dropdown .flag-option,
-html.dark .mode-dropdown .flag-option,
-[data-theme="dark"] .mode-dropdown .flag-option,
-.dark .mode-dropdown .flag-option {
-  color: var(--text-primary) !important;
-}
-
-body.dark .mode-dropdown .flag-option.active,
-.dark .mode-dropdown .flag-option.active {
-  background: rgba(79,70,229,0.12) !important;
-  color: var(--primary) !important;
-}
-
-/* Make the selected option text white and use a stronger darkened highlight in dark theme */
-body.dark .mode-dropdown .flag-option.active,
-html.dark .mode-dropdown .flag-option.active,
-[data-theme="dark"] .mode-dropdown .flag-option.active,
-.dark .mode-dropdown .flag-option.active {
-  background: rgba(79,70,229,0.22) !important; /* stronger purple/blue */
-  color: #ffffff !important; /* ensure readability */
-}
-
-/* Dark hover: use a darker, high-contrast background when hovering options */
-body.dark .mode-dropdown .flag-option:hover,
-html.dark .mode-dropdown .flag-option:hover,
-[data-theme="dark"] .mode-dropdown .flag-option:hover,
-.dark .mode-dropdown .flag-option:hover {
-  background: rgba(0,0,0,0.45) !important;
-  color: #ffffff !important;
-}
-
-/* Ensure DropdownSelect trigger uses white text in dark mode */
-body.dark .dropdown-select .flag-button,
-html.dark .dropdown-select .flag-button,
-[data-theme="dark"] .dropdown-select .flag-button,
-.dark .dropdown-select .flag-button,
-body.dark .flag-button.btn-sm,
-html.dark .flag-button.btn-sm,
-[data-theme="dark"] .flag-button.btn-sm,
-.dark .flag-button.btn-sm {
-  color: #ffffff !important;
-}
-
-/* Force dropdown trigger (flag-button) to use dark themed background when app is in dark mode
-   This prevents the native-looking white trigger in dark theme. */
-body.dark .dropdown-select .flag-button,
-html.dark .dropdown-select .flag-button,
-[data-theme="dark"] .dropdown-select .flag-button,
-.dark .dropdown-select .flag-button,
-body.dark .flag-button.btn-sm,
-html.dark .flag-button.btn-sm,
-[data-theme="dark"] .flag-button.btn-sm,
-.dark .flag-button.btn-sm {
-  background: var(--card-bg) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--card-border, rgba(255,255,255,0.06)) !important;
-  box-shadow: var(--card-shadow) !important;
-}
-
-/* Slightly increase padding and ensure rounded corners match design */
-.dropdown-select .flag-button,
-.flag-button.btn-sm {
-  padding: 8px 12px;
-  border-radius: 10px;
-}
+/* The Dropdown/Portal and date-picker styles are defined in component-scoped
+   files (`DropdownSelect.css`, `PortalDropdown.css`) to avoid duplication.
+   Any app-wide portal overrides kept earlier in this file; duplicate copies
+   removed to avoid conflicting rules. */
 
 /* Make native date-picker calendar icon visible in dark theme (white icon)
    - Use filter invert on webkit engines; include firefox pseudo-element where supported.

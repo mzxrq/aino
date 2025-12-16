@@ -20,10 +20,13 @@ import MarketList from "./pages/MarketList";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
+import AdminLayout from "../src/layouts/AdminLayout";
 import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
 
 function App() {
   return (
+
+    
     // Wrap the *entire app* in AuthProvider
     <AuthProvider>
       <div
@@ -43,15 +46,19 @@ function App() {
           <Routes>
             {/* 🔐 ADMIN ONLY */}
             <Route element={<AdminRoute />}>
-              <Route path="/anomalies" element={<AnomaliesManagementPage />} />
+              <Route element={<AdminLayout />}>
+                <Route
+                  path="/anomalies"
+                  element={<AnomaliesManagementPage />}
+                />
+              </Route>
             </Route>
-
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/chart" element={<Chart />} />
             <Route path="/chart/u/:ticker" element={<LargeChart />} />
-            <Route path="/chart/u" element={<LargeChart />} />          
+            <Route path="/chart/u" element={<LargeChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/list" element={<MarketList />} />

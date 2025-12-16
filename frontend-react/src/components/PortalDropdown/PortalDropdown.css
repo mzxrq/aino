@@ -1,0 +1,215 @@
+/* Admin page: DropdownSelect / Portal dropdown fixes and padding
+   Ensure dropdown portal, button and options use theme tokens and comfortable padding. */
+.dropdown-select .flag-button,
+.flag-button.btn-sm {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Portal container classes used by PortalDropdown in other pages */
+.mode-dropdown,
+.indicators-dropdown,
+.custom-select-portal {
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-float);
+}
+
+/* Custom scrollbar for portal dropdowns only (scoped) */
+.mode-dropdown,
+.indicators-dropdown,
+.custom-select-portal {
+  --scroll-track: rgba(0,0,0,0.06);
+  --scroll-thumb: rgba(0,0,0,0.18);
+  --scroll-thumb-hover: rgba(0,0,0,0.28);
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* WebKit browsers */
+.mode-dropdown::-webkit-scrollbar,
+.indicators-dropdown::-webkit-scrollbar,
+.custom-select-portal::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.mode-dropdown::-webkit-scrollbar-track,
+.indicators-dropdown::-webkit-scrollbar-track,
+.custom-select-portal::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 8px;
+}
+.mode-dropdown::-webkit-scrollbar-thumb,
+.indicators-dropdown::-webkit-scrollbar-thumb,
+.custom-select-portal::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.mode-dropdown::-webkit-scrollbar-thumb:hover,
+.indicators-dropdown::-webkit-scrollbar-thumb:hover,
+.custom-select-portal::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/* Dark theme overrides for portal scrollbar */
+body.dark .mode-dropdown,
+html.dark .mode-dropdown,
+[data-theme="dark"] .mode-dropdown,
+.dark .mode-dropdown,
+body.dark .indicators-dropdown,
+.dark .indicators-dropdown,
+body.dark .custom-select-portal,
+.dark .custom-select-portal {
+  --scroll-track: rgba(255,255,255,0.04);
+  --scroll-thumb: rgba(255,255,255,0.10);
+  --scroll-thumb-hover: rgba(255,255,255,0.18);
+}
+
+.mode-dropdown .flag-option,
+.indicators-dropdown .flag-option,
+.custom-select-list .flag-option,
+.flag-option {
+  padding: 10px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-main);
+  width: 100%;
+}
+.mode-dropdown .flag-option:hover,
+.flag-option:hover { background: var(--bg-subtle); }
+.mode-dropdown .flag-option.active,
+.flag-option.active,
+.flag-option[aria-selected="true"] {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Dark-mode overrides for DropdownSelect portal/options */
+body.dark .mode-dropdown,
+html.dark .mode-dropdown,
+[data-theme="dark"] .mode-dropdown,
+.dark .mode-dropdown,
+body.dark .indicators-dropdown,
+.dark .indicators-dropdown,
+body.dark .custom-select-portal,
+.dark .custom-select-portal {
+  background: var(--card-bg) !important;
+}
+
+body.dark .mode-dropdown .flag-option,
+html.dark .mode-dropdown .flag-option,
+[data-theme="dark"] .mode-dropdown .flag-option,
+.dark .mode-dropdown .flag-option {
+  color: var(--text-primary) !important;
+}
+
+body.dark .mode-dropdown .flag-option.active,
+.dark .mode-dropdown .flag-option.active {
+  background: rgba(79,70,229,0.12) !important;
+  color: var(--primary) !important;
+}
+
+/* Make the selected option text white and use a stronger darkened highlight in dark theme */
+body.dark .mode-dropdown .flag-option.active,
+html.dark .mode-dropdown .flag-option.active,
+[data-theme="dark"] .mode-dropdown .flag-option.active,
+.dark .mode-dropdown .flag-option.active {
+  background: rgba(79,70,229,0.22) !important; /* stronger purple/blue */
+  color: #ffffff !important; /* ensure readability */
+}
+
+/* Dark hover: use a darker, high-contrast background when hovering options */
+body.dark .mode-dropdown .flag-option:hover,
+html.dark .mode-dropdown .flag-option:hover,
+[data-theme="dark"] .mode-dropdown .flag-option:hover,
+.dark .mode-dropdown .flag-option:hover {
+  background: rgba(0,0,0,0.45) !important;
+  color: #ffffff !important;
+}
+
+/* Ensure DropdownSelect trigger uses white text in dark mode */
+body.dark .dropdown-select .flag-button,
+html.dark .dropdown-select .flag-button,
+[data-theme="dark"] .dropdown-select .flag-button,
+.dark .dropdown-select .flag-button,
+body.dark .flag-button.btn-sm,
+html.dark .flag-button.btn-sm,
+[data-theme="dark"] .flag-button.btn-sm,
+.dark .flag-button.btn-sm {
+  color: #ffffff !important;
+}
+
+/* High-specificity override for small flag buttons in dark theme */
+body.dark .flag-button.btn-sm,
+html.dark .flag-button.btn-sm,
+[data-theme="dark"] .flag-button.btn-sm,
+:root[data-theme="dark"] .flag-button.btn-sm,
+.dark .flag-button.btn-sm {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border, rgba(255,255,255,0.06)) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+/* Ultra-specific dark override for anomaly admin page triggers */
+body.dark .anomalies-page .dropdown-select .flag-button.btn-sm,
+html.dark .anomalies-page .dropdown-select .flag-button.btn-sm,
+[data-theme="dark"] .anomalies-page .dropdown-select .flag-button.btn-sm,
+:root[data-theme="dark"] .anomalies-page .dropdown-select .flag-button.btn-sm,
+.dark .anomalies-page .dropdown-select .flag-button.btn-sm {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  background-image: none !important;
+  background-clip: padding-box !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border, rgba(255,255,255,0.06)) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark .anomalies-page .dropdown-select .flag-button.btn-sm svg,
+body.dark .anomalies-page .dropdown-select .flag-button.btn-sm path,
+.dark .anomalies-page .dropdown-select .flag-button.btn-sm svg,
+.dark .anomalies-page .dropdown-select .flag-button.btn-sm path {
+  color: var(--text-primary) !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Force dropdown trigger (flag-button) to use dark themed background when app is in dark mode
+   This prevents the native-looking white trigger in dark theme. */
+body.dark .dropdown-select .flag-button,
+html.dark .dropdown-select .flag-button,
+[data-theme="dark"] .dropdown-select .flag-button,
+.dark .dropdown-select .flag-button,
+body.dark .flag-button.btn-sm,
+html.dark .flag-button.btn-sm,
+[data-theme="dark"] .flag-button.btn-sm,
+.dark .flag-button.btn-sm {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--card-border, rgba(255,255,255,0.06)) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+/* Slightly increase padding and ensure rounded corners match design */
+.dropdown-select .flag-button,
+.flag-button.btn-sm {
+  padding: 8px 12px;
+  border-radius: 10px;
+}
