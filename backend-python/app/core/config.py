@@ -17,8 +17,14 @@ CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI") or os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME") or os.getenv("DB_NAME") or "stock_anomaly_db"
 
+# Notification feature flags (set to "false" to disable)
+ENABLE_LINE_NOTIFICATIONS = os.getenv("ENABLE_LINE_NOTIFICATIONS", "true").lower() == "true"
+ENABLE_EMAIL_NOTIFICATIONS = os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true"
+
 if not CHANNEL_ACCESS_TOKEN:
     logger.warning("CHANNEL_ACCESS_TOKEN not set — LINE messages will be skipped or fail.")
+elif not ENABLE_LINE_NOTIFICATIONS:
+    logger.info("LINE notifications are disabled via ENABLE_LINE_NOTIFICATIONS=false")
 
 if not os.getenv("MONGO_URI") and not os.getenv("MONGO_CONNECTION_STRING"):
     logger.warning("MONGO_URI not set — defaulting to mongodb://localhost:27017")

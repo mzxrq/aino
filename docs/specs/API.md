@@ -1,6 +1,6 @@
 # API Overview
 
-This project exposes a single public port (`5050`) via the Node gateway. The Python FastAPI service runs on `8000` and is proxied through Node under the `/py` path.
+This project exposes a single public port (`5050`) via the Node gateway. The Python FastAPI service runs on `5000` and is proxied through Node under the `/py` path.
 
 Public base URL: `http://localhost:5050`
 

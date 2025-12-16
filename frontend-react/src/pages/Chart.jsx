@@ -10,7 +10,7 @@ import EchartsCard from '../components/EchartsCard';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
-const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
+const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 
 // City-based timezone labels mapped to IANA identifiers
 const CITY_TZ_MAP = {
