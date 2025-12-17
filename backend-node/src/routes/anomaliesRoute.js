@@ -9,6 +9,7 @@ const router = express.Router();
 const anomaliesController = require("../controllers/anomaliesController");
 
 // Special routes (must be defined before parameterized routes)
+router.get("/summary", anomaliesController.getAnomaliesSummary);
 router.get("/unsent", anomaliesController.getUnsentAnomalies);
 router.get("/recent", anomaliesController.getRecentAnomalies);
 router.post("/bulk", anomaliesController.bulkCreateAnomalies);
@@ -24,6 +25,9 @@ router.delete("/:id", anomaliesController.deleteAnomaly);
 
 // Additional operations
 router.patch("/:id/mark-sent", anomaliesController.markAsSent);
+
+// Per-ticker summary
+router.get("/ticker/:symbol/summary", anomaliesController.getTickerSummary);
 
 
 module.exports = router;

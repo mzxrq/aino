@@ -13,7 +13,7 @@ const getStockInfo = async (req, res) => {
       return res.status(400).json({ success: false, error: 'ticker query param required' });
     }
 
-    const pythonUrl = `http://localhost:8000/py/stock/info?ticker=${encodeURIComponent(ticker)}`;
+    const pythonUrl = `http://localhost:5000/py/stock/info?ticker=${encodeURIComponent(ticker)}`;
     const response = await axios.get(pythonUrl);
     
     res.status(200).json({ success: true, data: response.data });

@@ -8,7 +8,7 @@ let MASTER_TICKERS = [];
 // Load master tickers on startup
 function loadMasterTickers() {
   try {
-    const tickerPath = path.join(__dirname, '../../stocks/master_tickers.json');
+    const tickerPath = path.join(__dirname, '../../../frontend-react/public/master_tickers.json');
     const data = fs.readFileSync(tickerPath, 'utf8');
     MASTER_TICKERS = JSON.parse(data);
     console.log(`[SearchService] Loaded ${MASTER_TICKERS.length} tickers from master_tickers.json`);

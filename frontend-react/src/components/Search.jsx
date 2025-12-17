@@ -8,7 +8,18 @@ export default function Search() {
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
   const navigate = useNavigate();
-  const API_URL = "http://localhost:5000";
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+  const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+  const PY_BASE = `${API_URL}/py`;
+  async function fetchPyJson(path, init) {
+    try {
+      const r = await fetch(`${PY_BASE}${path}`, init);
+      if (r.ok) return await r.json();
+    } catch (_) { /* ignore */ }
+    const r2 = await fetch(`${PY_DIRECT}/py${path}`, init);
+    if (!r2.ok) throw new Error(`status ${r2.status}`);
+    return await r2.json();
+  }
 
   // Debounced AJAX search
   useEffect(() => {
@@ -20,8 +31,7 @@ export default function Search() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/chart/ticker?query=${encodeURIComponent(query)}`);
-        const data = await res.json();
+        const data = await fetchPyJson(`/chart/ticker?query=${encodeURIComponent(query)}`);
 
         setResults(data);
         setShowDropdown(data.length > 0);

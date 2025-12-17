@@ -219,6 +219,28 @@ const upsertCache = async (req, res) => {
 };
 
 /**
+ * Get all cached sparklines (1mo/1d) for market list display
+ * GET /api/cache/sparklines/all
+ * Returns minimal data for each ticker to avoid large payloads
+ */
+const getAllSparklines = async (req, res) => {
+  try {
+    const caches = await cacheService.getAllSparklines();
+    res.status(200).json({
+      success: true,
+      data: caches,
+      total: caches.length,
+    });
+  } catch (error) {
+    console.error("Error fetching all sparklines:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Bulk create cache entries
  * POST /api/cache/bulk
  */
@@ -258,4 +280,5 @@ module.exports = {
   deleteStaleCache,
   upsertCache,
   bulkCreateCache,
+  getAllSparklines,
 };

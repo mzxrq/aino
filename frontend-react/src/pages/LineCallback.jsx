@@ -33,7 +33,7 @@ const LineCallback = () => {
     const postCode = async () => {
       setStatus('Contacting backend...');
       try {
-        const res = await fetch(`${LINE_BACKEND}/auth/line/callback`, {
+        const res = await fetch(`${LINE_BACKEND}/py/auth/line/callback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, state })

@@ -18,12 +18,12 @@ from core.config import logger, db
 from core.detection_metadata import DetectionRun
 from api.auth import router as auth_router
 from api.chart import router as chart_router
-from scheduler import combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all
+from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
 
-app = FastAPI(title="Stock Fraud Detection API")
+app = FastAPI(title="STAD API")
 
 origins = [
     "http://localhost:5173",
@@ -33,16 +33,17 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=".*",  # allow any origin (useful for local dev fallbacks)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Register routers under the `/py` prefix
-app.include_router(auth_router)
-app.include_router(chart_router)
+app.include_router(auth_router, prefix="/py")
+app.include_router(chart_router, prefix="/py")
 
-# ⭐ Toggle state - ENABLED BY DEFAULT
+# Toggle state - ENABLED BY DEFAULT
 scheduler_enabled = True
 
 

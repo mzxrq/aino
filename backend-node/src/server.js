@@ -7,6 +7,7 @@ const path = require('path');
 require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const express = require("express");
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const { connectDB } = require("./config/db");
 const cors = require("cors");
 
@@ -17,6 +18,19 @@ app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(express.json());
+
+/* =======================
+   Proxy Middleware - Forward /py/* to Python backend at 5000
+   ======================= */
+app.use('/py', createProxyMiddleware({
+  target: 'http://localhost:5000',
+  changeOrigin: true,
+  // Do not rewrite the path; Python mounts routers under "/py"
+  onError: (err, req, res) => {
+    console.error(`Proxy error for ${req.url}:`, err.message);
+    res.status(503).json({ error: 'Python backend unavailable' });
+  }
+}));
 
 
 /* =======================
@@ -74,6 +88,18 @@ app.use('/node/seed', seedRoutes);
 // Search routes (ticker search API)
 const searchRoutes = require('./routes/searchRoutes');
 app.use('/node', searchRoutes);
+
+// Price calculation routes
+const priceRoutes = require('./routes/priceRoutes');
+app.use('/node/price', priceRoutes);
+
+// Bulk price calculation routes
+const priceBulkRoutes = require('./routes/priceBulkRoutes');
+app.use('/node/price', priceBulkRoutes);
+
+// Favorites routes (user-specific favorite stocks)
+const favoritesRoutes = require('./routes/favoritesRoute');
+app.use('/node/favorites', favoritesRoutes);
 
 /* =======================
    Basic Routes / Healthchecks

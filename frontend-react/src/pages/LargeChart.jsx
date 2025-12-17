@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import EchartsCard from '../components/EchartsCard';
 import '../css/LargeChart.css';
 
-const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+const PY_API = `${API_URL}/py`;
 
 // Currency mapping by market
 const MARKET_CURRENCIES = {
@@ -20,13 +22,32 @@ const MARKET_CURRENCIES = {
 // Common ticker extensions (to be removed from user input, handled by backend)
 const TICKER_EXTENSIONS = ['.BK', '.T', '.L', '.TO', '.HK', '.NS', '.BO', '.TW', '.KS'];
 
+// Helper: try Node gateway first, then fall back to Python 5000
+async function fetchJsonWithFallback(path, init) {
+  // path should start with '/'
+  const primary = `${PY_API}${path}`;
+  const fallback = `${PY_DIRECT}/py${path}`;
+  try {
+    const res = await fetch(primary, init);
+    if (res.ok) return await res.json();
+  } catch (_) { /* continue to fallback */ }
+  const res2 = await fetch(fallback, init);
+  if (!res2.ok) throw new Error(`Request failed: ${res2.status}`);
+  return await res2.json();
+}
+
 const PERIOD_PRESETS = [
-  { label: '1d', period: '1d', interval: '1m' },
-  { label: '5d', period: '5d', interval: '30m' },
-  { label: '1mo', period: '1mo', interval: '30m' },
-  { label: '6mo', period: '6mo', interval: '1d' },
-  { label: '1y', period: '1y', interval: '1d' },
-  { label: '5y', period: '5y', interval: '1d' }
+  { label: '1D 1m', period: '1d', interval: '1m' },
+  { label: '5D 5m', period: '5d', interval: '5m' },
+  { label: '1W 5m', period: '1wk', interval: '5m' },
+  { label: '1M 30m', period: '1mo', interval: '30m' },
+  { label: '1M 1d', period: '1mo', interval: '1d' },
+  { label: '3M 1d', period: '3mo', interval: '1d' },
+  { label: '6M 1d', period: '6mo', interval: '1d' },
+  { label: '1Y 1d', period: '1y', interval: '1d' },
+  { label: '2Y 1d', period: '2y', interval: '1d' },
+  { label: '5Y 1wk', period: '5y', interval: '1wk' },
+  { label: 'MAX 1wk', period: 'max', interval: '1wk' }
 ];
 
 const TIMEZONES = [
@@ -43,9 +64,24 @@ const TIMEZONES = [
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
-  if (p === '1d') return ['1m', '5m', '30m', '1h'].includes(interval) ? interval : '1m';
-  if (p === '5d') return ['30m', '1h', '1d', '1wk'].includes(interval) ? interval : '30m';
-  return ['30m', '1h', '1d', '1wk'].includes(interval) ? interval : '1d';
+  const itv = (interval || '').toLowerCase();
+  if (p === '1d') return ['1m','2m','5m','15m','30m','1h'].includes(itv) ? itv : '1m';
+  if (p === '5d') return ['1m','2m','5m','15m','30m','1h','1d'].includes(itv) ? itv : '5m';
+  if (p === '1wk') return ['1m','2m','5m','15m','30m','1h','1d'].includes(itv) ? itv : '5m';
+  if (p === '1mo') return ['5m','15m','30m','1h','1d'].includes(itv) ? itv : '30m';
+  if (['3mo','6mo','1y','2y'].includes(p)) return ['1d','1wk'].includes(itv) ? itv : '1d';
+  if (p === '5y' || p === 'max') return ['1wk','1mo'].includes(itv) ? itv : '1wk';
+  return ['1d','1wk','1mo'].includes(itv) ? itv : '1wk';
+}
+
+function getIntervalOptions(period) {
+  const p = (period || '').toLowerCase();
+  if (p === '1d') return ['1m','2m','5m','15m','30m','1h'];
+  if (p === '5d' || p === '1wk') return ['1m','2m','5m','15m','30m','1h','1d'];
+  if (p === '1mo') return ['5m','15m','30m','1h','1d'];
+  if (['3mo','6mo','1y','2y'].includes(p)) return ['1d','1wk'];
+  if (p === '5y' || p === 'max') return ['1wk','1mo'];
+  return ['1d','1wk','1mo'];
 }
 
 function getCurrency(marketStr) {
@@ -95,6 +131,7 @@ export default function LargeChart() {
   const [error, setError] = useState(null);
   const [chartType, setChartType] = useState('candlestick');
   const [timezone, setTimezone] = useState('UTC');
+  const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const [financialTab, setFinancialTab] = useState('income');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showFinancialModal, setShowFinancialModal] = useState(false);
@@ -108,6 +145,31 @@ export default function LargeChart() {
     setSearchInput(cleanTickerInput(paramTicker));
   }, [paramTicker]);
 
+  // Map market code to default timezone city label
+  function marketToTimezone(marketStr) {
+    if (!marketStr || typeof marketStr !== 'string') return 'UTC';
+    const code = marketStr.split('(')[0].trim().toUpperCase();
+    switch (code) {
+      case 'US': return 'America/New_York';
+      case 'JP': return 'Asia/Tokyo';
+      case 'TH': return 'Asia/Bangkok';
+      case 'GB': return 'Europe/London';
+      case 'EU': return 'Europe/Paris';
+      case 'IN': return 'Asia/Kolkata';
+      case 'CN': return 'Asia/Shanghai';
+      case 'HK': return 'Asia/Hong_Kong';
+      default: return 'UTC';
+    }
+  }
+
+  // Auto-set timezone when market changes unless user has overridden
+  useEffect(() => {
+    if (!tzUserOverridden && market) {
+      const tz = marketToTimezone(market);
+      setTimezone(tz);
+    }
+  }, [market, tzUserOverridden]);
+
   // Search for tickers by name or symbol
   useEffect(() => {
     if (!searchInput || searchInput.length === 0) {
@@ -117,11 +179,8 @@ export default function LargeChart() {
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${PY_API}/chart/ticker?query=${encodeURIComponent(searchInput)}`);
-        if (!cancelled && res.ok) {
-          const data = await res.json();
-          setSearchResults(Array.isArray(data) ? data : []);
-        }
+        const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(searchInput)}`);
+        if (!cancelled) setSearchResults(Array.isArray(data) ? data : []);
       } catch (e) {
         if (!cancelled) setSearchResults([]);
       }
@@ -137,13 +196,10 @@ export default function LargeChart() {
     let cancelled = false;
     async function loadMetadata() {
       try {
-        const res = await fetch(`${PY_API}/chart/ticker?query=${encodeURIComponent(ticker)}`);
-        if (!cancelled && res.ok) {
-          const data = await res.json();
-          const match = data.find((d) => d.ticker === ticker);
-          if (match) {
-            setCompanyName(match.name || '');
-          }
+        const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(ticker)}`);
+        if (!cancelled) {
+          const match = Array.isArray(data) ? data.find((d) => d.ticker === ticker) : null;
+          if (match) setCompanyName(match.name || '');
         }
       } catch (e) {
         // Silently fail
@@ -160,9 +216,8 @@ export default function LargeChart() {
       setError(null);
       const enforced = enforceIntervalRules(period, interval);
       try {
-        const url = `${PY_API}/chart?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
-        const res = await fetch(url);
-        const json = await res.json();
+        const path = `/chart?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+        const json = await fetchJsonWithFallback(path);
         const resolved = (json && typeof json === 'object') ? (
           json[ticker.toUpperCase()] || json[ticker] || (Object.values(json || {})[0]) || json
         ) : json;
@@ -185,10 +240,7 @@ export default function LargeChart() {
     let cancelled = false;
     async function loadFinancials() {
       try {
-        const finUrl = `${PY_API}/financials?ticker=${encodeURIComponent(ticker)}`;
-        const fres = await fetch(finUrl);
-        if (!fres.ok) throw new Error('financials');
-        const fj = await fres.json();
+        const fj = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}`);
         if (!cancelled) {
           // Convert nested dict structures to usable format
           const processed = {
@@ -261,18 +313,15 @@ export default function LargeChart() {
       for (const ext of marketConfig.extensions) {
         const tickerToTry = cleanedInput + ext;
         try {
-          const res = await fetch(`${PY_API}/chart/ticker?query=${encodeURIComponent(tickerToTry)}`);
-          if (res.ok) {
-            const data = await res.json();
-            const match = Array.isArray(data) ? data.find(d => d.ticker.toUpperCase() === tickerToTry.toUpperCase()) : null;
-            if (match) {
-              candidates.push({
-                ticker: match.ticker,
-                name: match.name,
-                market: marketConfig.label,
-                marketCode: marketConfig.market
-              });
-            }
+          const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(tickerToTry)}`);
+          const match = Array.isArray(data) ? data.find(d => d.ticker.toUpperCase() === tickerToTry.toUpperCase()) : null;
+          if (match) {
+            candidates.push({
+              ticker: match.ticker,
+              name: match.name,
+              market: marketConfig.label,
+              marketCode: marketConfig.market
+            });
           }
         } catch (e) {
           // Silent fail
@@ -401,6 +450,33 @@ export default function LargeChart() {
               {p.label}
             </button>
           ))}
+        </div>
+        <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+          <label style={{ fontSize: 12, color: '#666' }}>Period</label>
+          <select
+            className="lc-tz-select"
+            value={period}
+            onChange={(e) => {
+              const newPeriod = e.target.value;
+              const enforced = enforceIntervalRules(newPeriod, interval);
+              setPeriod(newPeriod);
+              setInterval(enforced);
+            }}
+          >
+            {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
+          <select
+            className="lc-tz-select"
+            value={interval}
+            onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
+          >
+            {getIntervalOptions(period).map(iv => (
+              <option key={iv} value={iv}>{iv}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -573,7 +649,7 @@ export default function LargeChart() {
             <div className="lc-timezone-selector">
               <select
                 value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
+                onChange={(e) => { setTimezone(e.target.value); setTzUserOverridden(true); }}
                 className="lc-tz-select"
               >
                 {TIMEZONES.map(tz => (

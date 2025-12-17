@@ -165,6 +165,8 @@ export default function EchartsCard({
     return ha;
   }, [candleData]);
 
+  const hlcData = useMemo(() => candleData.map((item) => [item[0], item[3], item[2], item[1]]), [candleData]);
+
   // For line mode, use close prices
   const lineData = useMemo(() => close || [], [close]);
 
@@ -198,22 +200,160 @@ export default function EchartsCard({
   // Parabolic SAR data
   const sarData = useMemo(() => parabolicSAR?.SAR || [], [parabolicSAR]);
 
+  // Detect intraday modes to switch to time axis with breaks
+  const isIntraday1D = useMemo(() => (period || '').toLowerCase() === '1d', [period]);
+  const isIntraday5D = useMemo(() => (period || '').toLowerCase() === '5d', [period]);
+  const useTimeAxis = isIntraday1D || isIntraday5D;
+
+  // Convert ISO strings to timestamps (ms) for time axis usage
+  const timestamps = useMemo(() => {
+    if (!dates || dates.length === 0) return [];
+    return dates.map((d) => {
+      const t = new Date(d).getTime();
+      return Number.isFinite(t) ? t : null;
+    }).filter((t) => t !== null);
+  }, [dates]);
+
+  // Infer base interval from median diff to detect breaks (e.g., lunch break, overnight)
+  const inferredIntervalMs = useMemo(() => {
+    if (timestamps.length < 2) return null;
+    const diffs = [];
+    for (let i = 1; i < timestamps.length; i++) {
+      const diff = timestamps[i] - timestamps[i - 1];
+      if (diff > 0) diffs.push(diff);
+    }
+    if (diffs.length === 0) return null;
+    diffs.sort((a, b) => a - b);
+    const mid = Math.floor(diffs.length / 2);
+    return diffs.length % 2 === 0 ? (diffs[mid - 1] + diffs[mid]) / 2 : diffs[mid];
+  }, [timestamps]);
+
+  // Build axis breaks whenever there is a large gap (gap > 3x base interval)
+  const axisBreaks = useMemo(() => {
+    if (!useTimeAxis || timestamps.length < 2 || !inferredIntervalMs) return [];
+    const breaks = [];
+    for (let i = 1; i < timestamps.length; i++) {
+      const prev = timestamps[i - 1];
+      const curr = timestamps[i];
+      const diff = curr - prev;
+      if (diff > inferredIntervalMs * 3) {
+        const start = prev + inferredIntervalMs;
+        const end = curr - inferredIntervalMs;
+        if (end > start) {
+          breaks.push({ start, end, gap: '1%' });
+        }
+      }
+    }
+    return breaks;
+  }, [useTimeAxis, timestamps, inferredIntervalMs]);
+
+  // Time-axis aware data for each series
+  const timeLineData = useMemo(() => {
+    if (!useTimeAxis) return lineData;
+    if (!timestamps.length || !lineData?.length) return [];
+    return timestamps.map((t, i) => [t, lineData[i]]);
+  }, [useTimeAxis, timestamps, lineData]);
+
+  const timeCandleData = useMemo(() => {
+    if (!useTimeAxis) return candleData;
+    if (!timestamps.length || !candleData?.length) return [];
+    return timestamps.map((t, i) => {
+      const c = candleData[i] || [];
+      return [t, c[0], c[1], c[2], c[3]];
+    });
+  }, [useTimeAxis, timestamps, candleData]);
+
+  const timeHeikinAshiData = useMemo(() => {
+    if (!useTimeAxis) return heikinAshiData;
+    if (!timestamps.length || !heikinAshiData?.length) return [];
+    return timestamps.map((t, i) => {
+      const h = heikinAshiData[i] || [];
+      return [t, h[0], h[1], h[2], h[3]];
+    });
+  }, [useTimeAxis, timestamps, heikinAshiData]);
+
+  const timeHlcData = useMemo(() => {
+    if (!useTimeAxis) return hlcData;
+    if (!timestamps.length || !hlcData?.length) return [];
+    return timestamps.map((t, i) => {
+      const h = hlcData[i] || [];
+      return [t, h[0], h[1], h[2], h[3]];
+    });
+  }, [useTimeAxis, timestamps, hlcData]);
+
+  const timeVolumeData = useMemo(() => {
+    if (!useTimeAxis) return volumeData;
+    if (!timestamps.length || !volumeData?.length) return [];
+    return timestamps.map((t, i) => [t, volumeData[i]]);
+  }, [useTimeAxis, timestamps, volumeData]);
+
+  const timeVwapData = useMemo(() => {
+    if (!useTimeAxis) return vwapData;
+    if (!timestamps.length || !vwapData?.length) return [];
+    return timestamps.map((t, i) => [t, vwapData[i]]);
+  }, [useTimeAxis, timestamps, vwapData]);
+
+  const timeBBUpperData = useMemo(() => {
+    if (!useTimeAxis) return bbUpperData;
+    if (!timestamps.length || !bbUpperData?.length) return [];
+    return timestamps.map((t, i) => [t, bbUpperData[i]]);
+  }, [useTimeAxis, timestamps, bbUpperData]);
+
+  const timeBBLowerData = useMemo(() => {
+    if (!useTimeAxis) return bbLowerData;
+    if (!timestamps.length || !bbLowerData?.length) return [];
+    return timestamps.map((t, i) => [t, bbLowerData[i]]);
+  }, [useTimeAxis, timestamps, bbLowerData]);
+
+  const timeBBSmaData = useMemo(() => {
+    if (!useTimeAxis) return bb?.sma;
+    if (!timestamps.length || !bb?.sma?.length) return [];
+    return timestamps.map((t, i) => [t, bb.sma[i]]);
+  }, [useTimeAxis, timestamps, bb]);
+
+  const timeMA5Data = useMemo(() => {
+    if (!useTimeAxis) return ma5Data;
+    if (!timestamps.length || !ma5Data?.length) return [];
+    return timestamps.map((t, i) => [t, ma5Data[i]]);
+  }, [useTimeAxis, timestamps, ma5Data]);
+
+  const timeMA25Data = useMemo(() => {
+    if (!useTimeAxis) return ma25Data;
+    if (!timestamps.length || !ma25Data?.length) return [];
+    return timestamps.map((t, i) => [t, ma25Data[i]]);
+  }, [useTimeAxis, timestamps, ma25Data]);
+
+  const timeMA75Data = useMemo(() => {
+    if (!useTimeAxis) return ma75Data;
+    if (!timestamps.length || !ma75Data?.length) return [];
+    return timestamps.map((t, i) => [t, ma75Data[i]]);
+  }, [useTimeAxis, timestamps, ma75Data]);
+
+  const timeSARData = useMemo(() => {
+    if (!useTimeAxis) return sarData;
+    if (!timestamps.length || !sarData?.length) return [];
+    return timestamps.map((t, i) => [timestamps[i], sarData[i]]).filter((p) => p[1] != null);
+  }, [useTimeAxis, timestamps, sarData]);
+
   // Anomaly markers: convert to ECharts markPoint format
   // markPoint expects { coord: [xIndex, yValue], itemStyle, symbol, symbolSize, ... }
   const anomalyMarkers = useMemo(() => {
     if (!anomalies || anomalies.length === 0 || !showAnomaly) return [];
-    return anomalies.map((a, i) => {
+    return anomalies.map((a) => {
       // If anomalies have an index (from findClosestIndex), use it; otherwise use position
-      const xIdx = a.i !== undefined ? a.i : dates.findIndex(d => d === a.date);
+      const xIdx = a.i !== undefined ? a.i : dates.findIndex((d) => d === a.date);
+      const coordX = useTimeAxis ? timestamps[xIdx] : xIdx;
       return {
-        coord: [xIdx, a.y],
+        coord: [coordX, a.y],
         itemStyle: { color: 'red' },
         symbol: 'triangle',
         symbolSize: 8,
         name: 'Anomaly'
       };
-    });
-  }, [anomalies, showAnomaly, dates]);
+    }).filter((m) => m.coord[0] !== undefined && m.coord[0] !== null);
+  }, [anomalies, showAnomaly, dates, useTimeAxis, timestamps]);
+
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
 
   // Build ECharts option
   const option = useMemo(() => {
@@ -235,18 +375,20 @@ export default function EchartsCard({
       series.push({
         name: `${ticker} Close`,
         type: 'line',
-        data: lineData,
+        data: useTimeAxis ? timeLineData : lineData,
         smooth: false,
         itemStyle: { color: '#1e88e5' },
         lineStyle: { color: '#1e88e5', width: 2 },
         symbolSize: 0,
+        progressive: 4000,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
     } else if (chartMode === 'candlestick') {
       series.push({
         name: `${ticker} OHLC`,
         type: 'candlestick',
-        data: candleData,
+        data: useTimeAxis ? timeCandleData : candleData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -260,7 +402,8 @@ export default function EchartsCard({
       series.push({
         name: `${ticker} Heiken-Ashi`,
         type: 'candlestick',
-        data: heikinAshiData,
+        data: useTimeAxis ? timeHeikinAshiData : heikinAshiData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -292,20 +435,21 @@ export default function EchartsCard({
       series.push({
         name: `${ticker} Close`,
         type: 'line',
-        data: lineData,
+        data: useTimeAxis ? timeLineData : lineData,
         smooth: true,
         areaStyle: { color: 'rgba(44, 193, 127, 0.3)' },
         lineStyle: { color: '#2cc17f', width: 2 },
         symbolSize: 0,
+        progressive: 4000,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
     } else if (chartMode === 'hlc') {
       // HLC (High-Low-Close) chart - use candlestick as it's most similar
-      const hlcData = candleData.map((item, i) => [item[0], item[3], item[2], item[1]]);
       series.push({
         name: `${ticker} HLC`,
         type: 'candlestick',
-        data: hlcData,
+        data: useTimeAxis ? timeHlcData : hlcData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -319,7 +463,8 @@ export default function EchartsCard({
       series.push({
         name: `${ticker} OHLC`,
         type: 'candlestick',
-        data: candleData,
+        data: useTimeAxis ? timeCandleData : candleData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -335,7 +480,7 @@ export default function EchartsCard({
       series.push({
         name: 'Volume',
         type: 'bar',
-        data: volumeData,
+        data: useTimeAxis ? timeVolumeData : volumeData,
         itemStyle: { color: 'rgba(100, 149, 237, 0.2)' }
       });
     }
@@ -345,10 +490,11 @@ export default function EchartsCard({
       series.push({
         name: 'VWAP',
         type: 'line',
-        data: vwapData,
+        data: useTimeAxis ? timeVwapData : vwapData,
         smooth: false,
         lineStyle: { color: '#6a5acd', width: 1 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
     }
 
@@ -358,27 +504,30 @@ export default function EchartsCard({
       series.push({
         name: `${bbLabel} Upper`,
         type: 'line',
-        data: bbUpperData,
+        data: useTimeAxis ? timeBBUpperData : bbUpperData,
         smooth: false,
         lineStyle: { color: '#ffa500', width: 1 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
       series.push({
         name: `${bbLabel} Lower`,
         type: 'line',
-        data: bbLowerData,
+        data: useTimeAxis ? timeBBLowerData : bbLowerData,
         smooth: false,
         lineStyle: { color: '#ffa500', width: 1 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
       if (bb?.sma && bb.sma.length > 0) {
         series.push({
           name: `${bbLabel} SMA`,
           type: 'line',
-          data: bb.sma,
+          data: useTimeAxis ? timeBBSmaData : bb.sma,
           smooth: false,
           lineStyle: { color: '#d2691e', width: 1, type: 'dashed' },
-          symbolSize: 0
+          symbolSize: 0,
+          progressive: 4000
         });
       }
     }
@@ -388,30 +537,33 @@ export default function EchartsCard({
       series.push({
         name: 'MA5',
         type: 'line',
-        data: ma5Data,
+        data: useTimeAxis ? timeMA5Data : ma5Data,
         smooth: false,
         lineStyle: { color: '#2563EB', width: 1.5 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
     }
     if (showMA25 && ma25Data.length > 0) {
       series.push({
         name: 'MA25',
         type: 'line',
-        data: ma25Data,
+        data: useTimeAxis ? timeMA25Data : ma25Data,
         smooth: false,
         lineStyle: { color: '#F97316', width: 1.5 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
     }
     if (showMA75 && ma75Data.length > 0) {
       series.push({
         name: 'MA75',
         type: 'line',
-        data: ma75Data,
+        data: useTimeAxis ? timeMA75Data : ma75Data,
         smooth: false,
         lineStyle: { color: '#EF4444', width: 1.5 },
-        symbolSize: 0
+        symbolSize: 0,
+        progressive: 4000
       });
     }
 
@@ -420,23 +572,46 @@ export default function EchartsCard({
       series.push({
         name: 'SAR',
         type: 'scatter',
-        data: sarData.map((val, i) => val ? [i, val] : null).filter(Boolean),
+        data: useTimeAxis ? timeSARData : sarData.map((val, i) => val ? [i, val] : null).filter(Boolean),
         symbolSize: 4,
         itemStyle: { color: '#10B981' }
       });
     }
 
     // Determine if using ordinal (multi-day) or date axis
-    const isOrdinal = (period && period.toLowerCase() !== '1d');
+    const isOrdinal = !useTimeAxis && (period && period.toLowerCase() !== '1d');
+
+    const axisLabelFormatter = (value) => {
+      if (!value) return '';
+      try {
+        const normalized = typeof value === 'number' ? new Date(value).toISOString() : value;
+        const dt = parseToTimezone(normalized, timezone);
+        if (!dt) return value;
+        if (useTimeAxis) {
+          // Intraday: show time; 5d: show time and day hint
+          if (isIntraday1D) return dt.toFormat('HH:mm');
+          if (isIntraday5D) return dt.toFormat('HH:mm\nLL-dd');
+        }
+        if (isOrdinal) {
+          return dt.toFormat('LL-dd');
+        }
+        return dt.toFormat('HH:mm');
+      } catch {
+        return value;
+      }
+    };
 
     return {
+      useUTC: true,
       animation: false,
       backgroundColor: 'transparent',
       textStyle: { color: '#333' },
       tooltip: {
         trigger: 'axis',
         axisPointer: { 
-          type: 'cross',
+          type: isMobile ? 'line' : 'cross',
+          axis: 'x',
+          snap: true,
           label: {
             backgroundColor: '#6a7985'
           }
@@ -457,7 +632,9 @@ export default function EchartsCard({
           if (!p) return '';
           
           // Get the raw ISO timestamp
-          const rawDate = dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name;
+          const rawDate = useTimeAxis
+            ? (typeof p.axisValue === 'number' ? new Date(p.axisValue).toISOString() : (dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name))
+            : (dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name);
           
           // Format date and time in user's timezone
           const pLower = (period || '').toLowerCase();
@@ -544,7 +721,24 @@ export default function EchartsCard({
         top: '20%',
         bottom: isOrdinal ? '10%' : '18%'
       },
-      xAxis: {
+      xAxis: useTimeAxis ? {
+        type: 'time',
+        min: timestamps.length ? timestamps[0] : undefined,
+        max: timestamps.length ? timestamps[timestamps.length - 1] : undefined,
+        boundaryGap: false,
+        axisLine: { lineStyle: { color: '#ccc' } },
+        axisLabel: {
+          color: '#666',
+          formatter: axisLabelFormatter
+        },
+        splitLine: { show: false },
+        breaks: axisBreaks,
+        breakArea: axisBreaks.length ? {
+          expandOnClick: false,
+          zigzagAmplitude: 0,
+          itemStyle: { opacity: 0, borderColor: 'none' }
+        } : undefined
+      } : {
         type: 'category',
         data: dates,
         boundaryGap: true,
@@ -558,26 +752,8 @@ export default function EchartsCard({
             if (totalPoints > 100) return Math.floor(totalPoints / 8);
             if (totalPoints > 50) return Math.floor(totalPoints / 6);
             return Math.floor(totalPoints / 4);
-          })(),
-          formatter: (value) => {
-            if (!value) return '';
-            // For ordinal (multi-day), show date only
-            if (isOrdinal) {
-              try {
-                const dt = parseToTimezone(value, timezone);
-                return dt ? dt.toFormat('LL-dd') : value;
-              } catch {
-                return value;
-              }
-            }
-            // For intraday, show just time
-            try {
-              const dt = parseToTimezone(value, timezone);
-              return dt ? dt.toFormat('HH:mm') : value;
-            } catch {
-              return value;
-            }
-          }
+            })(),
+          formatter: axisLabelFormatter
         },
         splitLine: { show: false }
       },
@@ -606,6 +782,7 @@ export default function EchartsCard({
           xAxisIndex: 0,
           start: 0,
           end: 100,
+          minValueSpan: useTimeAxis ? 3600000 : undefined,
           textStyle: { color: '#666' }
         },
         {
@@ -613,7 +790,8 @@ export default function EchartsCard({
           xAxisIndex: 0,
           yAxisIndex: [0, 1],
           start: 0,
-          end: 100
+          end: 100,
+          minValueSpan: useTimeAxis ? 3600000 : undefined
         }
       ],
       series: series.map((s, i) => {
@@ -630,10 +808,21 @@ export default function EchartsCard({
     dates,
     candleData,
     lineData,
+    timeCandleData,
+    timeHeikinAshiData,
+    heikinAshiData,
+    hlcData,
+    timeHlcData,
+    timeLineData,
     volumeData,
+    timeVolumeData,
     vwapData,
+    timeVwapData,
     bbUpperData,
     bbLowerData,
+    timeBBUpperData,
+    timeBBLowerData,
+    timeBBSmaData,
     bb,
     showBB,
     showVWAP,
@@ -641,10 +830,20 @@ export default function EchartsCard({
     chartMode,
     anomalyMarkers,
     period,
+    useTimeAxis,
+    isIntraday1D,
+    isIntraday5D,
+    axisBreaks,
+    timestamps,
+    isMobile,
     ma5Data,
     ma25Data,
     ma75Data,
+    timeMA5Data,
+    timeMA25Data,
+    timeMA75Data,
     sarData,
+    timeSARData,
     showMA5,
     showMA25,
     showMA75,

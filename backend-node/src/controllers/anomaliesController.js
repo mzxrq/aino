@@ -186,6 +186,34 @@ const getRecentAnomalies = async (req, res) => {
   } 
 };
 
+/**
+ * Get anomalies summary grouped by ticker (optional market)
+ * GET /node/anomalies/summary?market=JP
+ */
+const getAnomaliesSummary = async (req, res) => {
+  try {
+    const result = await anomaliesService.getAnomaliesSummary(req.query);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('getAnomaliesSummary err', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Get anomalies summary for a ticker
+ * GET /node/anomalies/ticker/:symbol/summary
+ */
+const getTickerSummary = async (req, res) => {
+  try {
+    const result = await anomaliesService.getTickerSummary(req.params.symbol);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('getTickerSummary err', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   createAnomaly,
   getAllAnomalies,
@@ -196,4 +224,6 @@ module.exports = {
   getUnsentAnomalies,
   bulkCreateAnomalies,
   getRecentAnomalies,
+  getAnomaliesSummary,
+  getTickerSummary,
 };

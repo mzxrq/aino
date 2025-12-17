@@ -67,8 +67,14 @@ const getCacheById = async (id) => {
  */
 const getCacheByTickerAndTimeframe = async (ticker, interval, period) => {
   const collection = getCollection();
-  const cacheId = `chart::${ticker}::${interval}::${period}`;
-  return await collection.findOne({ _id: cacheId });
+  // Python writes keys as chart::{TICKER}::{period}::{interval}
+  const keyPyOrder = `chart::${String(ticker).toUpperCase()}::${period}::${interval}`;
+  const foundPy = await collection.findOne({ _id: keyPyOrder });
+  if (foundPy) return foundPy;
+
+  // Backward-compat: try Node's previous order chart::{ticker}::{interval}::{period}
+  const keyNodeOld = `chart::${ticker}::${interval}::${period}`;
+  return await collection.findOne({ _id: keyNodeOld });
 };
 
 /**
