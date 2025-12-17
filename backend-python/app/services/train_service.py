@@ -598,10 +598,10 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
                         feature_values[feat] = float(val) if pd.notna(val) else None
                 
                 doc = {
-                    "Ticker": ticker,
-                    "Datetime": row['Datetime'],
-                    "Close": float(row['Close']),
-                    "Volume": int(row['Volume']) if pd.notna(row['Volume']) else 0,
+                    "ticker": ticker,
+                    "datetime": row['Datetime'],
+                    "Cclose": float(row['Close']),
+                    "volume": int(row['Volume']) if pd.notna(row['Volume']) else 0,
                     
                     # Traceability
                     "detection_run_id": run_id,
@@ -723,10 +723,10 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                     }
                     if db.anomalies.count_documents(query) == 0:
                         doc = {
-                            "Ticker": ticker,
-                            "Datetime": row.get('Datetime'),
-                            "Close": float(row.get('Close', 0)),
-                            "Volume": int(row.get('Volume', 0)) if pd.notna(row.get('Volume')) else 0,
+                            "ticker": ticker,
+                            "datetime": row.get('Datetime'),
+                            "close": float(row.get('Close', 0)),
+                            "volume": int(row.get('Volume', 0)) if pd.notna(row.get('Volume')) else 0,
                             "sent": False,
                             "status": "new",
                             "created_at": datetime.utcnow()
