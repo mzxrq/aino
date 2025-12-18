@@ -27,6 +27,55 @@ table { width:100%; table-layout: fixed; border-collapse: collapse; font-size:14
 .btn { padding:6px 10px; border-radius:4px; background:var(--btn-bg); color:var(--btn-color); border:1px solid var(--btn-border); cursor:pointer; }
 .btn-small { padding:4px 8px; }
 .pagination-controls { margin-top:14px; }
+.pagination-controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+.pagination-left { display:flex; gap:8px; align-items:center; }
+.pagination-right { display:flex; gap:6px; align-items:center; }
+
+/* spacing between the rows selector and refresh button */
+.pagination-right .refresh-btn { margin-left: 10px; }
+.pagination-controls .btn-icon { display:inline-block; font-size:13px; }
+.pagination-controls .btn-label { display:inline-block; margin: 0 6px; }
+.pagination-controls .page-label { margin: 0 8px; font-size: 14px; color: var(--text-secondary); }
+
+/* Responsive pagination: compact layout on small screens */
+@media (max-width: 600px) {
+	.pagination-controls { flex-direction: column; align-items: stretch; gap: 8px; }
+	.pagination-left, .pagination-right { justify-content: space-between; }
+	.pagination-left { gap: 6px; }
+	.pagination-right { gap: 6px; }
+	/* Hide 'Rows:' label on very small screens to save space */
+	.rows-label { display: none; }
+	/* Show only icons for prev/next, hide text labels */
+	.pagination-controls .btn-label { display: none; }
+	.pagination-controls .btn-icon { font-size: 14px; }
+	.page-label { text-align: center; }
+	/* Make rows-select smaller */
+	.rows-select { padding: 4px 8px; font-size: 12px; }
+}
+
+/* Hide rows selector on very small screens */
+@media (max-width: 480px) {
+	.rows-label, .rows-select { display: none !important; }
+}
+
+/* Arrow-only button styling */
+.btn-arrow {
+	padding: 6px;
+	min-width: 36px;
+	height: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	border-radius: 4px;
+	color: var(--text-primary);
+}
+.btn-arrow .btn-icon { font-size: 16px; }
+.btn-arrow:hover { background: transparent; color: var(--btn-color); }
+.btn-arrow:active { transform: none; }
+.btn-arrow:disabled { opacity: 0.45; cursor: default; }
 .sort-icon { font-size:12px; color:var(--text-secondary); }
 .badge { display:inline-block; padding:3px 8px; border-radius:12px; font-size:12px; }
 /* Dark mode overrides */
@@ -49,31 +98,7 @@ table { width:100%; table-layout: fixed; border-collapse: collapse; font-size:14
 	sure they don't escape the cell box. */
 .card-table td .col-ticker, .card-table td.col-ticker { overflow: hidden; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; }
 
-/* Style pagination rows-per-page select to match status badges */
-.rows-select {
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	display: inline-flex;
-	align-items: center;
-	padding: 6px 10px;
-	border-radius: 16px;
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 1;
-	background: var(--card-bg);
-	border: 1px solid var(--border);
-	color: var(--text-main);
-	cursor: pointer;
-}
-.rows-select option { background: var(--card-bg); color: var(--text-main); }
-
-/* dark mode variant */
-:root[data-theme='dark'] .rows-select {
-	background: var(--bg-secondary);
-	border-color: var(--card-border);
-	color: var(--text-primary);
-}
+/* rows-select removed — using `DropdownSelect` component styling instead */
 
 /* Mobile-specific table scrolling and sizing rules (moved from AdminPage.css)
 	 These ensure the table used inside admin pages can scroll horizontally

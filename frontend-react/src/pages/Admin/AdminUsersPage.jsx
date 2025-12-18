@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import API_BASE from '../../config/api';
+import { useAuth } from '../../context/useAuth';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';
 import GenericModal from '../../components/GenericModal/GenericModal';
@@ -17,7 +18,7 @@ const modalButtonStyles = {
 };
 
 export default function AdminUsersPage() {
-  const [form, setForm] = useState({ _id: null, email: '', username: '', name: '', role: 'user' });
+  const [form, setForm] = useState({ _id: null, email: '', username: '', name: '', role: 'user', password: '', confirm: '' });
   const [editing, setEditing] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rowActions, setRowActions] = useState(null);
@@ -25,7 +26,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(false);
 
   const openCreate = () => {
-    setForm({ _id: null, email: '', username: '', name: '', role: 'user' });
+    setForm({ _id: null, email: '', username: '', name: '', role: 'user', password: '', confirm: '' });
     setEditing(null);
     setModalOpen(true);
     setTimeout(() => { const input = document.querySelector('.modal input[name="email"]'); if (input) input.focus(); }, 120);
@@ -44,9 +45,11 @@ export default function AdminUsersPage() {
   async function handleAdd(e) {
     e?.preventDefault();
     if (!form.email || !form.email.trim()) { await Swal.fire({ icon: 'warning', title: 'Required', text: 'Email is required' }); return; }
+    if (!form.password || form.password.length < 6) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Password must be at least 6 characters' }); return; }
+    if (form.password !== form.confirm) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Passwords do not match' }); return; }
     try {
       setLoading(true);
-      const payload = { email: form.email, username: form.username || '', name: form.name || '', role: form.role || 'user' };
+      const payload = { email: form.email, username: form.username || '', name: form.name || '', role: form.role || 'user', password: form.password };
       const res = await fetch(`${API_BASE}/node/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Create failed');
@@ -99,6 +102,7 @@ export default function AdminUsersPage() {
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ password: '', confirm: '' });
   const [changePwdLoading, setChangePwdLoading] = useState(false);
+  const { token } = useAuth();
 
   const renderRow = useCallback(({ row }) => (
     <tr key={row._id || row.id} onClick={() => openRowActions(row)} style={{ cursor: 'pointer' }}>
@@ -143,6 +147,12 @@ export default function AdminUsersPage() {
           <label className="form-field"><span>Email</span><input name="email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder="user@example.com" /></label>
           <label className="form-field"><span>Username</span><input name="username" value={form.username} onChange={(e) => setForm((s) => ({ ...s, username: e.target.value }))} placeholder="jdoe" /></label>
           <label className="form-field"><span>Name</span><input name="name" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="John Doe" /></label>
+          {!editing && (
+            <>
+              <label className="form-field"><span>Password</span><input name="password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder="At least 6 characters" /></label>
+              <label className="form-field"><span>Confirm</span><input name="confirm" type="password" value={form.confirm} onChange={(e) => setForm((s) => ({ ...s, confirm: e.target.value }))} placeholder="Confirm password" /></label>
+            </>
+          )}
           <label className="form-field"><span>Role</span><DropdownSelect className="select-input" value={form.role} onChange={(v) => setForm((s) => ({ ...s, role: v }))} options={ROLE_OPTIONS} /></label>
         </div>
         {editing && (
@@ -156,10 +166,13 @@ export default function AdminUsersPage() {
         if (!editing || !(editing._id || editing.id)) { await Swal.fire({ icon: 'warning', title: 'Error', text: 'No user selected' }); return; }
         if (!pwdForm.password || pwdForm.password.length < 6) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Password must be at least 6 characters' }); return; }
         if (pwdForm.password !== pwdForm.confirm) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Passwords do not match' }); return; }
-        try {
+          try {
           setChangePwdLoading(true);
           const id = editing._id || editing.id;
-          const res = await fetch(`${API_BASE}/node/users/${id}/change-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pwdForm.password }) });
+          // Admin change password: call admin endpoint with newPassword (include auth)
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const res = await fetch(`${API_BASE}/node/users/${id}/change-password`, { method: 'PUT', headers, body: JSON.stringify({ newPassword: pwdForm.password }) });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Change password failed');
           await Swal.fire({ icon: 'success', title: 'Password changed', timer: 1200 });

@@ -1,9 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import Swal from 'sweetalert2';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';
 import GenericModal from '../../components/GenericModal/GenericModal';
+import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
+import { formatToUserTZSlash } from '../../utils/dateUtils';
+import { AuthContext } from '../../context/contextBase';
 
 const modalButtonStyles = {
   primary: { background: 'linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff', border: 'none' },
@@ -40,6 +43,8 @@ export default function AdminSubscribersPage() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  const userOptions = Object.keys(usersMap).map((id) => ({ value: id, label: (usersMap[id].name || usersMap[id].username || id) }));
 
   const openCreate = () => {
     setForm({ _id: null, id: '', tickers: '' });
@@ -122,6 +127,16 @@ export default function AdminSubscribersPage() {
 
   async function save(e) { if (editing && (editing._id || editing.id)) await saveEdit(e); else await handleAdd(e); }
 
+  const { user } = useContext(AuthContext) || {};
+  const formatDate = (d) => {
+    if (!d) return '-';
+    try {
+      return formatToUserTZSlash(d, (user && user.timeZone) || undefined);
+    } catch (e) {
+      try { return String(d); } catch { return '-'; }
+    }
+  };
+
   const renderRow = useCallback(({ row }) => {
     const id = row._id || row.id || row.id;
     const user = usersMap[id] || {};
@@ -130,6 +145,8 @@ export default function AdminSubscribersPage() {
         <td className="col-username">{user.username || '-'}</td>
         <td className="company">{Array.isArray(row.tickers) ? row.tickers.join(', ') : (row.tickers || '-')}</td>
         <td className="col-number">{Array.isArray(row.tickers) ? row.tickers.length : 0}</td>
+        <td className="col-date">{formatDate(row.createdAt || row.created_at || row.created || row.timeCreated)}</td>
+        <td className="col-date">{formatDate(row.updatedAt || row.updated_at || row.updated)}</td>
       </tr>
     );
   }, [usersMap]);
@@ -149,6 +166,8 @@ export default function AdminSubscribersPage() {
           { key: 'username', label: 'User', sortable: true, width: '220px' },
           { key: 'tickers', label: 'Tickers', sortable: false, width: '360px' },
           { key: 'count', label: 'Count', sortable: true, width: '80px' },
+          { key: 'createdAt', label: 'Created At', sortable: true, width: '200px' },
+          { key: 'updatedAt', label: 'Updated At', sortable: true, width: '200px' },
         ]}
         transformRow={(r) => {
           const id = r._id || r.id || '';
@@ -174,7 +193,16 @@ export default function AdminSubscribersPage() {
 
       <GenericModal isOpen={modalOpen} title={editing ? 'Edit Subscriber' : 'Create Subscriber'} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? 'Save' : 'Create'}>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-          <label className="form-field"><span>Subscriber id</span><input name="id" value={form.id} onChange={(e) => setForm((s) => ({ ...s, id: e.target.value }))} placeholder="user-id or uid" /></label>
+          <label className="form-field"><span>Subscriber</span>
+            <DropdownSelect
+              value={form.id}
+              onChange={(v) => setForm((s) => ({ ...s, id: v }))}
+              options={userOptions}
+              placeholder="Select subscriber"
+              searchable={true}
+              searchPlaceholder="Search users..."
+            />
+          </label>
           <label className="form-field"><span>Tickers (comma separated)</span><input name="tickers" value={form.tickers} onChange={(e) => setForm((s) => ({ ...s, tickers: e.target.value }))} placeholder="AAPL, MSFT, GOOGL" /></label>
         </div>
       </GenericModal>

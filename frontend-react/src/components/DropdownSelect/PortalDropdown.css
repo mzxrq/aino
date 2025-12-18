@@ -1,0 +1,165 @@
+/* PortalDropdown.css — portal container, scrollbar, and accessibility helpers */
+.mode-dropdown .flag-option,
+.indicators-dropdown .flag-option,
+.custom-select-list .flag-option,
+.flag-option {
+  padding: 10px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  width: 100%;
+}
+.mode-dropdown .flag-option:hover,
+.mode-dropdown {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: 600;
+}
+/* Portal container classes used by PortalDropdown */
+.mode-dropdown,
+.indicators-dropdown,
+.custom-select-portal {
+  padding: 22px; /* increased breathing room inside portal */
+  border-radius: 14px;
+  background: var(--portal-bg, var(--bg-surface));
+  border: 1px solid var(--portal-border, var(--border));
+  box-shadow: var(--portal-shadow, var(--shadow-float));
+  min-width: 240px;
+  max-width: 560px;
+  max-height: 68vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar for portal dropdowns (scoped) */
+.mode-dropdown,
+.indicators-dropdown,
+.custom-select-portal {
+  --scroll-track: rgba(0,0,0,0.06);
+  --scroll-thumb: rgba(0,0,0,0.18);
+  --scroll-thumb-hover: rgba(0,0,0,0.28);
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* WebKit scrollbar */
+.mode-dropdown::-webkit-scrollbar,
+.indicators-dropdown::-webkit-scrollbar,
+.custom-select-portal::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.mode-dropdown::-webkit-scrollbar-track,
+.indicators-dropdown::-webkit-scrollbar-track,
+.custom-select-portal::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 8px;
+}
+.mode-dropdown::-webkit-scrollbar-thumb,
+.indicators-dropdown::-webkit-scrollbar-thumb,
+.custom-select-portal::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.mode-dropdown::-webkit-scrollbar-thumb:hover,
+.indicators-dropdown::-webkit-scrollbar-thumb:hover,
+.custom-select-portal::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/* Dark theme overrides for portal scrollbar */
+body.dark .mode-dropdown,
+html.dark .mode-dropdown,
+[data-theme="dark"] .mode-dropdown,
+.dark .mode-dropdown,
+body.dark .indicators-dropdown,
+.dark .indicators-dropdown,
+body.dark .custom-select-portal,
+.dark .custom-select-portal {
+  --scroll-track: rgba(255,255,255,0.04);
+  --scroll-thumb: rgba(255,255,255,0.10);
+  --scroll-thumb-hover: rgba(255,255,255,0.18);
+}
+
+/* Layout helpers and accessibility improvements */
+.mode-dropdown .custom-select-list,
+.indicators-dropdown .custom-select-list,
+.custom-select-portal .custom-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 4px; /* inner padding so options don't touch portal edges */
+}
+
+/* Focus-visible and keyboard navigation support */
+.mode-dropdown:focus-within,
+.indicators-dropdown:focus-within,
+.custom-select-portal:focus-within {
+  outline: 2px solid rgba(59,130,246,0.08);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.06), var(--portal-shadow, var(--shadow-float));
+}
+
+.mode-dropdown .flag-option:focus,
+.indicators-dropdown .flag-option:focus,
+.custom-select-list .flag-option:focus,
+.flag-option:focus {
+  outline: 2px solid rgba(59,130,246,0.16);
+  outline-offset: 2px;
+}
+
+/* Search input inside portal dropdowns */
+.dropdown-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--input-bg, rgba(0,0,0,0.02));
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.dropdown-search-input::placeholder { color: var(--text-muted, rgba(0,0,0,0.45)); }
+.dropdown-search-input:focus {
+  outline: none;
+  border-color: rgba(59,130,246,0.9);
+  box-shadow: 0 6px 20px rgba(2,6,23,0.06);
+  background: var(--input-bg-focus, rgba(255,255,255,0.02));
+}
+
+/* Slightly elevate first option when search is active */
+.mode-dropdown .flag-option,
+.indicators-dropdown .flag-option {
+  transition: background 120ms ease, color 120ms ease;
+}
+
+/* Empty state style */
+.flag-empty { text-align: center; font-size: 13px; color: var(--text-muted); }
+
+/* Dark theme overrides for search input */
+body.dark .dropdown-search-input,
+html.dark .dropdown-search-input,
+[data-theme="dark"] .dropdown-search-input,
+.dark .dropdown-search-input {
+  background: var(--input-bg-dark, rgba(255,255,255,0.03));
+  border-color: rgba(255,255,255,0.08);
+  color: var(--text-primary, #fff);
+}
+
+body.dark .dropdown-search-input::placeholder,
+html.dark .dropdown-search-input::placeholder,
+[data-theme="dark"] .dropdown-search-input::placeholder,
+.dark .dropdown-search-input::placeholder {
+  color: rgba(255,255,255,0.60);
+}
+
+/* Small tweak: ensure focus shadow is subtle in dark */
+body.dark .dropdown-search-input:focus,
+.dark .dropdown-search-input:focus {
+  box-shadow: 0 8px 30px rgba(2,6,23,0.18);
+}

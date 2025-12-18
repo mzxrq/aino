@@ -89,17 +89,9 @@ app.use('/node/seed', seedRoutes);
 const searchRoutes = require('./routes/searchRoutes');
 app.use('/node', searchRoutes);
 
-// Price calculation routes
-const priceRoutes = require('./routes/priceRoutes');
-app.use('/node/price', priceRoutes);
-
-// Bulk price calculation routes
-const priceBulkRoutes = require('./routes/priceBulkRoutes');
-app.use('/node/price', priceBulkRoutes);
-
-// Favorites routes (user-specific favorite stocks)
-const favoritesRoutes = require('./routes/favoritesRoute');
-app.use('/node/favorites', favoritesRoutes);
+// Activity logs route (for admin dashboard recent activity)
+const activityLogsRoutes = require('./routes/activityLogsRoute');
+app.use('/node/logs', activityLogsRoutes);
 
 /* =======================
    Basic Routes / Healthchecks

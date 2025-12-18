@@ -1,5 +1,6 @@
 import Swal from 'sweetalert2';
 import React, { useState, useCallback } from 'react';
+import { formatToUserTZSlash } from '../../utils/dateUtils';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
@@ -25,8 +26,9 @@ const modalButtonStyles = {
 const AnomaliesManagementPage = () => {
   const { user } = useAuth();
 
-  const [form, setForm] = useState({ id: null, ticker: '', date: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
+  const [form, setForm] = useState({ id: null, ticker: '', date: '', time: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
   const [editing, setEditing] = useState(null);
+  const [allowEditReadonly, setAllowEditReadonly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ const AnomaliesManagementPage = () => {
   };
 
   const cancelEdit = () => {
-    setForm({ id: null, ticker: '', date: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
+    setForm({ id: null, ticker: '', date: '', time: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
     setEditing(null);
     setModalOpen(false);
   };
@@ -55,9 +57,16 @@ const AnomaliesManagementPage = () => {
     }
     try {
       setLoading(true);
+      // combine date + time (local) into an ISO datetime string
+      let datetimeIso = null;
+      if (form.date) {
+        const timePart = form.time && String(form.time).trim() ? String(form.time).trim() : '00:00';
+        const local = new Date(`${form.date}T${timePart}:00`);
+        datetimeIso = local.toISOString();
+      }
       const payload = {
         ticker: form.ticker,
-        datetime: form.date,
+        datetime: datetimeIso,
         close: form.value === '' ? 0 : Number(form.value),
         volume: form.volume === '' || form.volume === undefined ? 0 : Number(form.volume),
         status: form.status || 'new',
@@ -94,6 +103,17 @@ const AnomaliesManagementPage = () => {
         status: form.status || 'new',
         updatePerson: user?.username || ''
       };
+      if (allowEditReadonly) {
+        if (form.date) {
+          const timePart = form.time && String(form.time).trim() ? String(form.time).trim() : '00:00';
+          const local = new Date(`${form.date}T${timePart}:00`);
+          payload.datetime = local.toISOString();
+        }
+        if (form.value !== undefined) payload.close = form.value === '' ? 0 : Number(form.value);
+        if (form.volume !== undefined) payload.volume = form.volume === '' ? 0 : Number(form.volume);
+        if (form.companyName) payload.companyName = form.companyName;
+        if (form.ticker) payload.ticker = form.ticker;
+      }
       const res = await fetch(`${API_BASE}/node/anomalies/${targetId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
@@ -107,10 +127,25 @@ const AnomaliesManagementPage = () => {
   }
 
   const startEdit = (item) => {
+    // parse datetime into local date and time for editing
+    const dtRaw = item.datetime || item.date || '';
+    let dateOnly = '';
+    let timeOnly = '';
+    if (dtRaw) {
+      try {
+        const d = new Date(dtRaw);
+        const pad = (n) => String(n).padStart(2, '0');
+        dateOnly = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        timeOnly = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } catch (err) {
+        dateOnly = String(dtRaw).slice(0, 10);
+      }
+    }
     setForm({
       id: item._id || item.id,
       ticker: item.ticker || '',
-      date: item.datetime || item.date || '',
+      date: dateOnly || '',
+      time: timeOnly || '',
       value: (item.close ?? item.value) || '',
       note: item.note || '',
       companyName: item.companyName || item.name || '',
@@ -118,6 +153,7 @@ const AnomaliesManagementPage = () => {
       status: item.status || 'new'
     });
     setEditing(item);
+    setAllowEditReadonly(false);
     setModalOpen(true);
     setTimeout(() => {
       const input = document.querySelector('.modal input[name="ticker"]');
@@ -146,7 +182,8 @@ const AnomaliesManagementPage = () => {
   function openCreate() {
     const today = new Date();
     const iso = today.toISOString().slice(0,10);
-    setForm({ id: null, ticker: '', date: iso, value: '', note: '', companyName: '', volume: '', status: 'new' });
+    const hhmm = today.toTimeString().slice(0,5);
+    setForm({ id: null, ticker: '', date: iso, time: hhmm, value: '', note: '', companyName: '', volume: '', status: 'new' });
     setEditing(null);
     setModalOpen(true);
     setTimeout(() => {
@@ -163,7 +200,22 @@ const AnomaliesManagementPage = () => {
     }
   }
 
-  function fmtDate(d) { if (!d) return '-'; try { return (''+d).slice(0,10); } catch { return d; } }
+  function fmtDate(d) {
+    if (!d) return '-';
+    try {
+      const raw = String(d).trim();
+      const tz = (user && user.timeZone) || undefined;
+      // If input is date-only (YYYY-MM-DD or YYYY/MM/DD) show only the date part
+      if (/^\d{4}[-\/]\d{2}[-\/]\d{2}$/.test(raw)) {
+        const s = formatToUserTZSlash(raw, tz);
+        return ('' + s).split(' ')[0] || s;
+      }
+      // otherwise show full user-timezone datetime
+      return formatToUserTZSlash(raw, tz);
+    } catch {
+      return String(d);
+    }
+  }
   function fmtClose(v) { if (v === null || v === undefined || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return '-'; return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n); }
   function fmtVolume(v) { if (v === null || v === undefined || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return '-'; return new Intl.NumberFormat().format(n); }
 
@@ -230,11 +282,15 @@ const AnomaliesManagementPage = () => {
         <div className="form-grid">
           {editing ? (
             <>
+              <label className="form-field" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={allowEditReadonly} onChange={(e) => setAllowEditReadonly(e.target.checked)} />
+                <span style={{ marginLeft: 6 }}>Allow editing readonly fields</span>
+              </label>
               <label className="form-field"><span>Ticker</span><input className="input-readonly" value={form.ticker} readOnly /></label>
-              <label className="form-field"><span>Company</span><input className="input-readonly" value={form.companyName || '-'} readOnly /></label>
-              <label className="form-field"><span>Close Price</span><input className="input-readonly" value={fmtClose(form.value)} readOnly /></label>
-              <label className="form-field"><span>Volume</span><input className="input-readonly" value={fmtVolume(form.volume)} readOnly /></label>
-              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span><input className="input-readonly" value={fmtDate(form.date)} readOnly /></label>
+              <label className="form-field"><span>Company</span>{allowEditReadonly ? <input name="companyName" value={form.companyName || ''} onChange={handleChange} /> : <input className="input-readonly" value={form.companyName || '-'} readOnly />}</label>
+              <label className="form-field"><span>Close Price</span>{allowEditReadonly ? <input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} /> : <input className="input-readonly" value={fmtClose(form.value)} readOnly />}</label>
+              <label className="form-field"><span>Volume</span>{allowEditReadonly ? <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} /> : <input className="input-readonly" value={fmtVolume(form.volume)} readOnly />}</label>
+              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span>{allowEditReadonly ? (<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input name="date" type="date" value={form.date} onChange={handleChange} /><input name="time" type="time" value={form.time || ''} onChange={handleChange} /></div>) : <input className="input-readonly" value={fmtDate(form.date)} readOnly />}</label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
               <label className="form-field"><span>Status</span><DropdownSelect value={form.status || ''} onChange={(v) => setForm((s) => ({ ...s, status: v }))} placeholder="Select status" options={SELECT_OPTIONS_STATUS} /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Analyst Note</span><textarea className="textarea" value={form.note || ''} onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))} placeholder="Add comments about this anomaly..." /></label>
@@ -246,6 +302,7 @@ const AnomaliesManagementPage = () => {
               <label className="form-field"><span>Close Price</span><input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder="Close price" /></label>
               <label className="form-field"><span>Volume</span><input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder="Volume" /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span><input name="date" type="date" value={form.date} onChange={handleChange} /></label>
+              <label className="form-field"><span>Time</span><input name="time" type="time" value={form.time} onChange={handleChange} /></label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
               <label className="form-field"><span>Status</span><DropdownSelect value={form.status || 'new'} onChange={(v) => setForm((s) => ({ ...s, status: v }))} options={SELECT_OPTIONS_STATUS} /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Analyst Note</span><textarea name="note" className="textarea" value={form.note || ''} onChange={handleChange} placeholder="Add comments about this anomaly..." /></label>

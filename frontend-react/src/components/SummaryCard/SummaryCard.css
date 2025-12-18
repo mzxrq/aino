@@ -1,0 +1,112 @@
+.summary-card {
+  padding: clamp(8px, 1.5vw, 20px);
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  background: var(--card-bg, #ffffff) !important;
+  color: var(--card-text, #111827) !important;
+  min-width: 0; /* allow flex/grid children to control sizing */
+  width: auto;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+.summary-label {
+  font-size: clamp(12px, 1.6vw, 14px);
+  color: var(--card-subtext, #6b7280);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.summary-value {
+  font-size: clamp(20px, 4vw, 36px);
+  font-weight: 700;
+  color: var(--card-value, #111827) !important;
+  text-align: center;
+  width: 100%;
+  line-height: 1.05;
+}
+
+.summary-week {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary) !important;
+}
+
+/* Only two theme variants: light and dark */
+
+.theme-light,
+.theme-dark {
+  /* Use global tokens defined in src/css/index.css (:root or body.dark) */
+  background: var(--card-bg, #ffffff) !important;
+  color: var(--text-primary, #111827) !important;
+  box-shadow: var(--shadow-card, 0 4px 6px rgba(0,0,0,0.08)) !important;
+}
+.theme-light .summary-label,
+.theme-dark .summary-label { color: var(--text-secondary) !important; }
+.theme-light .summary-value,
+.theme-dark .summary-value { color: var(--text-primary) !important; }
+
+/* indicator shown top-right with arrow and delta */
+.summary-indicator {
+  position: static;
+  margin-top: 12px;
+  font-size: clamp(11px, 1.6vw, 13px);
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0.95;
+  white-space: nowrap; /* keep indicator on a single line */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.summary-indicator.up {
+  background: rgba(16,185,129,0.12) !important;
+  color: var(--success, #16a34a) !important;
+  border: 1px solid rgba(16,185,129,0.18) !important;
+}
+.summary-indicator.down {
+  background: rgba(220,53,69,0.08) !important;
+  color: var(--danger, #DC2626) !important;
+  border: 1px solid rgba(220,53,69,0.12) !important;
+}
+.summary-indicator.neutral {
+  background: rgba(148,163,184,0.06) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid rgba(148,163,184,0.08) !important;
+}
+
+/* utility to slightly increase visual separation when multiple cards wrap */
+.summary-card + .summary-card { margin-left: 0; }
+
+/* Small screens: ensure compact sizing */
+@media (max-width: 600px) {
+  .summary-card { padding: 10px; }
+  .summary-label { font-size: 12px; }
+  .summary-value { font-size: 20px; }
+  .summary-indicator { margin-top: 8px; }
+}
+
+/* On wide/fullscreen layouts, make summary cards a fixed width to avoid resizing
+   when the viewport is large and cards are laid out in a single row. Adjust the
+   value to taste (220px is a conservative default). */
+@media (min-width: 1200px) {
+  .summary-card {
+    flex: 0 0 220px;
+    max-width: 220px;
+    min-width: 220px;
+  }
+  /* Keep a positioning context and cap indicator width to avoid overflow */
+  .summary-card { position: relative; }
+  .summary-card .summary-indicator {
+    max-width: calc(220px - 40px); /* account for card padding */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+

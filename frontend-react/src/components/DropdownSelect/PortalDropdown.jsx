@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import './PortalDropdown.css';
 
 // Simple portal dropdown that positions itself relative to an anchor DOMRect
 export default function PortalDropdown({ anchorRect, align = 'right', offsetY = 8, children, onClose, className }) {

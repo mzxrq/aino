@@ -5,6 +5,7 @@
  */
 
 const anomaliesService = require("../services/anomaliesService");
+const { logActivity } = require('../services/logActivity');
 
 /**
  * Create a new anomaly
@@ -13,6 +14,14 @@ const anomaliesService = require("../services/anomaliesService");
 const createAnomaly = async (req, res) => {
   try {
     const anomaly = await anomaliesService.createAnomaly(req.body);
+
+        const log = await logActivity({
+      type: 'Create',
+      collection: 'anomalies',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(201).json({
       success: true,
       data: anomaly,
@@ -74,6 +83,14 @@ const getAnomalyById = async (req, res) => {
 const updateAnomaly = async (req, res) => {
   try {
     const anomaly = await anomaliesService.updateAnomaly(req.params.id, req.body);
+
+    await logActivity({
+      type: 'Update',
+      collection: 'anomalies',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(200).json({
       success: true,
       data: anomaly,
@@ -94,6 +111,14 @@ const updateAnomaly = async (req, res) => {
 const deleteAnomaly = async (req, res) => {
   try {
     await anomaliesService.deleteAnomaly(req.params.id);
+
+     await logActivity({
+      type: 'Delete',
+      collection: 'anomalies',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(200).json({
       success: true,
       message: "Anomaly deleted successfully",
@@ -114,6 +139,14 @@ const deleteAnomaly = async (req, res) => {
 const markAsSent = async (req, res) => {
   try {
     const anomaly = await anomaliesService.markAsSent(req.params.id);
+
+      await logActivity({
+      type: 'Update',
+      collection: 'anomalies',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(200).json({
       success: true,
       data: anomaly,
@@ -162,6 +195,14 @@ const bulkCreateAnomalies = async (req, res) => {
     }
 
     const result = await anomaliesService.bulkCreateAnomalies(req.body);
+
+        await logActivity({
+      type: 'Create',
+      collection: 'anomalies',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(201).json({
       success: true,
       message: `${result.insertedCount} anomalies created`,

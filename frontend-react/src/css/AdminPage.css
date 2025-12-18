@@ -1272,7 +1272,7 @@ th {
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--bg-surface);
-  color: var(--text-main);
+  color: var(--text-primary);
   border: 1px solid var(--border);
   display: inline-flex;
   align-items: center;
@@ -1328,55 +1328,10 @@ th {
   background: var(--scroll-thumb-hover);
 }
 
-/* Dark theme overrides for portal scrollbar */
-body.dark .mode-dropdown,
-html.dark .mode-dropdown,
-[data-theme="dark"] .mode-dropdown,
-.dark .mode-dropdown,
-body.dark .indicators-dropdown,
-.dark .indicators-dropdown,
-body.dark .custom-select-portal,
-.dark .custom-select-portal {
-  --scroll-track: rgba(255,255,255,0.04);
-  --scroll-thumb: rgba(255,255,255,0.10);
-  --scroll-thumb-hover: rgba(255,255,255,0.18);
-}
 
-.mode-dropdown .flag-option,
-.indicators-dropdown .flag-option,
-.custom-select-list .flag-option,
-.flag-option {
-  padding: 10px 14px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text-main);
-  width: 100%;
-}
-.mode-dropdown .flag-option:hover,
-.flag-option:hover { background: var(--bg-subtle); }
-.mode-dropdown .flag-option.active,
-.flag-option.active,
-.flag-option[aria-selected="true"] {
-  background: var(--primary-light);
-  color: var(--primary);
-  font-weight: 600;
-}
 
-/* Dark-mode overrides for DropdownSelect portal/options */
-body.dark .mode-dropdown,
-html.dark .mode-dropdown,
-[data-theme="dark"] .mode-dropdown,
-.dark .mode-dropdown,
-body.dark .indicators-dropdown,
-.dark .indicators-dropdown,
-body.dark .custom-select-portal,
-.dark .custom-select-portal {
-  background: var(--card-bg) !important;
 
-}
+
 
 /* Force Delete button to be vivid red in dark mode (very high specificity) */
 body.dark .anomalies-page .modal .btn.btn-small.btn-danger,
@@ -1530,3 +1485,17 @@ html.dark .badge.role-user,
 body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-secondary { background: #10B981 !important; color:#fff !important; }
 body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-danger { background: #DC2626 !important; color:#fff !important; }
 body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #2563EB !important; color:#fff !important; }
+
+/* Compact desktop variant: slightly reduce spacing and font sizes on large screens */
+@media (min-width: 1200px) {
+  html, body { font-size: 14px; }
+  .admin-header h2 { font-size: 22px; margin-bottom: 6px; }
+  .admin-header { margin-bottom: 20px; gap: 12px; }
+  .admin-actions { gap: 8px; }
+  .btn { padding: 8px 12px; font-size: 13px; border-radius: 8px; }
+  .card-table th, .card-table td { padding: 8px 8px; }
+  /* slightly smaller summary cards on very wide screens */
+  .summary-card { flex: 0 0 200px; max-width: 200px; min-width: 200px; }
+  /* tighten table header spacing */
+  thead { border-bottom-width: 1px; }
+}

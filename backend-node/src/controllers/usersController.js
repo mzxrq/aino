@@ -20,6 +20,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { getDb } = require("../config/db");
 const usersService = require("../services/usersService");
+const { logActivity } = require('../services/logActivity');
 
 const USERS_FILE = path.join(__dirname, "..", "cache", "users.json");
 const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
@@ -282,6 +283,43 @@ exports.addPassword = async (req, res) => {
   }
 };
 
+/** -------------------- ADMIN: CHANGE OTHER USER'S PASSWORD -------------------- */
+exports.adminChangePassword = async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const { newPassword } = req.body || {};
+    if (!targetId || !newPassword) return res.status(400).json({ error: 'Missing user id or newPassword' });
+    if (String(newPassword).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    const usersCol = await getUserCollection();
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    if (usersCol) {
+      const { ObjectId } = require('mongodb');
+      const r = await usersCol.updateOne({ _id: new ObjectId(targetId) }, { $set: { password: hashed } });
+      if (!r.matchedCount) return res.status(404).json({ error: 'User not found' });
+    } else {
+      const users = readUsers();
+      const idx = users.findIndex((u) => u.id === targetId);
+      if (idx === -1) return res.status(404).json({ error: 'User not found' });
+      users[idx].password = hashed;
+      writeUsers(users);
+    }
+
+    // Log admin action
+    try {
+      await logActivity({ type: 'Update', collection: 'users', target: targetId, meta: { field: 'password' } });
+    } catch (e) {
+      console.warn('logActivity failed in adminChangePassword:', e && e.message);
+    }
+
+    return res.json({ message: 'Password updated' });
+  } catch (err) {
+    console.error('adminChangePassword error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 /** -------------------- GET PROFILE -------------------- */
 exports.getProfile = async (req, res) => {
   const userId = req.userId || req.query.userId || req.body.userId;
@@ -337,7 +375,32 @@ exports.getProfile = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const doc = req.body || {};
+    const { email, username } = doc;
+    // Validate uniqueness: prefer DB check, fall back to file cache
+    try {
+      const usersCol = await getUserCollection();
+      if (usersCol) {
+        const existing = await usersCol.findOne({ $or: [{ email: email || null }, { username: username || null }] });
+        if (existing) {
+          if (existing.email === email) return res.status(400).json({ success: false, error: 'Email already registered' });
+          return res.status(400).json({ success: false, error: 'Username already taken' });
+        }
+      } else {
+        const users = readUsers();
+        if (email && users.some((u) => u.email === email)) return res.status(400).json({ success: false, error: 'Email already registered' });
+        if (username && users.some((u) => u.username === username)) return res.status(400).json({ success: false, error: 'Username already taken' });
+      }
+    } catch (chkErr) {
+      console.warn('createUser uniqueness check failed, continuing:', chkErr && chkErr.message);
+    }
     const u = await usersService.createUser(doc);
+
+                await logActivity({
+      type: 'Create',
+      collection: 'users',
+      target: req.body.username || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
     return res.status(201).json({ success: true, data: u });
   } catch (err) {
     console.error("createUser error:", err);
@@ -385,6 +448,13 @@ exports.updateUser = async (req, res) => {
     // 2. Execute the service call
     const updated = await usersService.updateUser(id, body);
     
+                await logActivity({
+      type: 'Update',
+      collection: 'users',
+      target: req.body.username || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     return res.json({ success: true, data: updated });
     
   } catch (err) {
@@ -399,6 +469,16 @@ exports.deleteUser = async (req, res) => {
   try {
     const id = req.params.id;
     await usersService.deleteUser(id);
+
+    // Safely derive target and fields from req.body (may be undefined on DELETE)
+    try {
+      const target = req.body && req.body.username ? req.body.username : req.params.id;
+      const fields = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];
+      await logActivity({ type: 'Delete', collection: 'users', target, meta: { fields } });
+    } catch (logErr) {
+      console.warn('logActivity failed in deleteUser:', logErr && logErr.message);
+    }
+
     return res.json({ success: true, message: "User deleted" });
   } catch (err) {
     console.error("deleteUser error:", err);
@@ -416,6 +496,14 @@ exports.bulkCreateUsers = async (req, res) => {
         .status(400)
         .json({ success: false, error: "No documents provided" });
     const r = await usersService.bulkCreateUsers(docs);
+
+            await logActivity({
+      type: 'Create',
+      collection: 'users',
+      target: req.body.username || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     return res.status(201).json({ success: true, data: r });
   } catch (err) {
     console.error("bulkCreateUsers error:", err);

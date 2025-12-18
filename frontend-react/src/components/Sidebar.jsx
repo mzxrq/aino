@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 const defaultMenu = [
   // Admin management links
+  { key: "admin-dashboard", label: "Admin: Dashboard", href: "/admin-dashboard" },
   { key: "admin-anomalies", label: "Admin: Anomalies", href: "/anomalies" },
   { key: "admin-users", label: "Admin: Users", href: "/users" },
   { key: "admin-subscribers", label: "Admin: Subscribers", href: "/subscribers" },

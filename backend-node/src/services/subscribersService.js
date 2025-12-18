@@ -50,34 +50,56 @@ const addOrUpdateSubscriber = async (id, tickers) => {
 
     if (existingSubscriber) {
       const updatedTickers = Array.from(new Set([...(existingSubscriber.tickers || []), ...tickers]));
-      await subscribersModel.updateSubscriber(query, { tickers: updatedTickers });
+      await subscribersModel.updateSubscriber(query, { tickers: updatedTickers, updatedAt: new Date() });
 
-      // Try to update marketlists if DB available
+      // Try to update marketlists if DB available: mark existing tickers active, create missing tickers as inactive
       try {
         const db = getDb();
         const tickerCollection = db.collection("marketlists");
-        await tickerCollection.updateMany(
-          { ticker: { $in: tickers } },
-          { $setOnInsert: { status: "active" } },
-          { upsert: true }
-        );
+        const existingDocs = await tickerCollection.find({ ticker: { $in: tickers } }).project({ ticker: 1 }).toArray();
+        const existingTickers = (existingDocs || []).map((d) => d.ticker).filter(Boolean);
+        if (existingTickers.length > 0) {
+          await tickerCollection.updateMany(
+            { ticker: { $in: existingTickers } },
+            { $set: { status: 'active', updatedAt: new Date() } }
+          );
+        }
+        const missing = tickers.filter((t) => !existingTickers.includes(t));
+        for (const t of missing) {
+          await tickerCollection.updateOne(
+            { ticker: t },
+            { $setOnInsert: { status: 'inactive', createdAt: new Date(), updatedAt: new Date() } },
+            { upsert: true }
+          );
+        }
       } catch (e) {
         // ignore marketlist update failures (still proceed)
       }
 
       return { message: "Subscriber tickers updated", tickers: updatedTickers };
     } else {
-      const doc = { tickers, _id: query._id instanceof ObjectId ? query._id : id };
+      const doc = { tickers, _id: query._id instanceof ObjectId ? query._id : id , createdAt: new Date(), updatedAt: new Date()};
       await subscribersModel.createSubscriber(doc);
 
       try {
         const db = getDb();
         const tickerCollection = db.collection("marketlists");
-        await tickerCollection.updateMany(
-          { ticker: { $in: tickers } },
-          { $setOnInsert: { status: "inactive" } },
-          { upsert: true }
-        );
+        const existingDocs = await tickerCollection.find({ ticker: { $in: tickers } }).project({ ticker: 1 }).toArray();
+        const existingTickers = (existingDocs || []).map((d) => d.ticker).filter(Boolean);
+        if (existingTickers.length > 0) {
+          await tickerCollection.updateMany(
+            { ticker: { $in: existingTickers } },
+            { $set: { status: 'active', updatedAt: new Date() } }
+          );
+        }
+        const missing = tickers.filter((t) => !existingTickers.includes(t));
+        for (const t of missing) {
+          await tickerCollection.updateOne(
+            { ticker: t },
+            { $setOnInsert: { status: 'inactive', createdAt: new Date(), updatedAt: new Date() } },
+            { upsert: true }
+          );
+        }
       } catch (e) {
         // ignore
       }
@@ -90,11 +112,11 @@ const addOrUpdateSubscriber = async (id, tickers) => {
     const existing = subs.find((s) => s.id === id);
     if (existing) {
       const updatedTickers = Array.from(new Set([...(existing.tickers || []), ...tickers]));
-      subs.forEach((s) => { if (s.id === id) s.tickers = updatedTickers; });
+      subs.forEach((s) => { if (s.id === id) { s.tickers = updatedTickers; s.updatedAt = new Date(); } });
       await writeSubscriptionsFile(subs);
       return { message: "Subscriber tickers updated", tickers: updatedTickers };
     } else {
-      const newSub = { id, tickers };
+      const newSub = { id, tickers, createdAt: new Date(), updatedAt: new Date() };
       subs.push(newSub);
       await writeSubscriptionsFile(subs);
       return { message: "Subscriber added", tickers };
@@ -109,7 +131,7 @@ const deleteTickers = async (id, tickers) => {
     if (!existingSubscriber) throw new Error("Subscriber not found");
 
     const updatedTickers = (existingSubscriber.tickers || []).filter((t) => !tickers.includes(t));
-    await subscribersModel.updateSubscriber(query, { tickers: updatedTickers });
+    await subscribersModel.updateSubscriber(query, { tickers: updatedTickers, updatedAt: new Date() });
 
     return { message: "Tickers removed", tickers: updatedTickers };
   } catch (err) {
@@ -119,6 +141,7 @@ const deleteTickers = async (id, tickers) => {
     const existing = subs[idx];
     const updatedTickers = (existing.tickers || []).filter((t) => !tickers.includes(t));
     subs[idx].tickers = updatedTickers;
+    subs[idx].updatedAt = new Date();
     await writeSubscriptionsFile(subs);
     return { message: "Tickers removed", tickers: updatedTickers };
   }

@@ -5,6 +5,8 @@
  */
 
 const cacheService = require("../services/cacheService");
+const { logActivity } = require('../services/logActivity');
+
 
 /**
  * Create a new cache entry
@@ -13,6 +15,14 @@ const cacheService = require("../services/cacheService");
 const createCache = async (req, res) => {
   try {
     const cache = await cacheService.createCache(req.body);
+
+            await logActivity({
+      type: 'Create',
+      collection: 'cache',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(201).json({
       success: true,
       data: cache,
@@ -116,6 +126,14 @@ const getCacheByTicker = async (req, res) => {
 const updateCache = async (req, res) => {
   try {
     const cache = await cacheService.updateCache(req.params.id, req.body);
+
+            await logActivity({
+      type: 'Update',
+      collection: 'cache',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(200).json({
       success: true,
       data: cache,
@@ -136,6 +154,14 @@ const updateCache = async (req, res) => {
 const deleteCache = async (req, res) => {
   try {
     await cacheService.deleteCache(req.params.id);
+
+                await logActivity({
+      type: 'Delete',
+      collection: 'cache',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(200).json({
       success: true,
       message: "Cache deleted successfully",
@@ -254,6 +280,14 @@ const bulkCreateCache = async (req, res) => {
     }
 
     const result = await cacheService.bulkCreateCache(req.body);
+
+            await logActivity({
+      type: 'Create',
+      collection: 'cache',
+      target: req.body.ticker || req.params.id,
+      meta: { fields: Object.keys(req.body) },
+    });
+
     res.status(201).json({
       success: true,
       message: `${result.insertedCount} cache entries created`,
