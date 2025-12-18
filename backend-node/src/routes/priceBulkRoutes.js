@@ -67,17 +67,39 @@ router.post('/bulk', async (req, res) => {
       };
     };
 
-    // Build comma-separated ticker string for Python bulk fetch
-    const tickerStr = tickers.map(t => String(t).toUpperCase()).join(',');
-    const pyUrl = `http://localhost:5000/py/chart?ticker=${encodeURIComponent(tickerStr)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`;
+    // First attempt: load payloads from Node cache to avoid hitting Python for every request
+    const cacheService = require('../services/cacheService');
+    const upperTickers = tickers.map(t => String(t).toUpperCase());
+    const cachedMap = {};
+    const missing = [];
+
+    for (const t of upperTickers) {
+      try {
+        const cacheId = `chart::${t}::${period}::${interval}`;
+        const cacheDoc = await cacheService.getCacheByTickerAndTimeframe(t, interval, period).catch(() => null);
+        if (cacheDoc && cacheDoc.payload) {
+          cachedMap[t] = cacheDoc.payload;
+        } else {
+          missing.push(t);
+        }
+      } catch (err) {
+        // If cache lookup errors, mark as missing and continue
+        missing.push(t);
+      }
+    }
 
     let pyData = {};
-    try {
-      const { data } = await axios.get(pyUrl, { timeout: 30000 });
-      pyData = data || {};
-    } catch (e) {
-      console.error('Bulk Python fetch error:', e.message);
-      // Continue with empty data - we'll return nulls for failed tickers
+    // Only call Python for missing tickers to reduce load and avoid long requests
+    if (missing.length > 0) {
+      try {
+        const tickerStr = missing.join(',');
+        const pyUrl = `http://localhost:5000/py/chart?ticker=${encodeURIComponent(tickerStr)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`;
+        const { data } = await axios.get(pyUrl, { timeout: 10000 }); // shorter timeout for bulk
+        pyData = data || {};
+      } catch (e) {
+        console.error('Bulk Python fetch error:', e.message);
+        // Continue: we'll return nulls for tickers not in cache or pyData
+      }
     }
 
     // Build results map

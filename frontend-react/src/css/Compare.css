@@ -1,0 +1,15 @@
+.compare-shell{padding:16px}
+.compare-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.compare-controls{display:flex;gap:8px;align-items:center}
+.compare-controls input{padding:6px 8px;border:1px solid var(--border);border-radius:4px}
+.ticker-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{background:var(--bg-secondary);padding:6px 8px;border-radius:16px;display:flex;align-items:center;gap:8px}
+.compare-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.compare-col{padding:12px}
+.col-head{margin-bottom:6px}
+.col-title{font-weight:600}
+.col-price{font-size:1.1rem;margin:6px 0}
+.col-chart{height:120px}
+.col-financials{margin-top:8px;font-size:0.9rem}
+.muted{color:var(--text-secondary)}
+.small{font-size:0.85rem}

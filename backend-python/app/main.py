@@ -29,11 +29,15 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://host.docker.internal:5173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:5050",
 ]
+
+# Explicit CORS listing so responses include Access-Control-Allow-Origin reliably.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=".*",  # allow any origin (useful for local dev fallbacks)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -11,7 +11,7 @@ const nodeMailer = require("nodemailer");
 
 // Configure the transporter using Gmail (or environment variables)
 const transporter = nodeMailer.createTransport({
-  service: "gmail",
+  service: "smtp-mail.outlook.com",
   auth: {
     user: process.env.EMAIL_USER || undefined,
     pass: process.env.EMAIL_PASS || undefined,

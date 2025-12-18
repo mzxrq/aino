@@ -7,6 +7,7 @@ import numpy as np
 import yfinance as yf
 import joblib as jo
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -33,6 +34,12 @@ def get_model(market: str):
     return ModelManager.get_model(market)
 
 features_columns = os.getenv("MODEL_FEATURES", "return_1,return_3,return_6,zscore_20,ATR_14,bb_width,RSI,MACD,MACD_hist,VWAP,body,upper_wick,lower_wick,wick_ratio").split(',')
+
+# Tunable adaptive detection parameters (env override)
+ADAPTIVE_MIN_SAMPLES = int(os.getenv("ADAPTIVE_MIN_SAMPLES", "20"))
+ADAPTIVE_ZSCORE_THRESHOLD = float(os.getenv("ADAPTIVE_ZSCORE_THRESHOLD", "1.5"))
+_score_env = os.getenv("ADAPTIVE_SCORE_THRESHOLD", "")
+ADAPTIVE_SCORE_THRESHOLD = float(_score_env) if _score_env != "" else None
 
 
 def get_adaptive_contamination(df: pd.DataFrame, ticker: str) -> float:
@@ -689,10 +696,22 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
     X = df[features].dropna()
     if X.empty:
         return pd.DataFrame()
-    
+
+    # Avoid running adaptive detection on extremely small samples which cause overfitting
+    if len(X) < ADAPTIVE_MIN_SAMPLES:
+        logger.debug(f"{ticker}: Not enough samples for adaptive detection (have {len(X)}, need {ADAPTIVE_MIN_SAMPLES})")
+        return pd.DataFrame()
+
     # Get adaptive contamination based on this stock's volatility
     contamination = get_adaptive_contamination(df, ticker)
-    
+
+    # Scale features to avoid any single feature dominating the IsolationForest distance metric
+    try:
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+    except Exception:
+        X_scaled = X.values
+
     # Create new IsolationForest with adaptive contamination
     # This DOES NOT require a pre-trained model - fits fresh on the data
     adaptive_model = IsolationForest(
@@ -700,20 +719,40 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         contamination=contamination,
         random_state=42
     )
-    
+
     try:
-        # Fit on the same data and predict (using features from pre-trained model)
-        adaptive_model.fit(X)
-        predictions = adaptive_model.predict(X)
+        # Fit on the scaled data and predict
+        adaptive_model.fit(X_scaled)
+        predictions = adaptive_model.predict(X_scaled)
         anomaly_mask = predictions == -1
-        
+        anomaly_scores = adaptive_model.score_samples(X_scaled)
+
         anomalies_df = df.iloc[X.index[anomaly_mask]].copy()
-        
+
         if not anomalies_df.empty:
+
+            anomalies_df['anomaly_score'] = anomaly_scores[anomaly_mask]
             logger.info(f"{ticker}: Found {len(anomalies_df)} anomalies with contamination={contamination:.2f}")
-            
+
+            # Post-filter: require a minimum absolute z-score to reduce false positives
+            if 'zscore_20' in anomalies_df.columns:
+                before = len(anomalies_df)
+                anomalies_df = anomalies_df[anomalies_df['zscore_20'].abs() >= ADAPTIVE_ZSCORE_THRESHOLD]
+                after = len(anomalies_df)
+                logger.debug(f"{ticker}: Post-filtered anomalies by |zscore_20|>={ADAPTIVE_ZSCORE_THRESHOLD}: {before} -> {after}")
+
+            # Optional: filter by anomaly score (lower scores are more anomalous for IsolationForest)
+            if ADAPTIVE_SCORE_THRESHOLD is not None:
+                try:
+                    before = len(anomalies_df)
+                    anomalies_df = anomalies_df[anomalies_df['anomaly_score'] <= ADAPTIVE_SCORE_THRESHOLD]
+                    after = len(anomalies_df)
+                    logger.debug(f"{ticker}: Post-filtered anomalies by anomaly_score<={ADAPTIVE_SCORE_THRESHOLD}: {before} -> {after}")
+                except Exception:
+                    logger.debug("Failed applying ADAPTIVE_SCORE_THRESHOLD filter", exc_info=True)
+
             # Save to DB
-            if db is not None:
+            if db is not None and not anomalies_df.empty:
                 for _, row in anomalies_df.iterrows():
                     query = {
                         "$or": [
@@ -721,20 +760,23 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                             {"Ticker": ticker, "Datetime": row.get('Datetime')}
                         ]
                     }
-                    if db.anomalies.count_documents(query) == 0:
-                        doc = {
-                            "ticker": ticker,
-                            "datetime": row.get('Datetime'),
-                            "close": float(row.get('Close', 0)),
-                            "volume": int(row.get('Volume', 0)) if pd.notna(row.get('Volume')) else 0,
-                            "sent": False,
-                            "status": "new",
-                            "created_at": datetime.utcnow()
-                        }
-                        db.anomalies.insert_one(doc)
-        
+                    try:
+                        if db.anomalies.count_documents(query) == 0:
+                            doc = {
+                                "ticker": ticker,
+                                "datetime": row.get('Datetime'),
+                                "close": float(row.get('Close', 0)),
+                                "volume": int(row.get('Volume', 0)) if pd.notna(row.get('Volume')) else 0,
+                                "sent": False,
+                                "status": "new",
+                                "created_at": datetime.utcnow()
+                            }
+                            db.anomalies.insert_one(doc)
+                    except Exception:
+                        logger.debug("Failed inserting anomaly into DB", exc_info=True)
+
         return anomalies_df
-    
+
     except Exception as e:
         logger.error(f"Adaptive detection failed for {ticker}: {e}")
         return pd.DataFrame()

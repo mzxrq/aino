@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import PortalDropdown from './PortalDropdown/PortalDropdown';
 
 /**
@@ -56,6 +57,15 @@ export default function ChartCardButtons({
           <line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
+
+      {/* Company Page Button */}
+      <Link to={`/company/${ticker}`} className="chart-btn chart-btn-company" title="Open company profile" aria-label="Open company profile">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 21h18v-8H3v8z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M7 21V10a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M12 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </Link>
 
       {/* Chart Mode Button */}
       <div className="chart-btn-group">

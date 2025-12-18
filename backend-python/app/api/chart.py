@@ -16,6 +16,85 @@ from services.train_service import load_dataset, data_preprocessing, detect_anom
 router = APIRouter()
 
 
+def _safe_to_datetime_series(series):
+    """Convert a pandas Series of mixed datetime-like values to timezone-aware datetimes.
+
+    Handles dict-like Mongo Extended JSON (e.g. {'$date': ...}), nested dicts, numeric epochs,
+    and falls back to string parsing. Returns a pandas.DatetimeIndex/Series with utc tz and
+    coercion for invalid values.
+    """
+    import pandas as _pd
+
+    def _norm(v):
+        try:
+            if v is None:
+                return None
+            # Mongo extended JSON common shape
+            if isinstance(v, dict):
+                for k in ("$date", "date", "iso"):
+                    if k in v:
+                        return v[k]
+                # if the dict looks like {'$numberLong': '...'} treat as string
+                if len(v) == 1:
+                    return list(v.values())[0]
+                return str(v)
+            # numeric epoch
+            if isinstance(v, (int, float)):
+                # Treat large ints as milliseconds vs seconds heuristically
+                s = str(int(v))
+                if len(s) >= 13:
+                    # ms
+                    return int(v) / 1000.0
+                return int(v)
+            return v
+        except Exception:
+            return str(v)
+
+    vals = [_norm(x) for x in (series.tolist() if hasattr(series, 'tolist') else list(series))]
+    try:
+        return _pd.to_datetime(vals, utc=True, errors='coerce')
+    except Exception:
+        # last-resort: stringify then parse
+        try:
+            return _pd.to_datetime([str(x) for x in vals], utc=True, errors='coerce')
+        except Exception:
+            return _pd.to_datetime([], utc=True, errors='coerce')
+
+
+def _coalesce_duplicate_named_column(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """If `df` contains multiple columns with the same label `name`,
+    coalesce them into a single column by taking the first non-null
+    value per-row and return a new DataFrame with duplicates removed.
+    """
+    try:
+        if df is None or df.empty:
+            return df
+        cols = list(df.columns)
+        if cols.count(name) <= 1:
+            return df
+
+        # find all positions with the duplicate name
+        idxs = [i for i, c in enumerate(cols) if c == name]
+        sub = df.iloc[:, idxs]
+
+        def _first_non_null(row):
+            for v in row:
+                if pd.notna(v):
+                    return v
+            return None
+
+        newcol = sub.apply(_first_non_null, axis=1)
+
+        # keep all columns that are not the duplicate name
+        keep_cols = [c for c in cols if c != name]
+        df2 = df.loc[:, keep_cols].copy()
+        df2[name] = newcol
+        return df2
+    except Exception:
+        return df
+
+
+
 class ChartRequest(BaseModel):
     ticker: Union[str, List[str]] = Field(..., description="Ticker symbol or list of symbols")
     period: Optional[str] = Field(None, description="Period (e.g. 1mo, 5d)")
@@ -254,6 +333,14 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
     if df.empty:
         return {}
 
+    # defensive: coalesce duplicated columns that may arise from mixed DB schemas
+    try:
+        if anomalies is not None and not anomalies.empty:
+            anomalies = _coalesce_duplicate_named_column(anomalies, 'Close')
+            anomalies = _coalesce_duplicate_named_column(anomalies, 'Datetime')
+    except Exception:
+        pass
+
 
     # Ensure ISO8601 UTC timestamps for consistency (train_service now normalizes to UTC)
     try:
@@ -296,14 +383,60 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
             'SAR': _safe_list(df.get('SAR')),
             'EP': _safe_list(df.get('SAR_ep')),
         },
+        # Align anomaly marker y-values to the chart's Close via nearest timestamp merge
         'anomaly_markers': {
-            'dates': [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies['Datetime'].tolist()] if anomalies is not None and not anomalies.empty else [],
-            'y_values': [float(x) if pd.notna(x) else None for x in anomalies['Close'].tolist()] if anomalies is not None and not anomalies.empty else []
+            'dates': [],
+            'y_values': []
         },
         'Ticker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
         'price_change' : price_change,
         'pct_change' : pct_change
     }
+
+    # If anomalies present, align each anomaly datetime to the nearest chart datetime
+    try:
+        if anomalies is not None and not anomalies.empty and 'Datetime' in anomalies.columns:
+            # Normalize chart datetimes
+            try:
+                chart_dt = pd.to_datetime(df['Datetime'], utc=True, errors='coerce')
+            except Exception:
+                chart_dt = df['Datetime']
+
+            chart_merge = pd.DataFrame({'Datetime': chart_dt, 'Close_chart': df.get('Close')}).sort_values('Datetime')
+
+            # Normalize anomaly datetimes
+            try:
+                an_dt = _safe_to_datetime_series(anomalies['Datetime'])
+            except Exception:
+                an_dt = pd.to_datetime(anomalies['Datetime'], utc=True, errors='coerce')
+
+            an_df = pd.DataFrame({'Datetime': an_dt}).sort_values('Datetime')
+
+            # Compute a reasonable tolerance: twice median interval (fallback to 1 day)
+            try:
+                med = chart_merge['Datetime'].diff().median()
+                if pd.isna(med) or med <= pd.Timedelta(0):
+                    tol = pd.Timedelta(days=1)
+                else:
+                    tol = max(med * 2, pd.Timedelta(minutes=1))
+            except Exception:
+                tol = pd.Timedelta(days=1)
+
+            try:
+                merged = pd.merge_asof(an_df, chart_merge, on='Datetime', direction='nearest', tolerance=tol)
+                merged = merged.dropna(subset=['Close_chart'])
+                payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in merged['Datetime'].tolist()]
+                payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in merged['Close_chart'].tolist()]
+            except Exception:
+                # Fallback to best-effort original anomalies if merge_asof fails
+                try:
+                    payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies['Datetime'].tolist()]
+                    payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in anomalies.get('Close', anomalies.get('close', [])).tolist()]
+                except Exception:
+                    payload['anomaly_markers'] = {'dates': [], 'y_values': []}
+    except Exception:
+        # If anything unexpected happens, keep anomaly_markers empty to avoid misleading plotting
+        payload['anomaly_markers'] = {'dates': [], 'y_values': []}
 
 
     return payload
@@ -417,7 +550,9 @@ def _enrich_anomalies_from_db_if_missing(ticker: str, payload: Dict[str, Any]):
         if 'close' in anomalies_df.columns: rename_map['close'] = 'Close'
         if 'ticker' in anomalies_df.columns: rename_map['ticker'] = 'Ticker'
         anomalies_df = anomalies_df.rename(columns=rename_map)
-        anomalies_df['Datetime'] = pd.to_datetime(anomalies_df['Datetime'], utc=True, errors='coerce')
+        # Collapse duplicated 'Datetime' columns (can occur from mixed schemas)
+        anomalies_df = _coalesce_duplicate_named_column(anomalies_df, 'Datetime')
+        anomalies_df['Datetime'] = _safe_to_datetime_series(anomalies_df['Datetime'])
         anomalies_df = anomalies_df.dropna(subset=['Datetime']).sort_values('Datetime')
         
         logger.debug(f"Enriched {ticker} with {len(anomalies_df)} anomalies from window")
@@ -530,7 +665,9 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                 anomalies_df = anomalies_df.rename(columns=rename_map)
                 # Ensure datetime is datetime64 and sorted
                 if 'Datetime' in anomalies_df.columns:
-                    anomalies_df['Datetime'] = pd.to_datetime(anomalies_df['Datetime'], utc=True, errors='coerce')
+                    # Collapse duplicated 'Datetime' columns (can occur from mixed schemas)
+                    anomalies_df = _coalesce_duplicate_named_column(anomalies_df, 'Datetime')
+                    anomalies_df['Datetime'] = _safe_to_datetime_series(anomalies_df['Datetime'])
                     anomalies_df = anomalies_df.dropna(subset=['Datetime']).sort_values('Datetime')
 
         payload = _build_chart_response_for_ticker(df, anomalies_df)
@@ -606,16 +743,21 @@ def search_ticker(query: str) -> List[dict]:
 
 
 @router.get("/financials")
-def get_financials(ticker: str):
-    """GET /financials?ticker=... — return balance sheet, income statement (net income), and news via yfinance."""
+def get_financials(ticker: str, force: Optional[bool] = False):
+    """GET /financials?ticker=...&force=true — return yearly balance sheet, income statement, cashflow and news via yfinance.
+
+    Supports `force=true` to bypass cache and re-fetch from yfinance. Returns `fetched_at` (ISO string).
+    """
     if not ticker:
         raise HTTPException(status_code=400, detail="Query parameter 'ticker' is required")
     t = ticker.strip()
+    cache_key = f"financials::{t.upper()}"
+    # Try cache unless force requested
     try:
-        cache_key = f"financials::{t.upper()}"
-        cached = _load_from_cache(cache_key, 60 * 60 * 6)  # 6 hours
-        if cached:
-            return cached
+        if not force:
+            cached = _load_from_cache(cache_key, 60 * 60 * 24 * 7)  # 7 days
+            if cached:
+                return cached
     except Exception:
         logger.debug('financials cache lookup failed')
 
@@ -626,53 +768,247 @@ def get_financials(ticker: str):
             try:
                 if dframe is None:
                     return {}
+                # If it's a function (callable), try calling without kwargs
+                if callable(dframe):
+                    try:
+                        dframe = dframe()
+                    except Exception:
+                        return {}
                 if hasattr(dframe, 'fillna'):
                     dframe = dframe.fillna(0)
+                # If pandas-like object, convert to dict then normalize keys/values
                 if hasattr(dframe, 'to_dict'):
-                    return dframe.to_dict()
+                    try:
+                        raw = dframe.to_dict()
+                    except Exception:
+                        # fallback: try orient records
+                        try:
+                            raw = getattr(dframe, 'to_dict', lambda: {})()
+                        except Exception:
+                            raw = {}
+                    import numpy as _np
+                    import pandas as _pd
+
+                    def make_jsonable(o):
+                        if isinstance(o, dict):
+                            return {str(k): make_jsonable(v) for k, v in o.items()}
+                        if isinstance(o, (list, tuple)):
+                            return [make_jsonable(x) for x in o]
+                        # numpy scalars
+                        if isinstance(o, (_np.integer, _np.floating, _np.bool_)):
+                            try:
+                                return o.item()
+                            except Exception:
+                                return o
+                        # pandas NA
+                        try:
+                            if _pd.isna(o):
+                                return None
+                        except Exception:
+                            pass
+                        # pandas Timestamp / datetime
+                        try:
+                            if hasattr(o, 'isoformat'):
+                                return o.isoformat()
+                        except Exception:
+                            pass
+                        return o
+
+                    return make_jsonable(raw)
+                if isinstance(dframe, dict):
+                    return {str(k): v for k, v in dframe.items()}
                 return {}
             except Exception:
                 return {}
 
-        def extract_net_income(dframe):
+        def get_schema(obj):
+            """Return a list of column/header names for pandas-like or dict-like objects."""
             try:
-                if dframe is None:
+                if obj is None:
                     return []
-                df = dframe.fillna(0)
-                idx_match = [idx for idx in df.index if str(idx).strip().lower() in ('net income', 'netincome', 'net_income')]
-                if not idx_match:
-                    return []
-                series = df.loc[idx_match[0]]
-                items = []
-                for col in df.columns:
-                    val = series[col]
+                if callable(obj):
                     try:
-                        if val is None or (isinstance(val, float) and val != val):
-                            val = 0
-                        val = float(val)
+                        val = obj()
                     except Exception:
-                        continue
-                    items.append({'period': str(col), 'value': val})
-                return items
+                        return []
+                else:
+                    val = obj
+                # pandas DataFrame
+                try:
+                    import pandas as _pd
+                    if hasattr(val, 'columns'):
+                        return [str(c) for c in list(val.columns)]
+                except Exception:
+                    pass
+                # to_dict() keys
+                try:
+                    if hasattr(val, 'to_dict'):
+                        d = val.to_dict()
+                        if isinstance(d, dict):
+                            return [str(k) for k in list(d.keys())]
+                except Exception:
+                    pass
+                # dict-like
+                if isinstance(val, dict):
+                    return [str(k) for k in list(val.keys())]
+                return []
             except Exception:
                 return []
 
-        balance = df_to_dict_safe(getattr(yt, 'balance_sheet', None))
-        financials = df_to_dict_safe(getattr(yt, 'financials', None))
-        quarterly = df_to_dict_safe(getattr(yt, 'quarterly_financials', None))
-        income_stmt = getattr(yt, 'income_stmt', None)
-        net_income = extract_net_income(income_stmt)
-        news = getattr(yt, 'news', []) or []
+        def is_empty_obj(x):
+            try:
+                if x is None:
+                    return True
+                if isinstance(x, dict):
+                    return len(x) == 0
+                if isinstance(x, (list, tuple)):
+                    return len(x) == 0
+                if hasattr(x, 'empty'):
+                    try:
+                        return bool(x.empty)
+                    except Exception:
+                        return False
+                return False
+            except Exception:
+                return True
+
+        # Prefer standard properties; call if they are callables
+        # Retrieve attributes safely without evaluating their truthiness (avoid DataFrame boolean checks)
+        income_raw = getattr(yt, 'financials', None)
+        if is_empty_obj(income_raw):
+            income_raw = getattr(yt, 'income_stmt', None)
+        income = df_to_dict_safe(income_raw)
+
+        balance_raw = getattr(yt, 'balance_sheet', None)
+        balance = df_to_dict_safe(balance_raw)
+
+        cash_raw = getattr(yt, 'cashflow', None)
+        if is_empty_obj(cash_raw):
+            cash_raw = getattr(yt, 'cash_flow', None)
+        cashflow = df_to_dict_safe(cash_raw)
+
+        earnings_raw = getattr(yt, 'earnings', None)
+        earnings = df_to_dict_safe(earnings_raw)
+
+        # Try alternative getter names if direct props empty
+        if is_empty_obj(income):
+            for nm in ('get_income_stmt', 'get_income_statement', 'get_financials'):
+                fn = getattr(yt, nm, None)
+                if callable(fn):
+                    income = df_to_dict_safe(fn)
+                    if not is_empty_obj(income):
+                        break
+
+        if is_empty_obj(balance):
+            for nm in ('get_balance_sheet', 'get_balance',):
+                fn = getattr(yt, nm, None)
+                if callable(fn):
+                    balance = df_to_dict_safe(fn)
+                    if not is_empty_obj(balance):
+                        break
+
+        if is_empty_obj(cashflow):
+            for nm in ('get_cashflow', 'get_cashflow_statement',):
+                fn = getattr(yt, nm, None)
+                if callable(fn):
+                    cashflow = df_to_dict_safe(fn)
+                    if not is_empty_obj(cashflow):
+                        break
+
+        # News
+        news = []
+        try:
+            n = getattr(yt, 'news', None)
+            if callable(n):
+                news = n() or []
+            elif not is_empty_obj(n):
+                news = n
+            else:
+                # fallback to Search if available
+                try:
+                    s = yf.Search(t, news_count=8)
+                    news = getattr(s, 'news', []) or []
+                except Exception:
+                    news = []
+        except Exception:
+            news = []
+
+        # Holders / insiders if available
+        def try_call_name(obj, name):
+            try:
+                fn = getattr(obj, name, None)
+                if callable(fn):
+                    return fn()
+                return getattr(obj, name, None)
+            except Exception:
+                return None
+
+        # Safely call holder/insider/recommendation getters without evaluating DataFrame truthiness
+        _mh = try_call_name(yt, 'major_holders')
+        if is_empty_obj(_mh):
+            _mh = try_call_name(yt, 'get_major_holders')
+
+        _ih = try_call_name(yt, 'institutional_holders')
+        if is_empty_obj(_ih):
+            _ih = try_call_name(yt, 'get_institutional_holders')
+
+        _mf = try_call_name(yt, 'mutualfund_holders')
+        if is_empty_obj(_mf):
+            _mf = try_call_name(yt, 'get_mutualfund_holders')
+
+        _ins_p = try_call_name(yt, 'get_insider_purchases')
+        _ins_t = try_call_name(yt, 'get_insider_transactions')
+        _ins_r = try_call_name(yt, 'get_insider_roster_holders')
+
+        _rec = try_call_name(yt, 'recommendations')
+        if is_empty_obj(_rec):
+            _rec = try_call_name(yt, 'get_recommendations')
+
+        # Normalize potential pandas DataFrames / callables to plain dicts/lists for JSON serialization
+        major_holders = df_to_dict_safe(_mh)
+        institutional_holders = df_to_dict_safe(_ih)
+        mutualfund_holders = df_to_dict_safe(_mf)
+        insider_purchases = df_to_dict_safe(_ins_p)
+        insider_transactions = df_to_dict_safe(_ins_t)
+        insider_roster = df_to_dict_safe(_ins_r)
+        recommendations = df_to_dict_safe(_rec)
+
+        from datetime import datetime
+        fetched_at = datetime.utcnow().isoformat() + 'Z'
+
+        # build schema map for frontend table generation
+        schema_map = {
+            'income_stmt': get_schema(income_raw),
+            'balance_sheet': get_schema(balance_raw),
+            'cash_flow': get_schema(cash_raw),
+            'earnings': get_schema(earnings_raw),
+            'major_holders': get_schema(_mh),
+            'institutional_holders': get_schema(_ih),
+            'mutualfund_holders': get_schema(_mf),
+            'insider_purchases': get_schema(_ins_p),
+            'insider_transactions': get_schema(_ins_t),
+            'insider_roster_holders': get_schema(_ins_r),
+            'recommendations': get_schema(_rec)
+        }
 
         out = {
             'ticker': t.upper(),
+            'income_stmt': income,
             'balance_sheet': balance,
-            'financials': financials,
-            'quarterly_financials': quarterly,
-            'income_stmt': df_to_dict_safe(income_stmt),
-            'net_income': net_income,
-            'news': news
+            'cash_flow': cashflow,
+            'earnings': earnings,
+            'news': news,
+            'major_holders': major_holders,
+            'institutional_holders': institutional_holders,
+            'mutualfund_holders': mutualfund_holders,
+            'insider_purchases': insider_purchases,
+            'insider_transactions': insider_transactions,
+            'insider_roster_holders': insider_roster,
+            'recommendations': recommendations,
+            'fetched_at': fetched_at,
+            'schema': schema_map
         }
+
         try:
             _save_to_cache(cache_key, out)
         except Exception:

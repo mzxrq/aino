@@ -171,6 +171,28 @@ function getTimezoneTimeString(tz) {
     { label: 'MAX 1wk', period: 'max', interval: '1wk' }
   ];
 
+// Normalize preset display labels (e.g. "1D 1m" -> "1D", keep "1M 30m" and "1M 1d")
+function formatPresetLabel(p) {
+  if (!p) return '';
+  const per = (p.period || '').toLowerCase();
+  const itv = (p.interval || '').toLowerCase();
+  if (per === '1d') return '1D';
+  if (per === '5d') return '5D';
+  if (per === '1wk') return '1W';
+  if (per === '1mo') {
+    if (itv === '30m') return '1M 30m';
+    if (itv === '1d') return '1M 1d';
+    return '1M';
+  }
+  if (per === '3mo') return '3M';
+  if (per === '6mo') return '6M';
+  if (per === '1y') return '1Y';
+  if (per === '2y') return '2Y';
+  if (per === '5y') return '5Y';
+  if (per === 'max') return 'MAX';
+  return (p.label || '').split(' ')[0] || p.label;
+}
+
 // Format numbers: add commas for thousands and show decimals when value has fraction
 function formatNumber(val) {
   if (val === null || val === undefined || Number.isNaN(Number(val))) return '';
@@ -951,7 +973,7 @@ export default function Chart() {
               aria-expanded={periodIntervalOpen}
               title="Period & Interval"
             >
-              <span className="period-label">{PRESETS.find(p => p.period === period && p.interval === interval)?.label || 'Period'}</span>
+              <span className="period-label">{formatPresetLabel(PRESETS.find(p => p.period === period && p.interval === interval)) || 'Period'}</span>
             </button>
             {periodIntervalOpen && periodIntervalBtnRef.current && (
               <PortalDropdown anchorRect={periodIntervalBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setPeriodIntervalOpen(false)} className="mode-dropdown">
@@ -966,7 +988,7 @@ export default function Chart() {
                       onClick={() => { applyPreset(p); setPeriodIntervalOpen(false); }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyPreset(p); setPeriodIntervalOpen(false); } }}
                     >
-                      {p.label}
+                      {formatPresetLabel(p)}
                     </div>
                   ))}
                 </div>
@@ -1149,30 +1171,30 @@ export default function Chart() {
               {toolbarModeOpen && toolbarModeBtnRef.current && (
                 <PortalDropdown anchorRect={toolbarModeBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setToolbarModeOpen(false)} className="mode-dropdown">
                   <div role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
-                    <div className={`mode-item ${globalChartMode === 'auto' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'auto'} onClick={() => { setGlobalChartMode('auto'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('auto'); setToolbarModeOpen(false); } }}>
-                      Auto
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'candlestick' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'candlestick'} onClick={() => { setGlobalChartMode('candlestick'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('candlestick'); setToolbarModeOpen(false); } }}>
-                      Candlestick
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'line' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'line'} onClick={() => { setGlobalChartMode('line'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('line'); setToolbarModeOpen(false); } }}>
-                      Line
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'ohlc' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'ohlc'} onClick={() => { setGlobalChartMode('ohlc'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('ohlc'); setToolbarModeOpen(false); } }}>
-                      OHLC (Heiken-Ashi)
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'bar' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'bar'} onClick={() => { setGlobalChartMode('bar'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('bar'); setToolbarModeOpen(false); } }}>
-                      Bar
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'column' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'column'} onClick={() => { setGlobalChartMode('column'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('column'); setToolbarModeOpen(false); } }}>
-                      Column
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'area' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'area'} onClick={() => { setGlobalChartMode('area'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('area'); setToolbarModeOpen(false); } }}>
-                      Area
-                    </div>
-                    <div className={`mode-item ${globalChartMode === 'hlc' ? 'active' : ''}`} role="option" tabIndex={0} aria-selected={globalChartMode === 'hlc'} onClick={() => { setGlobalChartMode('hlc'); setToolbarModeOpen(false); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode('hlc'); setToolbarModeOpen(false); } }}>
-                      HLC
-                    </div>
+                    {[
+                      { key: 'auto', label: 'Auto', color: '#9CA3AF' },
+                      { key: 'candlestick', label: 'Candlestick', color: '#F97316' },
+                      { key: 'line', label: 'Line', color: '#3B82F6' },
+                      { key: 'ohlc', label: 'OHLC (Heiken-Ashi)', color: '#B45309' },
+                      { key: 'bar', label: 'Bar', color: '#8B5CF6' },
+                      { key: 'column', label: 'Column', color: '#6366F1' },
+                      { key: 'area', label: 'Area', color: '#06B6D4' },
+                      { key: 'hlc', label: 'HLC', color: '#6B7280' }
+                    ].map(m => (
+                      <div
+                        key={m.key}
+                        className={`mode-item ${globalChartMode === m.key ? 'active' : ''}`}
+                        role="option"
+                        tabIndex={0}
+                        aria-selected={globalChartMode === m.key}
+                        onClick={() => { setGlobalChartMode(m.key); setToolbarModeOpen(false); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGlobalChartMode(m.key); setToolbarModeOpen(false); } }}
+                        style={{ display: 'flex', gap: 10, alignItems: 'center' }}
+                      >
+                        <span style={{ width: 12, height: 12, borderRadius: 3, background: m.color, display: 'inline-block' }} aria-hidden></span>
+                        <span>{m.label}</span>
+                      </div>
+                    ))}
                   </div>
                 </PortalDropdown>
               )}
@@ -1220,7 +1242,7 @@ export default function Chart() {
               onClick={() => applyPreset(p)}
               type="button"
             >
-              {p.label}
+              {formatPresetLabel(p)}
             </button>
           ))}
         </div>

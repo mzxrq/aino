@@ -16,6 +16,8 @@ import LargeChart from "./pages/LargeChart";
 import LineCallback from "./pages/LineCallback";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import CompanyProfile from "./pages/CompanyProfile";
+import Compare from "./pages/Compare";
 import MarketList from "./pages/MarketList";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 
@@ -70,6 +72,8 @@ function App() {
             <Route path="/chart/u" element={<LargeChart />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/company/:ticker" element={<CompanyProfile />} />
+            <Route path="/compare" element={<Compare />} />
             <Route path="/list" element={<MarketList />} />
             <Route path="/monitoring" element={<MonitoringDashboard />} />
 

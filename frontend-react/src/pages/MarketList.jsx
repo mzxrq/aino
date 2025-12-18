@@ -213,11 +213,21 @@ const fetchMarketData = async () => {
         const country = it.country || it.Country || "US";
         
         // Skip logos for tickers known to not have parqet images
-        const skipLogoTickers = ['BJC.BK', 'OSP.BK', 'RJH.BK', '9522.T',
-          // JP tickers without logos
+        const skipLogoTickers = [
+          'BJC.BK', 'OSP.BK', 'RJH.BK', '9522.T',
+          // JP tickers without logos (existing list)
           '1811.T', '1788.T', '1783.T', '1793.T', '1810.T', '1799.T', '1762.T', '1798.T', '1814.T', '182A.T', '181A.T', '1821.T',
           '1773.T', '1826.T', '1764.T', '1786.T', '176A.T', '1848.T', '1776.T', '1807.T', '177A.T', '1822.T', '179A.T', '1840.T',
-          '175A.T', '183A.T', '1820.T', '1828.T', '1827.T', '1835.T', '1844.T', '1795.T', '1847.T', '1841.T', '180A.T'
+          '175A.T', '183A.T', '1820.T', '1828.T', '1827.T', '1835.T', '1844.T', '1795.T', '1847.T', '1841.T', '180A.T',
+          // Additional JP tickers observed producing 404s (include both base and .T forms to ensure match)
+          '1305', '1305.T','1306','1306.T','1308','1308.T','1309','1309.T','130A','130A.T',
+          '1311','1311.T','1319','1319.T','1320','1320.T','1321','1321.T','1322','1322.T',
+          '1325','1325.T','1326','1326.T','1328','1328.T','1329','1329.T','133A','133A.T',
+          '1343','1343.T','1345','1345.T','1346','1346.T','1348','1348.T','1349','1349.T',
+          '1356','1356.T','1357','1357.T','1358','1358.T','1360','1360.T','1364','1364.T',
+          '1365','1365.T','1366','1366.T','1367','1367.T','1368','1368.T','1369','1369.T','136A','136A.T',
+          '1376','1376.T','1377','1377.T','1379','1379.T','137A','137A.T','1380','1380.T',
+          '1381','1381.T','1382','1382.T','1383','1383.T','1384','1384.T','138A','138A.T'
         ];
         const shouldSkipLogo = skipLogoTickers.some(skip => {
           if (country === 'JP' && !ticker.includes('.')) {
@@ -236,7 +246,9 @@ const fetchMarketData = async () => {
           primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
           sectorGroup: it.sectorGroup || it.sector || "",
           country: country,
+          // If shouldSkipLogo is true we set `hideLogo` so UI won't render the external request or a fallback
           logo: (!shouldSkipLogo && logoTicker) ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(logoTicker)}?format=png` : "",
+          hideLogo: !!shouldSkipLogo,
           sparklineSvg: "",
         };
       });
@@ -730,12 +742,12 @@ const toggleFavorite = async (ticker) => {
                             alt={item.ticker}
                             className="stock-logo"
                             onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextElementSibling.style.display = 'block';
+                              e.target.onerror = null;
+                              e.target.src = '/no-logo.svg';
                             }}
                           />
                         )}
-                        <span className="stock-logo-fallback" style={{display: item.logo ? 'none' : 'block'}}>
+                        <span className="stock-logo-fallback" style={{display: (!item.logo && !item.hideLogo) ? 'block' : 'none'}}>
                           {item.ticker.substring(0, 1)}
                         </span>
                       </div>
@@ -819,12 +831,12 @@ const toggleFavorite = async (ticker) => {
                           alt={item.ticker}
                           className="box-logo"
                           onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'block';
+                            e.target.onerror = null;
+                            e.target.src = '/no-logo.svg';
                           }}
                         />
                       )}
-                      <span className="box-logo-fallback" style={{display: item.logo ? 'none' : 'block'}}>
+                      <span className="box-logo-fallback" style={{display: (!item.logo && !item.hideLogo) ? 'block' : 'none'}}>
                         {item.ticker.substring(0, 1)}
                       </span>
                     </div>

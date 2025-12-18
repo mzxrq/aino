@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import EchartsCard from '../components/EchartsCard';
+import TimezoneSelect from '../components/TimezoneSelect';
 import '../css/LargeChart.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
@@ -49,6 +50,49 @@ const PERIOD_PRESETS = [
   { label: '5Y 1wk', period: '5y', interval: '1wk' },
   { label: 'MAX 1wk', period: 'max', interval: '1wk' }
 ];
+
+function formatPresetLabel(p) {
+  if (!p) return '';
+  const per = (p.period || '').toLowerCase();
+  const itv = (p.interval || '').toLowerCase();
+  if (per === '1d') return '1D';
+  if (per === '5d') return '5D';
+  if (per === '1wk') return '1W';
+  if (per === '1mo') {
+    if (itv === '30m') return '1M 30m';
+    if (itv === '1d') return '1M 1d';
+    return '1M';
+  }
+  if (per === '3mo') return '3M';
+  if (per === '6mo') return '6M';
+  if (per === '1y') return '1Y';
+  if (per === '2y') return '2Y';
+  if (per === '5y') return '5Y';
+  if (per === 'max') return 'MAX';
+  return (p.label || '').split(' ')[0] || p.label;
+}
+
+function formatTZLabel(iana) {
+  const found = TIMEZONES.find(t => t.name === iana);
+  return found ? found.label : iana;
+}
+
+function getTimezoneTimeString(iana) {
+  try {
+    const now = new Date();
+    const timeStr = now.toLocaleString('en-US', { timeZone: iana, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = tzDate - utcDate;
+    const offsetHours = offsetMs / (1000 * 60 * 60);
+    const sign = offsetHours >= 0 ? '+' : '-';
+    const absHours = Math.abs(Math.floor(offsetHours));
+    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
+    return `${timeStr} UTC${sign}${absHours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
+  } catch (e) {
+    return '';
+  }
+}
 
 const TIMEZONES = [
   { offset: 0, label: 'UTC', name: 'UTC' },
@@ -138,6 +182,39 @@ export default function LargeChart() {
   const [showMarketModal, setShowMarketModal] = useState(false);
   const [marketCandidates, setMarketCandidates] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
+  const [tickerSearchQuery, setTickerSearchQuery] = useState('');
+
+  // Preloaded list of interesting stocks
+  const INTERESTING_STOCKS = useMemo(() => [
+    { ticker: 'AAPL', name: 'Apple Inc.', market: 'US' },
+    { ticker: 'MSFT', name: 'Microsoft Corporation', market: 'US' },
+    { ticker: 'GOOGL', name: 'Alphabet Inc.', market: 'US' },
+    { ticker: 'AMZN', name: 'Amazon.com Inc.', market: 'US' },
+    { ticker: 'TSLA', name: 'Tesla Inc.', market: 'US' },
+    { ticker: 'META', name: 'Meta Platforms Inc.', market: 'US' },
+    { ticker: 'NVDA', name: 'NVIDIA Corporation', market: 'US' },
+    { ticker: 'AMD', name: 'Advanced Micro Devices', market: 'US' },
+    { ticker: 'INTC', name: 'Intel Corporation', market: 'US' },
+    { ticker: 'JPM', name: 'JPMorgan Chase', market: 'US' },
+    { ticker: '9020.T', name: 'East Japan Railway', market: 'JP' },
+    { ticker: '6758.T', name: 'Sony Group Corporation', market: 'JP' },
+    { ticker: '7203.T', name: 'Toyota Motor', market: 'JP' },
+    { ticker: '8035.T', name: 'Tokyo Electron', market: 'JP' },
+    { ticker: 'PTTEP.BK', name: 'PTT Exploration', market: 'TH' },
+    { ticker: 'ADVANC.BK', name: 'Advanced Info Service', market: 'TH' },
+    { ticker: 'CPALL.BK', name: 'CP ALL Public', market: 'TH' },
+    { ticker: 'BTS.BK', name: 'Bangkok Mass Transit', market: 'TH' }
+  ], []);
+
+  const filteredStocks = useMemo(() => {
+    if (!tickerSearchQuery.trim()) return INTERESTING_STOCKS;
+    const q = tickerSearchQuery.toLowerCase();
+    return INTERESTING_STOCKS.filter(s => 
+      s.ticker.toLowerCase().includes(q) || 
+      s.name.toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [tickerSearchQuery, INTERESTING_STOCKS]);
 
   useEffect(() => {
     if (!paramTicker) return;
@@ -241,14 +318,32 @@ export default function LargeChart() {
     async function loadFinancials() {
       try {
         const fj = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}`);
+        // If backend returned fetched_at and it's older than 7 days, request a refresh
+        const fetchedAt = fj && (fj.fetched_at || fj.fetchedAt || fj.fetchedAtTime);
+        if (fetchedAt) {
+          const then = new Date(fetchedAt).getTime();
+          const age = Date.now() - then;
+          const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+          if (age > SEVEN_DAYS) {
+            try {
+              const refreshed = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}&force=true`);
+              if (!cancelled && refreshed) {
+                Object.assign(fj, refreshed);
+              }
+            } catch (e) {
+              // ignore refresh failure, keep existing
+            }
+          }
+        }
         if (!cancelled) {
           // Convert nested dict structures to usable format
-          const processed = {
-            income_stmt: fj.income_stmt || {},
-            balance_sheet: fj.balance_sheet || {},
-            cash_flow: fj.cash_flow || fj.cashflow || {},
-            news: Array.isArray(fj.news) ? fj.news : []
-          };
+            const processed = {
+              income_stmt: fj.income_stmt || {},
+              balance_sheet: fj.balance_sheet || {},
+              cash_flow: fj.cash_flow || fj.cashflow || {},
+              news: Array.isArray(fj.news) ? fj.news : [],
+              fetched_at: fj.fetched_at || fj.fetchedAt || null
+            };
           setFinancials(processed);
         }
       } catch (e) {
@@ -447,7 +542,7 @@ export default function LargeChart() {
               className={`lc-pill ${period === p.period && interval === p.interval ? 'active' : ''}`}
               onClick={() => handlePreset(p)}
             >
-              {p.label}
+              {formatPresetLabel(p)}
             </button>
           ))}
         </div>
@@ -478,6 +573,9 @@ export default function LargeChart() {
             ))}
           </select>
         </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link to={`/company/${ticker}`} className="lc-btn btn-primary" title="Open company page">Company</Link>
+        </div>
       </div>
 
       {/* Chart Type Selector */}
@@ -500,7 +598,14 @@ export default function LargeChart() {
           <div className="lc-card lc-ticker-card">
             <div className="lc-row">
               <div>
-                <div className="lc-ticker-name">{cleanTickerInput(ticker)}</div>
+                <button
+                  className="lc-ticker-name lc-ticker-name-btn"
+                  onClick={() => setShowTickerSearchModal(true)}
+                  title="Click to search for another ticker"
+                  type="button"
+                >
+                  {cleanTickerInput(ticker)}
+                </button>
                 <div className="lc-company-name">{companyName || 'Loading...'}</div>
               </div>
               <div className="lc-status">
@@ -647,17 +752,16 @@ export default function LargeChart() {
               )}
             </div>
             <div className="lc-timezone-selector">
-              <select
+              <TimezoneSelect
                 value={timezone}
-                onChange={(e) => { setTimezone(e.target.value); setTzUserOverridden(true); }}
-                className="lc-tz-select"
-              >
-                {TIMEZONES.map(tz => (
-                  <option key={tz.name} value={tz.name}>
-                    {tz.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => { setTimezone(val); setTzUserOverridden(true); }}
+                options={TIMEZONES.map(t => t.name)}
+                currentTimezone={timezone}
+                formatLabel={formatTZLabel}
+                displayTime={getTimezoneTimeString(timezone)}
+                sortFn={(opts) => opts}
+                className="lc-timezone-select-component"
+              />
             </div>
           </div>
         </aside>
@@ -813,6 +917,57 @@ export default function LargeChart() {
                     <div className="lc-market-option-ticker">{candidate.ticker}</div>
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ticker Search Modal */}
+      {showTickerSearchModal && (
+        <div className="lc-modal-overlay" onClick={() => setShowTickerSearchModal(false)}>
+          <div className="lc-modal-content lc-ticker-search-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="lc-modal-header">
+              <h2>Search Ticker</h2>
+              <button 
+                className="lc-modal-close" 
+                onClick={() => setShowTickerSearchModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="lc-modal-body">
+              <div className="lc-ticker-search-input-wrapper">
+                <input
+                  type="text"
+                  className="lc-ticker-search-input"
+                  placeholder="Search by ticker or company name..."
+                  value={tickerSearchQuery}
+                  onChange={(e) => setTickerSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="lc-ticker-search-list">
+                {filteredStocks.map((stock, idx) => (
+                  <button
+                    key={idx}
+                    className="lc-ticker-search-item"
+                    onClick={() => {
+                      setTicker(stock.ticker);
+                      setCompanyName(stock.name);
+                      setShowTickerSearchModal(false);
+                      setTickerSearchQuery('');
+                    }}
+                    type="button"
+                  >
+                    <div className="lc-ticker-search-item-ticker">{stock.ticker}</div>
+                    <div className="lc-ticker-search-item-name">{stock.name}</div>
+                    <div className="lc-ticker-search-item-market">{stock.market}</div>
+                  </button>
+                ))}
+                {filteredStocks.length === 0 && (
+                  <div className="lc-ticker-search-empty">No results found</div>
+                )}
               </div>
             </div>
           </div>

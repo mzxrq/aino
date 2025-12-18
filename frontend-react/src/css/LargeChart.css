@@ -7,12 +7,19 @@
 }
 
 .lc-navbar {
+  --lc-navbar-h: 72px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--lc-navbar-h);
   display: flex;
-  flex-direction: column;
-  padding: 12px 16px;
+  align-items: center;
+  padding: 10px 16px;
   background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
   gap: 8px;
+  z-index: 40;
 }
 
 .lc-chart-toolbar {
@@ -172,8 +179,12 @@
 .lc-preset-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  margin-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
 }
 
 .lc-pill {
@@ -236,6 +247,11 @@
   padding: 12px 16px 16px;
   flex: 1;
   overflow: hidden;
+}
+
+/* Ensure main content has space for fixed bottom navbar */
+.lc-main {
+  padding-bottom: calc(var(--lc-navbar-h) + 12px);
 }
 
 .lc-sidebar {
@@ -514,6 +530,23 @@
   flex: 1;
   min-width: 70px;
 }
+
+/* TimezoneSelect component visual tweaks to match native select */
+.timezone-select .timezone-select-button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.timezone-time-display { font-size: 0.92rem; }
 
 .lc-tz-select {
   width: 100%;
@@ -877,6 +910,48 @@ body.dark .lc-table-row:hover {
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .lc-navbar {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .lc-ticker-input-wrapper {
+    max-width: 120px;
+  }
+
+  .lc-ticker-input {
+    height: 36px;
+    font-size: 0.9rem;
+    padding: 8px 10px;
+  }
+
+  .lc-preset-row {
+    gap: 4px;
+  }
+
+  .lc-pill {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .lc-chart-type-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  .lc-selector-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .lc-selector-row select {
+    height: 32px;
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 900px) {
   .lc-body {
     grid-template-columns: 1fr;
@@ -901,19 +976,209 @@ body.dark .lc-table-row:hover {
     font-size: 16px;
   }
 
-body.dark .lc-market-option {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
+  body.dark .lc-market-option {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
 
-body.dark .lc-market-option:hover {
-  background: rgba(44, 193, 127, 0.15);
-  border-color: #2cc17f;
-}
+  body.dark .lc-market-option:hover {
+    background: rgba(44, 193, 127, 0.15);
+    border-color: #2cc17f;
+  }
 
   .lc-table-header > div,
   .lc-table-cell {
     padding: 10px 12px;
     font-size: 0.8rem;
+  }
+
+  .lc-navbar {
+    height: auto;
+    flex-wrap: wrap;
+    min-height: 60px;
+    gap: 4px;
+  }
+
+  .lc-ticker-input-wrapper {
+    max-width: 100px;
+    order: 2;
+  }
+
+  .lc-preset-row {
+    order: 3;
+    width: auto;
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .lc-chart-toolbar {
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+
+  .lc-chart-type-group {
+    gap: 4px;
+  }
+
+  .lc-chart-type-btn {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+}
+
+/* Ticker name button - clickable */
+.lc-ticker-name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.lc-ticker-name-btn:hover {
+  background: rgba(44, 193, 127, 0.1);
+  color: #2cc17f;
+}
+
+/* Ticker Search Modal - additional styles */
+.lc-ticker-search-modal {
+  max-width: 500px;
+  min-width: 300px;
+}
+
+.lc-ticker-search-input-wrapper {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lc-ticker-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 10px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lc-ticker-search-input:focus {
+  outline: none;
+  border-color: #2cc17f;
+  background: var(--bg-main);
+  box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.15);
+}
+
+.lc-ticker-search-input::placeholder {
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.lc-ticker-search-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  max-height: 400px;
+}
+
+.lc-ticker-search-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  width: 100%;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.lc-ticker-search-item:hover {
+  background: rgba(44, 193, 127, 0.08);
+  border-left-color: #2cc17f;
+}
+
+.lc-ticker-search-item:active {
+  background: rgba(44, 193, 127, 0.12);
+}
+
+.lc-ticker-search-item-ticker {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #2cc17f;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.lc-ticker-search-item-name {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 12px;
+}
+
+.lc-ticker-search-item-market {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(44, 193, 127, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.lc-ticker-search-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 600px) {
+  .lc-ticker-search-modal {
+    max-width: 100%;
+    min-width: auto;
+    max-height: 90vh;
+  }
+
+  .lc-ticker-search-input {
+    height: 38px;
+    font-size: 0.9rem;
+  }
+
+  .lc-ticker-search-item {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+
+  .lc-ticker-search-item-name {
+    font-size: 0.8rem;
+    margin: 0 8px;
+  }
+
+  .lc-ticker-search-item-market {
+    font-size: 0.75rem;
+    padding: 1px 6px;
   }
 }
