@@ -194,6 +194,59 @@ const getRecentAnomalies = async (query) => {
   return { data, total };
 };
 
+/**
+ * Get anomalies summary grouped by ticker, optional market filter.
+ * @param {Object} query - { market }
+ * @returns {Promise<Object>} { total, byTicker: [{ ticker, count }] }
+ */
+const getAnomaliesSummary = async (query = {}) => {
+  const filter = {};
+  // Market filter by ticker suffix (JP: .T, US: no suffix or exchange specific, TH: .BK etc.)
+  if (query.market) {
+    const m = String(query.market).toUpperCase();
+    if (m === 'JP') {
+      filter.ticker = { $regex: /\.T$/ };
+    } else if (m === 'TH') {
+      filter.ticker = { $regex: /\.BK$/ };
+    } else if (m === 'US') {
+      // Heuristic: exclude suffixed tickers we know; many US tickers have no suffix
+      filter.ticker = { $not: /\./ };
+    }
+  }
+
+  const collection = require('../models/anomaliesModel');
+  const dbCol = require('../models/anomaliesModel');
+  // Use the model's collection via small helper
+  const { getAllAnomalies } = dbCol;
+
+  // Aggregate using native driver for performance
+  const { getDb } = require('../config/db');
+  const col = getDb().collection('anomalies');
+  const pipeline = [];
+  if (Object.keys(filter).length) pipeline.push({ $match: filter });
+  pipeline.push({ $group: { _id: '$ticker', count: { $sum: 1 } } });
+  pipeline.push({ $sort: { count: -1 } });
+
+  const grouped = await col.aggregate(pipeline).toArray();
+  const byTicker = grouped.map(g => ({ ticker: g._id, count: g.count }));
+  const total = byTicker.reduce((a, b) => a + b.count, 0);
+
+  return { total, byTicker };
+};
+
+/**
+ * Get anomalies summary for a single ticker.
+ * @param {string} symbol
+ * @returns {Promise<Object>} { ticker, count }
+ */
+const getTickerSummary = async (symbol) => {
+  const s = String(symbol).toUpperCase();
+  const { getDb } = require('../config/db');
+  const col = getDb().collection('anomalies');
+  const count = await col.countDocuments({ ticker: s });
+  return { ticker: s, count };
+};
+
 
 module.exports = {
   createAnomaly,
@@ -205,4 +258,6 @@ module.exports = {
   getUnsentAnomalies,
   bulkCreateAnomalies,
   getRecentAnomalies,
+  getAnomaliesSummary,
+  getTickerSummary,
 };

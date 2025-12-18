@@ -71,6 +71,19 @@ export default function MarketItemCard({ item }) {
   useEffect(() => {
     let mounted = true;
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+    const PY_BASE = `${API_URL}/py`;
+    async function fetchPyJson(path, init) {
+      try {
+        const res = await fetch(`${PY_BASE}${path}`, init);
+        if (res.ok) return await res.json();
+      } catch (_) { /* ignore */ }
+      const res2 = await fetch(`${PY_DIRECT}/py${path}`, init);
+      if (!res2.ok) throw new Error(`status ${res2.status}`);
+      return await res2.json();
+    }
+
     const fetchData = async () => {
       if (!ticker) {
         setLoading(false);
@@ -78,21 +91,10 @@ export default function MarketItemCard({ item }) {
       }
 
       try {
-        const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:8000';
-        
-        // Fetch chart data (includes company name and price history)
-        const chartRes = await fetch(`${PY_API}/py/chart?ticker=${ticker}&period=1mo&interval=1d`);
-        
-        if (!chartRes.ok) {
-          console.warn(`Chart fetch failed for ${ticker}: ${chartRes.status}`);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
+        const chartDataRaw = await fetchPyJson(`/chart?ticker=${encodeURIComponent(ticker)}&period=1mo&interval=1d`);
+        // Resolve possible multi-ticker format
+        const chartData = (chartDataRaw && typeof chartDataRaw === 'object') ? (chartDataRaw[ticker] || chartDataRaw[ticker?.toUpperCase?.()] || chartDataRaw) : chartDataRaw;
 
-        const chartData = await chartRes.json();
-        
         if (mounted) {
           // Extract company name from chart response
           const companyName = chartData.companyName || chartData.Ticker || ticker;

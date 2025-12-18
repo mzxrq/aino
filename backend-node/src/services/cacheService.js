@@ -186,6 +186,35 @@ const upsertCache = async (id, data) => {
 };
 
 /**
+ * Get all cached sparklines (1mo/1d) for market list display
+ * Returns minimal data: ticker and close prices array only
+ * @returns {Promise<Array>} Array of sparkline data
+ */
+const getAllSparklines = async () => {
+  const cacheModel = require("../models/cacheModel");
+  const collection = require("../config/db").getDb().collection("cache");
+  
+  // Find all cache entries for sparklines (1mo/1d pattern: chart::TICKER::1mo::1d)
+  const caches = await collection
+    .find({ _id: { $regex: "^chart::.*::1mo::1d$" } })
+    .project({ 
+      _id: 1, 
+      "payload.close": 1,
+      "payload.Ticker": 1,
+      fetched_at: 1
+    })
+    .toArray();
+
+  // Transform to minimal format for sparklines
+  return caches.map(doc => ({
+    ticker: doc._id.split("::")[1], // Extract ticker from "chart::TICKER::1mo::1d"
+    close: doc.payload?.close || [],
+    Ticker: doc.payload?.Ticker,
+    fetched_at: doc.fetched_at
+  }));
+};
+
+/**
  * Bulk create cache documents
  * @param {Array<Object>} cacheDocuments - Array of cache data
  * @returns {Promise<Object>} Insert result
@@ -212,4 +241,5 @@ module.exports = {
   deleteStaleCache,
   upsertCache,
   bulkCreateCache,
+  getAllSparklines,
 };

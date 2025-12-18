@@ -30,6 +30,17 @@ export default function Home() {
   const [loadingMap, setLoadingMap] = useState({});
   const API_URL = import.meta.env.VITE_API_URL;
   const PY_URL = import.meta.env.VITE_LINE_PY_URL;
+  const GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+  const PY_BASE = `${GATEWAY_URL}/py`;
+  async function fetchPyJson(path, init) {
+    try {
+      const r = await fetch(`${PY_BASE}${path}`, init);
+      if (r.ok) return await r.json();
+    } catch (_) { /* ignore */ }
+    const r2 = await fetch(`${(PY_URL || 'http://localhost:5000')}/py${path}`, init);
+    if (!r2.ok) throw new Error(`status ${r2.status}`);
+    return await r2.json();
+  }
 
   // Fetch recent anomalies and compute top tickers by anomaly count
   useEffect(() => {
@@ -251,10 +262,7 @@ export default function Home() {
       // build a request promise
       const p = (async () => {
         try {
-          let res = await fetch(`${PY_URL}/stock/info?ticker=${encodeURIComponent(t)}`);
-          if (res.status === 404) res = await fetch(`${PY_URL}/py/stock/info?ticker=${encodeURIComponent(t)}`);
-          if (!res.ok) return null;
-          const json = await res.json();
+          const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
           map.set(t.toUpperCase(), json);
           try {
             localStorage.setItem(key, JSON.stringify({ ts: Date.now(), info: json }));
@@ -307,9 +315,7 @@ export default function Home() {
 
         // Fallback: Python financials news
         try {
-          const res2 = await fetch(`${PY_URL}/py/financials?ticker=${topTicker}`);
-          if (res2.ok) {
-            const data = await res2.json();
+          const data = await fetchPyJson(`/financials?ticker=${topTicker}`);
             const newsData = (data?.news || []).slice(0, 6).map((n, idx) => ({
               id: idx,
               title: n.title || n.headline || 'Market Update',
@@ -317,7 +323,7 @@ export default function Home() {
               link: n.link || '#'
             }));
             if (isMounted && newsData.length > 0) return setNews(newsData);
-          }
+          
         } catch (e) {
           console.debug('Python news fetch failed', e);
         }

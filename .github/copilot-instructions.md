@@ -14,7 +14,7 @@ Three-service architecture with single public port (5050):
 - **Resilient DB pattern**: Falls back to JSON files (`src/cache/users.json`, `src/cache/subscriptions.json`) when MongoDB unavailable
 - Entry: `src/server.js`, routes in `src/routes/`, middleware in `src/middleware/`
 
-**backend-python/** (FastAPI, port 8000)
+**backend-python/** (FastAPI, port 5000)
 - Chart data pipeline: yfinance → pandas preprocessing → anomaly detection (IsolationForest)
 - Scheduler: background thread for market-aware anomaly detection + LINE notifications
 - Entry: `app/main.py`, API routes in `app/api/`, business logic in `app/services/`
@@ -27,7 +27,7 @@ Three-service architecture with single public port (5050):
 - Entry: `src/main.jsx`, pages in `src/pages/`, reusable components in `src/components/`
 
 **Data Flow:**
-Frontend → Node (5050) → Python (8000 proxied) → yfinance → preprocessing → anomaly detection → MongoDB cache → LINE notifications
+Frontend → Node (5050) → Python (5000 proxied) → yfinance → preprocessing → anomaly detection → MongoDB cache → LINE notifications
 
 ## Quick Start (PowerShell)
 

@@ -9,13 +9,23 @@ const MonitoringDashboard = () => {
     const [lastUpdate, setLastUpdate] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
 
-    // Python backend on port 5000
-    const PYTHON_API_URL = 'http://localhost:5000';
+    // Gateway + Python fallback
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+    const PY_BASE = `${API_URL}/py`;
+    const fetchPyJson = async (path, init) => {
+        try {
+            const r = await fetch(`${PY_BASE}${path}`, init);
+            if (r.ok) return await r.json();
+        } catch (_) { /* fall back */ }
+        const r2 = await fetch(`${PY_DIRECT}/py${path}`, init);
+        if (!r2.ok) throw new Error(`status ${r2.status}`);
+        return await r2.json();
+    };
 
     const fetchStatus = async () => {
         try {
-            const response = await fetch(`${PYTHON_API_URL}/py/monitoring/status`);
-            const data = await response.json();
+            const data = await fetchPyJson(`/monitoring/status`);
             setStatus(data);
             setLastUpdate(new Date());
             setLoading(false);
@@ -29,12 +39,7 @@ const MonitoringDashboard = () => {
         setScanning(true);
         try {
             const body = market ? { market } : {};
-            const response = await fetch(`${PYTHON_API_URL}/py/monitoring/run`, {
-                method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const data = await response.json();
+            const data = await fetchPyJson(`/monitoring/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             await Swal.fire({
               icon: 'success',
               title: 'Scan Complete',
@@ -168,10 +173,7 @@ const MonitoringDashboard = () => {
                         <button 
                             onClick={async () => {
                                 try {
-                                    const response = await fetch(`${PYTHON_API_URL}/py/notifications/test`, {
-                                        method: 'POST'
-                                    });
-                                    const data = await response.json();
+                                    const data = await fetchPyJson(`/notifications/test`, { method: 'POST' });
                                     if (data.status === 'no_anomalies') {
                                         await Swal.fire({
                                           icon: 'info',

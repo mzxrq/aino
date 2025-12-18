@@ -9,6 +9,7 @@ const router = express.Router();
 const cacheController = require("../controllers/cacheController");
 
 // Special routes (must be defined before parameterized routes)
+router.get("/sparklines/all", cacheController.getAllSparklines);
 router.delete("/stale", cacheController.deleteStaleCache);
 router.post("/bulk", cacheController.bulkCreateCache);
 router.get("/ticker/:ticker/:interval/:period", cacheController.getCacheByTickerAndTimeframe);

@@ -11,7 +11,9 @@ import EchartsCard from '../components/EchartsCard';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
-const PY_API = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+const PY_API = `${API_URL}/py`;
 
 // City-based timezone labels mapped to IANA identifiers
 const CITY_TZ_MAP = {
@@ -156,13 +158,18 @@ function getTimezoneTimeString(tz) {
 }
 
   const PRESETS = [
-  { label: 'Intraday', period: '1d', interval: '1m' },
-  { label: '5D', period: '5d', interval: '30m' },
-  { label: '1M', period: '1mo', interval: '30m' },
-  { label: '6M', period: '6mo', interval: '1d' },
-  { label: '1Y', period: '1y', interval: '1d' },
-  { label: '5Y', period: '5y', interval: '1wk' }
-];
+    { label: '1D 1m', period: '1d', interval: '1m' },
+    { label: '5D 5m', period: '5d', interval: '5m' },
+    { label: '1W 5m', period: '1wk', interval: '5m' },
+    { label: '1M 30m', period: '1mo', interval: '30m' },
+    { label: '1M 1d', period: '1mo', interval: '1d' },
+    { label: '3M 1d', period: '3mo', interval: '1d' },
+    { label: '6M 1d', period: '6mo', interval: '1d' },
+    { label: '1Y 1d', period: '1y', interval: '1d' },
+    { label: '2Y 1d', period: '2y', interval: '1d' },
+    { label: '5Y 1wk', period: '5y', interval: '1wk' },
+    { label: 'MAX 1wk', period: 'max', interval: '1wk' }
+  ];
 
 // Format numbers: add commas for thousands and show decimals when value has fraction
 function formatNumber(val) {
@@ -197,45 +204,40 @@ function changeColorClass(val) {
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
+  const itv = (interval || '').toLowerCase();
 
-  // Intraday: only intraday granularities
   if (p === '1d') {
     const allowed = ['1m', '2m', '5m', '15m', '30m', '1h'];
-    return allowed.includes((interval || '').toLowerCase()) ? interval : '1m';
+    return allowed.includes(itv) ? itv : '1m';
   }
 
-  // 5 trading days: allow finer intraday but default to 30m
   if (p === '5d') {
+    const allowed = ['1m', '2m', '5m', '15m', '30m', '1h', '1d'];
+    return allowed.includes(itv) ? itv : '5m';
+  }
+
+  if (p === '1wk') {
+    const allowed = ['1m', '2m', '5m', '15m', '30m', '1h', '1d'];
+    return allowed.includes(itv) ? itv : '5m';
+  }
+
+  if (p === '1mo') {
     const allowed = ['5m', '15m', '30m', '1h', '1d'];
-    return allowed.includes((interval || '').toLowerCase()) ? interval : '30m';
+    return allowed.includes(itv) ? itv : '30m';
   }
 
-  // Month-based periods
-  if (p.endsWith('mo')) {
-    const n = parseInt(p.replace('mo', ''), 10) || 1;
-    if (n <= 1) {
-      const allowed = ['15m', '30m', '1h', '1d'];
-      return allowed.includes((interval || '').toLowerCase()) ? interval : '30m';
-    }
-    // For >= 2mo, 1d or coarser is reliable
-    const allowed = ['1d', '1wk', '1mo'];
-    return allowed.includes((interval || '').toLowerCase()) ? interval : '1d';
+  if (['3mo', '6mo', '1y', '2y'].includes(p)) {
+    const allowed = ['1d', '1wk'];
+    return allowed.includes(itv) ? itv : '1d';
   }
 
-  // Year-based periods
-  if (p.endsWith('y')) {
-    const n = parseInt(p.replace('y', ''), 10) || 1;
-    if (n <= 1) {
-      const allowed = ['1d', '1wk'];
-      return allowed.includes((interval || '').toLowerCase()) ? interval : '1d';
-    }
-    const allowed = ['1wk', '1mo', '1y'];
-    return allowed.includes((interval || '').toLowerCase()) ? interval : '1wk';
+  if (p === '5y' || p === 'max') {
+    const allowed = ['1wk', '1mo'];
+    return allowed.includes(itv) ? itv : '1wk';
   }
 
-  // Fallback for 'max' or unknown: use weekly
   const allowed = ['1d', '1wk', '1mo'];
-  return allowed.includes((interval || '').toLowerCase()) ? interval : '1wk';
+  return allowed.includes(itv) ? itv : '1wk';
 }
 
 // Convert an interval string (e.g., "30m", "1h", "1d", "1wk") to milliseconds.
@@ -585,6 +587,7 @@ export default function Chart() {
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [periodIntervalOpen, setPeriodIntervalOpen] = useState(false);
   const [timezoneTime, setTimezoneTime] = useState(getTimezoneTimeString(timezone));
+  const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const indicatorsBtnRef = useRef(null);
   const toolbarModeBtnRef = useRef(null);
   const periodIntervalBtnRef = useRef(null);
@@ -607,8 +610,23 @@ export default function Chart() {
       try {
         const q = tickers.join(',');
         const url = `${PY_API}/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
-        const res = await fetch(url);
-        const json = await res.json();
+        let res;
+        let json;
+        try {
+          res = await fetch(url);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+          json = await res.json();
+        } catch (err) {
+          try {
+            const fallbackUrl = `${PY_DIRECT}/py/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+            const r2 = await fetch(fallbackUrl);
+            if (!r2.ok) throw new Error(`fallback status ${r2.status}`);
+            json = await r2.json();
+            console.warn('Chart: using direct Python fallback', { fallbackUrl });
+          } catch (err2) {
+            throw err2;
+          }
+        }
         
         // If all requested tickers returned no data, attempt a coarser interval automatically.
         try {
@@ -668,6 +686,37 @@ export default function Chart() {
     }, 1000);
     return () => clearInterval(interval);
   }, [timezone]);
+
+  // Map market code to a default timezone (city label in TIMEZONES)
+  function marketToTimezoneLabel(marketStr) {
+    if (!marketStr || typeof marketStr !== 'string') return 'UTC';
+    const code = marketStr.split('(')[0].trim().toUpperCase();
+    switch (code) {
+      case 'US': return 'New York';
+      case 'JP': return 'Tokyo';
+      case 'TH': return 'Bangkok';
+      case 'GB': return 'London';
+      case 'EU': return 'Paris';
+      case 'CN': return 'Shanghai';
+      case 'HK': return 'Hong Kong';
+      default: return 'UTC';
+    }
+  }
+
+  // Auto-select timezone based on the first ticker's market unless user overrides
+  useEffect(() => {
+    if (tzUserOverridden) return;
+    try {
+      const primary = Array.isArray(tickers) && tickers.length ? tickers[0] : null;
+      if (!primary || !data || typeof data !== 'object') return;
+      const payload = data[primary] || data[primary?.toUpperCase?.()] || null;
+      const m = payload && payload.market;
+      if (m) {
+        const tz = marketToTimezoneLabel(m);
+        if (tz && tz !== timezone) setTimezone(tz);
+      }
+    } catch { /* ignore mapping issues */ }
+  }, [data, tickers, tzUserOverridden]);
 
   // Persist preferences to localStorage when relevant values change
   useEffect(() => {
@@ -884,7 +933,7 @@ export default function Chart() {
           <div className="toolbar-control">
             <TimezoneSelect 
               value={timezone} 
-              onChange={setTimezone} 
+              onChange={(tz) => { setTimezone(tz); setTzUserOverridden(true); }} 
               options={TIMEZONES}
               currentTimezone={timezone}
               formatLabel={formatTimezoneLabel}
@@ -1130,7 +1179,38 @@ export default function Chart() {
           </div>
         </div>
 
-        {/* top-level subscribe removed (subscriptions kept per-card) */}
+          {/* top-level subscribe removed (subscriptions kept per-card) */}
+
+          {/* Custom Period/Interval selector (separate from preset buttons) */}
+          <div className="toolbar-row custom-selector" style={{ gap: 12, alignItems: 'center' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Period</label>
+            <select
+              value={period}
+              onChange={(e) => {
+                const p = e.target.value;
+                const enforced = enforceIntervalRules(p, interval);
+                setPeriod(p);
+                setInterval(enforced);
+              }}
+            >
+              {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Interval</label>
+            <select
+              value={interval}
+              onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
+            >
+              {(() => {
+                const p = (period || '').toLowerCase();
+                const candidates = ['1m','2m','5m','15m','30m','1h','1d','1wk','1mo'];
+                return candidates
+                  .filter(iv => enforceIntervalRules(period, iv) === iv)
+                  .map(iv => <option key={iv} value={iv}>{iv}</option>);
+              })()}
+            </select>
+          </div>
 
         <div className="toolbar-row presets">
           {PRESETS.map(p => (

@@ -7,6 +7,7 @@ const path = require('path');
 require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const express = require("express");
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const { connectDB } = require("./config/db");
 const cors = require("cors");
 
@@ -17,6 +18,19 @@ app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(express.json());
+
+/* =======================
+   Proxy Middleware - Forward /py/* to Python backend at 5000
+   ======================= */
+app.use('/py', createProxyMiddleware({
+  target: 'http://localhost:5000',
+  changeOrigin: true,
+  // Do not rewrite the path; Python mounts routers under "/py"
+  onError: (err, req, res) => {
+    console.error(`Proxy error for ${req.url}:`, err.message);
+    res.status(503).json({ error: 'Python backend unavailable' });
+  }
+}));
 
 
 /* =======================
