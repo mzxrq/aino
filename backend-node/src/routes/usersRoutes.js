@@ -11,6 +11,7 @@ const express = require('express');
 const router = express.Router();
 const authCtrl = require('../controllers/usersController');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAdmin } = require('../middleware/isAdminMiddleware');
 
 // For avatar upload
 const multer = require('multer');
@@ -69,6 +70,7 @@ router.get('/profile', requireAuth, authCtrl.getProfile);
 // Profile updates (protected)
 // Handle preflight and both verbs to avoid client mismatches
 router.put('/change-password', requireAuth, authCtrl.changePassword);
+router.put('/:id/change-password', requireAuth, requireAdmin, authCtrl.adminChangePassword);
 router.put('/add-password', requireAuth, authCtrl.addPassword);
 
 // User preferences (protected)

@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import Swal from 'sweetalert2';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';
 import GenericModal from '../../components/GenericModal/GenericModal';
 import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
+import { formatToUserTZSlash } from '../../utils/dateUtils';
+import { AuthContext } from '../../context/contextBase';
 
 const AdminCachePage = () => {
   const [loading, setLoading] = useState(false);
@@ -114,6 +116,8 @@ const AdminCachePage = () => {
       }
     }
 
+  const { user } = useContext(AuthContext) || {};
+
   const renderRow = useCallback(({ row }) => {
     const parsed = parseKey(row._id || row.id);
     return (
@@ -121,7 +125,7 @@ const AdminCachePage = () => {
         <td className="col-ticker">{parsed.ticker}</td>
         <td className="col-date">{parsed.period}</td>
         <td className="col-number center-right">{parsed.interval}</td>
-        <td className="col-date">{row.fetched_at ? (''+row.fetched_at).slice(0,19).replace('T',' ') : '-'}</td>
+        <td className="col-date">{row.fetched_at ? formatToUserTZSlash(row.fetched_at, (user && user.timeZone) || undefined) : '-'}</td>
       </tr>
     );
   }, []);

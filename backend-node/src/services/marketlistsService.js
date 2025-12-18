@@ -5,19 +5,23 @@
  */
 
 const marketlistsModel = require("../models/marketlistsModel");
+const { getDb } = require("../config/db");
 
 const createMarketlist = async (data) => {
   if (!data.ticker || !data.companyName) {
     throw new Error("Missing required fields: ticker, companyName");
   }
 
+  const now = new Date();
   const doc = {
     country: data.country || 'US',
     ticker: data.ticker,
     companyName: data.companyName,
     primaryExchange: data.primaryExchange || null,
     sectorGroup: data.sectorGroup || null,
-    status: data.status || 'inactive',
+    status: data.status || 'active',
+    createdAt: now,
+    updatedAt: now,
   };
 
   return await marketlistsModel.createMarketlist(doc);
@@ -60,6 +64,8 @@ const updateMarketlist = async (id, updateData) => {
   const sanitized = {};
   for (const k of allowed) if (updateData[k] !== undefined) sanitized[k] = updateData[k];
 
+  // set updatedAt on updates
+  sanitized.updatedAt = new Date();
   const res = await marketlistsModel.updateMarketlist(id, sanitized);
   if (!res) throw new Error('Marketlist not found');
   return res;
@@ -72,6 +78,7 @@ const deleteMarketlist = async (id) => {
 };
 
 const bulkCreateMarketlists = async (docs) => {
+  const now = new Date();
   const validated = docs.map(d => ({
     country: d.country || 'US',
     ticker: d.ticker,
@@ -79,6 +86,8 @@ const bulkCreateMarketlists = async (docs) => {
     primaryExchange: d.primaryExchange || null,
     sectorGroup: d.sectorGroup || null,
     status: d.status || 'inactive',
+    createdAt: now,
+    updatedAt: now,
   }));
   return await marketlistsModel.bulkInsertMarketlists(validated);
 };

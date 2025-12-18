@@ -75,6 +75,10 @@ app.use('/node/seed', seedRoutes);
 const searchRoutes = require('./routes/searchRoutes');
 app.use('/node', searchRoutes);
 
+// Activity logs route (for admin dashboard recent activity)
+const activityLogsRoutes = require('./routes/activityLogsRoute');
+app.use('/node/logs', activityLogsRoutes);
+
 /* =======================
    Basic Routes / Healthchecks
    ======================= */

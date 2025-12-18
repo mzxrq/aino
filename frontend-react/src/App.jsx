@@ -26,6 +26,7 @@ import CacheManagementPage from "./pages/Admin/AdminCachePage";
 import MarketlistsManagementPage from "./pages/Admin/AdminMarketlistsPage";
 import UsersManagementPage from "./pages/Admin/AdminUsersPage";
 import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
+import AdminDashboardPage from "./pages/Admin/AdminDashboardPage";
 
 function App() {
   return (
@@ -55,7 +56,7 @@ function App() {
                   path="/anomalies"
                   element={<AnomaliesManagementPage />}
                 />
-
+                <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                 <Route path="/cache" element={<CacheManagementPage />} />
                 <Route path="/marketlists" element={<MarketlistsManagementPage />} />
                 <Route path="/users" element={<UsersManagementPage />} />

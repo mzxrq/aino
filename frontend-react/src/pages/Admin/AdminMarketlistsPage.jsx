@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import Swal from 'sweetalert2';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';
 import GenericModal from '../../components/GenericModal/GenericModal';
 import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
+import { formatToUserTZSlash } from '../../utils/dateUtils';
+import { AuthContext } from '../../context/contextBase';
 
 const modalButtonStyles = {
   primary: { background: 'linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff', border: 'none' },
@@ -13,7 +15,7 @@ const modalButtonStyles = {
 };
 
 export default function AdminMarketlistsPage() {
-  const [form, setForm] = useState({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '' });
+  const [form, setForm] = useState({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '', status: 'inactive' });
   const [editing, setEditing] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -22,7 +24,7 @@ export default function AdminMarketlistsPage() {
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const openCreate = () => {
-    setForm({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '' });
+    setForm({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '', status: 'inactive' });
     setEditing(null);
     setModalOpen(true);
     setTimeout(() => { const input = document.querySelector('.modal input[name="ticker"]'); if (input) input.focus(); }, 120);
@@ -36,7 +38,8 @@ export default function AdminMarketlistsPage() {
       ticker: item.ticker || '',
       companyName: item.companyName || '',
       primaryExchange: item.primaryExchange || '',
-      sectorGroup: item.sectorGroup || ''
+      sectorGroup: item.sectorGroup || '',
+      status: item.status || 'inactive'
     });
     setModalOpen(true);
     setTimeout(() => { const input = document.querySelector('.modal input[name="ticker"]'); if (input) input.focus(); }, 120);
@@ -50,7 +53,7 @@ export default function AdminMarketlistsPage() {
     if (!form.ticker || !form.ticker.trim()) { await Swal.fire({ icon: 'warning', title: 'Required', text: 'Ticker is required' }); return; }
     try {
       setLoading(true);
-      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '' };
+      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive' };
       const res = await fetch(`${API_BASE}/node/marketlists`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Create failed');
@@ -69,7 +72,7 @@ export default function AdminMarketlistsPage() {
     try {
       setLoading(true);
       const id = editing._id || editing.id;
-      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '' };
+      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive' };
       const res = await fetch(`${API_BASE}/node/marketlists/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
@@ -102,6 +105,16 @@ export default function AdminMarketlistsPage() {
     if (editing && (editing._id || editing.id)) await saveEdit(e); else await handleAdd(e);
   }
 
+  const { user } = useContext(AuthContext) || {};
+  const formatDate = (d) => {
+    if (!d) return '-';
+    try {
+      return formatToUserTZSlash(d, (user && user.timeZone) || undefined) || String(d);
+    } catch (e) {
+      try { return String(d); } catch { return '-'; }
+    }
+  };
+
   const renderRow = useCallback(({ row }) => (
     <tr key={row._id || row.id} onClick={() => openRowActions(row)} style={{ cursor: 'pointer' }}>
       <td className="col-ticker">{row.ticker || '-'}</td>
@@ -109,6 +122,9 @@ export default function AdminMarketlistsPage() {
       <td className="col-date">{row.primaryExchange || '-'}</td>
       <td className="col-date">{row.sectorGroup || '-'}</td>
       <td className="col-status">{row.country || '-'}</td>
+      <td className="col-status">{row.status || '-'}</td>
+      <td className="col-date">{formatDate(row.updatedAt || row.updated_at || row.updated)}</td>
+      <td className="col-date">{formatDate(row.createdAt || row.created_at || row.created)}</td>
     </tr>
   ), []);
 
@@ -129,6 +145,9 @@ export default function AdminMarketlistsPage() {
           { key: 'primaryExchange', label: 'Primary Exchange', sortable: true, width: '160px' },
           { key: 'sectorGroup', label: 'Sector', sortable: true, width: '220px' },
           { key: 'country', label: 'Country', sortable: true, width: '120px' },
+          { key: 'status', label: 'Status', sortable: true, width: '120px' },
+          { key: 'updatedAt', label: 'Updated At', sortable: true, width: '200px' },
+          { key: 'createdAt', label: 'Created At', sortable: true, width: '200px' },
         ]}
         keyField="_id"
         renderRow={renderRow}
@@ -149,6 +168,12 @@ export default function AdminMarketlistsPage() {
           <label className="form-field"><span>Country</span><input name="country" value={form.country} onChange={(e) => setForm((s) => ({ ...s, country: e.target.value }))} placeholder="US" /></label>
           <label className="form-field"><span>Primary Exchange</span><input name="primaryExchange" value={form.primaryExchange} onChange={(e) => setForm((s) => ({ ...s, primaryExchange: e.target.value }))} placeholder="NASDAQ" /></label>
           <label className="form-field"><span>Sector Group</span><input name="sectorGroup" value={form.sectorGroup} onChange={(e) => setForm((s) => ({ ...s, sectorGroup: e.target.value }))} placeholder="Sector" /></label>
+          <label className="form-field"><span>Status</span>
+            <select name="status" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
         </div>
       </GenericModal>
 

@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import './FlexTable.css';
+import { AuthContext } from '../../context/contextBase';
+import { formatToUserTZSlash, isIsoLike, normalizeTimestampToMs } from '../../utils/dateUtils';
+import DropdownSelect from '../DropdownSelect/DropdownSelect';
 
-const DEFAULT_LIMITS = [10, 20, 50, 100];
+const DEFAULT_LIMITS = [5, 10, 20, 50, 100];
 
 export default function FlexTable({
   columns = [],
@@ -16,18 +19,54 @@ export default function FlexTable({
   showSearch = true,
   onCreate,
   createLabel = '+ Create',
+  initialLimit,
+  allowRowsChange = true,
+  // new: allow callers to specify initial/default sort state
+  defaultSortKey = null,
+  defaultSortDir = null,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(DEFAULT_LIMITS[0]);
+  const [limit, setLimit] = useState(initialLimit || DEFAULT_LIMITS[1]);
   const [total, setTotal] = useState(null);
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState(null);
+  const [sortKey, setSortKey] = useState(defaultSortKey || null);
+  const [sortDir, setSortDir] = useState(defaultSortDir || null);
 
   const lastSignal = useRef(refreshSignal);
+
+  const { user } = useContext(AuthContext) || {};
+  const tz = (user && user.timeZone) || undefined;
+
+  const formatCellValue = (v) => {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'boolean') return String(v);
+    // preserve objects/arrays as JSON
+    if (typeof v === 'object') return JSON.stringify(v);
+    // try parse numeric value but avoid turning boolean/empty strings into numbers
+    const s = String(v).trim();
+    if (s === '') return '';
+    // If looks like ISO date, format using user's timezone when available
+    if (isIsoLike(s)) return formatToUserTZSlash(s, tz);
+      // Check numeric timestamps (seconds or ms) before treating as numbers
+      const tsMs = normalizeTimestampToMs(s);
+      if (tsMs !== null) return formatToUserTZSlash(new Date(tsMs), tz);
+      // Try numeric formatting with thousand separators
+      const n = Number(s.replace(/,/g, ''));
+      if (!Number.isNaN(n) && isFinite(n)) {
+        try {
+          return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(n);
+        } catch (e) {
+          return n.toFixed(2);
+        }
+      }
+    return s;
+  };
 
   useEffect(() => {
     if (refreshSignal !== lastSignal.current) {
@@ -262,10 +301,10 @@ export default function FlexTable({
                 renderRow ? renderRow({ row: r }) : (
                   <tr key={r[keyField] || r.id}>
                     {columns.map((c) => (
-                      <td key={c.key} className={c.className || undefined}>
-                        {String(r[c.key] ?? '')}
-                      </td>
-                    ))}
+                          <td key={c.key} className={c.className || undefined}>
+                            {formatCellValue(r[c.key] ?? '')}
+                          </td>
+                        ))}
                   </tr>
                 )
               ))}
@@ -275,21 +314,34 @@ export default function FlexTable({
       </div>
 
       {enablePagination && (
-        <div className="pagination-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button className="btn btn-small" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</button>
-            <span style={{ margin: '0 8px' }}>Page {page}{total ? ` / ${Math.max(1, Math.ceil(total / limit))}` : ''}</span>
-            <button className="btn btn-small" onClick={() => setPage((p) => p + 1)} disabled={total !== null && page >= Math.ceil(total / limit)}>Next</button>
+        <div className="pagination-controls">
+          <div className="pagination-left">
+            <button className="btn btn-small btn-arrow" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page">
+              <span className="btn-icon">◀</span>
+            </button>
+            <span className="page-label">Page {page}{total ? ` / ${Math.max(1, Math.ceil(total / limit))}` : ''}</span>
+            <button className="btn btn-small btn-arrow" onClick={() => setPage((p) => p + 1)} disabled={total !== null && page >= Math.ceil(total / limit)} aria-label="Next page">
+              <span className="btn-icon">▶</span>
+            </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Rows:</label>
+          <div className="pagination-right">
+
             <div style={{ minWidth: 88 }}>
-              <select className="rows-select" value={String(limit)} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}>
-                {DEFAULT_LIMITS.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
+              {allowRowsChange ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <label className="rows-label" style={{ fontSize: 13, color: 'var(--text-primary)', marginRight: 6 }}>Rows:</label>
+                  <DropdownSelect
+                    value={limit}
+                    onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+                    options={DEFAULT_LIMITS.map((l) => ({ value: l, label: String(l) }))}
+                  />
+                </div>
+              ) : (
+                <div />
+              )}
             </div>
-            <button className="btn btn-small" onClick={() => { setPage(1); load(); }}>Refresh</button>
+            <button className="btn btn-small refresh-btn" onClick={() => { setPage(1); load(); }} aria-label="Refresh">Refresh</button>
           </div>
         </div>
       )}
