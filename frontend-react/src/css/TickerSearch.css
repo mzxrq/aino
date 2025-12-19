@@ -3,23 +3,28 @@
 .ticker-search-container {
   position: relative;
   width: 100%;
-  max-width: 500px;
+  /* Allow the container to flex inside tag-input and avoid overflowing */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ticker-search-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .ticker-search-input {
   width: 100%;
-  padding: 12px 40px 12px 16px;
-  font-size: 15px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 8px 36px 8px 12px;
+  font-size: 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
   outline: none;
-  transition: all 0.3s ease;
+  transition: all 0.18s ease;
   font-family: inherit;
   background-color: #fff;
 }
@@ -73,6 +78,93 @@
   z-index: 1000;
 }
 
+/* Modal / Overlay styles for compact search */
+.ticker-search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3,8,15,0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 2000;
+}
+
+.ticker-search-panel {
+.ticker-search-overlay[data-open="true"] { animation: ts-fade 160ms ease both; }
+
+.ticker-search-panel { transform-origin: center top; animation: ts-scale 180ms cubic-bezier(0.2,0,0,1) both; }
+
+@keyframes ts-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes ts-scale { from { opacity: 0; transform: translateY(-6px) scale(0.98) } to { opacity: 1; transform: translateY(0) scale(1) } }
+  width: 100%;
+  max-width: 880px;
+  background: var(--card-bg, #fff);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(2,6,23,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+.ticker-search-panel-header {
+  display:flex;
+  gap:8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  align-items: center;
+}
+
+.ticker-search-panel-input {
+  flex: 1 1 auto;
+  height: 40px;
+  padding: 8px 12px;
+  font-size: 15px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+}
+
+.ticker-search-panel-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.ticker-search-panel-body {
+  overflow: auto;
+}
+
+.ticker-search-compact-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ticker-search-compact-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ticker-search-compact-item:hover { background: rgba(0,0,0,0.04); }
+
+.ticker-search-compact-left { width: 36px; flex: 0 0 36px; }
+.ticker-logo-placeholder { width: 32px; height: 32px; border-radius: 4px; background: linear-gradient(135deg,#f0f0f0,#ddd); }
+.ticker-logo { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; display: block; }
+.ticker-search-compact-main { min-width: 0; }
+.compact-line-1 { display:flex; align-items:center; gap:8px; justify-content: space-between; }
+.compact-symbol { font-weight: 700; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.compact-line-2 { color: var(--text-secondary, #6b7280); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .ticker-search-item {
   padding: 12px 16px;
   cursor: pointer;
@@ -104,11 +196,18 @@
 
 .ticker-exchange {
   font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 3px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
+  background: rgba(0,0,0,0.04);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: 8px;
 }
 
 .exchange-US {
@@ -124,6 +223,15 @@
 .exchange-TH {
   background-color: #f3e5f5;
   color: #6a1b9a;
+}
+
+/* Make sure compact list items are full width clickable on small screens */
+@media (max-width: 640px) {
+  .ticker-search-panel { padding: 8px; }
+  .ticker-search-compact-item { padding: 10px; }
+  .ticker-search-compact-left { width: 40px; flex: 0 0 40px; }
+  .ticker-logo, .ticker-logo-placeholder { width: 36px; height: 36px; }
+  .compact-line-2 { font-size: 13px; }
 }
 
 .ticker-name {

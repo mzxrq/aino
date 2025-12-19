@@ -158,17 +158,12 @@ function getTimezoneTimeString(tz) {
 }
 
   const PRESETS = [
-    { label: '1D 1m', period: '1d', interval: '1m' },
-    { label: '5D 5m', period: '5d', interval: '5m' },
-    { label: '1W 5m', period: '1wk', interval: '5m' },
-    { label: '1M 30m', period: '1mo', interval: '30m' },
-    { label: '1M 1d', period: '1mo', interval: '1d' },
-    { label: '3M 1d', period: '3mo', interval: '1d' },
-    { label: '6M 1d', period: '6mo', interval: '1d' },
-    { label: '1Y 1d', period: '1y', interval: '1d' },
-    { label: '2Y 1d', period: '2y', interval: '1d' },
-    { label: '5Y 1wk', period: '5y', interval: '1wk' },
-    { label: 'MAX 1wk', period: 'max', interval: '1wk' }
+    { label: '1D', period: '1d', interval: '1m' },
+    { label: '5D', period: '5d', interval: '5m' },
+    { label: '1M', period: '1mo', interval: '1d' },
+    { label: '6M', period: '6mo', interval: '1d' },
+    { label: '1Y', period: '1y', interval: '1d' },
+    { label: 'MAX', period: 'max', interval: '1wk' }
   ];
 
 // Normalize preset display labels (e.g. "1D 1m" -> "1D", keep "1M 30m" and "1M 1d")
@@ -181,7 +176,7 @@ function formatPresetLabel(p) {
   if (per === '1wk') return '1W';
   if (per === '1mo') {
     if (itv === '30m') return '1M 30m';
-    if (itv === '1d') return '1M 1d';
+    if (itv === '1d') return '1M';
     return '1M';
   }
   if (per === '3mo') return '3M';
@@ -274,7 +269,7 @@ function intervalToMs(interval) {
   return 60000;
 }
 
-function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1, showMA5, showMA25, showMA75, showSAR, bbSigma }) {
+function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, onExpand, period, interval, globalChartMode = 'auto', totalTickersCount = 1, showMA5, showMA25, showMA75, showSAR, bbSigma, onApplyPreset }) {
   const payload = data?.[ticker] || {};
   const dates = useMemo(() => (payload.dates || []).map(d => normalizeIso(d)), [payload.dates]);
   const close = useMemo(() => payload.close || [], [payload.close]);
@@ -512,6 +507,8 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
           isLoadingFollow={isLoadingFollow}
         />
       </div>
+
+      {/* per-card presets removed (moved to top-level toolbar) */}
       <div
         className="plot-wrapper"
         style={{position: 'relative'}}
@@ -608,14 +605,103 @@ export default function Chart() {
   const [toolbarModeOpen, setToolbarModeOpen] = useState(false);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [periodIntervalOpen, setPeriodIntervalOpen] = useState(false);
+  const [hoverSnapshot, setHoverSnapshot] = useState(null);
   const [timezoneTime, setTimezoneTime] = useState(getTimezoneTimeString(timezone));
   const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const indicatorsBtnRef = useRef(null);
   const toolbarModeBtnRef = useRef(null);
   const periodIntervalBtnRef = useRef(null);
+  const tickerSearchRef = useRef(null);
+  const toolbarInnerRef = useRef(null);
+  const toolbarCenterRef = useRef(null);
+  const pillsContainerRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState({});
+
+  // Refs for pill keyboard navigation
+  const pillRefs = useRef([]);
+
+  useEffect(() => {
+    // Keep refs array in sync with tickers length
+    pillRefs.current = pillRefs.current.slice(0, tickers.length + 1); // +1 for add-pill
+  }, [tickers]);
+
+  // Layout: rely on CSS rules in src/css/Chart.css for toolbar/pills sizing and scrolling.
+
+  // compute how many pills fit in the container
+  useEffect(() => {
+    let mounted = true;
+      const compute = () => {
+      const container = pillsContainerRef.current;
+      if (!container) return;
+      const cw = container.getBoundingClientRect().width;
+      const reserve = 40; // reduced reserve for add button / gaps to avoid over-collapsing
+      // Determine allowed rows for tickers (on small screens allow multiple rows)
+      const isSmall = (typeof window !== 'undefined' && window.innerWidth <= 480);
+      const rowsForTickers = isSmall ? 2 : 1; // allow 2 rows of tickers on small screens
+      let row = 1;
+      let rowUsed = 0;
+      let count = 0;
+      for (let i = 0; i < tickers.length; i++) {
+        const el = pillRefs.current[i];
+        if (!el) break;
+        const w = el.getBoundingClientRect().width + 8; // account for gap
+        // If adding this pill would overflow the current row, move to next row
+        if (rowUsed + w + reserve > cw) {
+          row++;
+          if (row > rowsForTickers) break;
+          rowUsed = w;
+        } else {
+          rowUsed += w;
+        }
+        count++;
+      }
+
+      // If small screen we reserve the last (separate) row for the add-pill so it stays on its own line.
+      // That means tickers occupy at most `rowsForTickers` rows and the add-pill is always visible below.
+      const minVisible = Math.min(2, tickers.length);
+      const visible = Math.max(count, minVisible);
+      if (mounted) setVisibleCount(visible);
+    };
+
+    const ro = new ResizeObserver(compute);
+    compute();
+    if (pillsContainerRef.current) ro.observe(pillsContainerRef.current);
+    window.addEventListener('resize', compute);
+    return () => { mounted = false; ro.disconnect(); window.removeEventListener('resize', compute); };
+  }, [tickers, pillRefs.current]);
+
+  // overflow collapse state
+  const [visibleCount, setVisibleCount] = useState(() => tickers.length);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+
+  const handlePillKeyDown = (index, e) => {
+    const key = e.key;
+    if (key === 'ArrowRight') {
+      e.preventDefault();
+      const next = Math.min(pillRefs.current.length - 1, index + 1);
+      const el = pillRefs.current[next]; if (el && typeof el.focus === 'function') el.focus();
+    } else if (key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = Math.max(0, index - 1);
+      const el = pillRefs.current[prev]; if (el && typeof el.focus === 'function') el.focus();
+    } else if (key === 'Home') {
+      e.preventDefault(); const el = pillRefs.current[0]; if (el && typeof el.focus === 'function') el.focus();
+    } else if (key === 'End') {
+      e.preventDefault(); const el = pillRefs.current[pillRefs.current.length - 1]; if (el && typeof el.focus === 'function') el.focus();
+    } else if (key === 'Enter' || key === ' ') {
+      e.preventDefault(); if (index < tickers.length) onExpand(tickers[index]); else {
+        // add-pill pressed: open ticker search via ref
+        if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open();
+      }
+    }
+  };
+
+  // Remove ticker helper
+  const removeTicker = (symbol) => {
+    setTickers(prev => prev.filter(s => s !== symbol));
+  };
 
   const { token, user } = useAuth();
 
@@ -914,41 +1000,118 @@ export default function Chart() {
   return (
     <div className="chart-page">
       <div className="chart-toolbar">
-        <div className="toolbar-row">
-          <div className="toolbar-group">
-            <label className="toolbar-label">Tickers</label>
-            <div className="tag-input">
-              {tickers.map((t) => (
-                <span className="tag-pill" key={t} tabIndex={0} role="option" aria-label={`Ticker ${t}`} onKeyDown={(e) => { if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setTickers(prev => prev.filter(x => x !== t)); } }}>
-                  {t}
-                  <button aria-label={`Remove ${t}`} className="tag-x" onClick={(e) => { e.stopPropagation(); setTickers(prev => prev.filter(x => x !== t)); }}>{'\u00d7'}</button>
-                </span>
-              ))}
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <TickerSearch 
-                  onSelect={(symbol) => {
-                    setTickers(prev => Array.from(new Set([...prev, symbol])));
-                  }}
-                  placeholder={tickers.length ? 'Add another ticker...' : 'Search stocks by name or symbol...'}
-                />
-              </div>
-            </div>
-            {tickers.length > 0 && (
-              <button className="btn btn-icon-clear" onClick={clearAllTags} title="Clear all tags">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
+        <div ref={toolbarInnerRef} className="chart-toolbar-inner">
+        <div className="toolbar-left">
+          <div className="period-interval">
+            <button
+              ref={periodIntervalBtnRef}
+              className="period-btn"
+              onClick={() => setPeriodIntervalOpen(v => !v)}
+              aria-haspopup="true"
+              aria-expanded={periodIntervalOpen}
+              title="Period & Interval"
+            >
+              <span className="period-label">{formatPresetLabel(PRESETS.find(p => p.period === period && p.interval === interval)) || 'Period'}</span>
+            </button>
+            <select
+              className="interval-select"
+              value={interval}
+              onChange={(e) => { setInterval(e.target.value); }}
+              aria-label="Interval"
+            >
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="30m">30m</option>
+              <option value="1d">1d</option>
+              <option value="1wk">1wk</option>
+            </select>
+            {periodIntervalOpen && periodIntervalBtnRef.current && (
+              <PortalDropdown anchorRect={periodIntervalBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setPeriodIntervalOpen(false)} className="mode-dropdown">
+                <div role="listbox" aria-label="Period & Interval" onMouseLeave={() => setPeriodIntervalOpen(false)}>
+                  {PRESETS.map(p => (
+                    <div
+                      key={p.label}
+                      className={`mode-item ${period === p.period && interval === p.interval ? 'active' : ''}`}
+                      role="option"
+                      tabIndex={0}
+                      aria-selected={period === p.period && interval === p.interval}
+                      onClick={() => { applyPreset(p); setPeriodIntervalOpen(false); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyPreset(p); setPeriodIntervalOpen(false); } }}
+                    >
+                      {formatPresetLabel(p)}
+                    </div>
+                  ))}
+                </div>
+              </PortalDropdown>
             )}
-            <button className="btn btn-stock-group" onClick={saveToStockGroup} title="Save as stock group">
-              💾
-            </button>
-            <button className="btn btn-stock-group" onClick={loadFromStockGroup} title="Load stock group">
-              📂
-            </button>
           </div>
-
         </div>
+
+        <div ref={toolbarCenterRef} className="toolbar-center">
+          <div className="chart-pills" role="list" ref={pillsContainerRef}>
+            {tickers.map((t, i) => {
+              const hidden = (typeof visibleCount === 'number' && i >= visibleCount);
+              return (
+                <button
+                  key={t}
+                  className={`chart-pill ${hidden ? 'hidden-pill' : ''}`}
+                  title={t}
+                  onClick={() => onExpand(t)}
+                  ref={el => pillRefs.current[i] = el}
+                  onKeyDown={(e) => handlePillKeyDown(i, e)}
+                  tabIndex={hidden ? -1 : 0}
+                  aria-label={`Open ${t}`}
+                  aria-hidden={hidden}
+                >
+                  <img className="chart-pill-logo" src={`https://assets.parqet.com/logos/symbol/${encodeURIComponent(t)}?format=png`} alt="" onError={(e)=>{e.currentTarget.style.display='none'}} />
+                  <span className="chart-pill-text">{t}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="pill-remove"
+                    aria-label={`Remove ${t}`}
+                    onClick={(e) => { e.stopPropagation(); removeTicker(t); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); removeTicker(t); } }}
+                  >✕</span>
+                </button>
+              );
+            })}
+
+            {/* overflow button */}
+            {visibleCount < tickers.length && (
+              <div className="chart-pill overflow-pill" role="button" tabIndex={0} onClick={() => setOverflowOpen(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOverflowOpen(v => !v); } }}>
+                +{tickers.length - visibleCount}
+              </div>
+            )}
+
+            <button
+              className="chart-pill add-pill"
+              aria-label="Add ticker"
+              onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
+              ref={el => pillRefs.current[tickers.length] = el}
+              onKeyDown={(e) => handlePillKeyDown(tickers.length, e)}
+              style={typeof document !== 'undefined' && document.body && document.body.classList && document.body.classList.contains('dark') ? { background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.14)', color: '#fff' } : undefined}
+            >
+              +
+            </button>
+
+            {overflowOpen && visibleCount < tickers.length && (
+              <div className="overflow-popover" role="menu" onMouseLeave={() => setOverflowOpen(false)}>
+                <ul>
+                  {tickers.slice(visibleCount).map(t => (
+                    <li key={`ov-${t}`} onClick={() => { onExpand(t); setOverflowOpen(false); }}>{t}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* TickerSearch instance (used via ref) */}
+        <TickerSearch ref={tickerSearchRef} showInput={false} onSelect={(symbol) => {
+          setTickers(prev => Array.from(new Set([...prev, symbol])));
+        }} placeholder="Search stocks by name or symbol..." />
 
         {/* Right-side controls: Timezone, Indicators, Chart Mode */}
         <div className="toolbar-right">
@@ -1199,48 +1362,22 @@ export default function Chart() {
                 </PortalDropdown>
               )}
           </div>
-        </div>
-
-          {/* top-level subscribe removed (subscriptions kept per-card) */}
-
-          {/* Custom Period/Interval selector (separate from preset buttons) */}
-          <div className="toolbar-row custom-selector" style={{ gap: 12, alignItems: 'center' }}>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Period</label>
-            <select
-              value={period}
-              onChange={(e) => {
-                const p = e.target.value;
-                const enforced = enforceIntervalRules(p, interval);
-                setPeriod(p);
-                setInterval(enforced);
-              }}
-            >
-              {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Interval</label>
-            <select
-              value={interval}
-              onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
-            >
-              {(() => {
-                const p = (period || '').toLowerCase();
-                const candidates = ['1m','2m','5m','15m','30m','1h','1d','1wk','1mo'];
-                return candidates
-                  .filter(iv => enforceIntervalRules(period, iv) === iv)
-                  .map(iv => <option key={iv} value={iv}>{iv}</option>);
-              })()}
-            </select>
           </div>
 
-        <div className="toolbar-row presets">
+            {/* top-level subscribe removed (subscriptions kept per-card) */}
+
+          </div>
+        </div>
+
+      {/* Global presets moved here so changing a preset doesn't live inside each card */}
+      <div className="toolbar-row presets" role="toolbar" aria-label="Default presets">
+        <div className="preset-inner">
           {PRESETS.map(p => (
             <button
               key={p.label}
-              className={`btn btn-sm ${period === p.period && interval === p.interval ? 'btn-primary' : ''}`}
-              onClick={() => applyPreset(p)}
               type="button"
+              className={`preset-large btn preset ${period === p.period && interval === p.interval ? 'active' : ''}`}
+              onClick={() => applyPreset(p)}
             >
               {formatPresetLabel(p)}
             </button>
@@ -1272,6 +1409,8 @@ export default function Chart() {
             showMA25={showMA25}
             showMA75={showMA75}
             showSAR={showSAR}
+            onApplyPreset={applyPreset}
+            onHoverSnapshot={setHoverSnapshot}
             bbSigma={bbSigma}
           />
         ))}

@@ -90,6 +90,24 @@ function abbreviateNumber(num) {
   return num.toFixed(0);
 }
 
+// Format numbers with thousands separators and fixed decimals
+function formatWithCommas(num, decimals = 2) {
+  if (num === null || num === undefined) return '-';
+  const n = Number(num);
+  if (!Number.isFinite(n)) return '-';
+  try {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(n);
+  } catch {
+    const fixed = n.toFixed(decimals);
+    const parts = fixed.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+  }
+}
+
 export default function EchartsCard({
   ticker,
   dates,
@@ -116,12 +134,15 @@ export default function EchartsCard({
   height = 300,
   movingAverages,
   parabolicSAR,
+  onHoverSnapshot = () => {},
   showMA5 = false,
   showMA25 = false,
   showMA75 = false,
   showSAR = false,
   bbSigma = '2sigma'
 }) {
+  // Normalize chartMode to accept both 'lines' and 'line' (some callers use plural)
+  const mode = chartMode === 'lines' ? 'line' : chartMode;
   // Build candlestick data: each item is [open, close, low, high]
   const candleData = useMemo(() => {
     if (!open || !close || !low || !high) return [];
@@ -287,6 +308,28 @@ export default function EchartsCard({
     return timestamps.map((t, i) => [t, volumeData[i]]);
   }, [useTimeAxis, timestamps, volumeData]);
 
+  // Compute an axis label interval for time axis to avoid overcrowding on multi-day intraday views
+  const timeLabelInterval = useMemo(() => {
+    if (!useTimeAxis) return undefined;
+    // For 5-day intraday data, prefer ~6 labels across the axis to avoid overlap
+    if (isIntraday5D) {
+      const total = timestamps.length || 0;
+      const desired = 6;
+      if (total <= desired) return 0; // show all
+      // show every Nth tick
+      const n = Math.ceil(total / desired);
+      return n;
+    }
+    // For 1D intraday, allow more density but still cap
+    if (isIntraday1D) {
+      const total = timestamps.length || 0;
+      const desired = 8;
+      if (total <= desired) return 0;
+      return Math.ceil(total / desired);
+    }
+    return undefined;
+  }, [useTimeAxis, isIntraday5D, isIntraday1D, timestamps]);
+
   const timeVwapData = useMemo(() => {
     if (!useTimeAxis) return vwapData;
     if (!timestamps.length || !vwapData?.length) return [];
@@ -356,6 +399,45 @@ export default function EchartsCard({
   const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
 
   // Build ECharts option
+  const handleTooltipShow = React.useCallback((params) => {
+    const arr = Array.isArray(params) ? params.filter(p => p && p.value !== undefined && p.value !== null) : (params ? [params] : []);
+    if (!arr.length) {
+      setTooltipContent(null);
+      setTooltipVisible(false);
+      onHoverSnapshot(null);
+      return;
+    }
+    setTooltipContent(arr);
+    setTooltipVisible(true);
+
+    // Emit hover snapshot (price + date) for external badges/panels
+    const primary = arr[0];
+    const rawDate = useTimeAxis
+      ? (typeof primary.axisValue === 'number' ? new Date(primary.axisValue).toISOString() : (dates && primary.dataIndex !== undefined ? dates[primary.dataIndex] : primary.name))
+      : (dates && primary.dataIndex !== undefined ? dates[primary.dataIndex] : primary.name);
+
+    const priceFromValue = (p) => {
+      if (!p) return null;
+      const v = p.value;
+      if (Array.isArray(v)) {
+        if (v.length === 5) return Number(v[2]); // [t, o, c, l, h]
+        if (v.length === 4) return Number(v[1]); // [o, c, l, h]
+        if (v.length === 2) return Number(v[1]);
+        return Number(v[0]);
+      }
+      return Number(v);
+    };
+
+    const price = priceFromValue(primary);
+    let formattedDate = rawDate;
+    try {
+      const dt = parseToTimezone(rawDate, timezone);
+      if (dt) formattedDate = dt.toFormat('MM/dd/yyyy HH:mm:ss');
+    } catch { /* ignore */ }
+
+    onHoverSnapshot({ price, date: rawDate, label: formattedDate });
+  }, [dates, onHoverSnapshot, timezone, useTimeAxis]);
+
   const option = useMemo(() => {
     // Guard: if no dates, return empty option
     if (!dates || dates.length === 0) {
@@ -371,21 +453,21 @@ export default function EchartsCard({
     const series = [];
 
     // 1. Main price series based on selected chart mode
-    if (chartMode === 'line') {
+    if (mode === 'line') {
       series.push({
-        name: `${ticker} Close`,
+        name: `${ticker}`,
         type: 'line',
         data: useTimeAxis ? timeLineData : lineData,
         smooth: false,
-        itemStyle: { color: '#1e88e5' },
-        lineStyle: { color: '#1e88e5', width: 2 },
+        itemStyle: { color: '#53c262ff' },
+        lineStyle: { color: '#53c262ff', width: 1.5 },
         symbolSize: 0,
         progressive: 4000,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'candlestick') {
+    } else if (mode === 'candlestick') {
       series.push({
-        name: `${ticker} OHLC`,
+        name: `${ticker}`,
         type: 'candlestick',
         data: useTimeAxis ? timeCandleData : candleData,
         encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
@@ -397,13 +479,25 @@ export default function EchartsCard({
         },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'ohlc') {
+    } else if (mode === 'hollowcandlestick') {
+      series.push({
+        name: `${ticker}`,
+        type: 'candlestick',
+        data: useTimeAxis ? timeCandleData : candleData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
+        itemStyle: {
+          color: '#26a699',
+          color0: '#e03b3b',
+          borderColor: '#26a69a',
+          borderColor0: '#e03b3b'
+        },
+        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      });
+    } else if (mode === 'ohlc') {
       // OHLC chart - Heiken-Ashi candlestick
       series.push({
-        name: `${ticker} Heiken-Ashi`,
+        name: `${ticker}`,
         type: 'candlestick',
-        data: useTimeAxis ? timeHeikinAshiData : heikinAshiData,
-        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -412,7 +506,7 @@ export default function EchartsCard({
         },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'bar') {
+    } else if (mode === 'bar') {
       // Bar chart using open prices
       series.push({
         name: `${ticker} Open`,
@@ -421,7 +515,7 @@ export default function EchartsCard({
         itemStyle: { color: '#3fa34d' },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'column') {
+    } else if (mode === 'column') {
       // Column chart using close prices
       series.push({
         name: `${ticker} Close`,
@@ -430,10 +524,10 @@ export default function EchartsCard({
         itemStyle: { color: 'rgba(44, 193, 127, 0.8)' },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'area') {
+    } else if (mode === 'area') {
       // Area chart using close prices
       series.push({
-        name: `${ticker} Close`,
+        name: `${ticker}`,
         type: 'line',
         data: useTimeAxis ? timeLineData : lineData,
         smooth: true,
@@ -443,11 +537,11 @@ export default function EchartsCard({
         progressive: 4000,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (chartMode === 'hlc') {
+    } else if (mode === 'hlc') {
       // HLC (High-Low-Close) chart - use candlestick as it's most similar
       series.push({
-        name: `${ticker} HLC`,
-        type: 'candlestick',
+        name: `${ticker}`,
+        type: 'line',
         data: useTimeAxis ? timeHlcData : hlcData,
         encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
@@ -460,17 +554,29 @@ export default function EchartsCard({
       });
     } else {
       // Default to candlestick
+      // series.push({
+      //   name: `${ticker} OHLC`,
+      //   type: 'candlestick',
+      //   data: useTimeAxis ? timeCandleData : candleData,
+      //   encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
+      //   itemStyle: {
+      //     color: '#26a69a',
+      //     color0: '#e03b3b',
+      //     borderColor: '#26a69a',
+      //     borderColor0: '#e03b3b'
+      //   },
+      //   markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+      // });
+      // Default to line chart
       series.push({
-        name: `${ticker} OHLC`,
-        type: 'candlestick',
-        data: useTimeAxis ? timeCandleData : candleData,
-        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
-        itemStyle: {
-          color: '#26a69a',
-          color0: '#e03b3b',
-          borderColor: '#26a69a',
-          borderColor0: '#e03b3b'
-        },
+        name: `${ticker}`,
+        type: 'line',
+        data: useTimeAxis ? timeLineData : lineData,
+        smooth: false,
+        itemStyle: { color: '#53c262ff' },
+        lineStyle: { color: '#53c262ff', width: 1.5 },
+        symbolSize: 0,
+        progressive: 4000,
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
     }
@@ -606,37 +712,38 @@ export default function EchartsCard({
       animation: false,
       backgroundColor: 'transparent',
       textStyle: { color: '#333' },
+      axisPointer: {
+        link: [
+          {
+            xAxisIndex: [0, 1]
+          }
+        ]
+      },
       tooltip: {
         trigger: 'axis',
+        showContent: true,
+        transitionDuration: 0,
+        confine: true,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+        textStyle: { color: '#333', fontSize: 12 },
         axisPointer: { 
           type: isMobile ? 'line' : 'cross',
           axis: 'x',
           snap: true,
-          label: {
-            backgroundColor: '#6a7985'
-          }
+          label: { backgroundColor: '#6a7985' }
         },
-        backgroundColor: 'rgba(255, 255, 255, 0.96)',
-        borderColor: '#e0e0e0',
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: [12, 16],
-        textStyle: {
-          color: '#333',
-          fontSize: 13
-        },
-        extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.15);',
         formatter: (params) => {
           if (!params || !Array.isArray(params)) return '';
           const p = params[0];
           if (!p) return '';
           
-          // Get the raw ISO timestamp
           const rawDate = useTimeAxis
-            ? (typeof p.axisValue === 'number' ? new Date(p.axisValue).toISOString() : (dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name))
-            : (dates && dates[p.dataIndex] ? dates[p.dataIndex] : p.name);
+            ? (typeof p.axisValue === 'number' ? new Date(p.axisValue).toISOString() : (dates && p.dataIndex !== undefined ? dates[p.dataIndex] : p.name))
+            : (dates && p.dataIndex !== undefined ? dates[p.dataIndex] : p.name);
           
-          // Format date and time in user's timezone
           const pLower = (period || '').toLowerCase();
           const hideTime = pLower.includes('y');
           let dateStr = '';
@@ -653,58 +760,61 @@ export default function EchartsCard({
             dateStr = rawDate;
           }
           
-          // Build stylish tooltip HTML
-          let html = '<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #2cc17f;">';
+          let html = '<div style="font-weight: 600; font-size: 13px; margin-bottom: 8px; color: #2cc17f;">';
           html += `📅 ${dateStr}`;
           if (timeStr) html += ` <span style="color: #666; font-weight: 400;">⏰ ${timeStr}</span>`;
           html += '</div>';
           html += '<div style="border-top: 1px solid #e5e7eb; margin: 8px 0;"></div>';
           
-          // Add each series data
-          params.forEach((param, idx) => {
+          // Helper to add a compact row
+          const addRow = (label, value, color) => {
+            html += '<div style="margin: 3px 0; display: flex; align-items: center;">';
+            html += `<span style="display: inline-block; width: 8px; height: 8px; background: ${color}; border-radius: 50%; margin-right: 6px;"></span>`;
+            html += `<span style="color: #666; font-size: 11px; margin-right: 8px;">${label}:</span>`;
+            html += `<span style="font-weight: 600; color: #333;">${value}</span>`;
+            html += '</div>';
+          };
+
+          params.forEach((param) => {
             if (param.value === undefined || param.value === null) return;
-            
             const seriesColor = param.color || '#666';
-            const seriesName = param.seriesName;
-            let displayValue = '';
-            
-            // Handle different value types
+            const seriesName = param.seriesName || '';
+
             if (Array.isArray(param.value)) {
-              // Check if it's OHLC candlestick (4 elements) or SAR/line data (2 elements)
-              if (param.value.length === 4) {
-                // OHLC candlestick: [open, close, low, high]
-                const [o, c, l, h] = param.value;
-                displayValue = `O: ${o?.toFixed?.(2) || '-'} | C: ${c?.toFixed?.(2) || '-'} | L: ${l?.toFixed?.(2) || '-'} | H: ${h?.toFixed?.(2) || '-'}`;
-              } else if (param.value.length === 2) {
-                // Line/SAR/other: [xIndex, yValue]
+              // OHLC candlestick: 5 elements [timestamp, open, close, low, high] or 4 elements [open, close, low, high]
+              if (param.value.length === 5 || param.value.length === 4) {
+                const startIdx = param.value.length === 5 ? 1 : 0; // Skip timestamp if present
+                const [o, c, l, h] = param.value.slice(startIdx, startIdx + 4);
+                const fmt = (v) => (v === undefined || v === null || Number.isNaN(Number(v)) ? '-' : formatWithCommas(Number(v), 2));
+                // Break into separate, compact lines
+                addRow(`Open`, fmt(o), seriesColor);
+                addRow(`High`, fmt(h), seriesColor);
+                addRow(`Low`, fmt(l), seriesColor);
+                addRow(`Close`, fmt(c), seriesColor);
+                return;
+              }
+              if (param.value.length === 2) {
                 const [, val] = param.value;
                 const num = Number(val);
                 if (seriesName === 'Volume') {
-                  displayValue = abbreviateNumber(num);
-                } else if (!isNaN(num)) {
-                  displayValue = num.toFixed(2);
+                  addRow('Volume', abbreviateNumber(num), seriesColor);
                 } else {
-                  displayValue = '-';
+                  addRow(seriesName, Number.isNaN(num) ? '-' : formatWithCommas(num, 2), seriesColor);
                 }
-              } else {
-                displayValue = '-';
+                return;
               }
-            } else {
-              const num = Number(param.value);
-              if (seriesName === 'Volume') {
-                displayValue = abbreviateNumber(num);
-              } else if (!isNaN(num)) {
-                displayValue = num.toFixed(2);
-              } else {
-                displayValue = '-';
-              }
+              // Fallback for other array values
+              addRow(seriesName, param.value.join(' / '), seriesColor);
+              return;
             }
-            
-            html += '<div style="margin: 5px 0; display: flex; align-items: center;">';
-            html += `<span style="display: inline-block; width: 10px; height: 10px; background: ${seriesColor}; border-radius: 50%; margin-right: 8px;"></span>`;
-            html += `<span style="color: #666; font-size: 12px; margin-right: 8px;">${seriesName}:</span>`;
-            html += `<span style="font-weight: 600; color: #333;">${displayValue}</span>`;
-            html += '</div>';
+
+            // Scalar values
+            const num = Number(param.value);
+            if (seriesName === 'Volume') {
+              addRow('Volume', abbreviateNumber(num), seriesColor);
+            } else {
+              addRow(seriesName, Number.isNaN(num) ? String(param.value) : formatWithCommas(num, 2), seriesColor);
+            }
           });
           
           return html;
@@ -715,13 +825,22 @@ export default function EchartsCard({
         top: 10,
         textStyle: { color: '#333' }
       } : { show: false },
-      grid: {
-        left: '8%',
-        right: '12%',
-        top: '20%',
-        bottom: isOrdinal ? '10%' : '18%'
-      },
-      xAxis: useTimeAxis ? {
+      grid: [
+        {
+          left: '8%',
+          right: '12%',
+          top: '20%',
+          bottom: isOrdinal ? '15%' : '22%'
+        },
+        {
+          left: '8%',
+          right: '12%',
+          top: '75%',
+          height: '12%'
+        }
+      ],
+      xAxis: [
+        useTimeAxis ? {
         type: 'time',
         min: timestamps.length ? timestamps[0] : undefined,
         max: timestamps.length ? timestamps[timestamps.length - 1] : undefined,
@@ -729,7 +848,8 @@ export default function EchartsCard({
         axisLine: { lineStyle: { color: '#ccc' } },
         axisLabel: {
           color: '#666',
-          formatter: axisLabelFormatter
+          formatter: axisLabelFormatter,
+          interval: timeLabelInterval
         },
         splitLine: { show: false },
         breaks: axisBreaks,
@@ -757,6 +877,27 @@ export default function EchartsCard({
         },
         splitLine: { show: false }
       },
+      {
+        type: 'category',
+        gridIndex: 1,
+        data: dates,
+        boundaryGap: true,
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        axisLine: { lineStyle: { color: '#999' } },
+        axisPointer: {
+          type: 'shadow',
+          label: { show: false },
+          triggerTooltip: true,
+          handle: {
+            show: true,
+            margin: 18,
+            color: '#2cc17f'
+          }
+        }
+      }
+      ],
       yAxis: [
         {
           type: 'value',
@@ -773,25 +914,40 @@ export default function EchartsCard({
           axisLine: { lineStyle: { color: '#ccc' } },
           axisLabel: { color: '#666' },
           splitLine: { show: false }
+        },
+        {
+          type: 'value',
+          scale: true,
+          gridIndex: 1,
+          splitNumber: 2,
+          axisLabel: { show: false },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { show: false }
         }
       ],
       dataZoom: [
         {
           type: 'slider',
           show: true,
-          xAxisIndex: 0,
+          xAxisIndex: [0, 1],
           start: 0,
           end: 100,
+          height: 16,
           minValueSpan: useTimeAxis ? 3600000 : undefined,
-          textStyle: { color: '#666' }
+          textStyle: { color: '#666' },
+          handleIcon: 'path://M10.7,11.9H9.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4h1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+          handleSize: '80%',
+          handleStyle: { color: '#2cc17f', borderColor: '#2cc17f' }
         },
         {
           type: 'inside',
-          xAxisIndex: 0,
+          xAxisIndex: [0, 1],
           yAxisIndex: [0, 1],
           start: 0,
           end: 100,
-          minValueSpan: useTimeAxis ? 3600000 : undefined
+          minValueSpan: useTimeAxis ? 3600000 : undefined,
+          zoomOnMouseWheel: 'shift'
         }
       ],
       series: series.map((s, i) => {
@@ -827,7 +983,7 @@ export default function EchartsCard({
     showBB,
     showVWAP,
     showVolume,
-    chartMode,
+    mode,
     anomalyMarkers,
     period,
     useTimeAxis,
@@ -853,14 +1009,44 @@ export default function EchartsCard({
 
   const chartRef = React.useRef(null);
 
+  // Tooltip overlay state for accessibility / mobile readability
+  const [tooltipVisible, setTooltipVisible] = React.useState(false);
+  const [tooltipContent, setTooltipContent] = React.useState(null);
+  const [tooltipPos, setTooltipPos] = React.useState({ x: 12, y: 12 });
+
+  const onEvents = {
+    mousemove: handleTooltipShow,
+    globalout: () => {
+      setTooltipVisible(false);
+      setTooltipContent(null);
+      onHoverSnapshot(null);
+    }
+  };
+
   return (
-    <div style={{ width: '100%', height: typeof height === 'number' ? `${height}px` : height, flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <div
+      style={{ width: '100%', height: typeof height === 'number' ? `${height}px` : height, flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}
+      onMouseMove={(e) => {
+        // update tooltip position relative to container
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        setTooltipPos({ x, y });
+      }}
+      onTouchStart={(e) => {
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        setTooltipPos({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
+      }}
+    >
       <ReactEcharts
         ref={chartRef}
         option={option}
         style={{ width: '100%', height: '100%', flex: 1 }}
         notMerge={true}
         opts={{ renderer: 'canvas', useDirtyRect: true }}
+        onEvents={onEvents}
       />
     </div>
   );

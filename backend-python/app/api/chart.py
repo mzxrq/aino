@@ -738,7 +738,14 @@ def search_ticker(query: str) -> List[dict]:
 
     results = []
     for doc in cursor:
-        results.append({"ticker": doc.get("ticker"), "name": doc.get("companyName")})
+        # Provide both `exchange` (frontend pill) and `market` keys for compatibility
+        exchange = doc.get("country") or doc.get("market") or doc.get("primaryExchange") or ""
+        results.append({
+            "ticker": doc.get("ticker"),
+            "name": doc.get("companyName"),
+            "exchange": exchange,
+            "market": exchange
+        })
     return results
 
 

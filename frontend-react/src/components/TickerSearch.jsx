@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import '../css/TickerSearch.css';
 
 /**
@@ -6,25 +6,27 @@ import '../css/TickerSearch.css';
  * Autocomplete search with global ticker database
  * Displays: "KYOKUYO CO.,LTD (1301.T)" but returns symbol "1301.T" for charting
  */
-export default function TickerSearch({ onSelect, placeholder = "Search stocks by name or symbol..." }) {
+const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = "Search stocks by name or symbol...", showInput = true }, ref) {
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [tickers, setTickers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalQuery, setModalQuery] = useState('');
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const modalInputRef = useRef(null);
 
-  // Load master ticker list on mount
+  // Load master ticker list on mount (fallback source)
   useEffect(() => {
     const loadTickers = async () => {
       try {
         const response = await fetch('/master_tickers.json');
         const data = await response.json();
         setTickers(data);
-        console.log(`[TickerSearch] Loaded ${data.length} tickers`);
       } catch (error) {
-        console.error('[TickerSearch] Error loading tickers:', error);
+        // silently ignore fallback load errors; modal will use server-side lookup
       } finally {
         setLoading(false);
       }
@@ -83,7 +85,7 @@ export default function TickerSearch({ onSelect, placeholder = "Search stocks by
       .map(({ score, ...item }) => item);
   }, [input, tickers]);
 
-  // Show dropdown when suggestions available
+  // Show dropdown when inline suggestions available (legacy)
   useEffect(() => {
     if (filteredSuggestions.length > 0 && input.trim()) {
       setShowDropdown(true);
@@ -93,6 +95,77 @@ export default function TickerSearch({ onSelect, placeholder = "Search stocks by
       setSuggestions([]);
     }
   }, [filteredSuggestions, input]);
+
+  // Server-side modal search results and debounce
+  const [modalResults, setModalResults] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  useEffect(() => {
+    if (!showModal) return;
+    let mounted = true;
+    let timer = null;
+    const q = modalQuery && modalQuery.trim();
+    const doFallbackFilter = () => {
+      if (!q) return [];
+      const lq = q.toLowerCase();
+      return tickers.filter(t => (t.symbol || '').toLowerCase().includes(lq) || (t.name || '').toLowerCase().includes(lq)).slice(0, 400);
+    };
+
+    if (!q) {
+      setModalResults([]);
+      setModalLoading(false);
+      return () => {};
+    }
+
+    timer = setTimeout(async () => {
+      setModalLoading(true);
+      try {
+        const front = import.meta.env.VITE_API_URL || '';
+        const pyDirect = import.meta.env.VITE_LINE_PY_URL || '';
+        let url = `${front}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+        let res;
+        try {
+          res = await fetch(url);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+        } catch (err) {
+          // fallback to direct python host if gateway not available
+          try {
+            url = `${pyDirect}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+            res = await fetch(url);
+            if (!res.ok) throw new Error(`fallback status ${res.status}`);
+          } catch (err2) {
+            // network error: fallback to client-side filter
+            const fb = doFallbackFilter();
+            if (mounted) setModalResults(fb);
+            return;
+          }
+        }
+
+        const json = await res.json();
+        // Normalize server response to { symbol, name, exchange }
+        if (Array.isArray(json)) {
+          const norm = json.map(item => {
+            const rawSym = (item.symbol || item.ticker || item.ticker_symbol || item.code || '').toString();
+            const symbol = rawSym ? rawSym.toUpperCase() : '';
+            const name = item.name || item.company || item.label || item.longName || '';
+            const exchange = item.exchange || item.exch || item.market || item.market_code || '';
+            return { symbol, name, exchange };
+          }).filter(x => x.symbol || x.name);
+          if (mounted) setModalResults(norm.slice(0, 400));
+        } else {
+          // fallback to client-side if unexpected payload
+          const fb = doFallbackFilter();
+          if (mounted) setModalResults(fb);
+        }
+      } catch (e) {
+        const fb = doFallbackFilter();
+        if (mounted) setModalResults(fb);
+      } finally {
+        if (mounted) setModalLoading(false);
+      }
+    }, 250);
+
+    return () => { mounted = false; if (timer) clearTimeout(timer); };
+  }, [modalQuery, showModal, tickers]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -107,15 +180,35 @@ export default function TickerSearch({ onSelect, placeholder = "Search stocks by
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close modal on outside click or ESC
+  useEffect(() => {
+    if (!showModal) return;
+    function handleKey(e) {
+      if (e.key === 'Escape') setShowModal(false);
+    }
+    function handleClickOutside(e) {
+      if (modalInputRef.current && !modalInputRef.current.contains(e.target)) {
+        // if click is outside the panel wrapper, close
+        const panel = document.getElementById('ticker-search-panel');
+        if (panel && !panel.contains(e.target)) setShowModal(false);
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showModal]);
+
   const handleSelect = (ticker) => {
     // Display user-friendly format, return yfinance format
-    setInput(`${ticker.name} (${ticker.symbol})`);
+    const sym = (ticker.symbol || ticker.ticker || '').toString().toUpperCase();
+    setInput(`${ticker.name} (${sym})`);
     setShowDropdown(false);
     
     // Call parent callback with symbol only (for charting)
-    if (onSelect) {
-      onSelect(ticker.symbol);
-    }
+    if (onSelect) onSelect(sym);
   };
 
   const handleClear = () => {
@@ -124,60 +217,112 @@ export default function TickerSearch({ onSelect, placeholder = "Search stocks by
     setShowDropdown(false);
   };
 
+  const openModal = () => {
+    setModalQuery('');
+    setShowModal(true);
+    // focus will be set via ref after render
+    setTimeout(() => modalInputRef.current && modalInputRef.current.focus(), 0);
+  };
+
+  // expose imperative open() to parent via ref
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setModalQuery('');
+      setShowModal(true);
+      setTimeout(() => modalInputRef.current && modalInputRef.current.focus(), 0);
+    }
+  }));
+
+  const handleModalSelect = (ticker) => {
+    const sym = (ticker.symbol || ticker.ticker || '').toString().toUpperCase();
+    setInput(`${ticker.name} (${sym})`);
+    setShowModal(false);
+    if (onSelect) onSelect(sym);
+  };
+
   return (
     <div className="ticker-search-container">
-      <div className="ticker-search-input-wrapper">
-        <input
-          ref={inputRef}
-          type="text"
-          className="ticker-search-input"
-          placeholder={placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onFocus={() => input.trim() && setShowDropdown(true)}
-          disabled={loading}
-          aria-label="Search tickers"
-        />
-        {input && (
-          <button 
-            className="ticker-search-clear" 
-            onClick={handleClear}
-            aria-label="Clear search"
-            title="Clear"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      {showDropdown && suggestions.length > 0 && (
-        <ul ref={dropdownRef} className="ticker-search-dropdown">
-          {suggestions.map((ticker) => (
-            <li
-              key={`${ticker.symbol}-${ticker.exchange}`}
-              className="ticker-search-item"
-              onClick={() => handleSelect(ticker)}
-              role="option"
+      {showInput && (
+        <div className="ticker-search-input-wrapper">
+          <input
+            ref={inputRef}
+            type="text"
+            readOnly
+            className="ticker-search-input"
+            placeholder={placeholder}
+            value={input}
+            onFocus={() => openModal()}
+            disabled={loading}
+            aria-label="Open ticker search"
+          />
+          {input && (
+            <button 
+              className="ticker-search-clear" 
+              onClick={handleClear}
+              aria-label="Clear search"
+              title="Clear"
             >
-              <div className="ticker-search-item-header">
-                <span className="ticker-symbol">{ticker.symbol}</span>
-                <span className={`ticker-exchange exchange-${ticker.exchange}`}>
-                  {ticker.exchange}
-                </span>
-              </div>
-              <div className="ticker-name">{ticker.name}</div>
-            </li>
-          ))}
-        </ul>
+              ✕
+            </button>
+          )}
+        </div>
       )}
 
-      {loading && (
-        <div className="ticker-search-loading">Loading tickers...</div>
-      )}
+      {/* Modal overlay */}
+      {showModal && (
+        <div className="ticker-search-overlay" role="dialog" aria-modal="true">
+          <div className="ticker-search-panel" id="ticker-search-panel">
+            <div className="ticker-search-panel-header">
+              <input
+                ref={modalInputRef}
+                className="ticker-search-panel-input"
+                placeholder={placeholder}
+                value={modalQuery}
+                onChange={(e) => setModalQuery(e.target.value)}
+                aria-label="Search tickers"
+              />
+              <button className="ticker-search-panel-close" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
+            </div>
 
-      {!loading && input.trim() && !showDropdown && suggestions.length === 0 && (
-        <div className="ticker-search-no-results">No tickers found</div>
+            <div className="ticker-search-panel-body">
+              {modalLoading ? (
+                <div className="ticker-search-loading">Searching...</div>
+              ) : (
+                (modalResults && modalResults.length) ? (
+                  <ul className="ticker-search-compact-list">
+                    {modalResults.slice(0, 400).map((t) => {
+                      const symbolText = (t.symbol || t.ticker || '').toString().toUpperCase();
+                      const exchangeText = (t.exchange || '').toString();
+                      const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
+                      return (
+                        <li key={`${symbolText}-${exchangeText}`} className="ticker-search-compact-item" onClick={() => handleModalSelect(t)}>
+                          <div className="ticker-search-compact-left">
+                            {logoUrl ? (
+                              <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : (
+                              <div className="ticker-logo-placeholder" aria-hidden></div>
+                            )}
+                          </div>
+                          <div className="ticker-search-compact-main">
+                            <div className="compact-line-1"><span className="compact-symbol">{symbolText}</span>
+                              <span className={`ticker-exchange exchange-${exchangeText}`}>{exchangeText}</span>
+                            </div>
+                            <div className="compact-line-2">{t.name}</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="ticker-search-empty">No results</div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
-}
+});
+
+export default TickerSearch;
