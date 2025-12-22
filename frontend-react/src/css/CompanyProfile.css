@@ -1,53 +1,819 @@
-.company-shell{padding:12px;display:flex;flex-direction:column;gap:12px}
-.company-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.company-left{display:flex;flex-direction:column}
-.company-ticker{font-size:26px;margin:0}
-.company-name{color:var(--text-secondary)}
-.company-meta{font-size:13px;color:var(--text-secondary);margin-top:6px}
-.company-right{display:flex;gap:8px;align-items:center}
-.btn-outline{padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:var(--text-primary);text-decoration:none}
-.company-grid{display:grid;grid-template-columns:1fr 2fr;gap:12px}
-.card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:12px}
-.company-chart .muted{color:var(--text-secondary)}
-.company-side{display:flex;flex-direction:column;gap:12px}
-.fin-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.03)}
-.fin-period{color:var(--text-secondary)}
-.fin-val{font-weight:700}
-.news-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}
-.news-item{display:block;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:transparent;color:inherit;text-decoration:none}
-.news-title{font-weight:600}
-.news-meta{font-size:12px;color:var(--text-secondary)}
-/* Holders / Insiders / Recommendations styles */
-.financial-extra .holders{display:flex;gap:12px;margin-top:8px}
-.holder-major, .holder-institutional, .holder-mutual{flex:1;min-width:140px}
-.holder-major ul{margin:6px 0 0 14px;padding:0}
-.holder-table, .insider-table, .rec-table{border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-primary)}
-.holder-row, .insider-row, .rec-row{display:flex;gap:8px;padding:6px 8px;align-items:center}
-.holder-row.header, .insider-row.header, .rec-row.header{background:rgba(0,0,0,0.03);font-weight:600;color:var(--text-secondary)}
-.holder-row > div, .insider-row > div, .rec-row > div{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.insider-pre{white-space:pre-wrap;max-height:120px;overflow:auto;padding:8px;background:transparent;border-radius:6px}
-.schema-keys{font-size:12px;color:var(--text-secondary);margin-top:6px}
-.schema-keys.small{font-size:11px;color:var(--text-secondary);opacity:0.9}
-@media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-header{flex-direction:column;align-items:flex-start}.company-right{width:100%;justify-content:space-between}}
+@media (max-width: 768px) {
+    .company-shell{padding:12px;display:flex;flex-direction:column;gap:12px}
+  .company-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .company-left{display:flex;flex-direction:column}
+  .company-ticker{font-size:26px;margin:0}
+  .company-name{color:var(--text-secondary)}
+  .company-meta{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .company-right{display:flex;gap:8px;align-items:center}
+  .btn-outline{padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:var(--text-primary);text-decoration:none}
+  .company-grid{display:grid;grid-template-columns:1fr 2fr;gap:12px}
+  .card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:12px}
+  .company-chart .muted{color:var(--text-secondary)}
+  .company-side{display:flex;flex-direction:column;gap:12px}
+  .fin-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.03)}
+  .fin-period{color:var(--text-secondary)}
+  .fin-val{font-weight:700}
+  .news-list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto}
+  .news-item{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:transparent;color:inherit;text-decoration:none}
+  .news-thumb{width:72px;height:48px;object-fit:cover;border-radius:6px;flex:0 0 72px}
+  .news-body{flex:1;min-width:0}
+  .news-title{font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .news-meta{font-size:12px;color:var(--text-secondary);margin-top:6px;display:flex;align-items:center;gap:6px}
+  .news-badge{background:rgba(0,0,0,0.06);padding:2px 6px;border-radius:6px;font-size:11px;font-weight:700}
+  .news-time{color:var(--text-secondary);font-size:12px}
+  .news-pagination{display:flex;align-items:center;justify-content:center;margin-top:8px;gap:8px}
+  .news-pagination .btn{padding:6px 10px;border-radius:8px;border:1px solid var(--border-color);background:transparent;cursor:pointer}
+  .news-pagination .btn[disabled]{opacity:0.5;cursor:not-allowed}
+  
+  /* skeleton */
+  .news-skeleton{display:flex;flex-direction:column;gap:8px}
 
-/* Meta card styles (company info above chart) */
-.meta-card{padding:12px}
-.meta-grid{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.meta-left{flex:1;min-width:0}
-.meta-right{width:220px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-.meta-name{margin:0;font-size:18px}
-.meta-sub{font-size:13px;color:var(--text-secondary);margin-top:6px}
-.meta-desc{color:var(--text-secondary);margin-top:8px;font-size:14px}
-.meta-stats div{font-size:13px;margin-bottom:6px}
-.meta-price{display:flex;flex-direction:column;align-items:flex-end}
-.price-now{font-size:18px;font-weight:700}
-.price-change.up{color:green}
-.price-change.down{color:#c0392b}
+  /* Styled scrollbar for news list (WebKit + Firefox) */
+  .news-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(44,193,127,0.36) rgba(0,0,0,0.04);
+  }
+  .news-list::-webkit-scrollbar { width: 10px; }
+  .news-list::-webkit-scrollbar-track { background: transparent; border-radius: 8px; }
+  .news-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(44,193,127,0.22), rgba(44,193,127,0.42));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .news-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(44,193,127,0.34), rgba(44,193,127,0.62));
+  }
+  .news-skel-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;border:1px solid transparent;background:linear-gradient(90deg,#f0f2f4 25%, #e8eef0 37%, #f0f2f4 63%);background-size:400% 100%;animation:skelShimmer 1.2s linear infinite}
+  .news-skel-thumb{width:72px;height:48px;border-radius:6px;background:rgba(255,255,255,0.6)}
+  .news-skel-lines{flex:1}
+  .news-skel-line{height:12px;border-radius:6px;background:rgba(255,255,255,0.6);margin-bottom:8px;width:100%}
+  @keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  /* Holders / Insiders / Recommendations styles */
+  .financial-extra .holders{display:flex;gap:12px;margin-top:8px}
+  .holder-major, .holder-institutional, .holder-mutual{flex:1;min-width:140px}
+  .holder-major ul{margin:6px 0 0 14px;padding:0}
+  .holder-table, .insider-table, .rec-table{border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-primary)}
+  .holder-row, .insider-row, .rec-row{display:flex;gap:8px;padding:6px 8px;align-items:center}
+  .holder-row.header, .insider-row.header, .rec-row.header{background:rgba(0,0,0,0.03);font-weight:600;color:var(--text-secondary)}
+  .holder-row > div, .insider-row > div, .rec-row > div{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .insider-pre{white-space:pre-wrap;max-height:120px;overflow:auto;padding:8px;background:transparent;border-radius:6px}
+  .schema-keys{font-size:12px;color:var(--text-secondary);margin-top:6px}
+  .schema-keys.small{font-size:11px;color:var(--text-secondary);opacity:0.9}
+  @media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-header{flex-direction:column;align-items:flex-start}.company-right{width:100%;justify-content:space-between}}
+  
+  /* Meta card styles (company info above chart) */
+  .meta-card{padding:12px;grid-column:1 / -1}
+  .meta-grid{
+  	display: grid;
+   	grid-template-columns: 1fr auto;
+  	gap: 12px;
+  	align-items: flex-start;
+  }
+  .meta-left{flex:1;min-width:0}
+  @media(max-width:900px){
+  	.meta-grid{grid-template-columns:1fr}
+  	.meta-right{width:auto;align-items:flex-start}
+  }
+  .meta-right{width:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-end;justify-content:flex-end}
+  .meta-name{margin:0;font-size:18px}
+  .meta-sub{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .meta-desc{color:var(--text-secondary);margin-top:8px;font-size:14px;white-space:normal;overflow-wrap:break-word;line-height:1.45;overflow:hidden;transition:max-height 280ms ease,opacity 180ms ease}
+  /* collapsed/expanded using max-height for smooth transition (initially 2 lines) */
+  .meta-desc.collapsed{
+  	/* show more lines by default so text isn't cramped */
+  	max-height: calc(1.45em * 3);
+  	opacity: 0.95;
+  }
+  .meta-desc.expanded{
+  	max-height: 1000px;
+  	opacity: 1;
+  }
+  
+  .meta-toggle{
+  	display: inline-block;
+  	margin-top:8px;
+  	background: transparent;
+  	border: none;
+  	color: var(--primary);
+  	cursor: pointer;
+  	font-weight: 600;
+  	padding: 0;
+  }
+  .meta-toggle:hover{ text-decoration: underline; }
+  .meta-stats div{font-size:13px;margin-bottom:6px}
+  .meta-price{display:flex;flex-direction:column;align-items:flex-end}
+  .meta-price{display:flex;flex-direction:column;align-items:flex-end;min-width:0;max-width:140px;text-align:right}
+  .price-now{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .price-change{font-size:12px}
+  .price-change.up{color:green}
+  .price-change.down{color:#c0392b}
+  
+  @media(max-width:900px){
+  	.financial-extra .holders{flex-direction:column}
+  	.holder-row, .insider-row, .rec-row{font-size:13px}
+  	.holder-row, .insider-row, .rec-row{flex-direction:column;align-items:flex-start}
+  	.holder-row.header, .insider-row.header, .rec-row.header{display:flex;flex-direction:row;gap:8px;width:100%;overflow:auto}
+  	.holder-row > div, .insider-row > div, .rec-row > div{white-space:normal}
+  }
 
-@media(max-width:900px){
-	.financial-extra .holders{flex-direction:column}
-	.holder-row, .insider-row, .rec-row{font-size:13px}
-	.holder-row, .insider-row, .rec-row{flex-direction:column;align-items:flex-start}
-	.holder-row.header, .insider-row.header, .rec-row.header{display:flex;flex-direction:row;gap:8px;width:100%;overflow:auto}
-	.holder-row > div, .insider-row > div, .rec-row > div{white-space:normal}
+  /* Tighter price block on very small screens: allow wrapping and reduce reserved width */
+  @media (max-width: 429px) {
+    .meta-price { align-items: flex-start; text-align: left; max-width: 100%; }
+    .price-now { white-space: normal; font-size: 16px; }
+    .price-change { font-size: 13px; }
+  }
 }
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .company-shell{padding:12px;display:flex;flex-direction:column;gap:12px}
+  .company-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .company-left{display:flex;flex-direction:column}
+  .company-ticker{font-size:26px;margin:0}
+  .company-name{color:var(--text-secondary)}
+  .company-meta{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .company-right{display:flex;gap:8px;align-items:center}
+  .btn-outline{padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:var(--text-primary);text-decoration:none}
+  .company-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:12px}
+  .card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:12px}
+  .company-chart .muted{color:var(--text-secondary)}
+  .company-side{display:flex;flex-direction:column;gap:12px}
+  .fin-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.03)}
+  .fin-period{color:var(--text-secondary)}
+  .fin-val{font-weight:700}
+  .news-list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto}
+  .news-item{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:transparent;color:inherit;text-decoration:none}
+  .news-thumb{width:72px;height:48px;object-fit:cover;border-radius:6px;flex:0 0 72px}
+  .news-body{flex:1;min-width:0}
+  .news-title{font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .news-meta{font-size:12px;color:var(--text-secondary);margin-top:6px;display:flex;align-items:center;gap:6px}
+  .news-badge{background:rgba(0,0,0,0.06);padding:2px 6px;border-radius:6px;font-size:11px;font-weight:700}
+  .news-time{color:var(--text-secondary);font-size:12px}
+  .news-pagination{display:flex;align-items:center;justify-content:center;margin-top:8px;gap:8px}
+  .news-pagination .btn{padding:6px 10px;border-radius:8px;border:1px solid var(--border-color);background:transparent;cursor:pointer}
+  .news-pagination .btn[disabled]{opacity:0.5;cursor:not-allowed}
+  
+  /* skeleton */
+  .news-skeleton{display:flex;flex-direction:column;gap:8px}
+  .news-skel-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;border:1px solid transparent;background:linear-gradient(90deg,#f0f2f4 25%, #e8eef0 37%, #f0f2f4 63%);background-size:400% 100%;animation:skelShimmer 1.2s linear infinite}
+  .news-skel-thumb{width:72px;height:48px;border-radius:6px;background:rgba(255,255,255,0.6)}
+  .news-skel-lines{flex:1}
+  .news-skel-line{height:12px;border-radius:6px;background:rgba(255,255,255,0.6);margin-bottom:8px;width:100%}
+  @keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  /* Holders / Insiders / Recommendations styles */
+  .financial-extra .holders{display:flex;gap:12px;margin-top:8px}
+  .holder-major, .holder-institutional, .holder-mutual{flex:1;min-width:140px}
+  .holder-major ul{margin:6px 0 0 14px;padding:0}
+  .holder-table, .insider-table, .rec-table{border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-primary)}
+  .holder-row, .insider-row, .rec-row{display:flex;gap:8px;padding:6px 8px;align-items:center}
+  .holder-row.header, .insider-row.header, .rec-row.header{background:rgba(0,0,0,0.03);font-weight:600;color:var(--text-secondary)}
+  .holder-row > div, .insider-row > div, .rec-row > div{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .insider-pre{white-space:pre-wrap;max-height:120px;overflow:auto;padding:8px;background:transparent;border-radius:6px}
+  .schema-keys{font-size:12px;color:var(--text-secondary);margin-top:6px}
+  .schema-keys.small{font-size:11px;color:var(--text-secondary);opacity:0.9}
+  @media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-header{flex-direction:column;align-items:flex-start}.company-right{width:100%;justify-content:space-between}}
+
+/* Extra breathing room on very small phones */
+@media (max-width:429px) {
+  .meta-desc.collapsed { max-height: calc(1.45em * 4); }
+  .meta-left { padding-right: 10px; }
+  .meta-grid { gap: 14px; }
+}
+  
+  /* Meta card styles (company info above chart) */
+  .meta-card{padding:12px;grid-column:1 / -1}
+  /* keep meta card responsive and constrained to container */
+  .meta-card{box-sizing:border-box;max-width:100%;width:100%}
+  .meta-grid{
+  	display: grid;
+  	grid-template-columns: 1fr auto;
+  	gap: 12px;
+  	align-items: flex-start;
+  }
+  .meta-left{flex:1;min-width:0}
+  @media(max-width:900px){
+  	.meta-grid{grid-template-columns:1fr}
+  	.meta-right{width:auto;align-items:flex-start}
+  }
+  .meta-right{width:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .meta-name{margin:0;font-size:18px}
+  .meta-sub{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .meta-desc{color:var(--text-secondary);margin-top:8px;font-size:14px;white-space:normal;overflow-wrap:break-word;line-height:1.45;overflow:hidden;transition:max-height 280ms ease,opacity 180ms ease}
+  /* collapsed/expanded using max-height for smooth transition (initially 2 lines) */
+  .meta-desc.collapsed{
+  	max-height: calc(1.45em * 2);
+  	opacity: 0.95;
+  }
+  .meta-desc.expanded{
+  	max-height: 1000px;
+  	opacity: 1;
+  }
+  
+  .meta-toggle{
+  	display: inline-block;
+  	margin-top:8px;
+  	background: transparent;
+  	border: none;
+  	color: var(--primary);
+  	cursor: pointer;
+  	font-weight: 600;
+  	padding: 0;
+  }
+  .meta-toggle:hover{ text-decoration: underline; }
+  .meta-stats div{font-size:13px;margin-bottom:6px}
+  .meta-price{display:flex;flex-direction:column;align-items:flex-end}
+  .price-now{font-size:18px;font-weight:700}
+  .price-change.up{color:green}
+  .price-change.down{color:#c0392b}
+  
+  @media(max-width:900px){
+  	.financial-extra .holders{flex-direction:column}
+  	.holder-row, .insider-row, .rec-row{font-size:13px}
+  	.holder-row, .insider-row, .rec-row{flex-direction:column;align-items:flex-start}
+  	.holder-row.header, .insider-row.header, .rec-row.header{display:flex;flex-direction:row;gap:8px;width:100%;overflow:auto}
+  	.holder-row > div, .insider-row > div, .rec-row > div{white-space:normal}
+  }
+}
+
+@media (min-width: 1025px) {
+    .company-shell{padding:12px;display:flex;flex-direction:column;gap:12px}
+  .company-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .company-left{display:flex;flex-direction:column}
+  .company-ticker{font-size:26px;margin:0}
+  .company-name{color:var(--text-secondary)}
+  .company-meta{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .company-right{display:flex;gap:8px;align-items:center}
+  .btn-outline{padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:var(--text-primary);text-decoration:none}
+  .company-grid{display:grid;grid-template-columns:340px 1fr;gap:12px}
+}
+
+@media (max-width: 900px) {
+  .company-grid { grid-template-columns: 1fr; }
+}
+
+.company-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.company-left { min-width: 0; flex: 1 1 auto; }
+.company-right { min-width: 0; display: flex; gap: 8px; align-items: center; }
+
+/* Force exact left alignment for ticker and company name to avoid visual offset
+   Apply only for viewports >=431px so very small phones (<=430px) keep stacked layout */
+@media (min-width: 431px) {
+  .company-left {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .company-ticker, .company-name, .company-meta {
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: flex-start !important;
+    text-indent: 0 !important;
+    line-height: 1.05;
+  }
+  .company-name { margin-top: 4px; }
+}
+
+/* Company header: logo + text + actions layout (consistent across viewports) */
+.company-header .company-left {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px;
+}
+.company-left .company-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.company-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: rgba(0,0,0,0.04);
+  flex: 0 0 48px;
+}
+.company-logo.placeholder { display: inline-block; }
+
+.company-actions { display: flex; gap: 8px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; cursor: pointer; transition: all 160ms ease; font-weight:600; color:var(--text-primary); }
+.btn .icon { display:inline-block; width:16px; text-align:center; line-height:1; }
+.btn .label { display:inline-block; }
+
+/* Compact mode: on very small screens hide labels and tighten padding */
+@media (max-width: 429px) {
+  .btn { padding: 6px; }
+  .btn .label { display:none; }
+}
+
+/* Follow button states */
+.btn-follow { border-color: var(--primary); color: var(--primary); }
+.btn-follow .icon.check, .btn-follow .icon.minus { display: none; }
+.btn-follow.followed { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.5); color: #16a34a; }
+.btn-follow.followed .icon.plus { display: none; }
+.btn-follow.followed .icon.check { display: inline-block; }
+.btn-follow.followed:hover { background: var(--danger); color: #fff; border-color: var(--danger); transform: translateY(-2px); }
+.btn-follow.followed:hover .icon.check { display: none; }
+.btn-follow.followed:hover .icon.minus { display: inline-block; }
+
+/* Favorite button states */
+.btn-fav { border-color: rgba(0,0,0,0.08); color: var(--text-primary); }
+.btn-fav .icon.star-filled { display: none; }
+.btn-fav.favorited { color: #f59e0b; background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2); }
+.btn-fav.favorited .icon.star { display: none; }
+.btn-fav.favorited .icon.star-filled { display: inline-block; }
+
+/* Small visual polish */
+.btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(0,170,255,0.12); }
+
+
+.company-name, .meta-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.company-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Make financials card and its columns flexible so values don't collapse */
+.card.financials { min-width: 300px; max-width: 480px; box-sizing: border-box; }
+.financial-tabs { display: flex; gap: 12px; align-items: flex-start; }
+.fin-column { flex: 1 1 0; min-width: 0; }
+.fin-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.fin-row > .fin-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.fin-row > .fin-period { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+
+/* Financials table styling: sleek header and subtle borders */
+.financial-table-wrapper .financials-table { border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden; background: white; }
+.financial-table-wrapper .financials-table thead th { background: transparent; color: #0b1220; font-weight:700; padding:10px 12px; border-bottom: 2px solid rgba(0,0,0,0.06); }
+.financial-table-wrapper .financials-table tbody td { padding:10px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
+.financial-table-wrapper.compact .financials-table { background: transparent; border: none; }
+.financial-table-wrapper.compact .financials-table thead th { color: #0b1220; }
+.financial-table-wrapper.transposed .financials-table thead th { text-align: right; }
+
+/* Ensure cards don't shrink too much */
+.card { box-sizing: border-box; }
+  .card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:12px}
+  .company-chart .muted{color:var(--text-secondary)}
+  .company-side{display:flex;flex-direction:column;gap:12px}
+  .fin-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.03)}
+  .fin-period{color:var(--text-secondary)}
+  .fin-val{font-weight:700}
+  .news-list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto}
+  .news-item{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:transparent;color:inherit;text-decoration:none}
+  .news-thumb{width:72px;height:48px;object-fit:cover;border-radius:6px;flex:0 0 72px}
+  .news-body{flex:1;min-width:0}
+  .news-title{font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .news-meta{font-size:12px;color:var(--text-secondary);margin-top:6px;display:flex;align-items:center;gap:6px}
+  .news-badge{background:rgba(0,0,0,0.06);padding:2px 6px;border-radius:6px;font-size:11px;font-weight:700}
+  .news-time{color:var(--text-secondary);font-size:12px}
+  .news-pagination{display:flex;align-items:center;justify-content:center;margin-top:8px;gap:8px}
+  .news-pagination .btn{padding:6px 10px;border-radius:8px;border:1px solid var(--border-color);background:transparent;cursor:pointer}
+  .news-pagination .btn[disabled]{opacity:0.5;cursor:not-allowed}
+  
+  /* skeleton */
+  .news-skeleton{display:flex;flex-direction:column;gap:8px}
+  .news-skel-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;border:1px solid transparent;background:linear-gradient(90deg,#f0f2f4 25%, #e8eef0 37%, #f0f2f4 63%);background-size:400% 100%;animation:skelShimmer 1.2s linear infinite}
+  .news-skel-thumb{width:72px;height:48px;border-radius:6px;background:rgba(255,255,255,0.6)}
+  .news-skel-lines{flex:1}
+  .news-skel-line{height:12px;border-radius:6px;background:rgba(255,255,255,0.6);margin-bottom:8px;width:100%}
+  @keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  /* Holders / Insiders / Recommendations styles */
+  .financial-extra .holders{display:flex;gap:12px;margin-top:8px}
+  .holder-major, .holder-institutional, .holder-mutual{flex:1;min-width:140px}
+  .holder-major ul{margin:6px 0 0 14px;padding:0}
+  .holder-table, .insider-table, .rec-table{border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-primary)}
+  .holder-row, .insider-row, .rec-row{display:flex;gap:8px;padding:6px 8px;align-items:center}
+  .holder-row.header, .insider-row.header, .rec-row.header{background:rgba(0,0,0,0.03);font-weight:600;color:var(--text-secondary)}
+  .holder-row > div, .insider-row > div, .rec-row > div{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .insider-pre{white-space:pre-wrap;max-height:120px;overflow:auto;padding:8px;background:transparent;border-radius:6px}
+  .schema-keys{font-size:12px;color:var(--text-secondary);margin-top:6px}
+  .schema-keys.small{font-size:11px;color:var(--text-secondary);opacity:0.9}
+  @media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-header{flex-direction:column;align-items:flex-start}.company-right{width:100%;justify-content:space-between}}
+  
+  /* Meta card styles (company info above chart) */
+  .meta-card{padding:12px;grid-column:1 / -1}
+  .meta-grid{
+  	display: grid;
+  	grid-template-columns: 1fr 220px;
+  	gap: 12px;
+  	align-items: flex-start;
+  }
+  .meta-left{flex:1;min-width:0}
+  @media(max-width:900px){
+  	.meta-grid{grid-template-columns:1fr}
+  	.meta-right{width:auto;align-items:flex-start}
+  }
+  .meta-right{width:220px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .meta-name{margin:0;font-size:18px}
+  .meta-sub{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .meta-desc{color:var(--text-secondary);margin-top:8px;font-size:14px;white-space:normal;overflow-wrap:break-word;line-height:1.45;overflow:hidden;transition:max-height 280ms ease,opacity 180ms ease}
+  /* collapsed/expanded using max-height for smooth transition (initially 2 lines) */
+  .meta-desc.collapsed{
+  	max-height: calc(1.45em * 2);
+  	opacity: 0.95;
+  }
+  .meta-desc.expanded{
+  	max-height: 1000px;
+  	opacity: 1;
+  }
+  
+  .meta-toggle{
+  	display: inline-block;
+  	margin-top:8px;
+  	background: transparent;
+  	border: none;
+  	color: var(--primary);
+  	cursor: pointer;
+  	font-weight: 600;
+  	padding: 0;
+  }
+  .meta-toggle:hover{ text-decoration: underline; }
+  .meta-stats div{font-size:13px;margin-bottom:6px}
+  .meta-price{display:flex;flex-direction:column;align-items:flex-end}
+  .price-now{font-size:18px;font-weight:700}
+  .price-change.up{color:green}
+  .price-change.down{color:#c0392b}
+  
+  @media(max-width:900px){
+  	.financial-extra .holders{flex-direction:column}
+  	.holder-row, .insider-row, .rec-row{font-size:13px}
+  	.holder-row, .insider-row, .rec-row{flex-direction:column;align-items:flex-start}
+  	.holder-row.header, .insider-row.header, .rec-row.header{display:flex;flex-direction:row;gap:8px;width:100%;overflow:auto}
+  	.holder-row > div, .insider-row > div, .rec-row > div{white-space:normal}
+  }
+
+
+/* Global safety: prevent horizontal scrolling and ensure box-sizing */
+html, body, #root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.company-shell {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+/* constrain and center the company page so header and meta-card match widths */
+.company-shell.container-centered {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Use minmax for left column to avoid overflow; let it shrink but not collapse */
+.company-grid {
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 12px;
+}
+
+/* Allow the left sidebar to grow a bit more so financials can use available width */
+.company-grid {
+  grid-template-columns: minmax(260px, 420px) 1fr;
+}
+
+/* Make financials card stretch to available width inside the left column */
+.card.financials {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure the sidebar can flex and its cards take full width */
+.company-side {
+  flex: 1 1 auto;
+}
+.company-side .card {
+  width: 100%;
+}
+
+/* When width is small, stack sidebar (financials) before the chart for better reading */
+@media (max-width: 720px) {
+  .company-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .company-side {
+    order: 1;
+    width: 100%;
+  }
+  .company-chart {
+    order: 2;
+    width: 100%;
+  }
+  /* ensure news card inside chart area follows the chart block */
+  .company-chart .card.news { margin-top: 12px; }
+}
+
+/* Make meta grid responsive without fixed pixel overflow */
+.meta-grid {
+  grid-template-columns: 1fr auto;
+}
+
+/* Light-theme contrast fixes: reduce overall brightness and increase text contrast */
+body:not(.dark) {
+  --bg-secondary: #f3f6f8; /* slightly cooler card background */
+  --bg-surface: #ffffff;
+  --text-primary: #0f1723; /* darker primary text for readability */
+  --text-secondary: #475569; /* clearer secondary text */
+  --border-color: #d1d5db; /* stronger borders for separation */
+  --card-bg: #ffffff;
+}
+
+/* Ensure cards and company card use the adjusted background and text */
+body:not(.dark) .card,
+body:not(.dark) .card.company-card {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Make skeleton and placeholders slightly darker so text stands out */
+body:not(.dark) .news-skel-item {
+  background: linear-gradient(90deg,#eef2f6 25%, #e4edf2 37%, #eef2f6 63%);
+}
+body:not(.dark) .news-skel-thumb,
+body:not(.dark) .news-skel-line {
+  background: rgba(0,0,0,0.06);
+}
+
+/* Table/header contrast fixes: override any forcing of white text */
+.officers-table thead th,
+thead th {
+  color: rgba(0,0,0,0.85) !important;
+  background: rgba(0,0,0,0.03) !important;
+}
+
+/* News items and badges should use readable text color in light theme */
+body:not(.dark) .news-item {
+  border-color: var(--border-color);
+  background: transparent;
+  color: var(--text-primary);
+}
+body:not(.dark) .news-badge {
+  background: rgba(0,0,0,0.06);
+  color: var(--text-primary);
+}
+
+/* Meta description: ensure good contrast */
+.meta-desc { color: var(--text-secondary); }
+
+/* Ensure images and thumbs never overflow their containers */
+.news-thumb, .news-skel-thumb, .lc-news-thumb {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Prevent long text from forcing horizontal scroll */
+.company-header, .company-left, .company-right, .meta-left, .meta-right, .news-body, .news-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Defensive layout constraints to stop inner content stretching the page */
+.company-shell, .company-shell.container-centered {
+  overflow-x: hidden;
+}
+
+.company-grid, .meta-grid, .meta-card, .company-chart, .company-side, .card {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* allow grid children to shrink instead of overflowing */
+.company-grid > *, .meta-grid > * {
+  min-width: 0;
+}
+
+/* constrain chart canvases and svgs to container width */
+.company-chart canvas, .company-chart svg, .company-chart .echarts-for-react, .company-chart .echarts {
+  max-width: 100% !important;
+  height: auto !important;
+  width: 100% !important;
+}
+
+/* ensure side column doesn't push layout */
+.company-side { min-width: 0; width: 100%; }
+
+/* Stronger, globally-scoped scrollbar styles for news list (fallback + important) */
+.news-list {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(44,193,127,0.36) rgba(0,0,0,0.04) !important;
+}
+.news-list::-webkit-scrollbar { width: 10px !important; height: 10px !important; }
+.news-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.03) !important; border-radius: 10px !important; }
+.news-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(44,193,127,0.30), rgba(44,193,127,0.56)) !important;
+  border-radius: 10px !important;
+  border: 2px solid rgba(255,255,255,0.6) !important;
+  background-clip: padding-box !important;
+}
+.news-list::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(44,193,127,0.44), rgba(44,193,127,0.74)) !important; }
+.news-list::-webkit-scrollbar-thumb:active { transform: scale(0.98); }
+
+
+/* Reduce card paddings slightly on narrow screens to avoid overflow */
+@media (max-width: 480px) {
+  .card { padding: 8px; }
+  .news-thumb { width: 60px; height: 40px; }
+  .meta-right { width: auto; align-items: flex-start; }
+}
+
+/* Company card (sidebar) styling */
+.card.company-card { padding: 12px; }
+.company-card .company-info { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-primary); }
+.company-card .company-info a { color: var(--primary); text-decoration: underline; }
+.company-address { margin-top: 6px; color: var(--text-secondary); font-size: 13px; }
+
+/* Officers table */
+.company-officers { margin-top: 10px; overflow: auto; }
+.officers-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.officers-table thead th { text-align: left; padding: 8px; font-weight: 700; color: #000000; font-size: 12px; }
+.officers-table tbody td { padding: 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.267); vertical-align: top; }
+.officers-table tbody tr:last-child td { border-bottom: none; }
+.officers-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1px; }
+
+@media (max-width: 900px) {
+  .company-card .company-info { font-size: 13px; }
+  .officers-table td { white-space: normal; }
+}
+
+/* Small visual tweaks to keep sidebar balanced */
+.company-card .card-header { margin-bottom: 8px; }
+
+/* Very small phones: ensure sidebar (financials/company) appears before chart/news */
+@media (max-width: 429px) {
+  /* make the page a single vertical flow to control order */
+  .company-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ensure sidebar occupies full width above the chart */
+  .company-side {
+    order: 0;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* place chart (and its news card) after sidebar */
+  .company-chart {
+    order: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* tighten paddings to avoid horizontal overflow on tiny screens */
+  .card { padding: 10px; }
+  .company-card .company-info { font-size: 13px; }
+  .news-list { max-height: 320px; }
+}
+
+/* Force header to always be a horizontal row and allow company name to wrap
+   - Keep action labels visible on all viewports
+   - Scoped as an important override to supersede earlier media rules */
+.company-header {
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+.company-left {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px;
+}
+
+.company-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* Allow long company names to wrap onto multiple lines */
+.company-name, .meta-name {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: break-word !important;
+}
+.company-meta {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+/* Ensure buttons always show labels (no collapse) */
+.btn .label { display: inline-block !important; }
+
+/* User request: keep only `.company-text` behavior same as other viewports
+   on very small screens (<=429px). This targets the text block only and
+   avoids changing other responsive rules. */
+@media (max-width: 429px) {
+  .company-text {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .company-text .company-ticker,
+  .company-text .company-name,
+  .company-text .company-meta {
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: flex-start !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+
+
+/* Fix: ensure company header aligns ticker and company name on the same left edge
+   Use a desktop-only override so small screens still stack vertically. */
+@media (min-width: 901px) {
+  .company-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px;
+  }
+  .company-left {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .company-ticker { margin: 0; }
+  .company-name { margin: 0; }
+}
+
+/* Also align ticker and company name side-by-side for mid-sized viewports
+   (keeps very small phones stacked at <=430px unchanged) */
+@media (min-width: 431px) and (max-width: 900px) {
+  .company-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px;
+  }
+  .company-left { display: flex; flex-direction: column; min-width: 0; }
+  .company-ticker, .company-name { margin: 0; }
+}
+
+
+
+/* Small, fixed-right action buttons (timezone + open chart)
+   - Make buttons visually smaller and pin to the right side of the viewport
+   - Revert to normal flow on narrow screens to avoid overlap */
+.company-right {
+  position: fixed;
+  right: 16px;
+  top: calc(var(--nav-height, 72px) + 12px);
+  z-index: 1100;
+  width: auto;
+  gap: 6px;
+  padding: 4px;
+  align-items: center;
+  background: transparent;
+}
+
+.company-right .timezone-select-button,
+.company-right .btn-outline {
+  height: 32px;
+  min-width: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+.company-right .timezone-select-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Keep fixed positioning on most screens, but return to normal flow on smaller viewports */
+@media (max-width: 900px) {
+  .company-right {
+    position: static;
+    right: auto;
+    top: auto;
+    z-index: auto;
+    padding: 0;
+    gap: 8px;
+  }
+}
+

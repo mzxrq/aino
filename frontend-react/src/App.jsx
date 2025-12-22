@@ -43,7 +43,7 @@ function App() {
         <Navbar />
 
         {/* The main content area that changes */}
-        <div
+        <div className="main-content container-centered"
           style={{
             flex: 1,
             overflow: "auto",

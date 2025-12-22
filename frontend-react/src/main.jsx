@@ -3,11 +3,14 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './css/index.css'
 import { BrowserRouter } from 'react-router-dom'
+import { LoginPromptProvider } from './context/LoginPromptContext'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <LoginPromptProvider>
+        <App />
+      </LoginPromptProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

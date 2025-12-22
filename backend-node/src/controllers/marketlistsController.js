@@ -28,6 +28,8 @@ const create = async (req, res) => {
 const getAll = async (req, res) => {
   try {
     const result = await marketlistsService.getAllMarketlists(req.query);
+    // Debug log: show pagination params and returned counts
+    console.info('[marketlists] getAll', { query: req.query, returned: Array.isArray(result.data) ? result.data.length : 0, total: result.total, limit: result.limit, skip: result.skip });
     res.status(200).json({ success: true, ...result });
   } catch (err) {
     console.error('getAll marketlists err', err);

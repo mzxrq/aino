@@ -22,7 +22,8 @@ const createMarketlist = async (doc) => {
 
 const getAllMarketlists = async (filter = {}, options = {}) => {
   const collection = getCollection();
-  const { limit = 100, skip = 0, sort = { ticker: 1 } } = options;
+  // Increase default limit to 1000 to avoid accidental 100-item cap when callers omit pagination
+  const { limit = 1000, skip = 0, sort = { ticker: 1 } } = options;
   return await collection.find(filter).sort(sort).skip(skip).limit(limit).toArray();
 };
 

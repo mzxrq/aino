@@ -18,6 +18,8 @@ from core.config import logger, db
 from core.detection_metadata import DetectionRun
 from api.auth import router as auth_router
 from api.chart import router as chart_router
+from api.news import router as news_router
+from api.company_info import router as company_info_router
 from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
@@ -46,6 +48,8 @@ app.add_middleware(
 # Register routers under the `/py` prefix
 app.include_router(auth_router, prefix="/py")
 app.include_router(chart_router, prefix="/py")
+app.include_router(news_router, prefix="/py")
+app.include_router(company_info_router, prefix="/py")
 
 # Toggle state - ENABLED BY DEFAULT
 scheduler_enabled = True

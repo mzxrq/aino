@@ -33,8 +33,11 @@ const getAllMarketlists = async (query = {}) => {
   if (query.country) filter.country = query.country;
   if (query.status) filter.status = query.status;
 
-  const limit = parseInt(query.limit) || 100;
-  const skip = parseInt(query.skip) || 0;
+  // Support page/pageSize pagination; fall back to limit for backward compatibility
+  const page = Math.max(1, parseInt(query.page) || 1);
+  const pageSize = parseInt(query.pageSize) || parseInt(query.limit) || 1000; // default larger than 100
+  const limit = pageSize;
+  const skip = parseInt(query.skip) || (page - 1) * pageSize;
   const sortBy = query.sortBy || 'ticker';
   const sortOrder = query.sortOrder === 'desc' ? -1 : 1;
   const sort = { [sortBy]: sortOrder };

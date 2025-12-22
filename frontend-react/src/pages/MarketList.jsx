@@ -28,7 +28,13 @@ export default function MarketListScreen() {
   const [favoritesSet, setFavoritesSet] = useState(new Set()); // Track favorited tickers
   const [loading, setLoading] = useState(false);
   const PAGE_SIZE = 50;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // Server-driven pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadMoreRef = useRef(null);
   const navigate = useNavigate();
 
@@ -36,19 +42,39 @@ export default function MarketListScreen() {
   // Initial data fetch
   // ---------------------------------------------------
   useEffect(() => {
-    fetchMarketData();
+    // Initial load: first page
+    setPage(1);
+    setIsSearching(false);
+    fetchMarketData(1, false);
     fetchRecentAnomalies();
     if (user) {
       fetchUserFavorites();
     }
   }, [user]);
 
+  // Reload when market filter or status changes
+  useEffect(() => {
+    setPage(1);
+    setIsSearching(false);
+    fetchMarketData(1, false);
+  }, [marketFilter, marketStatus]);
+
   // ---------------------------------------------------
   // Debounced search
   // ---------------------------------------------------
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchMarketData();
+      // If there's a search term, use search API to get matching tickers (global search)
+      const q = (search || '').trim();
+      if (q.length === 0) {
+        // clear search mode and reload paginated list
+        setIsSearching(false);
+        setPage(1);
+        fetchMarketData(1, false);
+      } else {
+        setIsSearching(true);
+        fetchSearchResults(q);
+      }
     }, 300);
 
     return () => clearTimeout(timer);
@@ -192,12 +218,51 @@ const fetchBulkPriceData = async (items) => {
   return {};
 };
 
-const fetchMarketData = async () => {
-  setLoading(true);
+const fetchSearchResults = async (q) => {
+  try {
+    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}&limit=50`);
+    const json = await res.json();
+    if (!json.success || !Array.isArray(json.results)) {
+      setMarketData([]);
+      return;
+    }
+
+    // For each search result, attempt to fetch marketlist details for richer data
+    const results = json.results;
+    const tasks = results.map(r => async () => {
+      try {
+        const rr = await fetch(`${API_URL}/marketlists/ticker/${encodeURIComponent(r.symbol)}`);
+        if (!rr.ok) return null;
+        const j = await rr.json();
+        return j.data || null;
+      } catch (e) {
+        return null;
+      }
+    });
+
+    const settled = await executeWithConcurrency(tasks, 5);
+    const filtered = settled.filter(s => s.status === 'ok' && s.data).map(s => s.data);
+    // Fallback: if none resolved, map basic search results
+    const final = filtered.length > 0 ? filtered : results.map(r => ({ ticker: r.symbol, companyName: r.name, country: r.exchange, primaryExchange: r.exchange }));
+    setMarketData(final.map(it => ({ ...it, sparklineSvg: '' })));
+    setTotalPages(1);
+    setTotalCount(final.length);
+    setPage(1);
+  } catch (err) {
+    console.error('Search error:', err);
+    setMarketData([]);
+  }
+};
+
+const fetchMarketData = async (pageToLoad = 1, append = false) => {
+  if (!pageToLoad || pageToLoad < 1) pageToLoad = 1;
+  if (append) setIsLoadingMore(true);
+  else setLoading(true);
 
   try {
-    // Fetch all marketlist data (no limit) - can be up to 5000+ tickers
-    const res = await fetch(`${API_URL}/marketlists`);
+    const countryParam = marketFilter && marketFilter !== 'All' ? `&country=${encodeURIComponent(marketFilter)}` : '';
+    const statusParam = marketStatus && marketStatus !== 'all' ? `&status=${encodeURIComponent(marketStatus)}` : '';
+    const res = await fetch(`${API_URL}/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
@@ -252,6 +317,17 @@ const fetchMarketData = async () => {
           sparklineSvg: "",
         };
       });
+
+    // Update pagination metadata from server response
+    try {
+      if (json.total !== undefined) setTotalCount(json.total);
+      if (json.totalPages !== undefined) setTotalPages(json.totalPages);
+      setPage(pageToLoad);
+    } catch (e) {}
+
+    // Merge with previously loaded pages when appending
+    const mergedList = append ? [...marketData, ...list] : list;
+    list = mergedList;
 
     // Try to fetch all pre-cached sparklines from bulk endpoint (skip if previously unsupported)
     let sparklineMap = {};
@@ -320,8 +396,7 @@ const fetchMarketData = async () => {
   } catch (err) {
     console.error("Error fetching market list:", err);
   }
-
-  setLoading(false);
+  if (isLoadingMore) setIsLoadingMore(false); else setLoading(false);
 };
 
 const fetchRecentAnomalies = async () => {
@@ -580,8 +655,8 @@ const toggleFavorite = async (ticker) => {
     return (a.ticker || "").localeCompare(b.ticker || "");
   });
 
-  // Visible slice for infinite scroll
-  const visibleData = sortedData.slice(0, visibleCount);
+  // Visible data (server-driven paginated results)
+  const visibleData = sortedData;
 
   // Lazy-load sparklines for currently visible items (and a small buffer)
   useEffect(() => {
@@ -590,7 +665,8 @@ const toggleFavorite = async (ticker) => {
 
       // Buffer ahead to reduce pop-in during scroll
       const BUFFER = 50;
-      const target = sortedData.slice(0, Math.min(visibleCount + BUFFER, sortedData.length));
+      const loadedCount = marketData.length;
+      const target = sortedData.slice(0, Math.min(loadedCount + BUFFER, sortedData.length));
 
       const missing = target.filter(item => !item.sparklineSvg);
       if (missing.length === 0) return;
@@ -613,11 +689,12 @@ const toggleFavorite = async (ticker) => {
     };
 
     loadVisibleSparklines();
-  }, [visibleCount, sortedData]);
+  }, [marketData.length, sortedData]);
 
   const loadMore = () => {
-    if (visibleCount < sortedData.length) {
-      setVisibleCount((c) => Math.min(c + PAGE_SIZE, sortedData.length));
+    if (isSearching) return; // do not paginate when showing search results
+    if (page < totalPages && !isLoadingMore) {
+      fetchMarketData(page + 1, true);
     }
   };
 
@@ -632,7 +709,7 @@ const toggleFavorite = async (ticker) => {
 
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [loadMoreRef.current, sortedData.length, visibleCount]);
+  }, [loadMoreRef.current, page, totalPages, marketData.length]);
 
   return (
     <div className="market-list-page">
@@ -894,9 +971,9 @@ const toggleFavorite = async (ticker) => {
       </div>
       {/* Sentinel for infinite scroll + load more fallback */}
       <div className="marketlist-load-more">
-        {visibleCount < sortedData.length && (
+        {!isSearching && page < totalPages && (
           <>
-            <button className="load-more-btn" onClick={loadMore}>Load more</button>
+            <button className="load-more-btn" onClick={loadMore} disabled={isLoadingMore}>{isLoadingMore ? 'Loading...' : 'Load more'}</button>
             <div ref={loadMoreRef} style={{height: 1}} aria-hidden="true" />
           </>
         )}
