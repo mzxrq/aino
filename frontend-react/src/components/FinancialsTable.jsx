@@ -4,8 +4,23 @@ function humanizeLabel(key){
   if (!key) return '';
   // Replace camelCase / PascalCase / underscores with spaces and split on case change
   const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-]+/g, ' ');
-  // Insert spaces before numbers (e.g., SharesNumber -> Shares Number)
-  return spaced.replace(/([0-9])/g, ' $1').replace(/\s+/g,' ').trim().replace(/(^|\s)\w/g, c=>c.toUpperCase());
+  return spaced.replace(/\s+/g,' ').trim().replace(/(^|\s)\w/g, c=>c.toUpperCase());
+}
+
+function formatPeriodLabel(p){
+  if (!p) return '';
+  // try to extract a YYYY and MM if present
+  const s = String(p).trim();
+  // match patterns like "2025 06 30 00:00:00", "2025-06-30", "202506"
+  let m = /(\d{4})\D+(\d{1,2})/.exec(s);
+  if (!m) m = /^(\d{4})(\d{2})$/.exec(s);
+  if (m){ const y = m[1]; const mo = String(m[2]).padStart(2,'0'); return `${y}/${mo}`; }
+  // try parsing as a Date
+  const d = new Date(s);
+  if (!isNaN(d.getTime())){ const y = d.getFullYear(); const mo = String(d.getMonth()+1).padStart(2,'0'); return `${y}/${mo}`; }
+  const yOnly = /^(\d{4})$/.exec(s);
+  if (yOnly) return yOnly[1];
+  return s;
 }
 
 function formatNumeric(v){
@@ -58,7 +73,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
             <thead>
               <tr>
                 <th style={{textAlign:'left',padding:'8px 12px',minWidth:160}}>Metric</th>
-                {yearCols.map(c => <th key={c} style={{textAlign:'right',padding:'8px 12px',whiteSpace:'nowrap'}}>{c}</th>)}
+                {yearCols.map(c => <th key={c} style={{textAlign:'right',padding:'8px 12px',whiteSpace:'nowrap'}}>{formatPeriodLabel(c)}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -96,7 +111,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
             <tbody>
               {columns.map(period => (
                 <tr key={period} style={{borderTop:'1px solid rgba(0,0,0,0.04)'}}>
-                  <td style={{padding:'8px 12px',fontWeight:600}}>{period}</td>
+                  <td style={{padding:'8px 12px',fontWeight:600}}>{formatPeriodLabel(period)}</td>
                   {metrics.map(m => {
                     const v = (data[m.key] && (data[m.key][period] !== undefined ? data[m.key][period] : null));
                     return <td key={m.key} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '--' : formatNumeric(v)}</td>
@@ -111,7 +126,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
   }
 
   // Default full table
-  return (
+    return (
     <div className="financial-table-wrapper">
       {title && <h5 style={{marginBottom:8}}>{title}</h5>}
       <div style={{overflowX:'auto'}}>
@@ -120,7 +135,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
             <tr>
               <th style={{textAlign:'left',padding:'8px 12px',minWidth:180}}>Metric</th>
               {columns.map(c=> (
-                <th key={c} style={{textAlign:'right',padding:'8px 12px',whiteSpace:'nowrap'}}>{c}</th>
+                <th key={c} style={{textAlign:'right',padding:'8px 12px',whiteSpace:'nowrap'}}>{formatPeriodLabel(c)}</th>
               ))}
             </tr>
           </thead>

@@ -350,12 +350,26 @@
 .fin-row > .fin-period { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
 
 /* Financials table styling: sleek header and subtle borders */
-.financial-table-wrapper .financials-table { border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden; background: white; }
-.financial-table-wrapper .financials-table thead th { background: transparent; color: #0b1220; font-weight:700; padding:10px 12px; border-bottom: 2px solid rgba(0,0,0,0.06); }
+.financial-table-wrapper .financials-table { border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden; background: var(--card-bg, #ffffff); }
+.financial-table-wrapper .financials-table thead th {
+  background: linear-gradient(180deg, rgba(248,250,252,1), rgba(243,245,248,1));
+  color: #0b1220;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 2px solid rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
 .financial-table-wrapper .financials-table tbody td { padding:10px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
 .financial-table-wrapper.compact .financials-table { background: transparent; border: none; }
 .financial-table-wrapper.compact .financials-table thead th { color: #0b1220; }
 .financial-table-wrapper.transposed .financials-table thead th { text-align: right; }
+
+/* ensure header text remains dark even inside dialogs/cards with different themes */
+.financial-table-wrapper .financials-table thead th, .financial-table-wrapper .financials-table thead th * {
+  color: #0b1220 !important;
+}
 
 /* Ensure cards don't shrink too much */
 .card { box-sizing: border-box; }

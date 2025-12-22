@@ -286,15 +286,15 @@ export default function CompanyProfile(){
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
                 <div>
                   <h5 style={{marginTop:0}}>Income Statement</h5>
-                  <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} />
+                  <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} transpose={true} />
                 </div>
                 <div>
                   <h5 style={{marginTop:0}}>Balance Sheet</h5>
-                  <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} />
+                  <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
             ) : (
-              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} />
+              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} transpose={true} />
             )}
           </div>
         </DialogContent>
