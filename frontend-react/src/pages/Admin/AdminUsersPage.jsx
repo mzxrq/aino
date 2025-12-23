@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import Swal from 'sweetalert2';
+import Swal from '../../utils/muiSwal';
 import API_BASE from '../../config/api';
 import { useAuth } from '../../context/useAuth';
 import '../../css/AdminPage.css';

@@ -745,9 +745,12 @@
   
   /* Light mode: make add-pill clearly visible */
   .chart-pill.add-pill {
-      background: var(--bg-primary, #fff);
-      border-color: rgba(0,0,0,0.06);
-      color: var(--text-primary);
+    background: var(--bg-primary, #fff);
+    border-color: rgba(0,0,0,0.06);
+    color: var(--text-primary);
+    /* Render the add button visually before the tickers */
+    order: -1;
+    margin-right: 8px;
   }
   
   .toolbar-period-btn:hover {
@@ -798,6 +801,74 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+
+/* Ensure global presets row spans full toolbar width and does not overlap
+   When the toolbar is a flex container we force the presets container to
+   take a full-width row (flex-basis:100%) so it pushes other controls above
+   instead of overlaying them. This also centers the preset buttons. */
+.preset-inner {
+    display: flex !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 8px !important;
+    padding-top: 6px !important;
+    box-sizing: border-box !important;
+    z-index: 1 !important;
+}
+
+/* Make sure pills container in center can wrap when showing all pills */
+.chart-pills[style*="flexWrap: 'wrap'"] {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
+
+/* Ensure the toolbar inner groups wrap into rows so center and presets don't overlap.
+   Give the center area higher stacking context so it remains interactive above presets. */
+.chart-toolbar-inner {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.chart-toolbar .toolbar-center {
+    order: 1;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    z-index: 2 !important;
+    position: relative !important;
+}
+
+.chart-toolbar .preset-inner {
+    order: 2 !important;
+    z-index: 1 !important;
+}
+
+/* When pills are expanded, make the center area span the full toolbar width so
+   wrapped pills push content below instead of overlapping side controls. */
+.chart-toolbar--pills-expanded {
+    align-items: flex-start; /* allow vertical stacking */
+}
+.chart-toolbar--pills-expanded .toolbar-center {
+    flex: 1 1 100% !important;
+    order: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+.chart-toolbar--pills-expanded .toolbar-left,
+.chart-toolbar--pills-expanded .toolbar-right {
+    flex: 0 0 auto !important;
+    order: 0 !important;
+}
+.chart-toolbar--pills-expanded .chart-pills {
+    overflow: visible !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
       padding: 6px 12px;
       border-radius: 6px;
       background: linear-gradient(135deg, rgba(44, 193, 127, 0.12), rgba(44, 193, 127, 0.06));

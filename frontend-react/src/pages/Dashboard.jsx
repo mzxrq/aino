@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import Swal from '../utils/muiSwal';
 import '../css/Dashboard.css';
 
 const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";

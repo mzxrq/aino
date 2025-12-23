@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DateTime } from 'luxon';
-import Swal from 'sweetalert2';
+import Swal from '../utils/muiSwal';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
+import '../css/Chart-toolbar-fixes.css';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
+import ChartToolbar from '../components/ChartToolbar';
 import TimezoneSelect from '../components/TimezoneSelect';
 import TickerSearch from '../components/TickerSearch';
 import EchartsCard from '../components/EchartsCard';
@@ -675,6 +677,8 @@ export default function Chart() {
   // overflow collapse state
   const [visibleCount, setVisibleCount] = useState(() => tickers.length);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  // collapsed pills state: when true, show all pills and allow wrapping into new row
+  const [showAllPills, setShowAllPills] = useState(false);
 
   const handlePillKeyDown = (index, e) => {
     const key = e.key;
@@ -999,70 +1003,26 @@ export default function Chart() {
 
   return (
     <div className="chart-page">
-      <div className="chart-toolbar">
+      <div className={`chart-toolbar ${showAllPills ? 'chart-toolbar--pills-expanded' : ''}`}>
         <div ref={toolbarInnerRef} className="chart-toolbar-inner">
         <div className="toolbar-left">
-          <div className="period-interval">
-            <button
-              ref={periodIntervalBtnRef}
-              className="period-btn"
-              onClick={() => setPeriodIntervalOpen(v => !v)}
-              aria-haspopup="true"
-              aria-expanded={periodIntervalOpen}
-              title="Period & Interval"
-            >
-              <span className="period-label">{formatPresetLabel(PRESETS.find(p => p.period === period && p.interval === interval)) || 'Period'}</span>
-            </button>
-            <select
-              className="interval-select"
-              value={interval}
-              onChange={(e) => { setInterval(e.target.value); }}
-              aria-label="Interval"
-            >
-              <option value="1m">1m</option>
-              <option value="5m">5m</option>
-              <option value="15m">15m</option>
-              <option value="30m">30m</option>
-              <option value="1d">1d</option>
-              <option value="1wk">1wk</option>
-            </select>
-            {periodIntervalOpen && periodIntervalBtnRef.current && (
-              <PortalDropdown anchorRect={periodIntervalBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setPeriodIntervalOpen(false)} className="mode-dropdown">
-                <div role="listbox" aria-label="Period & Interval" onMouseLeave={() => setPeriodIntervalOpen(false)}>
-                  {PRESETS.map(p => (
-                    <div
-                      key={p.label}
-                      className={`mode-item ${period === p.period && interval === p.interval ? 'active' : ''}`}
-                      role="option"
-                      tabIndex={0}
-                      aria-selected={period === p.period && interval === p.interval}
-                      onClick={() => { applyPreset(p); setPeriodIntervalOpen(false); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyPreset(p); setPeriodIntervalOpen(false); } }}
-                    >
-                      {formatPresetLabel(p)}
-                    </div>
-                  ))}
-                </div>
-              </PortalDropdown>
-            )}
-          </div>
-        </div>
-
-        <div ref={toolbarCenterRef} className="toolbar-center">
-          <div className="chart-pills" role="list" ref={pillsContainerRef}>
-            {tickers.map((t, i) => {
-              const hidden = (typeof visibleCount === 'number' && i >= visibleCount);
-              return (
+          <div
+            className={`chart-pills ${showAllPills ? 'pills-expanded' : ''}`}
+            role="list"
+            ref={pillsContainerRef}
+          >
+            {/** Non-collapsing, always-visible pills container (interactable) **/}
+            <>
+              {tickers.map((t, i) => (
                 <button
                   key={t}
-                  className={`chart-pill ${hidden ? 'hidden-pill' : ''}`}
+                  className={`chart-pill`}
                   title={t}
                   onClick={() => onExpand(t)}
                   ref={el => pillRefs.current[i] = el}
                   onKeyDown={(e) => handlePillKeyDown(i, e)}
-                  tabIndex={hidden ? -1 : 0}
+                  tabIndex={0}
                   aria-label={`Open ${t}`}
-                  aria-hidden={hidden}
                 >
                   <img className="chart-pill-logo" src={`https://assets.parqet.com/logos/symbol/${encodeURIComponent(t)}?format=png`} alt="" onError={(e)=>{e.currentTarget.style.display='none'}} />
                   <span className="chart-pill-text">{t}</span>
@@ -1075,37 +1035,24 @@ export default function Chart() {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); removeTicker(t); } }}
                   >✕</span>
                 </button>
-              );
-            })}
+              ))}
 
-            {/* overflow button */}
-            {visibleCount < tickers.length && (
-              <div className="chart-pill overflow-pill" role="button" tabIndex={0} onClick={() => setOverflowOpen(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOverflowOpen(v => !v); } }}>
-                +{tickers.length - visibleCount}
-              </div>
-            )}
-
-            <button
-              className="chart-pill add-pill"
-              aria-label="Add ticker"
-              onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
-              ref={el => pillRefs.current[tickers.length] = el}
-              onKeyDown={(e) => handlePillKeyDown(tickers.length, e)}
-              style={typeof document !== 'undefined' && document.body && document.body.classList && document.body.classList.contains('dark') ? { background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.14)', color: '#fff' } : undefined}
-            >
-              +
-            </button>
-
-            {overflowOpen && visibleCount < tickers.length && (
-              <div className="overflow-popover" role="menu" onMouseLeave={() => setOverflowOpen(false)}>
-                <ul>
-                  {tickers.slice(visibleCount).map(t => (
-                    <li key={`ov-${t}`} onClick={() => { onExpand(t); setOverflowOpen(false); }}>{t}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {/* Add button always visible */}
+              <button
+                className="chart-pill add-pill"
+                aria-label="Add ticker"
+                onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
+                ref={el => pillRefs.current[tickers.length] = el}
+                onKeyDown={(e) => handlePillKeyDown(tickers.length, e)}
+              >
+                +
+              </button>
+            </>
           </div>
+        </div>
+
+        <div ref={toolbarCenterRef} className="toolbar-center">
+          {/* Center is now empty; pills moved to toolbar-left for left alignment */}
         </div>
 
         {/* TickerSearch instance (used via ref) */}
@@ -1127,37 +1074,7 @@ export default function Chart() {
             />
           </div>
 
-          <div className="toolbar-control toolbar-period-mobile">
-            <button
-              ref={periodIntervalBtnRef}
-              className="toolbar-period-btn"
-              onClick={() => setPeriodIntervalOpen(v => !v)}
-              aria-haspopup="true"
-              aria-expanded={periodIntervalOpen}
-              title="Period & Interval"
-            >
-              <span className="period-label">{formatPresetLabel(PRESETS.find(p => p.period === period && p.interval === interval)) || 'Period'}</span>
-            </button>
-            {periodIntervalOpen && periodIntervalBtnRef.current && (
-              <PortalDropdown anchorRect={periodIntervalBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setPeriodIntervalOpen(false)} className="mode-dropdown">
-                <div role="listbox" aria-label="Period & Interval" onMouseLeave={() => setPeriodIntervalOpen(false)}>
-                  {PRESETS.map(p => (
-                    <div
-                      key={p.label}
-                      className={`mode-item ${period === p.period && interval === p.interval ? 'active' : ''}`}
-                      role="option"
-                      tabIndex={0}
-                      aria-selected={period === p.period && interval === p.interval}
-                      onClick={() => { applyPreset(p); setPeriodIntervalOpen(false); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyPreset(p); setPeriodIntervalOpen(false); } }}
-                    >
-                      {formatPresetLabel(p)}
-                    </div>
-                  ))}
-                </div>
-              </PortalDropdown>
-            )}
-          </div>
+          {/* mobile period button removed as requested */}
 
           <div className="toolbar-control">
             <button
@@ -1362,27 +1279,28 @@ export default function Chart() {
                 </PortalDropdown>
               )}
           </div>
-          </div>
-
-            {/* top-level subscribe removed (subscriptions kept per-card) */}
-
-          </div>
         </div>
+
+      </div>
+      </div>
 
       {/* Global presets moved here so changing a preset doesn't live inside each card */}
-      <div className="toolbar-row presets" role="toolbar" aria-label="Default presets">
-        <div className="preset-inner">
-          {PRESETS.map(p => (
-            <button
-              key={p.label}
-              type="button"
-              className={`preset-large btn preset ${period === p.period && interval === p.interval ? 'active' : ''}`}
-              onClick={() => applyPreset(p)}
-            >
-              {formatPresetLabel(p)}
-            </button>
-          ))}
-        </div>
+      <div
+        className="preset-inner"
+        role="toolbar"
+        aria-label="Default presets"
+        style={{ display: 'flex', gap: 10, alignItems: 'center', flex: '1 1 auto', justifyContent: 'center', overflowX: 'auto', padding: 0, justifySelf: 'center' }}
+      >
+        {PRESETS.map(p => (
+          <button
+            key={p.label}
+            type="button"
+            className={`preset-large btn preset ${period === p.period && interval === p.interval ? 'active' : ''}`}
+            onClick={() => applyPreset(p)}
+          >
+            {formatPresetLabel(p)}
+          </button>
+        ))}
       </div>
 
       {loading && <div className="status">Loading...</div>}
