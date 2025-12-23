@@ -84,10 +84,36 @@ html body .chart-page .chart-toolbar.chart-toolbar--pills-expanded .chart-pills.
 html body .chart-page .chart-toolbar .chart-pills::-webkit-scrollbar { height: 6px; }
 html body .chart-page .chart-toolbar .chart-pills::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 4px; }
 
+/* Match add-pill size/appearance to toolbar icon buttons on the right */
+html body .chart-page .chart-toolbar .chart-pills .chart-pill.add-pill {
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 1px solid rgba(0,0,0,0.04) !important;
+  color: inherit !important;
+}
+
+/* Slight hover/focus parity with toolbar buttons */
+html body .chart-page .chart-toolbar .chart-pills .chart-pill.add-pill:hover,
+html body .chart-page .chart-toolbar .chart-pills .chart-pill.add-pill:focus {
+  background: var(--hover-bg, #f8fafc) !important;
+  box-shadow: none !important;
+}
+
 /* Make chart-toolbar-inner a 2-column grid and keep pills in the left column */
 html body .chart-page .chart-toolbar .chart-toolbar-inner {
   display: grid !important;
-  grid-template-columns: auto 1fr !important; /* left column for pills, right column for center/right controls */
+  /* Reserve three columns: left (pills), center (flexible), right (controls) */
+  grid-template-columns: auto 1fr auto !important;
+  grid-template-areas: "left center right" !important;
   column-gap: 12px !important;
   align-items: center !important;
   width: 100% !important;
@@ -97,12 +123,22 @@ html body .chart-page .chart-toolbar .chart-toolbar-inner {
 /* Ensure left and right sections are placed into their respective columns */
 html body .chart-page .chart-toolbar .toolbar-left {
   grid-column: 1 !important;
+  overflow: hidden !important; /* contain pills scrolling inside left column */
+  min-width: 0 !important;
 }
 
 html body .chart-page .chart-toolbar .toolbar-center,
-html body .chart-page .chart-toolbar .ticker-search-container,
-html body .chart-page .chart-toolbar .toolbar-right {
+html body .chart-page .chart-toolbar .ticker-search-container {
   grid-column: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+html body .chart-page .chart-toolbar .toolbar-right {
+  grid-column: 3 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
@@ -113,7 +149,98 @@ html body .chart-page .chart-toolbar .toolbar-right {
 /* Keep expanded pills constrained to the left column only */
 html body .chart-page .chart-toolbar .toolbar-left .chart-pills.pills-expanded {
   grid-column: 1 !important;
-  width: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Desktop: reserve space for right controls and cap pills width to avoid overlap */
+@media (min-width: 681px) {
+  html body .chart-page .chart-toolbar {
+    --toolbar-right-reserve: 180px; /* adjust if needed */
+  }
+
+  html body .chart-page .chart-toolbar .toolbar-right {
+    min-width: var(--toolbar-right-reserve) !important;
+    width: var(--toolbar-right-reserve) !important;
+    flex: 0 0 var(--toolbar-right-reserve) !important;
+    z-index: 3 !important;
+  }
+
+  html body .chart-page .chart-toolbar .toolbar-left .chart-pills {
+    /* ensure pills never extend past left column to cover right controls */
+    max-width: calc(100% - var(--toolbar-right-reserve) - 12px) !important;
+    overflow-x: auto !important;
+  }
+
+  /* Allow wrapping on desktop when space requires it so pills can flow to next line
+     rather than overlapping right controls. Also reduce pill spacing to pack more. */
+  html body .chart-page .chart-toolbar .toolbar-left .chart-pills {
+    flex-wrap: wrap !important;
+    max-height: none !important;
+    gap: 6px !important;
+    row-gap: 6px !important;
+  }
+
+  /* Make individual pills slightly more compact in the left toolbar */
+  html body .chart-page .chart-toolbar .toolbar-left .chart-pills .chart-pill {
+    margin-right: 4px !important;
+    padding: 4px 8px !important;
+    min-width: 32px !important;
+    max-width: 180px !important;
+  }
+
+  /* Add vertical spacing so pills aren't overlapped by nearby card elements on small screens */
+  html body .chart-page .chart-toolbar .chart-pills {
+    margin: 6px 0 !important;
+  }
+
+  /* Ensure add-pill sizing applies when placed directly in toolbar-left */
+  html body .chart-page .chart-toolbar .toolbar-left > .chart-pill.add-pill {
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    border-radius: 8px !important;
+  }
+
+  /* Clear button hover animation: trash turns red on hover */
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn svg {
+    transition: transform 160ms ease, color 160ms ease, stroke 160ms ease;
+    color: inherit;
+  }
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn:hover svg,
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn:focus svg {
+    transform: scale(1.06);
+    color: #dc2626 !important;
+  }
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn:hover svg .trash-body,
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn:focus svg .trash-body {
+    stroke: #dc2626 !important;
+  }
+
+  /* Make the trash icon visually bolder and slightly larger */
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  html body .chart-page .chart-toolbar .toolbar-left .clear-btn svg .trash-body {
+    stroke-width: 2.2 !important; /* thicker stroke for better visibility */
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  /* Style for new action buttons (Clear / Saved) to be compact */
+  html body .chart-page .chart-toolbar .toolbar-left .toolbar-action-btn {
+    min-width: 44px !important;
+    padding: 6px 8px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+  }
 }
 
 /* Responsive: revert to stacked flex layout on narrow screens */
@@ -133,5 +260,10 @@ html body .chart-page .chart-toolbar .toolbar-left .chart-pills.pills-expanded {
   html body .chart-page .chart-toolbar .chart-pills {
     flex-wrap: wrap !important;
     overflow-x: visible !important;
+  }
+  
+  /* Center pills when stacked on narrow screens */
+  html body .chart-page .chart-toolbar .toolbar-left {
+    justify-content: center !important;
   }
 }

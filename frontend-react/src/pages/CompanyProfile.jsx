@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import TimezoneSelect from '../components/TimezoneSelect';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import EchartsCard from '../components/EchartsCard';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
@@ -181,12 +182,44 @@ export default function CompanyProfile(){
         };
       });
 
-      setNews(items);
+        // attach stored view counts where available
+        try{
+          const keys = items.map(a => a.link).filter(Boolean);
+          if (keys.length){
+            const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
+            if (lookup.ok){
+              const pl = await lookup.json();
+              const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
+              for (let i=0;i<items.length;i++){ const k = items[i].link; items[i].views = (map[k] && map[k].views) ? map[k].views : 0; }
+            }
+          }
+        }catch(err){ console.debug('views lookup failed', err); }
+
+        setNews(items);
       setNewsPage(page);
       setNewsTotal((res && res.total) || items.length);
       setNewsTotalPages((res && res.totalPages) || (items.length ? 1 : 0));
     }catch(e){ console.warn('loadNews error', e); }
     finally{ setNewsLoading(false); }
+  }
+
+  // Report a news view to backend then open link
+  async function handleNewsClick(e, item){
+    try{
+      if (e && e.preventDefault) e.preventDefault();
+      const link = item.link || item.url || '#';
+      // fire-and-forget POST to backend
+      fetch(`${API_URL}/node/news/views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: link, articleId: item.id, title: item.title, ticker })
+      }).catch(()=>{});
+      // open the article
+      window.open(link, '_blank', 'noopener');
+    }catch(err){
+      const link = item.link || item.url || '#';
+      window.open(link, '_blank', 'noopener');
+    }
   }
 
   const dates = useMemo(()=> (chartData?.dates || []).map(d=>d), [chartData]);
@@ -238,12 +271,12 @@ export default function CompanyProfile(){
       <div className="company-header">
         <div className="company-left">
           {logoUrl ? (
-            <img src={logoUrl} alt={`${ticker} logo`} className="company-logo" />
+            <img src={logoUrl} alt={`${meta?.displayTicker || getDisplayFromRaw(ticker)} logo`} className="company-logo" />
           ) : (
             <div className="company-logo placeholder" aria-hidden="true"></div>
           )}
           <div className="company-text">
-            <h1 className="company-ticker">{ticker}</h1>
+            <h1 className="company-ticker">{meta?.displayTicker || getDisplayFromRaw(ticker)}</h1>
             <div className="company-name">{meta?.companyName || ""}</div>
             <div className="company-meta">
               {meta?.primaryExchange || ""}
@@ -577,7 +610,7 @@ export default function CompanyProfile(){
                   className="news-item"
                   key={n.id || i}
                   href={n.link || "#"}
-                  target="_blank"
+                  onClick={(e)=>handleNewsClick(e, n)}
                   rel="noreferrer"
                 >
                   {n.thumbnail ? (
@@ -585,16 +618,17 @@ export default function CompanyProfile(){
                   ) : null}
                   <div className="news-body">
                     <div className="news-title">{n.title}</div>
-                    <div className="news-meta">
-                      <span className="news-badge">{n.contentType}</span>
-                      {n.source ? ` ${n.source} · ` : " "}
-                      <span className="news-time">
-                        {n.displayTime ||
-                          (n.pubDate
-                            ? new Date(n.pubDate).toLocaleString()
-                            : "")}
-                      </span>
-                    </div>
+                      <div className="news-meta">
+                        <span className="news-badge">{n.contentType}</span>
+                        {n.source ? ` ${n.source} · ` : " "}
+                        <span className="news-time">
+                          {n.displayTime ||
+                            (n.pubDate
+                              ? new Date(n.pubDate).toLocaleString()
+                              : "")}
+                        </span>
+                        {n.views ? <span className="news-views" style={{marginLeft:8,fontSize:'0.85rem',color:'var(--text-secondary)'}}>{n.views} views</span> : null}
+                      </div>
                   </div>
                 </a>
               ))}

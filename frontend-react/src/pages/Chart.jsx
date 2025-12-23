@@ -10,6 +10,7 @@ import ChartToolbar from '../components/ChartToolbar';
 import TimezoneSelect from '../components/TimezoneSelect';
 import TickerSearch from '../components/TickerSearch';
 import EchartsCard from '../components/EchartsCard';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
@@ -483,7 +484,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
       <div className="chart-card-header">
         <div style={{display: 'flex', flexDirection: 'column'}}>
           <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
-            <div className="chart-card-title">{ticker} <span className="company-name">{companyName}</span></div>
+              <div className="chart-card-title">{(payload && (payload.displayTicker || getDisplayFromRaw(ticker))) || ticker} <span className="company-name">{companyName}</span></div>
           </div>
           <div style={{marginTop:6}}>
             <div className="market-compact" title={isMarketOpen ? 'the market is open' : 'the market is closed'}>
@@ -617,6 +618,7 @@ export default function Chart() {
   const toolbarInnerRef = useRef(null);
   const toolbarCenterRef = useRef(null);
   const pillsContainerRef = useRef(null);
+  const addBtnRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState({});
@@ -626,7 +628,7 @@ export default function Chart() {
 
   useEffect(() => {
     // Keep refs array in sync with tickers length
-    pillRefs.current = pillRefs.current.slice(0, tickers.length + 1); // +1 for add-pill
+    pillRefs.current = pillRefs.current.slice(0, tickers.length); // keep refs for tickers only
   }, [tickers]);
 
   // Layout: rely on CSS rules in src/css/Chart.css for toolbar/pills sizing and scrolling.
@@ -699,6 +701,25 @@ export default function Chart() {
         // add-pill pressed: open ticker search via ref
         if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open();
       }
+    }
+  };
+
+  // Keyboard handler for the standalone Add button (now separated from the pills list)
+  const handleAddKeyDown = (e) => {
+    const key = e.key;
+    if (key === 'Enter' || key === ' ') {
+      e.preventDefault();
+      if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open();
+    } else if (key === 'ArrowRight') {
+      e.preventDefault();
+      const first = pillRefs.current[0]; if (first && typeof first.focus === 'function') first.focus();
+    } else if (key === 'ArrowLeft') {
+      e.preventDefault();
+      const last = pillRefs.current[pillRefs.current.length - 1]; if (last && typeof last.focus === 'function') last.focus();
+    } else if (key === 'Home') {
+      e.preventDefault(); const first = pillRefs.current[0]; if (first && typeof first.focus === 'function') first.focus();
+    } else if (key === 'End') {
+      e.preventDefault(); const last = pillRefs.current[pillRefs.current.length - 1]; if (last && typeof last.focus === 'function') last.focus();
     }
   };
 
@@ -1006,6 +1027,41 @@ export default function Chart() {
       <div className={`chart-toolbar ${showAllPills ? 'chart-toolbar--pills-expanded' : ''}`}>
         <div ref={toolbarInnerRef} className="chart-toolbar-inner">
         <div className="toolbar-left">
+          {/* Add button separated from pills so pills width/scrolling isn't affected */}
+          <button
+            className="chart-pill add-pill"
+            aria-label="Add ticker"
+            onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
+            ref={addBtnRef}
+            onKeyDown={handleAddKeyDown}
+          >
+            +
+          </button>
+
+          {/* Clear All button (trash icon, same size as Add) */}
+          <button
+            className="chart-pill add-pill toolbar-action-btn clear-btn"
+            aria-label="Clear all tickers"
+            title="Clear all tickers"
+            onClick={() => { if (tickers.length) clearAllTags(); }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path className="trash-body" d="M3 6h18M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {/* Saved tickers: only visible when user is logged in */}
+          {user && (
+            <button
+              className="chart-pill toolbar-action-btn"
+              aria-label="Saved tickers"
+              title="Saved tickers"
+              onClick={() => loadFromStockGroup()}
+            >
+              Saved
+            </button>
+          )}
+
           <div
             className={`chart-pills ${showAllPills ? 'pills-expanded' : ''}`}
             role="list"
@@ -1025,7 +1081,7 @@ export default function Chart() {
                   aria-label={`Open ${t}`}
                 >
                   <img className="chart-pill-logo" src={`https://assets.parqet.com/logos/symbol/${encodeURIComponent(t)}?format=png`} alt="" onError={(e)=>{e.currentTarget.style.display='none'}} />
-                  <span className="chart-pill-text">{t}</span>
+                  <span className="chart-pill-text">{(data && data[t] && (data[t].displayTicker || data[t].meta?.displayTicker)) || t}</span>
                   <span
                     role="button"
                     tabIndex={0}
@@ -1036,17 +1092,6 @@ export default function Chart() {
                   >✕</span>
                 </button>
               ))}
-
-              {/* Add button always visible */}
-              <button
-                className="chart-pill add-pill"
-                aria-label="Add ticker"
-                onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
-                ref={el => pillRefs.current[tickers.length] = el}
-                onKeyDown={(e) => handlePillKeyDown(tickers.length, e)}
-              >
-                +
-              </button>
             </>
           </div>
         </div>

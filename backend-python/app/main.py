@@ -133,8 +133,16 @@ async def seed_marketlists():
         # Prepare documents
         documents = []
         for ticker_info in tickers_data:
+            raw_t = (ticker_info.get("ticker", "") or "").strip().upper()
+            # prefer explicit displayTicker field; otherwise derive from symbol
+            if ticker_info.get('displayTicker'):
+                display = ticker_info.get('displayTicker')
+            else:
+                display = raw_t.split('.')[0] if raw_t else ''
+
             doc = {
-                "ticker": ticker_info.get("ticker", "").upper(),
+                "ticker": raw_t,
+                "displayTicker": display,
                 "companyName": ticker_info.get("companyName", ""),
                 "country": ticker_info.get("country", ""),
                 "primaryExchange": ticker_info.get("primaryExchange", ""),

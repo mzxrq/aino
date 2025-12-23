@@ -221,14 +221,27 @@ body.dark .anomaly-row:hover {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.logo-circle img { width:36px; height:36px; border-radius:50%; display:block; margin:auto; }
+.logo-circle img { width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
 
 /* Website branding logo - animated */
 .website-logo { animation: bob 3s ease-in-out infinite; }
-.anomaly-meta { min-width:160px; }
+.anomaly-meta { min-width:0; flex: 1 1 auto; }
 .ticker { font-weight:700; }
 .company { font-size:0.9rem; color: var(--cute-muted); }
-.price { margin-left:auto; font-weight:600; transition: 0.2s ease; }
+
+/* Right-align the stats column and keep it at the far right of the row */
+.anomaly-stats {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+.anomaly-stats .price { margin-left: 0; font-weight:600; transition: 0.2s ease; }
+.anomaly-stats .anomaly-time,
+.anomaly-stats .anomaly-count,
+.anomaly-stats .price { text-align: right; }
 .price.up { color: #10b981; text-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); }
 .price.down { color: #f43f5e; text-shadow: 0 2px 8px rgba(244, 63, 94, 0.3); }
 .percent { font-weight:500; margin-left:6px; color:inherit; }
@@ -253,6 +266,15 @@ body.dark .anomaly-row:hover {
 }
 .news-title { font-size:0.95rem; overflow-wrap:anywhere; }
 .news-source { font-size:0.8rem; color:var(--cute-muted); }
+
+/* News thumbnail (small) */
+.news-thumb { width:24px; height:24px; object-fit:cover; border-radius:6px; flex: none; display:block; }
+.news-thumb--placeholder { width:24px; height:24px; background:#eef2f3; border-radius:6px; flex: none; }
+
+/* Link styling for Top News titles */
+.news-title-link { display:block; color: inherit; text-decoration: none; }
+.news-title-link:hover .news-title { text-decoration: underline; }
+.news-title { overflow-wrap:anywhere; }
 
 body.dark .news-item {
     background: linear-gradient(180deg, rgba(40, 74, 118, 0.72), rgba(24, 48, 82, 0.82));

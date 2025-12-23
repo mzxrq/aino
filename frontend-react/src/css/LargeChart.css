@@ -16,6 +16,8 @@
     height: var(--lc-navbar-h);
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
     padding: 10px 16px;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
@@ -395,1209 +397,138 @@
     border-bottom: 2px solid transparent;
     transition: all 0.2s ease;
   }
-  
-  .lc-tab:hover {
-    color: var(--text-primary);
-  }
-  
-  .lc-tab.active {
-    color: #2cc17f;
-    border-bottom-color: #2cc17f;
-  }
-  
-  .lc-financials-content {
-    max-height: 200px;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-  
-  .lc-financial-table {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .lc-fin-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    padding: 8px;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.02);
-    align-items: center;
-  }
-  
-  .lc-fin-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 600;
-  }
-  
-  .lc-fin-value {
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    font-weight: 700;
-  }
-  
-  /* News Styling */
-  .lc-news-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-  
-  .lc-news-item {
-    display: block;
-    padding: 8px;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.02);
-    border: 1px solid var(--border-color);
-    color: inherit;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-  
-  /* Responsive: prioritize main chart area on small screens */
-  @media (max-width: 892px) {
-    .lc-body {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 8px;
-      overflow: visible;
-    }
-  
-    /* Put main content first and make it take full width/available height */
-    .lc-main {
-      order: -1;
-      width: 100%;
-      min-height: 56vh; /* leave room for controls and navbar */
-      padding: 8px;
-    }
-  
-    /* Sidebar moves below and becomes collapsible scrolling area */
-    .lc-sidebar {
-      order: 1;
-      width: 100%;
-      max-height: 36vh;
-      overflow: auto;
-      padding-right: 4px;
-    }
-  
-    /* Improve chart readability by ensuring chart canvas fills parent */
-    .lc-main > div, .lc-main canvas, .echarts-for-react {
-      width: 100% !important;
-      height: 100% !important;
-    }
-  }
-  
-  .lc-news-item:hover {
-    background: rgba(44, 193, 127, 0.08);
-    border-color: #2cc17f;
-  }
-  
-  .lc-news-source {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: #2cc17f;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  
-  .lc-news-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  
-  .lc-news-date {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-  
-  /* Footer Controls */
-  .lc-footer {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  
-  .lc-footer .lc-btn {
-    flex: 1;
-    min-width: 70px;
-  }
-  
-  .lc-more-menu {
-    position: relative;
-    flex: 1;
-    min-width: 70px;
-  }
-  
-  .lc-more-options {
-    position: absolute;
-    bottom: 40px;
-    left: 0;
-    right: 0;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    z-index: 10;
-    overflow: hidden;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  .lc-menu-item {
-    width: 100%;
-    padding: 10px 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    text-align: left;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s ease;
-  }
-  
-  .lc-menu-item:hover {
-    background: rgba(44, 193, 127, 0.12);
-  }
-  
-  .lc-timezone-selector {
-    flex: 1;
-    min-width: 70px;
-  }
-  
-  /* TimezoneSelect component visual tweaks to match native select */
-  .timezone-select .timezone-select-button {
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 600;
-  }
-  
-  .timezone-time-display { font-size: 0.92rem; }
-  
-  .lc-tz-select {
-    width: 100%;
-    height: 36px;
-    padding: 0 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.85rem;
-  }
-  
-  .lc-tz-select:focus {
-    outline: none;
-    border-color: #2cc17f;
-    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.1);
-  }
-  
-  .lc-muted {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    padding: 12px;
-    text-align: center;
-  }
-  
-  .lc-error {
-    color: #ef4444;
-    padding: 12px;
-    text-align: center;
-  }
-  
-  /* Dark Mode Adjustments */
-  body.dark .lc-shell {
-    background: var(--bg-main);
-  }
-  
-  body.dark .lc-navbar {
-    background: var(--bg-secondary);
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  body.dark .lc-chart-toolbar {
-    background: var(--bg-secondary);
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  body.dark .lc-chart-type-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-  }
-  
-  body.dark .lc-chart-type-btn:hover {
-    background: rgba(44, 193, 127, 0.15);
-    border-color: #2cc17f;
-  }
-  
-  body.dark .lc-pill {
-    background: rgba(255, 255, 255, 0.06);
-  }
-  
-  body.dark .lc-fin-row {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  body.dark .lc-news-item {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  /* More Button */
-  .lc-btn-small {
-    height: 24px;
-    padding: 0 8px;
-    font-size: 0.8rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
-  
-  .lc-btn-small:hover {
-    background: rgba(44, 193, 127, 0.08);
-    border-color: #2cc17f;
-    color: #2cc17f;
-  }
-  
-  /* Modal Overlay */
-  .lc-modal-overlay {
+
+/* Fix overlap & layout for widths between 901px and 1024px */
+@media (min-width: 901px) and (max-width: 1024px) {
+  .lc-navbar {
+    --lc-navbar-h: 88px;
     position: fixed;
-    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    height: auto;
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: lc-fade-in 0.2s ease;
-  }
-  
-  @keyframes lc-fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  
-  .lc-modal-content {
-    background: var(--bg-main);
-    border-radius: 16px;
-    max-width: 800px;
-    max-height: 80vh;
-    width: 90%;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: lc-slide-up 0.3s ease;
-  }
-  
-  @keyframes lc-slide-up {
-    from {
-      transform: translateY(20px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-  
-  .lc-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-  }
-  
-  .lc-modal-header h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    color: #2cc17f;
-  }
-  
-  .lc-modal-close {
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-  }
-  
-  .lc-modal-close:hover {
-    color: var(--text-primary);
-    background: rgba(44, 193, 127, 0.1);
-    border-radius: 8px;
-  }
-  
-  .lc-modal-body {
-    overflow-y: auto;
-    padding: 20px 24px;
-    flex: 1;
-  }
-  
-  .lc-modal-subtitle {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-    text-align: center;
-  }
-  
-  .lc-market-candidates {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  
-  .lc-market-option {
-    padding: 16px;
-    border: 2px solid var(--border-color);
-    border-radius: 10px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 8px;
     background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    border-top: 1px solid var(--border-color);
+    z-index: 40;
   }
-  
-  .lc-market-option:hover {
-    border-color: #2cc17f;
-    background: rgba(44, 193, 127, 0.08);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.2);
-  }
-  
-  .lc-market-option-label {
-    font-weight: 700;
-    font-size: 13px;
-    color: #2cc17f;
-  }
-  
-  .lc-market-option-name {
-    font-size: 12px;
-    color: var(--text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .lc-market-option-ticker {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text-primary);
-  }
-  
-  .lc-modal-section {
-    margin-bottom: 32px;
-  }
-  
-  .lc-modal-section:last-child {
-    margin-bottom: 0;
-  }
-  
-  .lc-modal-section h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    opacity: 0.8;
-  }
-  
-  .lc-modal-table {
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-  
-  .lc-table-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    gap: 0;
-  }
-  
-  .lc-table-header > div {
-    padding: 12px 16px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: var(--text-primary);
-    text-align: left;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    opacity: 0.7;
-  }
-  
-  .lc-table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-bottom: 1px solid var(--border-color);
-    gap: 0;
-    transition: background 0.2s ease;
-  }
-  
-  .lc-table-row:hover {
-    background: rgba(44, 193, 127, 0.04);
-  }
-  
-  .lc-table-row:last-child {
-    border-bottom: none;
-  }
-  
-  .lc-table-cell {
-    padding: 12px 16px;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    text-align: left;
-  }
-  
-  .lc-table-cell:last-child {
-    text-align: right;
-    font-weight: 600;
-    color: #2cc17f;
-  }
-  
-  .lc-table-empty {
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-  }
-  
-  /* Dark Mode Modal */
-  body.dark .lc-modal-overlay {
-    background: rgba(0, 0, 0, 0.8);
-  }
-  
-  body.dark .lc-modal-content {
-    background: var(--bg-main);
-  }
-  
-  body.dark .lc-table-row:hover {
-    background: rgba(44, 193, 127, 0.08);
-  }
-  
-  /* Dark Mode Support */
-  body.dark .lc-ticker-input {
-    background: var(--bg-main);
-    border-color: var(--border-color);
-  }
-  
-  body.dark .lc-ticker-input:focus {
-    border-color: #2cc17f;
-    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.2);
-  }
-  
-  body.dark .lc-ticker-dropdown {
-    background: var(--bg-main);
-    border-color: var(--border-color);
-  }
-  
-  body.dark .lc-search-loading {
-    color: var(--text-secondary);
-  }
-  
-  body.dark .lc-ticker-result:hover {
-    background: rgba(44, 193, 127, 0.12);
-  }
-  
-  body.dark .lc-modal-overlay {
-    background: rgba(0, 0, 0, 0.8);
-  }
-  
-  body.dark .lc-modal-content {
-    background: var(--bg-main);
-  }
-  
-  body.dark .lc-table-row:hover {
-    background: rgba(44, 193, 127, 0.08);
-  }
-  
-  /* Responsive */
-  @media (max-width: 768px) {
-    .lc-navbar {
-      gap: 6px;
-      padding: 8px 12px;
-    }
-  
-    .lc-ticker-input-wrapper {
-      max-width: 120px;
-    }
-  
-    .lc-ticker-input {
-      height: 36px;
-      font-size: 0.9rem;
-      padding: 8px 10px;
-    }
-  
-    .lc-preset-row {
-      gap: 4px;
-    }
-  
-    .lc-pill {
-      padding: 4px 10px;
-      font-size: 0.75rem;
-      white-space: nowrap;
-    }
-  
-    .lc-chart-type-btn {
-      padding: 4px 8px;
-      font-size: 0.75rem;
-    }
-  
-    .lc-selector-row {
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-  
-    .lc-selector-row select {
-      height: 32px;
-      font-size: 0.8rem;
-    }
-  }
-  
-  @media (max-width: 600px) {
-    .lc-modal-header h2 {
-      font-size: 16px;
-    }
-  
-    body.dark .lc-market-option {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.1);
-    }
-  
-    body.dark .lc-market-option:hover {
-      background: rgba(44, 193, 127, 0.15);
-      border-color: #2cc17f;
-    }
-  
-    .lc-table-header > div,
-    .lc-table-cell {
-      padding: 10px 12px;
-      font-size: 0.8rem;
-    }
-  
-    .lc-navbar {
-      height: auto;
-      flex-wrap: wrap;
-      min-height: 60px;
-      gap: 4px;
-    }
-  
-    .lc-ticker-input-wrapper {
-      max-width: 100px;
-      order: 2;
-    }
-  
-    .lc-preset-row {
-      order: 3;
-      width: auto;
-      flex: 1;
-      overflow-x: auto;
-      overflow-y: hidden;
-    }
-  
-    .lc-chart-toolbar {
-      padding: 8px 12px;
-      overflow-x: auto;
-    }
-  
-    .lc-chart-type-group {
-      gap: 4px;
-    }
-  
-    .lc-chart-type-btn {
-      padding: 3px 6px;
-      font-size: 0.7rem;
-    }
-  }
-  
-  /* Ticker name button - clickable */
-  .lc-ticker-name-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: inherit;
-    font-weight: inherit;
-    color: inherit;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-radius: 4px;
-    padding: 2px 4px;
-  }
-  
-  .lc-ticker-name-btn:hover {
-    background: rgba(44, 193, 127, 0.1);
-    color: #2cc17f;
-  }
-  
-  /* Ticker Search Modal - additional styles */
-  .lc-ticker-search-modal {
-    max-width: 500px;
-    min-width: 300px;
-  }
-  
-  .lc-ticker-search-input-wrapper {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .lc-ticker-search-input {
-    width: 100%;
-    height: 40px;
-    padding: 10px 14px;
-    border: 2px solid var(--border-color);
-    border-radius: 10px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    font-weight: 600;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  .lc-ticker-search-input:focus {
-    outline: none;
-    border-color: #2cc17f;
-    background: var(--bg-main);
-    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.15);
-  }
-  
-  .lc-ticker-search-input::placeholder {
-    color: var(--text-secondary);
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: normal;
-  }
-  
-  .lc-ticker-search-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 0;
-    max-height: 400px;
-  }
-  
-  .lc-ticker-search-item {
-    padding: 12px 16px;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    text-align: left;
-    width: 100%;
-    transition: all 0.2s ease;
-    border-left: 3px solid transparent;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-family: inherit;
-    font-size: inherit;
-  }
-  
-  .lc-ticker-search-item:hover {
-    background: rgba(44, 193, 127, 0.08);
-    border-left-color: #2cc17f;
-  }
-  
-  .lc-ticker-search-item:active {
-    background: rgba(44, 193, 127, 0.12);
-  }
-  
-  .lc-ticker-search-item-ticker {
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: #2cc17f;
-    min-width: 60px;
-    flex-shrink: 0;
-  }
-  
-  .lc-ticker-search-item-name {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    margin: 0 12px;
-  }
-  
-  .lc-ticker-search-item-market {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    background: rgba(44, 193, 127, 0.1);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  
-  .lc-ticker-search-empty {
-    padding: 40px 16px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-  }
-  
-  @media (max-width: 600px) {
-    .lc-ticker-search-modal {
-      max-width: 100%;
-      min-width: auto;
-      max-height: 90vh;
-    }
-  
-    .lc-ticker-search-input {
-      height: 38px;
-      font-size: 0.9rem;
-    }
-  
-    .lc-ticker-search-item {
-      padding: 10px 12px;
-      flex-wrap: wrap;
-    }
-  
-    .lc-ticker-search-item-name {
-      font-size: 0.8rem;
-      margin: 0 8px;
-    }
-  
-    .lc-ticker-search-item-market {
-      font-size: 0.75rem;
-      padding: 1px 6px;
-    }
-  }
-}
 
-@media (min-width: 769px) and (max-width: 1024px) {
-    .lc-shell {
+  /* hide heavier elements that cause wrapping pressure */
+  .lc-navbar .lc-ticker-input-wrapper,
+  .lc-navbar .lc-preset-row {
+    display: none;
+  }
+
+  /* ensure the main area leaves space for the taller navbar */
+  .lc-main {
+    padding-bottom: calc(88px + 12px);
+  }
+
+  /* make chart toolbar compact and avoid overlapping */
+  .lc-chart-toolbar {
+    padding: 6px 12px;
+    overflow-x: auto;
+  }
+
+  /* ensure sidebar/grid adapts */
+  .lc-body {
+    grid-template-columns: 1fr 0.6fr;
+    gap: 10px;
+    padding-bottom: 8px;
+  }
+
+  /* ensure main chart gets enough vertical space on mid-range widths */
+  .lc-main {
+    min-height: calc(100vh - 220px);
+    display: flex;
+    flex-direction: column;
+    position: relative; /* allow controls to overlay without consuming layout space */
+    padding-top: 8px; /* keep original small padding — controls overlay, don't reserve large space */
+  }
+
+  /* compact controls overlay inside the main area so the chart can fill available height */
+  .lc-main-controls {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 30;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+  }
+
+  .lc-main > div.chart-wrapper,
+  .lc-main > div {
+    flex: 1 1 0%;
+    min-height: 0; /* allow children to shrink/grow properly inside flex */
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-main);
-    color: var(--text-primary);
   }
-  
-  .lc-navbar {
-    --lc-navbar-h: 72px;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: var(--lc-navbar-h);
-    display: flex;
-    align-items: center;
-    padding: 10px 16px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    gap: 8px;
-    z-index: 40;
+
+  .lc-main .echarts-for-react {
+    flex: 1 1 0%;
+    min-height: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
   }
-  
-  .lc-chart-toolbar {
-    padding: 8px 16px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    overflow-x: auto;
-    overflow-y: hidden;
+
+  .lc-main canvas[data-zr-dom-id] {
+    min-height: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
   }
-  
-  .lc-chart-type-group {
-    display: flex;
-    gap: 6px;
-    flex-wrap: nowrap;
-    align-items: center;
+}
+
+/* Additional fixes to ensure the chart container stretches instead of rendering tiny */
+  /* Center icon/text inside chart-type buttons */
+   .lc-chart-type-btn {
+     display: inline-flex !important;
+     align-items: center !important;
+     justify-content: center !important;
+     text-align: center !important;
   }
-  
-  .lc-chart-type-btn {
-    padding: 6px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-main);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-  }
-  
-  .lc-chart-type-btn:hover {
-    background: rgba(44, 193, 127, 0.08);
-    border-color: #2cc17f;
-  }
-  
-  .lc-chart-type-btn.active {
-    background: linear-gradient(135deg, #2fdf91, #2cc17f);
-    color: #fff;
-    border-color: transparent;
-    box-shadow: 0 2px 8px rgba(44, 193, 127, 0.3);
-  }
-  
-  .lc-ticker-input-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 300px;
-  }
-  
-  .lc-ticker-input {
-    width: 100%;
-    height: 40px;
-    padding: 10px 14px;
-    border: 2px solid var(--border-color);
-    border-radius: 10px;
-    background: var(--bg-main);
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 700;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  .lc-ticker-input:focus {
-    outline: none;
-    border-color: #2cc17f;
-    box-shadow: 0 0 0 3px rgba(44, 193, 127, 0.15);
-  }
-  
-  .lc-ticker-input::placeholder {
-    color: var(--text-secondary);
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: normal;
-  }
-  
-  .lc-ticker-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    max-height: 320px;
-    overflow-y: auto;
-    z-index: 100;
-  }
-  
-  .lc-search-loading {
-    padding: 12px 14px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 40px;
-  }
-  
-  .lc-search-loading::before {
-    content: '';
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(44, 193, 127, 0.2);
-    border-top-color: #2cc17f;
-    border-radius: 50%;
-    animation: lc-spin 0.8s linear infinite;
-  }
-  
-  @keyframes lc-spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .lc-ticker-result {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    padding: 12px 14px;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .lc-ticker-result:last-child {
-    border-bottom: none;
-  }
-  
-  .lc-ticker-result:hover {
-    background: rgba(44, 193, 127, 0.08);
-  }
-  
-  .lc-result-ticker {
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: #2cc17f;
-    margin-bottom: 3px;
-  }
-  
-  .lc-result-company {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .lc-preset-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    margin-top: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 4px;
-  }
-  
-  .lc-pill {
-    padding: 6px 12px;
-    border-radius: 16px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-main);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
-  
-  .lc-pill:hover {
-    background: rgba(44, 193, 127, 0.08);
-  }
-  
-  .lc-pill.active {
-    background: linear-gradient(135deg, #2fdf91, #2cc17f);
-    color: #fff;
-    border-color: transparent;
-    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
-  }
-  
-  .lc-btn {
-    height: 36px;
-    padding: 0 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
-  
-  .lc-btn:hover {
-    background: rgba(44, 193, 127, 0.12);
-    border-color: #2cc17f;
-  }
-  
-  .lc-btn.ghost {
-    background: transparent;
-    border-color: var(--border-color);
-  }
-  
-  .lc-btn.follow {
-    width: 100%;
-    margin-top: 12px;
-    background: linear-gradient(135deg, #2fdf91, #2cc17f);
-    border: none;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
-  }
-  
+@media (min-width: 901px) and (max-width: 1024px) {
   .lc-body {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 12px;
-    padding: 12px 16px 16px;
-    flex: 1;
-    overflow: hidden;
+    /* make grid rows share available height so main can expand */
+    height: calc(100vh - 48px - var(--lc-navbar-h));
+    grid-auto-rows: 1fr;
+    align-items: stretch;
   }
-  
-  /* Ensure main content has space for fixed bottom navbar */
+
   .lc-main {
-    padding-bottom: calc(var(--lc-navbar-h) + 12px);
-    grid-area: main;
+    align-self: stretch;
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
   }
-  
-  .lc-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: auto;
-    padding-right: 4px;
+
+  /* Force echarts wrapper and its inner elements to fill available space (override inline sizing) */
+  .lc-main .echarts-for-react,
+  .lc-main .echarts-for-react > div,
+  .lc-main .echarts-for-react canvas {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
   }
-  
-  .lc-sidebar::-webkit-scrollbar {
-    width: 4px;
+
+  /* If the inner relative div still measures small, ensure it stretches */
+  .lc-main .echarts-for-react > div[style] {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
   }
-  
-  .lc-sidebar::-webkit-scrollbar-thumb {
-    background: rgba(44, 193, 127, 0.3);
-    border-radius: 4px;
-  }
-  
-  .lc-main {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 8px;
-    overflow: auto;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .lc-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 12px;
-  }
-  
-  .lc-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  
-  .lc-ticker-card .lc-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
-  }
-  
-  .lc-ticker-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: #2cc17f;
-  }
-  
-  .lc-company-name {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .lc-status {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-    font-size: 12px;
-    color: #22c55e;
-  }
-  
-  .lc-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #22c55e;
-  }
-  
-  .lc-price-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  
-  .lc-price {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  
-  .lc-change {
-    font-size: 14px;
-    font-weight: 600;
-  }
-  
-  .lc-change.down {
-    color: #ef4444;
-  }
-  
-  .lc-change.up {
-    color: #22c55e;
-  }
-  
-  .lc-market {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-  }
-  
-  /* Financials Tabs */
-  .lc-financial-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .lc-tab {
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s ease;
-  }
+}
   
   .lc-tab:hover {
     color: var(--text-primary);
@@ -1693,6 +624,63 @@
     .lc-main > div, .lc-main canvas, .echarts-for-react {
       width: 100% !important;
       height: 100% !important;
+    }
+  }
+
+  /* Compact overlay for small screens (<=900px) to avoid controls pushing the chart */
+  @media (max-width: 900px) {
+    .lc-main {
+      position: relative;
+      padding-top: 8px;
+    }
+
+    /* Keep controls in the normal flow on small screens so they push the chart instead of overlaying it */
+    .lc-main-controls {
+      position: relative;
+      margin-bottom: 8px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      height: auto;
+      background: transparent;
+      pointer-events: auto;
+      padding: 0 4px;
+    }
+
+    .lc-main-controls > div {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .lc-chart-type-group {
+      gap: 6px;
+    }
+
+    .lc-chart-type-btn {
+      padding: 6px;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    .lc-btn.ghost {
+      padding: 6px 10px;
+      height: 36px;
+      min-width: 64px;
+    }
+
+    /* Chart area should flex below controls */
+    .lc-main > div,
+    .lc-main .echarts-for-react,
+    .lc-main canvas[data-zr-dom-id] {
+      height: 100% !important;
+      min-height: 0 !important;
+      flex: 1 1 auto;
     }
   }
   
@@ -2411,7 +1399,56 @@
   }
 }
 
-@media (min-width: 1025px) {
+/* Force a compact height so controls never exceed 48px */
+.lc-main-controls {
+  height: 48px !important;
+  max-height: 48px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  align-items: center !important;
+}
+
+.lc-main-controls > div {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.lc-chart-type-btn {
+
+/* Ensure ghost-style buttons (e.g. Indicators) are perfectly centered */
+.lc-btn.ghost,
+.lc-btn.ghost.active,
+.lc-btn.ghost[aria-haspopup],
+.lc-btn.ghost[title] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  line-height: normal !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Keep minimum width but allow compact label centering */
+.lc-btn.ghost {
+  min-width: 56px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+  height: 36px !important;
+  min-height: 36px !important;
+  line-height: 36px !important;
+  padding: 6px !important;
+}
+
+.lc-btn.ghost {
+  height: 36px !important;
+  line-height: 36px !important;
+  padding: 6px 10px !important;
+}
+
+@media (min-width: 769px) {
     .lc-shell {
     display: flex;
     flex-direction: column;

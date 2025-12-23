@@ -152,7 +152,12 @@ exports.login = async (req, res) => {
     if (usersCol) {
       user = await usersCol.findOne({ email });
       if (!user) return res.status(401).json({ error: "Invalid credentials" });
-      const ok = await bcrypt.compare(password, user.password);
+        if (!user.password) {
+          console.error('login error: user record has no password field', { email: user.email, _id: user._id && user._id.toString() });
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        console.debug('login debug: user.password present?', { hasPassword: !!user.password, type: typeof user.password });
+        const ok = await bcrypt.compare(password, user.password);
       if (!ok) return res.status(401).json({ error: "Invalid credentials" });
       const id = user._id.toString();
       const token = createToken(id);
@@ -179,7 +184,12 @@ exports.login = async (req, res) => {
     const users = readUsers();
     const u = users.find((x) => x.email === email);
     if (!u) return res.status(401).json({ error: "Invalid credentials" });
-    const ok = await bcrypt.compare(password, u.password);
+      if (!u.password) {
+        console.error('login error: fallback user record has no password field', { email: u.email, id: u.id });
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      console.debug('login debug: fallback user.password present?', { hasPassword: !!u.password, type: typeof u.password });
+      const ok = await bcrypt.compare(password, u.password);
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
     const token = createToken(u.id);
     return res.json({

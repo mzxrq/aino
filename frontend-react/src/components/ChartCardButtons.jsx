@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
 
 /**
@@ -20,6 +21,7 @@ export default function ChartCardButtons({
   const modeBtnRef = React.useRef(null);
 
   const isOverridden = globalChartMode !== 'auto';
+  const display = getDisplayFromRaw(ticker);
 
   return (
     <div className="chart-card-buttons">
@@ -111,7 +113,7 @@ export default function ChartCardButtons({
             onClose={() => setModeDropdownOpen(false)}
             className="mode-dropdown-chart"
           >
-            <div role="listbox" tabIndex={0} aria-label={`${ticker} chart mode`}>
+            <div role="listbox" tabIndex={0} aria-label={`${display} chart mode`}>
               <div
                 className={`mode-item ${chartMode === 'lines' ? 'active' : ''}`}
                 role="option"

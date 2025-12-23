@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import EchartsCard from '../components/EchartsCard';
 import TimezoneSelect from '../components/TimezoneSelect';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/LargeChart.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
@@ -162,6 +164,7 @@ export default function LargeChart() {
   const { ticker: paramTicker } = useParams();
   const navigate = useNavigate();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
+  const displayTicker = getDisplayFromRaw(ticker);
   const [companyName, setCompanyName] = useState('');
   const [market, setMarket] = useState('US');
   const [searchInput, setSearchInput] = useState((paramTicker || 'AAPL').toUpperCase());
@@ -183,6 +186,17 @@ export default function LargeChart() {
   const [lcNewsPageSize] = useState(5);
   const [showFinancialModal, setShowFinancialModal] = useState(false);
   const [showMarketModal, setShowMarketModal] = useState(false);
+  const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
+  const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
+  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
+  const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
+  const [showMA5, setShowMA5] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA5 !== undefined) ? p.showMA5 : false; } catch { return false; } });
+  const [showMA25, setShowMA25] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA25 !== undefined) ? p.showMA25 : false; } catch { return false; } });
+  const [showMA75, setShowMA75] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA75 !== undefined) ? p.showMA75 : false; } catch { return false; } });
+  const [showSAR, setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
+  const [bbSigma, setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const indicatorsBtnRef = useRef(null);
   const [marketCandidates, setMarketCandidates] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
@@ -517,137 +531,71 @@ export default function LargeChart() {
     URL.revokeObjectURL(url);
   };
 
+  // Report news view and open link
+  function handleNewsClick(e, item){
+    try{
+      if (e && e.preventDefault) e.preventDefault();
+      const link = item.link || item.url || '#';
+      fetch(`${API_URL}/node/news/views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: link, articleId: item.id, title: item.title, ticker })
+      }).catch(()=>{});
+      window.open(link, '_blank', 'noopener');
+    }catch(err){
+      const link = item.link || item.url || '#';
+      window.open(link, '_blank', 'noopener');
+    }
+  }
+
   return (
     <div className="lc-shell">
-      {/* Navbar with editable ticker search and period controls */}
+      {/* Navbar with compact controls (ticker button + period/interval + chart type) */}
       <div className="lc-navbar">
-        <div className="lc-ticker-input-wrapper">
-          <input
-            type="text"
-            placeholder="Type ticker or company name (e.g., AAPL, 6758.T, 0001.HK)..."
-            className="lc-ticker-input"
-            value={searchInput}
-            onChange={(e) => {
-              const input = e.target.value;
-              setSearchInput(input);
-              setShowSearchDropdown(true);
-            }}
-            onFocus={() => setShowSearchDropdown(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                // User pressed Enter - search across all markets
-                const cleanedInput = cleanTickerInput(searchInput.toUpperCase().trim());
-                const inputUpper = searchInput.toUpperCase().trim();
-                
-                // If user typed with extension, use it directly
-                if (TICKER_EXTENSIONS.some(ext => inputUpper.endsWith(ext))) {
-                  setTicker(inputUpper);
-                  setShowSearchDropdown(false);
-                } else if (cleanedInput.length > 0) {
-                  // Otherwise search across all markets
-                  setIsSearching(true);
-                  handleSearchAllMarkets(cleanedInput).then(candidates => {
-                    setIsSearching(false);
-                    setShowSearchDropdown(false);
-                    if (candidates.length === 0) {
-                      // No results found, try the raw input anyway
-                      console.warn(`Ticker "${cleanedInput}" not found in any market`);
-                      setTicker(inputUpper);
-                    } else if (candidates.length === 1) {
-                      // Only one match, use it directly
-                      setTicker(candidates[0].ticker);
-                      setCompanyName(candidates[0].name);
-                      setMarket(candidates[0].marketCode);
-                    } else {
-                      // Multiple matches, show modal to let user choose
-                      setMarketCandidates(candidates);
-                      setShowMarketModal(true);
-                    }
-                  }).catch(err => {
-                    setIsSearching(false);
-                    console.error('Market search failed:', err);
-                    setTicker(inputUpper);
-                  });
-                }
-              }
-            }}
-          />
-          {isSearching && (
-            <div className="lc-ticker-dropdown">
-              <div className="lc-search-loading">Searching all markets...</div>
-            </div>
-          )}
-          {showSearchDropdown && searchResults.length > 0 && !isSearching && (
-            <div className="lc-ticker-dropdown">
-              {searchResults.map((result, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className="lc-ticker-result"
-                  onClick={() => handleSelectTicker(result.ticker, result.name)}
-                >
-                  <div className="lc-result-ticker">{result.ticker}</div>
-                  <div className="lc-result-company">{result.name}</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="lc-preset-row">
-          {PERIOD_PRESETS.map(p => (
-            <button
-              key={p.label}
-              type="button"
-              className={`lc-pill ${period === p.period && interval === p.interval ? 'active' : ''}`}
-              onClick={() => handlePreset(p)}
-            >
-              {formatPresetLabel(p)}
-            </button>
-          ))}
-        </div>
-        <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-          <label style={{ fontSize: 12, color: '#666' }}>Period</label>
-          <select
-            className="lc-tz-select"
-            value={period}
-            onChange={(e) => {
-              const newPeriod = e.target.value;
-              const enforced = enforceIntervalRules(newPeriod, interval);
-              setPeriod(newPeriod);
-              setInterval(enforced);
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            className="lc-ticker-name lc-ticker-name-btn"
+            onClick={() => setShowTickerSearchModal(true)}
+            title="Click to search for another ticker"
           >
-            {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
-          <select
-            className="lc-tz-select"
-            value={interval}
-            onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
-          >
-            {getIntervalOptions(period).map(iv => (
-              <option key={iv} value={iv}>{iv}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to={`/company/${ticker}`} className="lc-btn btn-primary" title="Open company page">Company</Link>
-        </div>
-      </div>
+            {displayTicker}
+          </button>
 
-      {/* Chart Type Selector */}
-      <div className="lc-chart-toolbar">
-        <div className="lc-chart-type-group">
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} title="Candlestick Chart">🔯 Candlestick</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')} title="Line Chart">📈 Line</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`} onClick={() => setChartType('ohlc')} title="OHLC Chart">📊 OHLC</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'bar' ? 'active' : ''}`} onClick={() => setChartType('bar')} title="Bar Chart">📋 Bar</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'column' ? 'active' : ''}`} onClick={() => setChartType('column')} title="Column Chart">📊 Column</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'area' ? 'active' : ''}`} onClick={() => setChartType('area')} title="Area Chart">🏞️ Area</button>
-          <button type="button" className={`lc-chart-type-btn ${chartType === 'hlc' ? 'active' : ''}`} onClick={() => setChartType('hlc')} title="HLC Chart">📍 HLC</button>
+          <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 0 }}>
+            <label style={{ fontSize: 12, color: '#666' }}>Period</label>
+            <select
+              className="lc-tz-select"
+              value={period}
+              onChange={(e) => {
+                const newPeriod = e.target.value;
+                const enforced = enforceIntervalRules(newPeriod, interval);
+                setPeriod(newPeriod);
+                setInterval(enforced);
+              }}
+            >
+              {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
+            <select
+              className="lc-tz-select"
+              value={interval}
+              onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
+            >
+              {getIntervalOptions(period).map(iv => (
+                <option key={iv} value={iv}>{iv}</option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        {/* chart type buttons moved into main area */}
+
+        <Link to={`/company/${ticker}`} className="lc-company-btn" title="Open company profile">
+          <span className="lc-company-initial">{(displayTicker||ticker||'C').toString().charAt(0)}</span>
+        </Link>
       </div>
 
       <div className="lc-body">
@@ -663,7 +611,7 @@ export default function LargeChart() {
                   title="Click to search for another ticker"
                   type="button"
                 >
-                  {cleanTickerInput(ticker)}
+                  {displayTicker}
                 </button>
                 <div className="lc-company-name">{companyName || 'Loading...'}</div>
               </div>
@@ -773,7 +721,7 @@ export default function LargeChart() {
                   key={idx}
                   className="lc-news-item"
                   href={n.link || n.url || '#'}
-                  target="_blank"
+                  onClick={(e) => handleNewsClick(e, n)}
                   rel="noreferrer"
                 >
                   <div className="lc-news-source">{n.source || 'News'}</div>
@@ -784,7 +732,7 @@ export default function LargeChart() {
               {/* More link to open full company news/profile */}
               </div>
             <div style={{ paddingTop: 8, textAlign: 'right' }}>
-              <Link to={`/company/${ticker}`} className="lc-btn ghost" title={`Open ${ticker} company page`}>More</Link>
+              <Link to={`/company/${ticker}`} className="lc-btn ghost" title={`Open ${getDisplayFromRaw(ticker)} company page`}>More</Link>
             </div>
           </div>
 
@@ -831,6 +779,65 @@ export default function LargeChart() {
 
         {/* Main chart area */}
         <main className="lc-main">
+          {/* Controls placed inside main: chart type + indicators */}
+          <div className="lc-main-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div className="lc-chart-type-group">
+                <button type="button" className={`lc-chart-type-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} title="Candlestick Chart">🔯</button>
+                <button type="button" className={`lc-chart-type-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')} title="Line Chart">📈</button>
+                <button type="button" className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`} onClick={() => setChartType('ohlc')} title="OHLC Chart">📊</button>
+                <button type="button" className={`lc-chart-type-btn ${chartType === 'bar' ? 'active' : ''}`} onClick={() => setChartType('bar')} title="Bar Chart">📋</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                ref={indicatorsBtnRef}
+                className={`lc-btn ghost ${showVolume || showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showSAR ? 'active' : ''}`}
+                onClick={() => setIndicatorsOpen(v => !v)}
+                aria-haspopup="true"
+                aria-expanded={indicatorsOpen}
+                title="Indicators"
+              >
+                Indicators
+              </button>
+              {indicatorsOpen && indicatorsBtnRef.current && (
+                <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
+                  <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
+                      <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      Volume
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
+                      <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>{showBB && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      Bollinger Bands
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
+                      <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>{showVWAP && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      VWAP
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => !v); } }}>
+                      <span className={`indicator-dot ${showAnomaly ? 'checked' : ''}`} aria-hidden>{showAnomaly && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      Anomalies
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => !v); } }}>
+                      <span className={`indicator-dot ${showMA5 ? 'checked' : ''}`} aria-hidden>{showMA5 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MA (5)
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => !v); } }}>
+                      <span className={`indicator-dot ${showMA25 ? 'checked' : ''}`} aria-hidden>{showMA25 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MA (25)
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => !v); } }}>
+                      <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MA (75)
+                    </div>
+                  </div>
+                </PortalDropdown>
+              )}
+            </div>
+          </div>
+
           {loading && <div className="lc-muted">Loading chart…</div>}
           {error && <div className="lc-error">{error}</div>}
           {!loading && !error && (
@@ -849,12 +856,18 @@ export default function LargeChart() {
               period={period}
               interval={interval}
               chartMode={chartType}
-              showVolume
-              showVWAP
-              showBB
+              showVolume={showVolume}
+              showVWAP={showVWAP}
+              showBB={showBB}
+              showAnomaly={showAnomaly}
               showRSI={false}
               showMACD={false}
               height="100%"
+              showMA5={showMA5}
+              showMA25={showMA25}
+              showMA75={showMA75}
+              showSAR={showSAR}
+              bbSigma={bbSigma}
             />
           )}
         </main>
@@ -865,7 +878,7 @@ export default function LargeChart() {
         <div className="lc-modal-overlay" onClick={() => setShowFinancialModal(false)}>
           <div className="lc-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="lc-modal-header">
-              <h2>{ticker} — Financial Data</h2>
+              <h2>{displayTicker} — Financial Data</h2>
               <button
                 type="button"
                 className="lc-modal-close"
