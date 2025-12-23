@@ -172,11 +172,15 @@ export default function LargeChart() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [period, setPeriod] = useState('1d');
   const [interval, setInterval] = useState('1m');
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [intervalOpen, setIntervalOpen] = useState(false);
+  const periodBtnRef = useRef(null);
+  const intervalBtnRef = useRef(null);
   const [payload, setPayload] = useState({});
   const [financials, setFinancials] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [chartType, setChartType] = useState('candlestick');
+  const [chartType, setChartType] = useState('line');
   const [timezone, setTimezone] = useState('UTC');
   const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const [financialTab, setFinancialTab] = useState('income');
@@ -383,6 +387,7 @@ export default function LargeChart() {
   })).filter(x => x.date && (x.y !== undefined && x.y !== null)), [payload.anomaly_markers]);
   const VWAP = useMemo(() => payload.VWAP || [], [payload.VWAP]);
   const bollinger_bands = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
+  const movingAverages = useMemo(() => payload.moving_averages || { MA5: [], MA25: [], MA75: [] }, [payload.moving_averages]);
 
   const lastClose = close.length ? close[close.length - 1] : null;
   const prevClose = close.length > 1 ? close[close.length - 2] : null;
@@ -564,37 +569,83 @@ export default function LargeChart() {
 
           <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 0 }}>
             <label style={{ fontSize: 12, color: '#666' }}>Period</label>
-            <select
-              className="lc-tz-select"
-              value={period}
-              onChange={(e) => {
-                const newPeriod = e.target.value;
-                const enforced = enforceIntervalRules(newPeriod, interval);
-                setPeriod(newPeriod);
-                setInterval(enforced);
-              }}
+            <button
+              ref={periodBtnRef}
+              type="button"
+              className="lc-tz-select period-select"
+              onClick={() => setPeriodOpen(p => !p)}
+              aria-haspopup="listbox"
+              aria-expanded={periodOpen}
             >
-              {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+              {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
+            </button>
             <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
-            <select
-              className="lc-tz-select"
-              value={interval}
-              onChange={(e) => setInterval(enforceIntervalRules(period, e.target.value))}
+            <button
+              ref={intervalBtnRef}
+              type="button"
+              className="lc-tz-select interval-select"
+              onClick={() => setIntervalOpen(s => !s)}
+              aria-haspopup="listbox"
+              aria-expanded={intervalOpen}
             >
-              {getIntervalOptions(period).map(iv => (
-                <option key={iv} value={iv}>{iv}</option>
-              ))}
-            </select>
+              {interval}
+            </button>
+
+            {periodOpen && periodBtnRef.current && (
+              <PortalDropdown
+                anchorRect={periodBtnRef.current.getBoundingClientRect()}
+                align="right"
+                onClose={() => setPeriodOpen(false)}
+                className="mode-dropdown"
+              >
+                {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+                  <div
+                    key={p}
+                    role="option"
+                    tabIndex={0}
+                    className={`mode-item ${p === period ? 'active' : ''}`}
+                    onClick={() => {
+                      const enforced = enforceIntervalRules(p, interval);
+                      setPeriod(p);
+                      setInterval(enforced);
+                      setPeriodOpen(false);
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
+                  >
+                    {p}
+                  </div>
+                ))}
+              </PortalDropdown>
+            )}
+
+            {intervalOpen && intervalBtnRef.current && (
+              <PortalDropdown
+                anchorRect={intervalBtnRef.current.getBoundingClientRect()}
+                align="right"
+                onClose={() => setIntervalOpen(false)}
+                className="mode-dropdown"
+              >
+                {getIntervalOptions(period).map(iv => (
+                  <div
+                    key={iv}
+                    role="option"
+                    tabIndex={0}
+                    className={`mode-item ${iv === interval ? 'active' : ''}`}
+                    onClick={() => { setInterval(iv); setIntervalOpen(false); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
+                  >
+                    {iv}
+                  </div>
+                ))}
+              </PortalDropdown>
+            )}
           </div>
         </div>
 
         {/* chart type buttons moved into main area */}
 
-        <Link to={`/company/${ticker}`} className="lc-company-btn" title="Open company profile">
-          <span className="lc-company-initial">{(displayTicker||ticker||'C').toString().charAt(0)}</span>
+        <Link to={`/company/${ticker}`} className="lc-company-btn lc-company-profile-btn" title="Open company profile">
+          Profile
         </Link>
       </div>
 
@@ -783,10 +834,75 @@ export default function LargeChart() {
           <div className="lc-main-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <div className="lc-chart-type-group">
-                <button type="button" className={`lc-chart-type-btn ${chartType === 'candlestick' ? 'active' : ''}`} onClick={() => setChartType('candlestick')} title="Candlestick Chart">🔯</button>
-                <button type="button" className={`lc-chart-type-btn ${chartType === 'line' ? 'active' : ''}`} onClick={() => setChartType('line')} title="Line Chart">📈</button>
-                <button type="button" className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`} onClick={() => setChartType('ohlc')} title="OHLC Chart">📊</button>
-                <button type="button" className={`lc-chart-type-btn ${chartType === 'bar' ? 'active' : ''}`} onClick={() => setChartType('bar')} title="Bar Chart">📋</button>
+                <button
+                  type="button"
+                  className={`lc-chart-type-btn ${chartType === 'candlestick' ? 'active' : ''}`}
+                  onClick={() => setChartType('candlestick')}
+                  title="Candlestick Chart"
+                  aria-pressed={chartType === 'candlestick'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <rect x="3" y="6" width="4" height="12" rx="1" fill="currentColor" />
+                    <rect x="9" y="9" width="4" height="9" rx="1" fill="currentColor" />
+                    <rect x="15" y="3" width="4" height="15" rx="1" fill="currentColor" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className={`lc-chart-type-btn ${chartType === 'line' ? 'active' : ''}`}
+                  onClick={() => setChartType('line')}
+                  title="Line Chart"
+                  aria-pressed={chartType === 'line'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <polyline points="3 17 9 11 14 14 21 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`}
+                  onClick={() => setChartType('ohlc')}
+                  title="OHLC Chart"
+                  aria-pressed={chartType === 'ohlc'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M6 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M6 8h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M12 6v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M12 14h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M18 10v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M18 12h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className={`lc-chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
+                  onClick={() => setChartType('bar')}
+                  title="Bar Chart"
+                  aria-pressed={chartType === 'bar'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <rect x="3" y="10" width="3" height="8" fill="currentColor" />
+                    <rect x="9" y="6" width="3" height="12" fill="currentColor" />
+                    <rect x="15" y="3" width="3" height="15" fill="currentColor" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className={`lc-chart-type-btn ${chartType === 'area' ? 'active' : ''}`}
+                  onClick={() => setChartType('area')}
+                  title="Area Chart"
+                  aria-pressed={chartType === 'area'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M3 17l6-6 4 4 8-8v10H3z" fill="currentColor" opacity="0.15" />
+                    <polyline points="3 17 9 11 13 15 21 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -804,31 +920,31 @@ export default function LargeChart() {
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       Volume
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>{showBB && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       Bollinger Bands
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>{showVWAP && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       VWAP
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showAnomaly ? 'checked' : ''}`} aria-hidden>{showAnomaly && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       Anomalies
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA5 ? 'checked' : ''}`} aria-hidden>{showMA5 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       MA (5)
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA25 ? 'checked' : ''}`} aria-hidden>{showMA25 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       MA (25)
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => !v); } }}>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       MA (75)
                     </div>
@@ -849,8 +965,8 @@ export default function LargeChart() {
               low={low}
               close={close}
               volume={volume}
-              VWAP={VWAP}
-              bollinger_bands={bollinger_bands}
+              vwap={VWAP}
+              bb={bollinger_bands}
               anomalies={anomalies}
               timezone={timezone}
               period={period}
@@ -868,6 +984,7 @@ export default function LargeChart() {
               showMA75={showMA75}
               showSAR={showSAR}
               bbSigma={bbSigma}
+              movingAverages={movingAverages}
             />
           )}
         </main>

@@ -488,6 +488,101 @@
   }
 }
 
+/* Mobile adjustments: hide ticker button and restyle selects under 901px */
+@media (max-width: 900px) {
+  .lc-navbar .lc-ticker-name-btn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Custom-styled period/interval selects to avoid default native dropdown styling */
+  .lc-navbar .lc-selector-row {
+    position: relative; /* helps if we replace selects with custom popups later; allows drop-up styling */
+  }
+
+  .lc-navbar .lc-selector-row select.lc-tz-select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-color: var(--bg-surface) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 4px 26px 4px 8px !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    height: 30px !important;
+    min-width: 76px !important;
+    max-width: 140px !important;
+    background-image: linear-gradient(45deg, transparent 50%, rgba(102,102,102,0.9) 50%), linear-gradient(135deg, rgba(102,102,102,0.9) 50%, transparent 50%);
+    background-position: calc(100% - 12px) calc(50% - 3px), calc(100% - 7px) calc(50% - 3px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 1px 4px rgba(2,6,23,0.06);
+    cursor: pointer;
+    z-index: 60; /* make sure native/custom popup appears above navbar */
+  }
+
+  .lc-navbar .lc-selector-row select.lc-tz-select:focus {
+    outline: none !important;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.12);
+  }
+
+  /* Force period + interval on same row and compact them */
+  .lc-navbar .lc-selector-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  /* specific widths for period vs interval selects (apply classes in JSX: period-select / interval-select) */
+  .lc-navbar .lc-selector-row .lc-tz-select.period-select {
+    min-width: 92px !important;
+    max-width: 120px !important;
+  }
+
+  .lc-navbar .lc-selector-row .lc-tz-select.interval-select {
+    min-width: 72px !important;
+    max-width: 96px !important;
+  }
+
+  /* Best-effort styling for option elements (browser support varies) */
+  .lc-navbar .lc-selector-row select.lc-tz-select option {
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* small selected-value and focus visuals */
+  .lc-navbar .lc-selector-row select.lc-tz-select:focus,
+  .lc-navbar .lc-selector-row select.lc-tz-select:active {
+    background: linear-gradient(180deg, var(--bg-surface), var(--bg-surface));
+  }
+
+  .lc-navbar .lc-selector-row label {
+    display: none !important;
+  }
+
+  .lc-company-btn.lc-company-profile-btn {
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+  }
+
+  /* push profile button more to the right of the navbar */
+  .lc-company-btn.lc-company-profile-btn {
+    margin-left: auto !important;
+    margin-right: 8px !important;
+  }
+}
+
 /* Additional fixes to ensure the chart container stretches instead of rendering tiny */
   /* Center icon/text inside chart-type buttons */
    .lc-chart-type-btn {

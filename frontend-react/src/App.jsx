@@ -1,5 +1,5 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 // 1. Import Auth Provider
 import { AuthProvider } from "./context/AuthContext";
@@ -31,6 +31,35 @@ import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
 import AdminDashboardPage from "./pages/Admin/AdminDashboardPage";
 
 function App() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        // ignore clicks on actionable controls inside cards
+        if (e.target.closest('button, a, input, .action-icon, .menu-btn')) return;
+        const card = e.target.closest('.stock-card') || e.target.closest('.stock-card-detailed');
+        if (!card) return;
+
+        // Attempt to extract ticker from known selectors
+        let ticker = null;
+        const tickerEl = card.querySelector('.stock-ticker');
+        if (tickerEl && tickerEl.textContent) {
+          ticker = tickerEl.textContent.trim().split(/\s+/)[0];
+        }
+        if (!ticker) {
+          const img = card.querySelector('.stock-logo img[alt]');
+          if (img) ticker = (img.getAttribute('alt') || '').trim().split(/\s+/)[0];
+        }
+        if (!ticker) return;
+
+        navigate(`/chart/u/${encodeURIComponent(ticker)}`);
+      } catch (err) { /* swallow */ }
+    };
+
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [navigate]);
   return (
 
     

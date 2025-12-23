@@ -495,11 +495,13 @@ export default function EchartsCard({
         },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (mode === 'ohlc') {
-      // OHLC chart - Heiken-Ashi candlestick
+    } else if (mode === 'ohlc' || mode === 'heikin' || mode === 'heiken' || mode === 'heikinashi') {
+      // OHLC chart - render Heiken-Ashi candlesticks
       series.push({
         name: `${displayTicker}`,
         type: 'candlestick',
+        data: useTimeAxis ? timeHeikinAshiData : heikinAshiData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
