@@ -1,20 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState, useContext } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import TimezoneSelect from '../components/TimezoneSelect';
 import EchartsCard from '../components/EchartsCard';
+import FinancialsTable from '../components/FinancialsTable';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
 import '../css/CompanyProfile.css';
+import { AuthContext } from '../context/contextBase';
+import { useLoginPrompt } from '../context/LoginPromptContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const PY_API = `${API_URL}/py`;
 
 async function fetchJsonWithFallback(path){
-  const primary = `${PY_DIRECT}/py${path}`;
-  const fallback = `${PY_API}${path}`;
+  // Try Node gateway first, then fall back to direct Python service
+  const primary = `${PY_API}${path}`; // e.g. http://localhost:5050/py/news...
+  const fallback = `${PY_DIRECT}/py${path}`; // e.g. http://localhost:5000/py/news...
   try{ const r = await fetch(primary); if (r.ok) return await r.json(); }catch(e){}
-  const r2 = await fetch(fallback);
-  if (!r2.ok) throw new Error('request failed');
-  return await r2.json();
+  try{ const r2 = await fetch(fallback); if (r2.ok) return await r2.json(); }catch(e){}
+  throw new Error('request failed');
 }
 
 export default function CompanyProfile(){
@@ -28,9 +36,39 @@ export default function CompanyProfile(){
   const [insiders, setInsiders] = useState({});
   const [recommendations, setRecommendations] = useState({});
   const [schemas, setSchemas] = useState({});
+  const [companyInfo, setCompanyInfo] = useState(null);
   const [news, setNews] = useState([]);
+  const [newsPage, setNewsPage] = useState(1);
+  const [newsPageSize] = useState(10);
+  const [newsTotal, setNewsTotal] = useState(0);
+  const [newsTotalPages, setNewsTotalPages] = useState(0);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timezone, setTimezone] = useState('UTC');
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+  const { user, isLoggedIn } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const promptLogin = useLoginPrompt();
+  const [finOverlayOpen, setFinOverlayOpen] = useState(false);
+  const [finOverlayTitle, setFinOverlayTitle] = useState('');
+  const [finOverlayData, setFinOverlayData] = useState(null);
+
+  function limitedObject(obj, max){
+    if (!obj || typeof obj !== 'object') return {};
+    const keys = Object.keys(obj || {});
+    const pick = keys.slice(0, max);
+    const out = {};
+    pick.forEach(k=> out[k] = obj[k]);
+    return out;
+  }
+
+  function openFinancialsOverlay(title, data){
+    setFinOverlayTitle(title);
+    setFinOverlayData(data);
+    setFinOverlayOpen(true);
+  }
 
   useEffect(()=>{
     if (!ticker) return;
@@ -56,9 +94,35 @@ export default function CompanyProfile(){
             setInsiders({ purchases: f.insider_purchases || {}, transactions: f.insider_transactions || {}, roster: f.insider_roster_holders || {} });
             setRecommendations(f.recommendations || {});
             setSchemas(f.schema || {});
-            setNews(Array.isArray(f.news) ? f.news : []);
+            // keep financials.news only as fallback; primary news fetched via /py/news
+            if (!Array.isArray(f.news)){
+              // leave news alone
+            } else if (!f.news || f.news.length === 0) {
+              // nothing
+            } else {
+              // lightweight fallback mapping
+              const mapped = f.news.map(n => ({
+                title: n.title || n.headline || n.summary || '',
+                link: n.link || n.url || (n.canonicalUrl && n.canonicalUrl.url) || '#',
+                pubDate: n.pubDate || n.providerPublishTime || null,
+                source: n.source || (n.provider && n.provider.displayName) || n.publisher || ''
+              }));
+              setNews(mapped);
+            }
           }
         }catch(e){ console.warn('financials fetch failed', e); }
+
+        // fetch news via py/news (yfinance)
+        try{
+          // initial page
+          loadNews(1);
+        }catch(e){ console.warn('news fetch failed', e); }
+
+        // fetch company info (yf.get_info())
+        try{
+          const info = await fetchJsonWithFallback(`/company/info?ticker=${encodeURIComponent(ticker)}`);
+          if (!cancelled) setCompanyInfo(info || null);
+        }catch(e){ console.warn('company info fetch failed', e); }
 
       }catch(e){ console.error('loadAll err', e); }
       finally{ if (!cancelled) setLoading(false); }
@@ -66,6 +130,64 @@ export default function CompanyProfile(){
     loadAll();
     return ()=>{ cancelled = true; };
   }, [ticker]);
+
+  async function loadNews(page = 1){
+    if (!ticker) return;
+    setNewsLoading(true);
+    try{
+      const path = `/news?ticker=${encodeURIComponent(ticker)}&page=${page}&pageSize=${newsPageSize}`;
+      const res = await fetchJsonWithFallback(path);
+      // support multiple response shapes: { items: [...] } or [...] or { news: [...] }
+      let rawItems = [];
+      if (!res) rawItems = [];
+      else if (Array.isArray(res)) rawItems = res;
+      else if (Array.isArray(res.items)) rawItems = res.items;
+      else if (Array.isArray(res.news)) rawItems = res.news;
+      else rawItems = [];
+
+      const items = rawItems.map((it, idx) => {
+        // item may be normalized { content: { ... } } or legacy shape
+        const c = (it && it.content) ? it.content : it || {};
+        const raw = (c.raw && typeof c.raw === 'object') ? c.raw : (it.raw || it || {});
+
+        const title = c.title || c.headline || c.summary || raw.title || raw.headline || raw.headlineText || '';
+
+        const lookup = (obj) => {
+          if (!obj || typeof obj !== 'object') return null;
+          if (obj.clickThroughUrl && (obj.clickThroughUrl.url || obj.clickThroughUrl)) return (obj.clickThroughUrl.url || obj.clickThroughUrl);
+          if (obj.canonicalUrl && (obj.canonicalUrl.url || obj.canonicalUrl)) return (obj.canonicalUrl.url || obj.canonicalUrl);
+          if (obj.link) return obj.link;
+          if (obj.url) return obj.url;
+          if (obj.href) return obj.href;
+          return null;
+        };
+
+        let link = lookup(c) || lookup(raw) || lookup(raw.content) || lookup(it) || '#';
+
+        const thumbnail = (c.thumbnail && (c.thumbnail.originalUrl || c.thumbnail.url)) || raw.image || raw.thumbnail || raw.summary_img || raw.mediaUrl || null;
+        const contentType = (c.contentType || c.type || raw.type || 'STORY').toString().toUpperCase();
+        const source = (c.source) || (raw.provider && raw.provider.displayName) || raw.source || raw.publisher || '';
+
+        return {
+          id: it.id || it.content?.id || `${ticker}-news-${page}-${idx}`,
+          title: title || 'Untitled',
+          description: c.description || c.summary || raw.summary || raw.description || '',
+          pubDate: c.pubDate || raw.pubDate || raw.providerPublishTime || null,
+          displayTime: c.displayTime || null,
+          thumbnail,
+          contentType,
+          source,
+          link
+        };
+      });
+
+      setNews(items);
+      setNewsPage(page);
+      setNewsTotal((res && res.total) || items.length);
+      setNewsTotalPages((res && res.totalPages) || (items.length ? 1 : 0));
+    }catch(e){ console.warn('loadNews error', e); }
+    finally{ setNewsLoading(false); }
+  }
 
   const dates = useMemo(()=> (chartData?.dates || []).map(d=>d), [chartData]);
   const close = useMemo(()=> chartData?.close || [], [chartData]);
@@ -88,67 +210,295 @@ export default function CompanyProfile(){
   const priceChange = (latestPrice != null && prevPrice != null) ? (latestPrice - prevPrice) : null;
   const priceChangePct = (priceChange != null && prevPrice) ? (priceChange / prevPrice) : null;
 
+  function toggleFollow(){ 
+    if (!isLoggedIn){
+      promptLogin({ title: 'Please log in', text: 'You must be logged in to follow tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel'}).then(ok => {
+        if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
+      });
+      return;
+    }
+    setFollowed(f => !f); 
+  }
+  function toggleFavorite(){ setFavorited(f => !f); }
+
+  function toggleFavoriteProtected(){
+    if (!isLoggedIn){
+      promptLogin({ title: 'Please log in', text: 'You must be logged in to favorite tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel'}).then(ok => {
+        if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
+      });
+      return;
+    }
+    setFavorited(f => !f);
+  }
+
+  const logoUrl = (companyInfo && companyInfo.logo) || (meta && meta.yfinance && meta.yfinance.logo) || meta.logo || null;
+
   return (
-    <div className="company-shell">
+    <div className="company-shell container-centered">
       <div className="company-header">
         <div className="company-left">
-          <h1 className="company-ticker">{ticker}</h1>
-          <div className="company-name">{meta?.companyName || ''}</div>
-          <div className="company-meta">{meta?.primaryExchange || ''}{meta?.yfinance?.currency ? ` · ${meta.yfinance.currency}` : ''}</div>
+          {logoUrl ? (
+            <img src={logoUrl} alt={`${ticker} logo`} className="company-logo" />
+          ) : (
+            <div className="company-logo placeholder" aria-hidden="true"></div>
+          )}
+          <div className="company-text">
+            <h1 className="company-ticker">{ticker}</h1>
+            <div className="company-name">{meta?.companyName || ""}</div>
+            <div className="company-meta">
+              {meta?.primaryExchange || ""}
+              {meta?.yfinance?.currency ? ` · ${meta.yfinance.currency}` : ""}
+            </div>
+          </div>
         </div>
-        <div className="company-right">
-          <TimezoneSelect value={timezone} onChange={v=>setTimezone(v)} options={['UTC','America/New_York','Asia/Tokyo','Asia/Bangkok','Europe/London']} currentTimezone={timezone} formatLabel={v=>v} displayTime={null} />
-          <Link to="/chart" className="btn-outline">Open Chart</Link>
+
+        <div className="company-actions">
+          <button
+            className={`btn btn-follow ${followed ? 'followed' : ''}`}
+            onClick={toggleFollow}
+            aria-pressed={followed}
+            title={followed ? 'Following' : 'Follow'}
+          >
+            <span className="icon plus">+</span>
+            <span className="icon check">✓</span>
+            <span className="icon minus">−</span>
+            <span className="label">{followed ? 'Following' : 'Follow'}</span>
+          </button>
+
+          <button
+            className={`btn btn-fav ${favorited ? 'favorited' : ''}`}
+            onClick={toggleFavoriteProtected}
+            aria-pressed={favorited}
+            title={favorited ? 'Favorited' : 'Favorite'}
+          >
+            <span className="icon star">☆</span>
+            <span className="icon star-filled">★</span>
+            <span className="label">Favorite</span>
+          </button>
         </div>
       </div>
 
-      <div className="company-grid">
-        <aside className="company-side">
-          <div className="card meta-card">
-            <div className="meta-grid">
-              <div className="meta-left">
-                <h2 className="meta-name">{meta?.companyName || ''}</h2>
-                <div className="meta-sub">{meta?.displayTicker || ticker} · {meta?.primaryExchange || ''}</div>
-                <div className="meta-desc">{meta?.yfinance?.description || ''}</div>
-              </div>
-              <div className="meta-right">
-                <div className="meta-stats">
-                  <div>Market Cap: <strong>{meta?.yfinance?.marketCap ? formatNumber(meta.yfinance.marketCap) : '-'}</strong></div>
+      <Dialog open={finOverlayOpen} onClose={()=>setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>{finOverlayTitle}</DialogTitle>
+        <DialogContent>
+          <div style={{paddingTop:8}}>
+            {finOverlayTitle === 'All Financials' ? (
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                <div>
+                  <h5 style={{marginTop:0}}>Income Statement</h5>
+                  <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} transpose={true} />
                 </div>
-                <div className="meta-price">
-                  <div className="price-now">{latestPrice != null ? (meta?.yfinance?.currency ? new Intl.NumberFormat(undefined,{style:'currency',currency:meta.yfinance.currency}).format(latestPrice) : formatNumber(latestPrice)) : '-'}</div>
-                  <div className={`price-change ${priceChange>0 ? 'up' : priceChange<0 ? 'down' : ''}`}>{priceChange != null ? `${priceChange>=0?'+':''}${formatNumber(priceChange)} (${priceChangePct!=null? (priceChangePct*100).toFixed(2)+'%':'-'})` : '-'}</div>
+                <div>
+                  <h5 style={{marginTop:0}}>Balance Sheet</h5>
+                  <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} transpose={true} />
+                </div>
+              </div>
+            ) : (
+              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} transpose={true} />
+            )}
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>setFinOverlayOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <div className="company-grid">
+        <div className="card meta-card">
+          <div className="meta-grid">
+            <div className="meta-left">
+              <h2 className="meta-name">{meta?.companyName || ""}</h2>
+              <div className="meta-sub">
+                {meta?.displayTicker || ticker} · {meta?.primaryExchange || ""}
+              </div>
+              <div
+                className={`meta-desc ${
+                  descExpanded ? "expanded" : "collapsed"
+                }`}
+              >
+                {meta?.yfinance?.description || ""}
+              </div>
+              {meta?.yfinance?.description &&
+                meta.yfinance.description.length > 200 && (
+                  <button
+                    className="meta-toggle"
+                    onClick={() => setDescExpanded((v) => !v)}
+                  >
+                    {descExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
+            </div>
+            <div className="meta-right">
+              <div className="meta-stats">
+                <div>
+                  Market Cap:{" "}
+                  <strong>
+                    {meta?.yfinance?.marketCap
+                      ? formatNumber(meta.yfinance.marketCap)
+                      : "-"}
+                  </strong>
+                </div>
+              </div>
+              <div className="meta-price">
+                <div className="price-now">
+                  {latestPrice != null
+                    ? meta?.yfinance?.currency
+                      ? new Intl.NumberFormat(undefined, {
+                          style: "currency",
+                          currency: meta.yfinance.currency,
+                        }).format(latestPrice)
+                      : formatNumber(latestPrice)
+                    : "-"}
+                </div>
+                <div
+                  className={`price-change ${
+                    priceChange > 0 ? "up" : priceChange < 0 ? "down" : ""
+                  }`}
+                >
+                  {priceChange != null
+                    ? `${priceChange >= 0 ? "+" : ""}${formatNumber(
+                        priceChange
+                      )} (${
+                        priceChangePct != null
+                          ? (priceChangePct * 100).toFixed(2) + "%"
+                          : "-"
+                      })`
+                    : "-"}
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <aside className="company-side">
+          <div className="card company-card">
+            <div className="company-info">
+              <table className="">
+                <tbody>
+                  <tr>
+                    <strong>Industry</strong>
+                  </tr>
+                  {companyInfo?.industry || meta?.yfinance?.industry || "-"}
+                  <tr>
+                    <strong>Sector</strong>
+                  </tr>
+                  {companyInfo?.sector || meta?.yfinance?.sector || "-"}
+                  <tr>
+                    <strong>Website</strong>
+                  </tr>
+                  {companyInfo?.website ? (
+                    <a
+                      href={companyInfo.website}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {companyInfo.website}
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                  <tr>
+                    <strong>Phone</strong>
+                  </tr>
+                  {companyInfo?.phone || "-"}
+                </tbody>
+              </table>
+              <div className="company-address">
+                {companyInfo?.address1 || ""}
+                {companyInfo?.address2 ? `, ${companyInfo.address2}` : ""}
+                {companyInfo?.city ? `, ${companyInfo.city}` : ""}
+                {companyInfo?.zip ? ` ${companyInfo.zip}` : ""}
+                {companyInfo?.country ? `, ${companyInfo.country}` : ""}
+              </div>
+            </div>
+            {companyInfo &&
+              Array.isArray(companyInfo.companyOfficers) &&
+              companyInfo.companyOfficers.length > 0 && (
+                <div className="company-officers">
+                  <table
+                    className="officers-table"
+                    style={{ marginTop: "6px" }}
+                  >
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Name</th>
+                        <th>Fiscal Year</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companyInfo.companyOfficers.slice(0, 8).map((o, idx) => (
+                        <tr key={idx}>
+                          <td>{o.title || "-"}</td>
+                          <td>{o.name || "-"}</td>
+                          <td>{o.fiscalYear || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           </div>
 
           <div className="card financials">
-            <div className="card-header"><h4>Financials</h4></div>
-            <div className="financial-tabs">
-              <div className="fin-column">
-                <h5>Income</h5>
-                {Object.entries(financials.income_stmt || {}).length === 0 && <div className="lc-table-empty">No data</div>}
-                {Object.entries(financials.income_stmt || {}).slice(0,6).map(([p,v])=> (
-                  <div key={p} className="fin-row"><div className="fin-period">{p}</div><div className="fin-val">{formatNumber(v)}</div></div>
-                ))}
+            <div className="card-header">
+                <h4>Financials</h4>
+                <Button size="small" onClick={()=>{ setFinOverlayTitle('All Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}>Show more</Button>
               </div>
-              <div className="fin-column">
+            <div className="financial-tabs" style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div className="fin-section">
+                <h5>Income</h5>
+                {Object.entries(financials.income_stmt || {}).length === 0 && (
+                  <div className="lc-table-empty">No data</div>
+                )}
+                <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue","netIncome","operatingIncome","ebitda","basicEPS"]} />
+              </div>
+              <div className="fin-section">
                 <h5>Balance</h5>
-                {Object.entries(financials.balance_sheet || {}).slice(0,6).map(([p,v])=> (
-                  <div key={p} className="fin-row"><div className="fin-period">{p}</div><div className="fin-val">{formatNumber(v)}</div></div>
-                ))}
+                {Object.entries(financials.balance_sheet || {}).length === 0 && (
+                  <div className="lc-table-empty">No data</div>
+                )}
+                <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets","totalLiab","totalLiabilities","totalCurrentAssets","totalCurrentLiabilities"]} />
               </div>
             </div>
           </div>
-
         </aside>
 
         <section className="company-chart card">
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <h3 style={{ margin: 0 }}>Price (3M)</h3>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Chart</h3>
+            <div className="company-right">
+              <TimezoneSelect
+                value={timezone}
+                onChange={(v) => setTimezone(v)}
+                options={[
+                  "UTC",
+                  "America/New_York",
+                  "Asia/Tokyo",
+                  "Asia/Bangkok",
+                  "Europe/London",
+                ]}
+                currentTimezone={timezone}
+                formatLabel={(v) => v}
+                displayTime={null}
+              />
+              <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
+                Open Chart
+              </Link>
+            </div>
             {financials.fetched_at ? (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{`Updated: ${new Date(financials.fetched_at).toLocaleDateString()}`}</div>
+              <div
+                style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}
+              >{`Updated: ${new Date(
+                financials.fetched_at
+              ).toLocaleDateString()}`}</div>
             ) : null}
           </div>
 
@@ -163,27 +513,116 @@ export default function CompanyProfile(){
               close={close}
               volume={volume}
               timezone={timezone}
-              period={'3mo'}
-              interval={'1d'}
-              chartMode={'candlestick'}
+              period={"3mo"}
+              interval={"1d"}
+              chartMode={"lines"}
               height={320}
               showVolume
             />
           )}
 
-          <div className="card news" style={{marginTop:12}}>
-            <div className="card-header"><h4>News</h4></div>
+          <div className="card news" style={{ marginTop: 12 }}>
+            <div className="card-header">
+              <h4>News</h4>
+            </div>
             <div className="news-list">
-              {news.length === 0 && <div className="lc-table-empty">No news</div>}
-              {news.slice(0,6).map((n,i)=> (
-                <a className="news-item" key={i} href={n.link || '#'} target="_blank" rel="noreferrer">
-                  <div className="news-title">{n.title || n.headline || n.summary}</div>
-                  <div className="news-meta">{n.source || n.publisher || ''} · {n.pubDate ? new Date(n.pubDate).toLocaleDateString() : ''}</div>
+              {newsLoading && (
+                <div className="news-skeleton">
+                  <div className="news-skel-item">
+                    <div className="news-skel-thumb" />
+                    <div className="news-skel-lines">
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "70%" }}
+                      ></div>
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "45%" }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="news-skel-item">
+                    <div className="news-skel-thumb" />
+                    <div className="news-skel-lines">
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "60%" }}
+                      ></div>
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "30%" }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="news-skel-item">
+                    <div className="news-skel-thumb" />
+                    <div className="news-skel-lines">
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "80%" }}
+                      ></div>
+                      <div
+                        className="news-skel-line"
+                        style={{ width: "50%" }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!newsLoading && news.length === 0 && (
+                <div className="lc-table-empty">No news</div>
+              )}
+              {news.map((n, i) => (
+                <a
+                  className="news-item"
+                  key={n.id || i}
+                  href={n.link || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {n.thumbnail ? (
+                    <img className="news-thumb" src={n.thumbnail} alt="thumb" />
+                  ) : null}
+                  <div className="news-body">
+                    <div className="news-title">{n.title}</div>
+                    <div className="news-meta">
+                      <span className="news-badge">{n.contentType}</span>
+                      {n.source ? ` ${n.source} · ` : " "}
+                      <span className="news-time">
+                        {n.displayTime ||
+                          (n.pubDate
+                            ? new Date(n.pubDate).toLocaleString()
+                            : "")}
+                      </span>
+                    </div>
+                  </div>
                 </a>
               ))}
+
+              {/* pagination controls */}
+              {newsTotalPages > 1 && (
+                <div className="news-pagination">
+                  <button
+                    className="btn"
+                    disabled={newsPage <= 1 || newsLoading}
+                    onClick={() => loadNews(newsPage - 1)}
+                  >
+                    Prev
+                  </button>
+                  <span style={{ padding: "0 8px" }}>
+                    {newsPage} / {newsTotalPages}
+                  </span>
+                  <button
+                    className="btn"
+                    disabled={newsPage >= newsTotalPages || newsLoading}
+                    onClick={() => loadNews(newsPage + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-
         </section>
       </div>
     </div>

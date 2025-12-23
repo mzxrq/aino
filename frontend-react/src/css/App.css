@@ -42,3 +42,13 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Center main content and cap width to avoid stretching pages */
+.main-content.container-centered {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  padding-left: 12px;
+  padding-right: 12px;
+}

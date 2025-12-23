@@ -1,24 +1,38 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
 
 export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {
   const btnRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState(null);
 
-  // Sort options: apply custom sort function, then put current timezone first
-  const sortedOptions = React.useMemo(() => {
-    let sorted = options;
-    if (sortFn) {
-      sorted = sortFn(options);
+  useEffect(() => {
+    if (open && btnRef.current) setAnchorRect(btnRef.current.getBoundingClientRect());
+  }, [open]);
+
+  useEffect(() => {
+    function onResize() {
+      if (open && btnRef.current) setAnchorRect(btnRef.current.getBoundingClientRect());
     }
-    // Pin current timezone to the top
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize);
+    };
+  }, [open]);
+
+  const sortedOptions = useMemo(() => {
+    const src = Array.isArray(options) ? options.slice() : [];
+    let sorted = src;
+    if (sortFn) sorted = sortFn(sorted);
     if (!currentTimezone) return sorted;
     const current = sorted.filter(opt => opt === currentTimezone);
     const others = sorted.filter(opt => opt !== currentTimezone);
     return [...current, ...others];
   }, [options, currentTimezone, sortFn]);
 
-  const displayLabel = displayTime || (formatLabel ? formatLabel(value) : value);
+  const displayLabel = displayTime || (formatLabel ? formatLabel(value) : value || 'Timezone');
 
   return (
     <div className={`timezone-select ${className}`}>
@@ -49,32 +63,22 @@ export default function TimezoneSelect({ value, onChange, options = [], currentT
         )}
       </button>
 
-      {open && btnRef.current && (
-        <PortalDropdown anchorRect={btnRef.current.getBoundingClientRect()} align="left" onClose={() => setOpen(false)} className="mode-dropdown indicators-dropdown timezone-dropdown">
-          <div role="listbox" aria-label="Timezone" tabIndex={0} style={{ maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden' }}>
-            {sortedOptions.map((opt, idx) => {
-              const label = formatLabel ? formatLabel(opt) : opt;
-              const isCurrent = opt === currentTimezone;
-              return (
-                <React.Fragment key={opt}>
-                  <div
-                    role="option"
-                    tabIndex={0}
-                    aria-selected={opt === value}
-                    className={`timezone-option ${opt === value ? 'active' : ''} ${isCurrent ? 'current-tz' : ''}`}
-                    onClick={() => { onChange(opt); setOpen(false); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(opt); setOpen(false); } }}
-                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                  >
-                    <span className="timezone-label">{label}</span>
-                  </div>
-                  {isCurrent && idx === 0 && sortedOptions.length > 1 && (
-                    <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', margin: '4px 0' }}></div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
+      {open && anchorRect && (
+        <PortalDropdown anchorRect={anchorRect} align="right" offsetY={8} onClose={() => setOpen(false)} className="timezone-portal-dropdown">
+          <ul className="timezone-options" role="listbox" aria-activedescendant={value}>
+            {sortedOptions.map(opt => (
+              <li
+                key={opt}
+                id={opt}
+                role="option"
+                aria-selected={opt === value}
+                className={`timezone-option ${opt === value ? 'selected' : ''}`}
+                onClick={() => { onChange && onChange(opt); setOpen(false); }}
+              >
+                {formatLabel ? formatLabel(opt) : opt}
+              </li>
+            ))}
+          </ul>
         </PortalDropdown>
       )}
     </div>

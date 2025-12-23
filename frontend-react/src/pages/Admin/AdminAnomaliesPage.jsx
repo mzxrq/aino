@@ -1,4 +1,4 @@
-import Swal from 'sweetalert2';
+import Swal from '../../utils/muiSwal';
 import React, { useState, useCallback } from 'react';
 import { formatToUserTZSlash } from '../../utils/dateUtils';
 import API_BASE from '../../config/api';

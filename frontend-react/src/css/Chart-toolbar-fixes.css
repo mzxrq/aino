@@ -1,0 +1,137 @@
+/* Chart toolbar fixes: force pills to left-align inside toolbar-left
+   and make the add (+) pill render visually before other pills. This
+   file is imported after Chart.css so it can override inline/author rules. */
+
+html body .chart-page .chart-toolbar .toolbar-left {
+  margin-right: auto !important;
+}
+
+html body .chart-page .chart-toolbar .toolbar-left .chart-pills,
+html body .chart-page .chart-toolbar .chart-pills {
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+
+/* Ensure center-scoped chart-pills also left-align if present */
+html body .chart-page .chart-toolbar .toolbar-center .chart-pills {
+  justify-content: flex-start !important;
+}
+
+/* Make add button appear visually before other pills */
+html body .chart-page .chart-toolbar .chart-pills .chart-pill.add-pill,
+.chart-toolbar .chart-pills .chart-pill.add-pill {
+  order: -2 !important;
+  margin-right: 8px !important;
+  margin-left: 0 !important;
+}
+
+/* Make overflow indicator come after the add button */
+html body .chart-page .chart-toolbar .chart-pills .overflow-pill {
+  order: 1 !important;
+}
+
+/* Small extra: ensure pills container does not center due to inline styles */
+html body .chart-page .chart-toolbar .chart-pills[style] {
+  justify-content: flex-start !important;
+}
+
+/* Strong overrides to neutralize problematic inline styles like grid-column and flex-wrap
+   that were centering the pills or forcing them to span the full toolbar. */
+html body .chart-page .chart-toolbar .chart-pills[style] {
+  grid-column: auto !important;
+  -ms-grid-column: auto !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+
+/* If an inline style sets gridColumn on the element itself (e.g. grid-column: 1 / -1),
+   the attribute selector above will catch it; add an even-more-specific selector
+   in case the element has role or other attributes. */
+html body .chart-page .chart-toolbar .chart-pills[role="list"][style] {
+  grid-column: auto !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+}
+
+/* Keep pills constrained to the toolbar-left column and allow horizontal scrolling
+   instead of spanning the entire toolbar. This preserves the toolbar grid/columns. */
+html body .chart-page .chart-toolbar .toolbar-left {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important; /* allow child to shrink */
+}
+
+html body .chart-page .chart-toolbar .toolbar-left .chart-pills,
+html body .chart-page .chart-toolbar .chart-pills.pills-expanded {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Prevent the toolbar-expanded state from forcing pills to span columns */
+html body .chart-page .chart-toolbar.chart-toolbar--pills-expanded .chart-pills.pills-expanded {
+  grid-column: auto !important;
+  width: auto !important;
+}
+
+/* Hide scrollbars lightly for aesthetics (still accessible) */
+html body .chart-page .chart-toolbar .chart-pills::-webkit-scrollbar { height: 6px; }
+html body .chart-page .chart-toolbar .chart-pills::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 4px; }
+
+/* Make chart-toolbar-inner a 2-column grid and keep pills in the left column */
+html body .chart-page .chart-toolbar .chart-toolbar-inner {
+  display: grid !important;
+  grid-template-columns: auto 1fr !important; /* left column for pills, right column for center/right controls */
+  column-gap: 12px !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Ensure left and right sections are placed into their respective columns */
+html body .chart-page .chart-toolbar .toolbar-left {
+  grid-column: 1 !important;
+}
+
+html body .chart-page .chart-toolbar .toolbar-center,
+html body .chart-page .chart-toolbar .ticker-search-container,
+html body .chart-page .chart-toolbar .toolbar-right {
+  grid-column: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+/* Keep expanded pills constrained to the left column only */
+html body .chart-page .chart-toolbar .toolbar-left .chart-pills.pills-expanded {
+  grid-column: 1 !important;
+  width: auto !important;
+}
+
+/* Responsive: revert to stacked flex layout on narrow screens */
+@media (max-width: 680px) {
+  html body .chart-page .chart-toolbar .chart-toolbar-inner {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  html body .chart-page .chart-toolbar .toolbar-left,
+  html body .chart-page .chart-toolbar .toolbar-center,
+  html body .chart-page .chart-toolbar .toolbar-right {
+    grid-column: auto !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+  html body .chart-page .chart-toolbar .chart-pills {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+}

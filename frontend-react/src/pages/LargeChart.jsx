@@ -38,17 +38,17 @@ async function fetchJsonWithFallback(path, init) {
 }
 
 const PERIOD_PRESETS = [
-  { label: '1D 1m', period: '1d', interval: '1m' },
-  { label: '5D 5m', period: '5d', interval: '5m' },
-  { label: '1W 5m', period: '1wk', interval: '5m' },
-  { label: '1M 30m', period: '1mo', interval: '30m' },
-  { label: '1M 1d', period: '1mo', interval: '1d' },
-  { label: '3M 1d', period: '3mo', interval: '1d' },
-  { label: '6M 1d', period: '6mo', interval: '1d' },
-  { label: '1Y 1d', period: '1y', interval: '1d' },
-  { label: '2Y 1d', period: '2y', interval: '1d' },
-  { label: '5Y 1wk', period: '5y', interval: '1wk' },
-  { label: 'MAX 1wk', period: 'max', interval: '1wk' }
+  { label: '1D', period: '1d', interval: '1m' },
+  { label: '5D', period: '5d', interval: '5m' },
+  { label: '1W', period: '1wk', interval: '5m' },
+  { label: '1M30', period: '1mo', interval: '30m' },
+  { label: '1M1', period: '1mo', interval: '1d' },
+  { label: '3M', period: '3mo', interval: '1d' },
+  { label: '6M', period: '6mo', interval: '1d' },
+  { label: '1Y', period: '1y', interval: '1d' },
+  { label: '2Y', period: '2y', interval: '1d' },
+  { label: '5Y', period: '5y', interval: '1wk' },
+  { label: 'Max', period: 'max', interval: '1wk' }
 ];
 
 function formatPresetLabel(p) {
@@ -59,8 +59,8 @@ function formatPresetLabel(p) {
   if (per === '5d') return '5D';
   if (per === '1wk') return '1W';
   if (per === '1mo') {
-    if (itv === '30m') return '1M 30m';
-    if (itv === '1d') return '1M 1d';
+    if (itv === '30m') return '1M(30)';
+    if (itv === '1d') return '1M(1)';
     return '1M';
   }
   if (per === '3mo') return '3M';
@@ -68,7 +68,7 @@ function formatPresetLabel(p) {
   if (per === '1y') return '1Y';
   if (per === '2y') return '2Y';
   if (per === '5y') return '5Y';
-  if (per === 'max') return 'MAX';
+  if (per === 'max') return 'Max';
   return (p.label || '').split(' ')[0] || p.label;
 }
 
@@ -178,6 +178,9 @@ export default function LargeChart() {
   const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const [financialTab, setFinancialTab] = useState('income');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [lcNews, setLcNews] = useState([]);
+  const [lcNewsLoading, setLcNewsLoading] = useState(false);
+  const [lcNewsPageSize] = useState(5);
   const [showFinancialModal, setShowFinancialModal] = useState(false);
   const [showMarketModal, setShowMarketModal] = useState(false);
   const [marketCandidates, setMarketCandidates] = useState([]);
@@ -396,11 +399,67 @@ export default function LargeChart() {
     });
   }, [financials.cash_flow]);
 
-  const news = useMemo(() => Array.isArray(financials.news) ? financials.news.slice(0, 5) : [], [financials.news]);
+  const news = lcNews.length ? lcNews : (Array.isArray(financials.news) ? financials.news.slice(0, 5) : []);
 
   const currencySymbol = useMemo(() => getCurrency(market), [market]);
 
   const handleSearchAllMarkets = async (cleanedInput) => {
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLcNews(){
+      if (!ticker) return;
+      setLcNewsLoading(true);
+      try{
+        const res = await fetchJsonWithFallback(`/news?ticker=${encodeURIComponent(ticker)}&page=1&pageSize=${lcNewsPageSize}`);
+        if (!cancelled) {
+          // support response shapes: { items: [...] } | { news: [...] } | array
+          let rawItems = [];
+          if (!res) rawItems = [];
+          else if (Array.isArray(res)) rawItems = res;
+          else if (Array.isArray(res.items)) rawItems = res.items;
+          else if (Array.isArray(res.news)) rawItems = res.news;
+          else rawItems = [];
+
+          const mapped = rawItems.map((it, idx) => {
+            const c = (it && it.content) ? it.content : it || {};
+            const raw = (c.raw && typeof c.raw === 'object') ? c.raw : (it.raw || it || {});
+
+            const title = c.title || c.headline || c.summary || raw.title || raw.headline || '';
+
+            const lookup = (obj) => {
+              if (!obj || typeof obj !== 'object') return null;
+              if (obj.clickThroughUrl && (obj.clickThroughUrl.url || obj.clickThroughUrl)) return (obj.clickThroughUrl.url || obj.clickThroughUrl);
+              if (obj.canonicalUrl && (obj.canonicalUrl.url || obj.canonicalUrl)) return (obj.canonicalUrl.url || obj.canonicalUrl);
+              if (obj.link) return obj.link;
+              if (obj.url) return obj.url;
+              if (obj.href) return obj.href;
+              return null;
+            };
+
+            const link = lookup(c) || lookup(raw) || lookup(raw.content) || lookup(it) || '#';
+            const source = (c.source) || (raw.provider && raw.provider.displayName) || raw.source || raw.publisher || '';
+            const thumbnail = (c.thumbnail && (c.thumbnail.originalUrl || c.thumbnail.url)) || raw.image || raw.thumbnail || raw.summary_img || null;
+            const date = c.pubDate || raw.pubDate || raw.providerPublishTime || null;
+            const displayTime = c.displayTime || null;
+
+            return {
+              title: title || 'Headline',
+              source: source || 'News',
+              link,
+              date,
+              displayTime,
+              thumbnail
+            };
+          });
+          setLcNews(mapped);
+        }
+      }catch(e){ console.warn('lc news fetch', e); }
+      finally{ if(!cancelled) setLcNewsLoading(false); }
+    }
+    loadLcNews();
+    return ()=>{ cancelled = true; };
+  }, [ticker, lcNewsPageSize]);
     // Try to find the ticker in all markets
     const candidates = [];
     
@@ -722,6 +781,10 @@ export default function LargeChart() {
                   <div className="lc-news-date">{n.date || n.providerPublishTime || ''}</div>
                 </a>
               ))}
+              {/* More link to open full company news/profile */}
+              </div>
+            <div style={{ paddingTop: 8, textAlign: 'right' }}>
+              <Link to={`/company/${ticker}`} className="lc-btn ghost" title={`Open ${ticker} company page`}>More</Link>
             </div>
           </div>
 
