@@ -469,6 +469,49 @@ def data_preprocessing(df: pd.DataFrame):
 
     df['wick_ratio'] = df['wick_ratio'].ffill().fillna(0).clip(upper=20)
 
+
+    # --- 2. Volatility: ATR (Manual Calculation) ---
+    def get_atr(high, low, close, length):
+        tr1 = high - low
+        tr2 = (high - close.shift()).abs()
+        tr3 = (low - close.shift()).abs()
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        # ATR also uses Wilder's Smoothing
+        return tr.ewm(alpha=1/length, min_periods=length, adjust=False).mean()
+
+    df['ATR'] = get_atr(df['High'], df['Low'], df['Close'], 14)
+
+    # Surgical VEI Re-tuning
+    atr_short = get_atr(df['High'], df['Low'], df['Close'], 3)
+    atr_long = get_atr(df['High'], df['Low'], df['Close'], 10)
+    df['VEI'] = atr_short / (atr_long + 1e-9)
+
+    # --- 3. Advanced Volume Features ---
+    vol_mean = df['Volume'].rolling(14).mean()
+    vol_std = df['Volume'].rolling(14).std()
+    df['Vol_Z'] = (df['Volume'] - vol_mean) / (vol_std + 1e-9)
+    
+    # Log-scaling for anomalies
+    df['Vol_Intensity'] = np.sign(df['Vol_Z']) * np.log1p(np.abs(df['Vol_Z']))
+    df['Vol_Eff'] = df['Vol_Z'] / (df['ATR'] + 1e-9)
+
+    # --- 4. Price Action Sensitivity ---
+    df['Price_Shock'] = df['Close'].pct_change(periods=1)
+    
+    # Close Z-Score
+    c_mean = df['Close'].rolling(20).mean()
+    c_std = df['Close'].rolling(20).std()
+    df['Close_Z'] = (df['Close'] - c_mean) / (c_std + 1e-9)
+
+    # --- 5. Bollinger Band %B (Manual Calculation) ---
+    bb_mean = df['Close'].rolling(20).mean()
+    bb_std = df['Close'].rolling(20).std()
+    upper_band = bb_mean + (bb_std * 2)
+    lower_band = bb_mean - (bb_std * 2)
+    
+    # Calculate %B
+    df['B_Percent'] = (df['Close'] - lower_band) / (upper_band - lower_band + 1e-9)
+
     # Fill remaining NaNs using ffill->bfill strategy to preserve historical date range
     # This ensures charts show the full period without losing early/late rows
     df = df.ffill().bfill()
@@ -555,6 +598,8 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
         
         # 5. Preprocess all data
         df = data_preprocessing(df)
+        # compute rule-based flags used for Top_Reason
+        df = compute_rule_flags(df)
         rows_preprocessed = len(df)
         
         if df.empty:
@@ -590,6 +635,12 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
         
         if not anomalies_df.empty:
             anomalies_df['anomaly_score'] = anomaly_scores[anomaly_mask]
+            # Annotate a human-readable reason for each anomaly (safe)
+            try:
+                # anomalies_df is a slice of df and now contains rule flags
+                anomalies_df['Top_Reason'] = anomalies_df.apply(identify_reason, axis=1)
+            except Exception:
+                anomalies_df['Top_Reason'] = 'System anomaly detected'
         
         # 7. Store anomalies with full metadata
         anomaly_ids = []
@@ -624,7 +675,7 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
                     # Status
                     "sent": False,
                     "status": "new",
-                    "created_at": datetime.utcnow()
+                    "reason": row.get('Top_Reason', 'Unknown'),
                 }
                 docs.append(doc)
             
@@ -689,6 +740,8 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         return pd.DataFrame()
     
     df = data_preprocessing(df)
+    # compute rule-based flags so we can compute Top_Reason for adaptive anomalies
+    df = compute_rule_flags(df)
     if df.empty:
         return pd.DataFrame()
     
@@ -751,6 +804,12 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                 except Exception:
                     logger.debug("Failed applying ADAPTIVE_SCORE_THRESHOLD filter", exc_info=True)
 
+            # Ensure Top_Reason present on anomalies before DB insert
+            try:
+                anomalies_df['Top_Reason'] = anomalies_df.apply(identify_reason, axis=1)
+            except Exception:
+                anomalies_df['Top_Reason'] = 'Adaptive'
+
             # Save to DB
             if db is not None and not anomalies_df.empty:
                 for _, row in anomalies_df.iterrows():
@@ -762,6 +821,14 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                     }
                     try:
                         if db.anomalies.count_documents(query) == 0:
+                            # Ensure a human-readable reason is attached
+                            reason = row.get('Top_Reason') if 'Top_Reason' in row.index else None
+                            if not reason:
+                                try:
+                                    reason = identify_reason(row)
+                                except Exception:
+                                    reason = 'Adaptive'
+
                             doc = {
                                 "ticker": ticker,
                                 "datetime": row.get('Datetime'),
@@ -769,6 +836,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                                 "volume": int(row.get('Volume', 0)) if pd.notna(row.get('Volume')) else 0,
                                 "sent": False,
                                 "status": "new",
+                                "reason": reason,
                                 "created_at": datetime.utcnow()
                             }
                             db.anomalies.insert_one(doc)
@@ -781,10 +849,64 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         logger.error(f"Adaptive detection failed for {ticker}: {e}")
         return pd.DataFrame()
 
+def identify_reason(row):
+    # Use safe .get access to avoid KeyError when fields are missing.
+    try:
+        if row.get('is_vol_anomaly', False) and row.get('is_price_anomaly', False):
+            return "Vol+Price"
+        if row.get('is_vol_anomaly', False):
+            return "High Vol"
+        if row.get('is_price_anomaly', False):
+            return "Price Shock"
+        if row.get('is_vei_anomaly', False):
+            return "VEI Break"
+        if row.get('is_absorption', False):
+            return "Absorption"
+        if row.get('Price_warning', False):
+            return "Price Warning"
+        if row.get('is_vei_increasing_gradually', False):
+            return "VEI Gradual"
+        if row.get('Is_Anomaly', False) == True:
+            return "System anomaly detected"
+    except Exception:
+        # If any unexpected structure, fall back to generic label
+        return "Other"
+    return "Other"
+
+
+def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
+    """Populate rule-based flag columns used to annotate reasons.
+
+    Adds: Price_Shock (if missing), Price_Shock_Std, is_vol_anomaly,
+    is_price_anomaly, is_vei_anomaly, is_absorption.
+    Operates in-place and returns the DataFrame.
+    """
+    if df is None or df.empty:
+        return df
+    try:
+        if 'Price_Shock' not in df.columns:
+            df['Price_Shock'] = df['Close'].pct_change(periods=1)
+
+        # Rolling std for price shock
+        df['Price_Shock_Std'] = df['Price_Shock'].rolling(20).std()
+
+        # Ensure series alignment using the dataframe index
+        vol_z = df['Vol_Z'] if 'Vol_Z' in df.columns else pd.Series(0, index=df.index)
+        vei = df['VEI'] if 'VEI' in df.columns else pd.Series(0, index=df.index)
+        price_shock = df['Price_Shock'] if 'Price_Shock' in df.columns else pd.Series(0, index=df.index)
+        pstd = df['Price_Shock_Std'].fillna(0)
+
+        df['is_vol_anomaly'] = vol_z > 3.0
+        df['is_price_anomaly'] = price_shock.abs() > (pstd * 2.5)
+        df['is_vei_anomaly'] = vei > 1.2
+        df['is_absorption'] = (vol_z > 2.0) & (price_shock.abs() < (pstd * 0.5))
+    except Exception:
+        logger.debug('compute_rule_flags failed', exc_info=True)
+    return df
 
 def detect_anomalies(tickers, period, interval):
     all_anomalies = pd.DataFrame()
-    features = ['return_1', 'return_3', 'return_6', 'zscore_20', 'ATR_14','bb_width', 'RSI', 'MACD', 'MACD_hist', 'VWAP', 'body','upper_wick', 'lower_wick', 'wick_ratio']
+    features = ["RSI","ATR","VEI","Vol_Z","Vol_Intensity","Vol_Eff","Price_Shock","Close_Z","B_Percent"]
     if isinstance(tickers, str):
         tickers = [tickers]
 
@@ -806,10 +928,44 @@ def detect_anomalies(tickers, period, interval):
         if X.empty:
             continue
 
-        prediction = model.predict(X)
-        status_map = {-1: "Anomaly Detected", 1: "No Anomaly"}
-        df['Prediction'] = pd.Series(prediction).map(status_map)
-        anomalies = df[df['Prediction'] == "Anomaly Detected"]
+        # Model predictions: map to boolean and align with original df indices
+        try:
+            prediction = model.predict(X)
+            status_map = {-1: True, 1: False}
+            # create a series indexed by X.index so we only assign predicted rows
+            pred_ser = pd.Series(prediction, index=X.index).map(status_map)
+            df['Is_Anomaly_model'] = False
+            df.loc[pred_ser.index, 'Is_Anomaly_model'] = pred_ser
+        except Exception:
+            df['Is_Anomaly_model'] = False
+
+        # Ensure price shock std exists before using it in absorption rule
+        df['Price_Shock_Std'] = df.get('Price_Shock', pd.Series()).rolling(20).std() if 'Price_Shock' in df.columns else pd.Series([np.nan]*len(df))
+
+        # 1. Define individual thresholds (rule-based signals)
+        df['is_vol_anomaly'] = df.get('Vol_Z', pd.Series(0)) > 3.0
+        df['is_price_anomaly'] = df.get('Price_Shock', pd.Series(0)).abs() > (df['Price_Shock'].rolling(20).std().fillna(0) * 2.5)
+        df['is_vei_anomaly'] = df.get('VEI', pd.Series(0)) > 1.2
+        df['is_absorption'] = (df.get('Vol_Z', pd.Series(0)) > 2.0) & (df.get('Price_Shock', pd.Series(0)).abs() < (df['Price_Shock_Std'].fillna(0) * 0.5))
+
+        # Combine model-based and rule-based results: mark anomaly if either indicates one
+        df['Is_Anomaly'] = df['Is_Anomaly_model'] | df['is_vol_anomaly'] | df['is_price_anomaly'] | df['is_vei_anomaly'] | df['is_absorption']
+
+        # Annotate Top_Reason for any detected anomaly row
+        try:
+            df['Top_Reason'] = df.apply(identify_reason, axis=1)
+        except Exception:
+            df['Top_Reason'] = 'Unknown'
+
+        anomalies = df[df['Is_Anomaly']]
+
+
+        if anomalies.empty:
+            continue
+        all_anomalies = pd.concat([all_anomalies, anomalies], ignore_index=True)
+
+        anomalies = df[df['Is_Anomaly'] == True]
+
         if anomalies.empty:
             continue
         all_anomalies = pd.concat([all_anomalies, anomalies], ignore_index=True)
@@ -829,7 +985,8 @@ def detect_anomalies(tickers, period, interval):
                         "volume": row.get('Volume'),
                         "sent": False,
                         "note": "",
-                        "status": "new"
+                        "status": "new",
+                        "reason": row.get('Top_Reason', 'Unknown'),
                     }
                     db.anomalies.insert_one(doc)
 

@@ -52,8 +52,53 @@ app.include_router(news_router, prefix="/py")
 app.include_router(company_info_router, prefix="/py")
 
 # Toggle state - ENABLED BY DEFAULT
-scheduler_enabled = True
+scheduler_enabled = False
 
+def check_models():
+    """Ensure per-market models exist. If a model file is missing, trigger training.
+
+    Uses `MODEL_PATHS` from `services.train_service` and `train_market_model` from
+    the top-level `train_models.py` script. Relative paths (starting with `.`)
+    are resolved relative to the repository `backend-python` directory.
+    """
+    try:
+        from services.train_service import MODEL_PATHS as svc_model_paths
+    except Exception as e:
+        logger.debug(f"[check_models] failed importing MODEL_PATHS: {e}")
+        return
+
+    try:
+        # top-level trainer script provides MARKET_TICKERS and train_market_model
+        from train_models import train_market_model, MARKET_TICKERS
+    except Exception as e:
+        logger.debug(f"[check_models] train_models import failed: {e}")
+        return
+
+    from pathlib import Path
+
+    repo_root = Path(__file__).parent.parent
+
+    for market, p in (svc_model_paths or {}).items():
+        try:
+            if not p:
+                logger.info(f"[check_models] no path configured for {market}; training model")
+                tickers = MARKET_TICKERS.get(market.upper(), [])
+                train_market_model(market, tickers)
+                continue
+
+            model_path = Path(p)
+            # Resolve relative paths relative to backend-python directory
+            if not model_path.is_absolute():
+                model_path = (repo_root / model_path).resolve()
+
+            if not model_path.exists():
+                logger.info(f"[check_models] model not found for {market} at {model_path}; training")
+                tickers = MARKET_TICKERS.get(market.upper(), [])
+                train_market_model(market, tickers)
+            else:
+                logger.debug(f"[check_models] model for {market} exists at {model_path}")
+        except Exception as e:
+            logger.exception(f"[check_models] error checking/training model for {market}: {e}")
 
 def _scheduler_loop(stop_event):
     logger.info("[scheduler] loop started")
@@ -61,6 +106,7 @@ def _scheduler_loop(stop_event):
         while not stop_event.is_set():
             try:
                 if scheduler_enabled:
+
                     combined_market_runner()
                 else:
                     logger.info("[scheduler] disabled - skipping run")
@@ -69,7 +115,6 @@ def _scheduler_loop(stop_event):
             time.sleep(60)
     finally:
         logger.info("[scheduler] loop stopped")
-
 
 @app.on_event("startup")
 async def _on_startup():

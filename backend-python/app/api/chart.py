@@ -400,7 +400,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
         # Align anomaly marker y-values to the chart's Close via nearest timestamp merge
         'anomaly_markers': {
             'dates': [],
-            'y_values': []
+            'y_values': [],
+            'reason': []
         },
         'Ticker': df['Ticker'].iloc[0] if 'Ticker' in df.columns else None,
         'price_change' : price_change,
@@ -424,7 +425,30 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
             except Exception:
                 an_dt = pd.to_datetime(anomalies['Datetime'], utc=True, errors='coerce')
 
-            an_df = pd.DataFrame({'Datetime': an_dt}).sort_values('Datetime')
+            # Try to extract a reason column from anomalies with flexible naming
+            reason_col = None
+            if anomalies is not None:
+                for cand in ['Top_Reason', 'TopReason', 'Reason', 'reason', 'top_reason']:
+                    if cand in anomalies.columns:
+                        reason_col = cand
+                        break
+                # case-insensitive fallback
+                if reason_col is None:
+                    lower_map = {c.lower(): c for c in anomalies.columns}
+                    for cand in ['top_reason', 'reason']:
+                        if cand in lower_map:
+                            reason_col = lower_map[cand]
+                            break
+
+            if reason_col is not None:
+                try:
+                    reason_vals = anomalies[reason_col].tolist()
+                except Exception:
+                    reason_vals = [None] * len(an_dt)
+            else:
+                reason_vals = [None] * len(an_dt)
+
+            an_df = pd.DataFrame({'Datetime': an_dt, 'Reason': reason_vals}).sort_values('Datetime')
 
             # Compute a reasonable tolerance: twice median interval (fallback to 1 day)
             try:
@@ -439,13 +463,44 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
             try:
                 merged = pd.merge_asof(an_df, chart_merge, on='Datetime', direction='nearest', tolerance=tol)
                 merged = merged.dropna(subset=['Close_chart'])
-                payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in merged['Datetime'].tolist()]
-                payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in merged['Close_chart'].tolist()]
+                # Dates and y-values
+                merged_dates = list(merged['Datetime'].tolist()) if 'Datetime' in merged.columns else []
+                payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in merged_dates]
+                payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in list(merged['Close_chart'].tolist())]
+
+                # Reason: prefer merged 'Reason' column (we normalized earlier), fallback to None
+                if 'Reason' in merged.columns:
+                    reason_list = list(merged['Reason'].tolist())
+                else:
+                    reason_list = [None] * len(merged)
+                payload['anomaly_markers']['reason'] = [r if (r is not None and not (isinstance(r, float) and pd.isna(r))) else None for r in reason_list]
             except Exception:
                 # Fallback to best-effort original anomalies if merge_asof fails
                 try:
-                    payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies['Datetime'].tolist()]
-                    payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in anomalies.get('Close', anomalies.get('close', [])).tolist()]
+                    payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in list(anomalies['Datetime'].tolist())]
+                    close_vals = anomalies.get('Close', anomalies.get('close', []))
+                    # ensure iterable
+                    try:
+                        close_list = list(close_vals.tolist()) if hasattr(close_vals, 'tolist') else list(close_vals)
+                    except Exception:
+                        close_list = []
+                    payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in close_list]
+
+                    # Fallback: try to read reason from a flexible set of column names
+                    reason_list = None
+                    for cand in ['Reason', 'Top_Reason', 'TopReason', 'reason', 'top_reason']:
+                        if cand in anomalies.columns:
+                            try:
+                                reason_list = list(anomalies[cand].tolist())
+                            except Exception:
+                                try:
+                                    reason_list = list(anomalies[cand])
+                                except Exception:
+                                    reason_list = None
+                            break
+                    if reason_list is None:
+                        reason_list = [None] * len(payload['anomaly_markers']['dates'])
+                    payload['anomaly_markers']['reason'] = reason_list
                 except Exception:
                     payload['anomaly_markers'] = {'dates': [], 'y_values': []}
     except Exception:
@@ -499,6 +554,14 @@ def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
         'anomaly_markers': {
             'dates': _safe(anomaly.get('dates') if isinstance(anomaly, dict) else None, []),
             'y_values': _safe(anomaly.get('y_values') if isinstance(anomaly, dict) else None, []),
+            'reason': _safe(
+                anomaly.get('reason') if isinstance(anomaly, dict) and anomaly.get('reason') is not None else (
+                    anomaly.get('Reason') if isinstance(anomaly, dict) and anomaly.get('Reason') is not None else (
+                        anomaly.get('Top_Reason') if isinstance(anomaly, dict) and anomaly.get('Top_Reason') is not None else []
+                    )
+                ),
+                []
+            ),
         },
         'Ticker': payload.get('Ticker'),
         'price_change': payload.get('price_change'),
@@ -574,9 +637,27 @@ def _enrich_anomalies_from_db_if_missing(ticker: str, payload: Dict[str, Any]):
 
 
         payload = dict(payload)  # shallow copy
+        # Extract reason if present in DB schema variants
+        reason_list = None
+        for cand in ['Reason', 'reason', 'Top_Reason', 'top_reason']:
+            if cand in anomalies_df.columns:
+                try:
+                    reason_list = list(anomalies_df[cand].tolist())
+                except Exception:
+                    try:
+                        reason_list = list(anomalies_df[cand])
+                    except Exception:
+                        reason_list = None
+                break
+
+        if reason_list is None:
+            reason_list = [None] * len(anomalies_df)
+
+        payload = dict(payload)  # shallow copy
         payload['anomaly_markers'] = {
             'dates': [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in anomalies_df['Datetime'].tolist()],
-            'y_values': [float(x) if pd.notna(x) else None for x in anomalies_df['Close'].tolist()]
+            'y_values': [float(x) if pd.notna(x) else None for x in anomalies_df['Close'].tolist()],
+            'reason': reason_list
         }
     except Exception:
         logger.debug('anomaly enrichment failed', exc_info=True)
