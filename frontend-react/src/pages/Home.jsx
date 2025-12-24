@@ -6,17 +6,17 @@ import '../css/Home.css';
 import logoSvg from '../assets/aino.svg';
 import Footer from '../components/Footer';
 
-const SAMPLE_ANOMALIES = [
-  { id: '1', ticker: 'TICK', company: 'CompanyName', price: 3768, change: -2.3, anomalies: 1 },
-  { id: '2', ticker: 'ABCD', company: 'Another Co', price: 3785, change: 1.2, anomalies: 2 },
-  { id: '3', ticker: 'XYZA', company: 'Xyza Ltd', price: 2585, change: 0.8, anomalies: 1 },
-  { id: '4', ticker: 'LMNO', company: 'Lmno Plc', price: 1968, change: -0.6, anomalies: 3 }
+const fallbacka_loading = [
+  { id: '1', ticker: '#', company: '########', price: 1000, change: 0.1, anomalies: 0 },
+  { id: '2', ticker: '#', company: '########', price: 1000, change: 0.2, anomalies: 1 },
+  { id: '3', ticker: '#', company: '########', price: 1000, change: -0.1, anomalies: 2 },
+  { id: '4', ticker: '#', company: '########', price: 1000, change: -0.2, anomalies: 3 }
 ];
 
-const SAMPLE_NEWS = [
-  { id: 1, title: 'Market tumbles as tech stocks correct sharply', source: 'Daily Finance' },
-  { id: 2, title: 'Oil prices push energy sector higher', source: 'Global News' },
-  { id: 3, title: 'Central bank signals rate pause', source: 'MarketWatch' }
+const fallbackn_loading = [
+  { id: 1, title: '############', source: '########' },
+  { id: 2, title: '############', source: '########' },
+  { id: 3, title: '############', source: '########' }
 ];
 
 export default function Home() {
@@ -119,7 +119,7 @@ export default function Home() {
           if (seen.has(ticker)) continue;
           seen.add(ticker);
           recent.push({
-            id: `${ticker}-${String(d.datetime||d.date||d.Datetime||d.fetched_at||Math.random())}`,
+            id: `${ticker}-${String(d.datetime || d.date || d.Datetime || d.fetched_at || Math.random())}`,
             ticker,
             company: findCompanyName(ticker) || d.companyName || d.company || ticker,
             price: d.close || d.price || 0,
@@ -135,7 +135,7 @@ export default function Home() {
         const allInstances = sortedList.slice(0, 200).map((d, idx) => {
           const ticker = (d.ticker || d.Ticker || d.tickerSymbol || '').toUpperCase();
           return {
-            id: `${ticker}-${idx}-${String(d.datetime||d.date||d.Datetime||d.fetched_at||idx)}`,
+            id: `${ticker}-${idx}-${String(d.datetime || d.date || d.Datetime || d.fetched_at || idx)}`,
             ticker,
             company: findCompanyName(ticker) || d.companyName || d.company || ticker,
             price: d.close || d.price || 0,
@@ -156,21 +156,21 @@ export default function Home() {
         }));
 
         if (isMounted) {
-          const finalRecent = recent.length ? recent : SAMPLE_ANOMALIES.slice(0,6);
-          const finalTop = mapped.length ? mapped : SAMPLE_ANOMALIES;
+          const finalRecent = recent.length ? recent : fallbacka_loading.slice(0, 6);
+          const finalTop = mapped.length ? mapped : fallbacka_loading;
           setRecentAnomalies(finalRecent);
           setTopAnomalies(finalTop);
           setAllAnomalies(allInstances);
           setAnomalies(finalTop);
           // Fetch logo/price info for displayed tickers (include recent + some from full list)
           try {
-            const tickersToFetch = Array.from(new Set([...(finalRecent||[]).map(r=>r.ticker), ...(finalTop||[]).map(r=>r.ticker)])).filter(Boolean).slice(0,48);
+            const tickersToFetch = Array.from(new Set([...(finalRecent || []).map(r => r.ticker), ...(finalTop || []).map(r => r.ticker)])).filter(Boolean).slice(0, 48);
             if (tickersToFetch.length) fetchTickerInfos(tickersToFetch);
-          } catch(e){console.debug('ticker info fetch schedule failed', e)}
+          } catch (e) { console.debug('ticker info fetch schedule failed', e) }
         }
       } catch (e) {
         console.debug('Anomaly fetch error, using sample:', e);
-        if (isMounted) setAnomalies(SAMPLE_ANOMALIES);
+        if (isMounted) setAnomalies(fallbacka_loading);
       }
     };
     fetchAnomalies();
@@ -299,11 +299,11 @@ export default function Home() {
       try {
         const topTicker = anomalies?.[0]?.ticker || 'AAPL';
         // Prefer top-viewed news from our backend if available
-        try{
+        try {
           const topRes = await fetch(`${API_URL}/node/news/views/top?limit=6`);
-          if (topRes.ok){
+          if (topRes.ok) {
             const payload = await topRes.json();
-            const items = (payload.items || []).slice(0,6).map((it, idx) => ({
+            const items = (payload.items || []).slice(0, 6).map((it, idx) => ({
               id: it.articleKey || idx,
               articleKey: it.articleKey || null,
               title: it.title || it.cachedTitle || it.urlTitle || 'Market Update',
@@ -315,7 +315,7 @@ export default function Home() {
             }));
             if (isMounted && items.length) return setNews(items);
           }
-        }catch(e){
+        } catch (e) {
           console.debug('top-viewed news fetch failed, falling back', e);
         }
 
@@ -346,17 +346,17 @@ export default function Home() {
             } catch (err) { console.debug('cache post failed', err); }
 
             // lookup stored view counts for these article urls
-            try{
+            try {
               const keys = articles.map(a => a.articleKey || a.link).filter(Boolean);
-              if (keys.length){
+              if (keys.length) {
                 const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-                if (lookup.ok){
+                if (lookup.ok) {
                   const pl = await lookup.json();
                   const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
                   articles = articles.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
                 }
               }
-            }catch(err){ console.debug('views lookup failed', err); }
+            } catch (err) { console.debug('views lookup failed', err); }
 
             if (isMounted && articles.length) return setNews(articles);
           }
@@ -367,37 +367,37 @@ export default function Home() {
         // Fallback: Python financials news
         try {
           const data = await fetchPyJson(`/financials?ticker=${topTicker}`);
-            let newsData = (data?.news || []).slice(0, 6).map((n, idx) => ({
-              id: idx,
-              articleKey: n.articleKey || n.id || n.guid || null,
-              title: n.title || n.headline || 'Market Update',
-              source: n.source || n.publisher || 'Financial News',
-              link: n.link || n.url || n.articleUrl || n.canonical_url || n.guid || null,
-              thumbnail: n.urlToImage || n.image || n.thumbnail || null,
-              pubDate: n.publishedAt || n.pubDate || null,
-              views: 0
-            }));
-            try{
-              const keys = newsData.map(a => a.articleKey || a.link).filter(Boolean);
-              if (keys.length){
-                const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-                if (lookup.ok){
-                  const pl = await lookup.json();
-                  const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
-                  newsData = newsData.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
-                }
+          let newsData = (data?.news || []).slice(0, 6).map((n, idx) => ({
+            id: idx,
+            articleKey: n.articleKey || n.id || n.guid || null,
+            title: n.title || n.headline || 'Market Update',
+            source: n.source || n.publisher || 'Financial News',
+            link: n.link || n.url || n.articleUrl || n.canonical_url || n.guid || null,
+            thumbnail: n.urlToImage || n.image || n.thumbnail || null,
+            pubDate: n.publishedAt || n.pubDate || null,
+            views: 0
+          }));
+          try {
+            const keys = newsData.map(a => a.articleKey || a.link).filter(Boolean);
+            if (keys.length) {
+              const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
+              if (lookup.ok) {
+                const pl = await lookup.json();
+                const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
+                newsData = newsData.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
               }
-            }catch(err){ console.debug('views lookup failed', err); }
-            if (isMounted && newsData.length > 0) return setNews(newsData);
-          
+            }
+          } catch (err) { console.debug('views lookup failed', err); }
+          if (isMounted && newsData.length > 0) return setNews(newsData);
+
         } catch (e) {
           console.debug('Python news fetch failed', e);
         }
 
-        if (isMounted) setNews(SAMPLE_NEWS);
+        if (isMounted) setNews(fallbackn_loading);
       } catch (e) {
         console.debug('News overall fetch error, using sample:', e);
-        if (isMounted) setNews(SAMPLE_NEWS);
+        if (isMounted) setNews(fallbackn_loading);
       }
     };
     if (topAnomalies.length > 0) {
@@ -406,8 +406,8 @@ export default function Home() {
     return () => { isMounted = false; };
   }, [anomalies, PY_URL, API_URL]);
 
-  const handleDemoChart = () => {
-    const first = (anomalies && anomalies.length > 0) ? anomalies[0] : SAMPLE_ANOMALIES[0];
+  const handleChart = () => {
+    const first = (anomalies && anomalies.length > 0) ? anomalies[0] : null;
     if (first && first.ticker) navigate(`/chart/u/${encodeURIComponent(first.ticker)}`);
     else navigate('/chart');
   };
@@ -419,7 +419,7 @@ export default function Home() {
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.key === 'Enter') {
-        handleDemoChart();
+        handleChart();
       }
     };
     window.addEventListener('keypress', handleKeyPress);
@@ -439,7 +439,7 @@ export default function Home() {
         source: item.source || null
       };
       // fire-and-forget
-      fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(()=>{});
+      fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
     } catch (e) { /* ignore */ }
     try { if (item.link) window.open(item.link, '_blank'); } catch (e) { if (item.link) location.href = item.link; }
   };
@@ -449,11 +449,11 @@ export default function Home() {
       {/* Hero Section - Appears First */}
       <section className="hero-section-full">
         <div className="hero-content-centered">
-          <img src={logoSvg} alt="Stock Dashboard Website Logo" className="hero-logo website-logo" />
+          <img src={logoSvg} alt="Logo" className="hero-logo website-logo" />
           <p className="hero-motto">Stock Trading Anomaly Detector</p>
-        {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
+          {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={handleDemoChart}>Get Started</button>
+            <button className="btn btn-primary" onClick={handleChart}>Get Started</button>
             <button className="btn btn-line" onClick={handleLogin}>LINE Login</button>
           </div>
         </div>
@@ -465,32 +465,32 @@ export default function Home() {
           <div className="card anomaly-card">
             <div className="card-header">
               <h3>Recent anomaly found</h3>
-              <Link to="#" className="show-more">Show more ›</Link>
+              <Link to="/list" className="show-more">Show more ›</Link>
             </div>
             <div className="card-body">
-              {(recentAnomalies.length ? recentAnomalies : SAMPLE_ANOMALIES).map(a => (
-                <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{cursor: 'pointer'}}>
+              {(recentAnomalies.length ? recentAnomalies : fallbacka_loading).map(a => (
+                <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{ cursor: 'pointer' }}>
                   <div className="logo-circle" title={a.company}>
                     {(() => {
-                        const key = String(a.ticker || '').toUpperCase();
-                        const info = tickerInfoMap.get(key);
-                        const loading = !!loadingMap[key];
-                        if (loading) return <div className="ticker-loader" />;
-                        const logo = info && (info.logo || info?.logo_url);
-                        const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
-                        const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
-                        const src = logo || parqetLogo;
-                        return (
-                          <img
-                            src={src}
-                            alt={getDisplayFromRaw(key) || a.company}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                            onError={(e) => {
-                              if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
-                              else e.target.onerror = null;
-                            }}
-                          />
-                        );
+                      const key = String(a.ticker || '').toUpperCase();
+                      const info = tickerInfoMap.get(key);
+                      const loading = !!loadingMap[key];
+                      if (loading) return <div className="ticker-loader" />;
+                      const logo = info && (info.logo || info?.logo_url);
+                      const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
+                      const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
+                      const src = logo || parqetLogo;
+                      return (
+                        <img
+                          src={src}
+                          alt={getDisplayFromRaw(key) || a.company}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                          onError={(e) => {
+                            if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
+                            else e.target.onerror = null;
+                          }}
+                        />
+                      );
                     })()}
                   </div>
                   <div className="anomaly-meta">
@@ -499,20 +499,20 @@ export default function Home() {
                   </div>
                   <div className="anomaly-stats">
                     {(() => {
-                        const key = String(a.ticker || '').toUpperCase();
-                        const info = tickerInfoMap.get(key) || {};
-                        const loading = !!loadingMap[key];
-                        if (loading) return <div className={`price`}>Loading…</div>;
-                        const price = (info.price !== undefined && info.price !== null) ? info.price : a.price || 0;
-                        const pct = (info.change_pct !== undefined && info.change_pct !== null) ? info.change_pct : (a.change || 0);
-                        const up = pct > 0;
-                        const cls = `price ${up ? 'up' : 'down'}`;
-                        return (
-                          <div className={cls}>
-                            {up ? '↑' : '↓'} {Number(price || 0).toLocaleString()} <span className="percent">{pct>0?'+':''}{(pct!==null?Number(pct).toFixed(2):'0')}%</span>
-                          </div>
-                        );
-                      })()}
+                      const key = String(a.ticker || '').toUpperCase();
+                      const info = tickerInfoMap.get(key) || {};
+                      const loading = !!loadingMap[key];
+                      if (loading) return <div className={`price`}>Loading…</div>;
+                      const price = (info.price !== undefined && info.price !== null) ? info.price : a.price || 0;
+                      const pct = (info.change_pct !== undefined && info.change_pct !== null) ? info.change_pct : (a.change || 0);
+                      const up = pct > 0;
+                      const cls = `price ${up ? 'up' : 'down'}`;
+                      return (
+                        <div className={cls}>
+                          {up ? '↑' : '↓'} {Number(price || 0).toLocaleString()} <span className="percent">{pct > 0 ? '+' : ''}{(pct !== null ? Number(pct).toFixed(2) : '0')}%</span>
+                        </div>
+                      );
+                    })()}
                     <div className="anomaly-time">
                       {a.datetime ? (new Date(a.datetime).toLocaleString()) : (a.date || a.Datetime ? String(a.date || a.Datetime) : 'Unknown')}
                     </div>
@@ -528,33 +528,30 @@ export default function Home() {
 
           <div className="card anomaly-card">
             <div className="card-header">
-              <h3>Top anomaly</h3>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <Link to="/marketlist" className="show-more">Show more ›</Link>
-              </div>
+              <h3>Most anomaly found</h3>
             </div>
             <div className="card-body">
-                {(topAnomalies.length ? topAnomalies : SAMPLE_ANOMALIES).map(a => (
-                <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{cursor: 'pointer'}}>
+              {(topAnomalies.length ? topAnomalies : fallbacka_loading).map(a => (
+                <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{ cursor: 'pointer' }}>
                   <div className="logo-circle" title={a.company}>
                     {(() => {
-                        const key = String(a.ticker || '').toUpperCase();
-                        const info = tickerInfoMap.get(key);
-                        const logo = info && (info.logo || info?.logo_url);
-                        const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
-                        const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
-                        const src = logo || parqetLogo;
-                        return (
-                          <img
-                            src={src}
-                            alt={getDisplayFromRaw(key) || a.company}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                            onError={(e) => {
-                              if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
-                              else e.target.onerror = null;
-                            }}
-                          />
-                        );
+                      const key = String(a.ticker || '').toUpperCase();
+                      const info = tickerInfoMap.get(key);
+                      const logo = info && (info.logo || info?.logo_url);
+                      const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
+                      const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
+                      const src = logo || parqetLogo;
+                      return (
+                        <img
+                          src={src}
+                          alt={getDisplayFromRaw(key) || a.company}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                          onError={(e) => {
+                            if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
+                            else e.target.onerror = null;
+                          }}
+                        />
+                      );
                     })()}
                   </div>
                   <div className="anomaly-meta">
@@ -563,23 +560,23 @@ export default function Home() {
                   </div>
                   <div className="anomaly-stats">
                     {(() => {
-                        const info = tickerInfoMap.get(a.ticker) || {};
-                        const price = (info.price !== undefined && info.price !== null) ? info.price : a.price || 0;
-                        const pct = (info.change_pct !== undefined && info.change_pct !== null) ? info.change_pct : (a.change || 0);
-                        const up = pct > 0;
-                        const cls = `price ${up ? 'up' : 'down'}`;
-                        return (
-                          <div className={cls}>
-                            {up ? '↑' : '↓'} {Number(price || 0).toLocaleString()} <span className="percent">{pct>0?'+':''}{(pct!==null?Number(pct).toFixed(2):'0')}%</span>
-                          </div>
-                        );
-                      })()}
+                      const info = tickerInfoMap.get(a.ticker) || {};
+                      const price = (info.price !== undefined && info.price !== null) ? info.price : a.price || 0;
+                      const pct = (info.change_pct !== undefined && info.change_pct !== null) ? info.change_pct : (a.change || 0);
+                      const up = pct > 0;
+                      const cls = `price ${up ? 'up' : 'down'}`;
+                      return (
+                        <div className={cls}>
+                          {up ? '↑' : '↓'} {Number(price || 0).toLocaleString()} <span className="percent">{pct > 0 ? '+' : ''}{(pct !== null ? Number(pct).toFixed(2) : '0')}%</span>
+                        </div>
+                      );
+                    })()}
                     <div className="anomaly-time">
-                      {a.datetime ? (new Date(a.datetime).toLocaleString()) : (a.date || a.Datetime ? String(a.date || a.Datetime) : 'Unknown')}
+                      {a.datetime ? (new Date(a.datetime).toLocaleString()) : (a.date || a.Datetime ? String(a.date || a.Datetime) : '―')}
                     </div>
                     <div className="anomaly-count">
                       <span className="count-number">{a.anomalies}</span>
-                      <span className="count-text">Found {a.anomalies} anomalies</span>
+                      <span className="count-text">{a.anomalies} anml</span>
                     </div>
                   </div>
                 </div>
@@ -590,29 +587,29 @@ export default function Home() {
 
         <div className="right-column">
           <div className="news-card card">
-            <h4>Top News</h4>
+            <h3>News</h3>
             <ul className="news-list">
-              {(news.length ? news : SAMPLE_NEWS).map(n => (
-                <li key={n.id} className="news-item" style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={() => handleNewsClick(n)}>
+              {(news.length ? news : fallbackn_loading).map(n => (
+                <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)}>
                   {n.thumbnail ? (
-                    <img src={n.thumbnail} alt={n.title} className="news-thumb" onError={(e)=>{e.target.onerror=null; e.target.style.display='none'}} />
+                    <img src={n.thumbnail} alt={n.title} className="news-thumb" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none' }} />
                   ) : (
                     <div className="news-thumb--placeholder" />
                   )}
-                  <div style={{flex:1}}>
+                  <div style={{ flex: 1 }}>
                     {n.link ? (
                       <a
                         href={n.link}
                         className="news-title-link"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNewsClick(n); }}
                       >
-                        <div className="news-title" style={{fontWeight:600}}>{n.title}</div>
+                        <div className="news-title" style={{ fontWeight: 600 }}>{n.title}</div>
                       </a>
                     ) : (
-                      <div className="news-title" style={{fontWeight:600}}>{n.title}</div>
+                      <div className="news-title" style={{ fontWeight: 600 }}>{n.title}</div>
                     )}
-                    <div className="news-source" style={{fontSize:'0.9rem',color:'var(--text-secondary)'}}>
-                      {n.source}{n.views ? <span className="news-views" style={{marginLeft:8,fontSize:'0.85rem',color:'var(--text-secondary)'}}>· {n.views} views</span> : null}
+                    <div className="news-source" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      {n.source}{n.views ? <span className="news-views" style={{ marginLeft: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>· {n.views} views</span> : null}
                     </div>
                   </div>
                 </li>
@@ -621,7 +618,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );

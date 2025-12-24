@@ -6,7 +6,7 @@ const { getDb } = require('../config/db');
 // Body: { url, articleId, title, ticker, source }
 router.post('/', async (req, res) => {
   try {
-    const { url, articleId, title, ticker, source } = req.body || {};
+    const { url, articleId, title, displayTicker, source } = req.body || {};
     const key = articleId || url;
     if (!key) return res.status(400).json({ error: 'missing articleId or url' });
 
@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
     const update = {
       $inc: { views: 1 },
       $set: { lastViewedAt: now },
-      $setOnInsert: { articleKey: key, url: url || null, title: title || null, sourceTicker: ticker || null, source: source || null, createdAt: now }
+      $setOnInsert: { articleKey: key, url: url || null, title: title || null, sourceTicker: displayTicker || null, source: source || null, createdAt: now }
     };
     await col.updateOne({ articleKey: key }, update, { upsert: true });
     return res.json({ success: true });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import '../css/Navbar.css';
@@ -74,36 +74,73 @@ export default function Navbar() {
   const handleNavClick = () => setMenuOpen(false);
 
   const isHomepage = location.pathname === '/';
-  const showLogo = !isHomepage || scrolled;
+
+  // refs for controlling SVG SMIL animations programmatically
+  const pathOpenAnimRef = useRef(null);
+  const pathCloseAnimRef = useRef(null);
+
+  useEffect(() => {
+    // When menuOpen changes, trigger the matching SVG animation
+    try {
+      if (menuOpen) {
+        if (pathOpenAnimRef.current && typeof pathOpenAnimRef.current.beginElement === 'function') {
+          pathOpenAnimRef.current.beginElement();
+        }
+      } else {
+        if (pathCloseAnimRef.current && typeof pathCloseAnimRef.current.beginElement === 'function') {
+          pathCloseAnimRef.current.beginElement();
+        }
+      }
+    } catch (e) {
+      // ignore if SVG SMIL not supported
+      void e;
+    }
+  }, [menuOpen]);
 
   return (
     <nav className={`navbar`}>
       <div className="navbar-left">
-        <Link to="/" className={`logo ${showLogo ? '' : 'hidden'}`}>
+        <Link to="/" className={`logo`} aria-label="Home">
           <img src={logoSvg} alt="Logo" className="logo-img" />
         </Link>
       </div>
 
       <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Toggle menu">
-        <span className="hamburger">☰</span>
+        <svg className="hb" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" stroke="#eee" strokeWidth=".6" fill="none" strokeLinecap="round" style={{ cursor: 'pointer' }}>
+          <path d="M2,3L5,3L8,3M2,5L8,5M2,7L5,7L8,7">
+            <animate
+              ref={pathOpenAnimRef}
+              dur="0.2s"
+              attributeName="d"
+              values="M2,3L5,3L8,3M2,5L8,5M2,7L5,7L8,7;M3,3L5,5L7,3M5,5L5,5M3,7L5,5L7,7"
+              fill="freeze"
+            />
+            <animate
+              ref={pathCloseAnimRef}
+              dur="0.2s"
+              attributeName="d"
+              values="M3,3L5,5L7,3M5,5L5,5M3,7L5,5L7,7;M2,3L5,3L8,3M2,5L8,5M2,7L5,7L8,7"
+              fill="freeze"
+            />
+          </path>
+        </svg>
       </button>
-
       <div className={`nav-links${menuOpen ? ' open' : ''}`}>
         <Link to="/chart" className="nav-link" onClick={handleNavClick}>Chart</Link>
         <Link to="/list" className="nav-link" onClick={handleNavClick}>Market List</Link>
-        <Link to="/monitoring" className="nav-link" onClick={handleNavClick}>Monitoring</Link>
         {isLoggedIn ? (
           <>
             <Link to="/dashboard" className="nav-link" onClick={handleNavClick}>Dashboard</Link>
             {isAdmin && (
-  <Link
-    to="/anomalies"
-    className="nav-link admin-link"
-    onClick={handleNavClick}
-  >
-    🚨 Anomalies
-  </Link>
-)}
+            <>
+              <Link to="/anomalies" className="nav-link admin-link" onClick={handleNavClick}>
+                Anomalies
+              </Link>
+              <Link to="/monitoring" className="nav-link" onClick={handleNavClick}>
+                Monitoring
+              </Link>
+            </>
+        )}
 
             <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
           </>
@@ -115,7 +152,7 @@ export default function Navbar() {
         {isAdmin && (
           <button
             className="btn btn-danger"
-            title="Run full anomaly scan"
+            title="Scan Anomaly"
             onClick={async () => {
               try {
                 const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
@@ -136,7 +173,7 @@ export default function Navbar() {
               }
             }}
           >
-            ⚡ Run Full Scan
+            Full Scan
           </button>
         )}
         <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle color theme">

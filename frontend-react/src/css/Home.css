@@ -29,16 +29,11 @@
     align-items: start;
 }
 
-/* Hero Section - Full Width Top */
+/* Hero Section - Full Width Top (flat) */
 .hero-section-full {
     position: relative;
     padding: 40px 24px;
-    background:
-        radial-gradient(1200px 240px at 20% -40%, rgba(159, 240, 200, 0.35), transparent 60%),
-        radial-gradient(900px 240px at 100% 10%, rgba(191, 246, 219, 0.35), transparent 60%),
-        linear-gradient(135deg, rgba(182, 255, 220, 0.5), rgba(243, 255, 249, 0.65)),
-        var(--cute-cream);
-    backdrop-filter: blur(10px) saturate(110%);
+    background: var(--cute-cream);
     border-radius: 22px;
     margin-bottom: 40px;
     box-shadow: 0 12px 40px var(--cute-shadow);
@@ -46,10 +41,8 @@
 }
 
 body.dark .hero-section-full {
-    background:
-        radial-gradient(820px 260px at 18% 18%, rgba(60, 220, 190, 0.22), transparent 60%),
-        radial-gradient(900px 280px at 82% 12%, rgba(90, 200, 255, 0.18), transparent 60%),
-        linear-gradient(145deg, #0f213d 0%, #0d1b33 45%, #0f2742 100%);
+    /* flat dark surface */
+    background: #0f213d;
     border: 1px solid rgba(80, 255, 200, 0.18);
     box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
 }
@@ -90,20 +83,19 @@ body.dark .hero-section-full {
 
 .hero-logo {
     width: 200px;
-    height: 200px;
-    margin-bottom: 20px;
-    filter: drop-shadow(0 4px 12px rgba(44, 193, 127, 0.3));
+    height: 100px;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 4px 10px rgba(44, 193, 127, 0.28));
     animation: float 8s ease-in-out infinite;
 }
 
 @keyframes float {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
+    50% { transform: translateY(-3px); }
 }
 
 .hero-motto {
     font-size: 1.8rem;
-    font-weight: 700;
     color: var(--cute-green-800);
     margin: 0 0 12px 0;
     letter-spacing: -0.5px;
@@ -141,9 +133,6 @@ body.dark .hero-buttons .btn {
     background-clip: padding-box;
 }
 
-.guest-link { color: var(--line-btn); margin-top: 16px; }
-.guest-link a { color: #ffd700; text-decoration: none; font-weight: 600; }
-
 .hero-buttons { display:flex; gap:16px; align-items:center; margin-top:24px; flex-wrap: nowrap; }
 
 .hero-buttons .btn {
@@ -159,53 +148,53 @@ body.dark .hero-buttons .btn {
     text-overflow: ellipsis;
 }
 
-.guest-link { color: rgba(255,255,255,0.9); margin-top: 16px; }
-.guest-link a { color: #ffd700; text-decoration: none; font-weight: 600; }
-
 .card {
-    background:
-        linear-gradient(180deg, rgba(191, 246, 219, 0.18), rgba(243, 255, 249, 0.4)),
-        rgba(255,255,255,0.78);
-    backdrop-filter: blur(8px) saturate(110%);
+    /* flat card surface */
+    background: var(--card-bg);
     border-radius: 18px;
     padding: 18px;
     box-shadow: 0 10px 30px var(--cute-shadow);
-    border: 1px solid var(--cute-outline);
+    border: 1px solid var(--border-color);
     transition: all 0.28s ease;
 }
 
 .card:hover {
-    box-shadow: 0 14px 44px rgba(44, 193, 127, 0.22);
+    box-shadow: 0 14px 44px rgba(2,6,23,0.08);
     transform: translateY(-2px);
 }
 
-/* dark-mode card surfaces */
+/* dark-mode card surfaces (flat) */
 body.dark .card {
-    background:
-        linear-gradient(180deg, rgba(34, 60, 96, 0.65), rgba(22, 45, 78, 0.82)),
-        rgba(16, 28, 48, 0.75);
-    backdrop-filter: blur(7px) saturate(115%);
-    border-color: rgba(150, 255, 230, 0.14);
+    background: rgba(12,20,34,0.86);
+    border-color: rgba(150, 255, 230, 0.06);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
 }
 
 .anomaly-card { margin-bottom: 18px; }
 .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-.card-header h3 { margin:0; font-size:1.15rem; background: linear-gradient(135deg, var(--cute-green-800), #ffd700 55%, var(--cute-green-600)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.card-header h3 { margin:0; font-size:1.15rem; color: var(--text-main); font-weight:700; }
 .show-more { color: var(--cute-green-800); text-decoration:none; transition: 0.2s ease; opacity: 0.8; }
 .show-more:hover { color: var(--cute-green-700); opacity: 1; }
 .card-body { display:flex; flex-direction:column; gap:10px; }
-.anomaly-row { display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px; background: linear-gradient(135deg, rgba(191, 246, 219, 0.4), rgba(255,255,255,0.6)); transition: all 0.18s ease; border: 1px solid var(--cute-outline); }
-.anomaly-row:hover { background: linear-gradient(135deg, rgba(191, 246, 219, 0.6), rgba(255,255,255,0.72)); box-shadow: 0 6px 20px rgba(44, 193, 127, 0.15); border-color: rgba(44, 193, 127, 0.28); }
+.anomaly-row {
+    display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px;
+    background: var(--bg-surface);
+    transition: all 0.18s ease; border: 1px solid var(--cute-outline);
+}
+.anomaly-row:hover {
+    background: var(--bg-surface);
+    box-shadow: 0 6px 20px rgba(2,6,23,0.06);
+    border-color: rgba(0,0,0,0.04);
+}
 
 body.dark .anomaly-row {
-    background: linear-gradient(135deg, rgba(46, 94, 140, 0.55), rgba(26, 52, 88, 0.8));
-    border: 1px solid rgba(140, 220, 210, 0.22);
+    background: #122033;
+    border: 1px solid rgba(140, 220, 210, 0.06);
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 body.dark .anomaly-row:hover {
-    background: linear-gradient(135deg, rgba(60, 120, 180, 0.6), rgba(32, 64, 110, 0.82));
-    border-color: rgba(160, 255, 230, 0.3);
+    background: #14283a;
+    border-color: rgba(160, 255, 230, 0.06);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
 }
 
@@ -453,6 +442,7 @@ body.dark .anomaly-count .count-text { color: #b9ffee; }
 @media (max-width: 768px) {
     .homepage-grid { grid-template-columns: 1fr; }
     .card { margin-bottom: 12px; }
+    .hero-logo { width: 200px; height: 100px; }
 }
 
 /* Tighter mobile layout (iPhone 14 Pro Max width and below) */
@@ -464,6 +454,7 @@ body.dark .anomaly-count .count-text { color: #b9ffee; }
     .hero-subtitle { font-size: 0.98rem; max-width: none; }
     .hero-buttons { gap: 12px; }
     .hero-buttons .btn { width: 150px; max-width: 150px; flex: 0 0 150px; }
+    .hero-logo { width: 200px; height: 200px; }
 
     .card { padding: 14px; }
 
@@ -517,3 +508,100 @@ body.dark .hero-section-full {
 }
 body.dark .hero-section-full::before,
 body.dark .hero-section-full::after { opacity: 0.28; }
+
+/* FORCE RESPONSIVE LAYOUTS: make homepage behave like the hero section at all widths
+   - collapse grid to single column at narrower viewports
+   - cap anomaly/news card widths and center them
+   - avoid any min-widths that cause horizontal scroll */
+
+/* Collapse to one column on tablets and below */
+@media (max-width: 900px) {
+    .homepage-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+
+/* Narrow screens: aggressively constrain cards and inner elements */
+@media (max-width: 520px) {
+    /* reduce container padding so cards can fit comfortably */
+    .home-container { padding-left: 12px; padding-right: 12px; }
+
+    /* ensure cards never exceed their container and are centered like hero */
+    .card, .card.anomaly-card, .news-card {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 450px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* tighten internal spacings */
+    .card-body, .news-list { gap: 8px; }
+    .anomaly-row { gap: 8px; padding: 8px; }
+    .logo-circle { width: 40px; height: 40px; }
+
+    /* prevent child elements from forcing wider layout */
+    .homepage-grid, .right-column, .card, .card * { min-width: 0; }
+    .anomaly-meta, .anomaly-stats, .news-item > div { min-width: 0; }
+
+    /* truncate long text instead of expanding the card */
+    .company, .news-title, .anomaly-stats .price, .anomaly-stats .anomaly-time {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+}
+
+/* Extra-small devices: reduce max width further to avoid edge cases */
+@media (max-width: 380px) {
+    .card, .card.anomaly-card, .news-card { max-width: 360px; }
+    .hero-logo { width: 200px; height: 200px; }
+}
+
+/* Mid-size breakpoint: 521px — 768px: match hero-like centered behavior */
+@media (min-width: 521px) and (max-width: 768px) {
+    .home-container { padding-left: 16px; padding-right: 16px; }
+    .homepage-grid { grid-template-columns: 1fr; gap: 18px; }
+
+    .card, .card.anomaly-card, .news-card {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 520px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .anomaly-row { gap: 10px; padding: 10px; }
+    .logo-circle { width: 44px; height: 44px; }
+
+    /* prevent children from forcing width */
+    .homepage-grid, .right-column, .card, .card * { min-width: 0; }
+    .anomaly-meta, .anomaly-stats, .news-item > div { min-width: 0; }
+
+    /* truncate long strings rather than expanding layout */
+    .company, .news-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .anomaly-stats .price, .anomaly-stats .anomaly-time { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* === Local overrides: keep primary button flat/green on hover (prevent blue hover) === */
+/* This rule is intentionally specific and uses !important to override competing gradients/vars */
+.btn-primary,
+button.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus,
+button.btn-primary:hover,
+button.btn-primary:focus {
+    background: var(--cute-green-700, var(--primary)) !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 6px 18px rgba(44,193,127,0.12) !important;
+    transform: none !important;
+    outline: none !important;
+}
+
+/* Provide a subtle green focus ring rather than the default blue outline */
+.btn-primary:focus-visible,
+button.btn-primary:focus-visible {
+    box-shadow: 0 0 0 4px rgba(44,193,127,0.12) !important;
+    outline: none !important;
+}
+
+/* If any rule forces the hover to blue via a gradient using --primary-hover, neutralize it specifically */
+.btn-primary:hover { background: var(--cute-green-700, var(--primary)) !important; }

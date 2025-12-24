@@ -90,6 +90,7 @@ function App() {
                 <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                 <Route path="/cache" element={<CacheManagementPage />} />
                 <Route path="/marketlists" element={<MarketlistsManagementPage />} />
+                <Route path="/monitoring" element={<MonitoringDashboard />} />
                 <Route path="/users" element={<UsersManagementPage />} />
                 <Route path="/subscribers" element={<SubscribersManagementPage />} />
               </Route>
@@ -105,7 +106,6 @@ function App() {
             <Route path="/company/:ticker" element={<CompanyProfile />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/list" element={<MarketList />} />
-            <Route path="/monitoring" element={<MonitoringDashboard />} />
 
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />
