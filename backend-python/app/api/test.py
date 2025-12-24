@@ -20,21 +20,8 @@ def get_company_domain(ticker: str):
 
 
 def get_logo_url(domain: str):
-    """
-    Try Clearbit first, fallback to Google Favicon.
-    """
-    clearbit_url = f"https://logo.clearbit.com/{domain}"
+    """Return a best-effort favicon URL (Google Favicon)."""
     google_favicon_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
-
-    # If Clearbit actually returns an image (200)
-    try:
-        r = requests.get(clearbit_url, timeout=5)
-        if r.status_code == 200 and r.headers["content-type"].startswith("image"):
-            return clearbit_url
-    except:
-        pass
-
-    # Fallback
     return google_favicon_url
 
 

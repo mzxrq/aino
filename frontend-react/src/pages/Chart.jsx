@@ -4,9 +4,7 @@ import { DateTime } from 'luxon';
 import Swal from '../utils/muiSwal';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
-import '../css/Chart-toolbar-fixes.css';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
-import ChartToolbar from '../components/ChartToolbar';
 import TimezoneSelect from '../components/TimezoneSelect';
 import TickerSearch from '../components/TickerSearch';
 import EchartsCard from '../components/EchartsCard';
@@ -16,7 +14,7 @@ import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBa
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-const PY_API = `${API_URL}/py`;
+const PY_API = `${PY_DIRECT}/py`;
 
 // City-based timezone labels mapped to IANA identifiers
 const CITY_TZ_MAP = {
@@ -166,7 +164,7 @@ function getTimezoneTimeString(tz) {
     { label: '1M', period: '1mo', interval: '1d' },
     { label: '6M', period: '6mo', interval: '1d' },
     { label: '1Y', period: '1y', interval: '1d' },
-    { label: 'MAX', period: 'max', interval: '1wk' }
+    { label: 'Max', period: 'max', interval: '1wk' }
   ];
 
 // Normalize preset display labels (e.g. "1D 1m" -> "1D", keep "1M 30m" and "1M 1d")
@@ -187,7 +185,7 @@ function formatPresetLabel(p) {
   if (per === '1y') return '1Y';
   if (per === '2y') return '2Y';
   if (per === '5y') return '5Y';
-  if (per === 'max') return 'MAX';
+  if (per === 'max') return 'Max';
   return (p.label || '').split(' ')[0] || p.label;
 }
 
@@ -285,7 +283,10 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
   const movingAverages = payload.moving_averages || { MA5: [], MA25: [], MA75: [] };
   const parabolicSAR = payload.parabolic_sar || { SAR: [] };
   const rawAnomalies = useMemo(() => {
-    return (payload.anomaly_markers?.dates || []).map((d, i) => ({ date: d, y: (payload.anomaly_markers?.y_values || [])[i] }))
+    const datesArr = payload.anomaly_markers?.dates || [];
+    const yArr = payload.anomaly_markers?.y_values || [];
+    const reasonArr = payload.anomaly_markers?.reason || [];
+    return datesArr.map((d, i) => ({ date: d, y: yArr[i], reason: reasonArr[i] }))
       .filter(x => x.date && (x.y !== undefined && x.y !== null));
   }, [payload.anomaly_markers]);
 
@@ -882,139 +883,7 @@ export default function Chart() {
     setTickers([]);
   }
 
-  async function saveToStockGroup() {
-    if (!token || !user) {
-      await Swal.fire({
-        icon: 'info',
-        title: 'Please Login',
-        text: 'You need to be signed in to save stock groups.',
-        confirmButtonText: 'Go to Login',
-        confirmButtonColor: '#00aaff'
-      }).then((result) => {
-        if (result.isConfirmed) navigate('/login');
-      });
-      return;
-    }
-
-    if (tickers.length === 0) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'No Tickers',
-        text: 'Please add at least one ticker before saving.',
-        confirmButtonColor: '#00aaff'
-      });
-      return;
-    }
-
-    const { value: groupName } = await Swal.fire({
-      title: 'Save Stock Group',
-      input: 'text',
-      inputPlaceholder: 'e.g., Tech Stocks, Watchlist 1',
-      inputLabel: 'Group Name',
-      showCancelButton: true,
-      confirmButtonColor: '#00aaff',
-      inputValidator: (value) => {
-        if (!value) return 'Group name cannot be empty';
-        if (value.length > 50) return 'Group name must be 50 characters or less';
-      }
-    });
-
-    if (groupName) {
-      try {
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-        const res = await fetch(`${front}/node/stock-groups`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ 
-            userId: user.id || user._id || user.userId,
-            name: groupName,
-            tickers: tickers
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to save group');
-        await Swal.fire({
-          icon: 'success',
-          title: 'Saved!',
-          text: `Stock group "${groupName}" saved successfully.`,
-          confirmButtonColor: '#00aaff'
-        });
-      } catch (error) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error.message || 'Failed to save stock group',
-          confirmButtonColor: '#dc2626'
-        });
-      }
-    }
-  }
-
-  async function loadFromStockGroup() {
-    if (!token || !user) {
-      await Swal.fire({
-        icon: 'info',
-        title: 'Please Login',
-        text: 'You need to be signed in to load stock groups.',
-        confirmButtonText: 'Go to Login',
-        confirmButtonColor: '#00aaff'
-      }).then((result) => {
-        if (result.isConfirmed) navigate('/login');
-      });
-      return;
-    }
-
-    try {
-      const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-      const res = await fetch(`${front}/node/stock-groups`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const groups = await res.json();
-      if (!res.ok) throw new Error(groups.message || 'Failed to fetch groups');
-      
-      if (!groups || groups.length === 0) {
-        await Swal.fire({
-          icon: 'info',
-          title: 'No Groups',
-          text: 'You have no saved stock groups yet.',
-          confirmButtonColor: '#00aaff'
-        });
-        return;
-      }
-
-      const { value: selectedGroup } = await Swal.fire({
-        title: 'Load Stock Group',
-        input: 'select',
-        inputOptions: groups.reduce((acc, g) => ({ ...acc, [g._id]: g.name }), {}),
-        inputPlaceholder: 'Select a group',
-        showCancelButton: true,
-        confirmButtonColor: '#00aaff',
-        inputValidator: (value) => {
-          if (!value) return 'Please select a group';
-        }
-      });
-
-      if (selectedGroup) {
-        const group = groups.find(g => g._id === selectedGroup);
-        setTickers(group.tickers || []);
-        await Swal.fire({
-          icon: 'success',
-          title: 'Loaded!',
-          text: `Stock group "${group.name}" loaded with ${group.tickers.length} ticker(s).`,
-          timer: 1500,
-          confirmButtonColor: '#00aaff'
-        });
-      }
-    } catch (error) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.message || 'Failed to load stock groups',
-        confirmButtonColor: '#dc2626'
-      });
-    }
-  }
+  // Stock group save/load feature deprecated and removed.
 
   function onExpand(ticker) {
     navigate(`/chart/u/${encodeURIComponent(ticker)}`);
@@ -1049,18 +918,6 @@ export default function Chart() {
               <path className="trash-body" d="M3 6h18M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-
-          {/* Saved tickers: only visible when user is logged in */}
-          {user && (
-            <button
-              className="chart-pill toolbar-action-btn"
-              aria-label="Saved tickers"
-              title="Saved tickers"
-              onClick={() => loadFromStockGroup()}
-            >
-              Saved
-            </button>
-          )}
 
           <div
             className={`chart-pills ${showAllPills ? 'pills-expanded' : ''}`}

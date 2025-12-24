@@ -381,10 +381,12 @@ export default function LargeChart() {
   const low = useMemo(() => payload.low || [], [payload.low]);
   const close = useMemo(() => payload.close || [], [payload.close]);
   const volume = useMemo(() => payload.volume || [], [payload.volume]);
-  const anomalies = useMemo(() => (payload.anomaly_markers?.dates || []).map((d, i) => ({
-    date: d,
-    y: (payload.anomaly_markers?.y_values || [])[i]
-  })).filter(x => x.date && (x.y !== undefined && x.y !== null)), [payload.anomaly_markers]);
+  const anomalies = useMemo(() => {
+    const datesArr = payload.anomaly_markers?.dates || [];
+    const yArr = payload.anomaly_markers?.y_values || [];
+    const reasonArr = payload.anomaly_markers?.reason || [];
+    return datesArr.map((d, i) => ({ date: d, y: yArr[i], reason: reasonArr[i] })).filter(x => x.date && (x.y !== undefined && x.y !== null));
+  }, [payload.anomaly_markers]);
   const VWAP = useMemo(() => payload.VWAP || [], [payload.VWAP]);
   const bollinger_bands = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
   const movingAverages = useMemo(() => payload.moving_averages || { MA5: [], MA25: [], MA75: [] }, [payload.moving_averages]);

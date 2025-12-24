@@ -799,8 +799,11 @@
     color: var(--text-primary);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
+    box-orient: vertical;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    line-clamp: 2;
   }
   
   .lc-news-date {

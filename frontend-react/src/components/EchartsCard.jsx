@@ -388,15 +388,148 @@ export default function EchartsCard({
       // If anomalies have an index (from findClosestIndex), use it; otherwise use position
       const xIdx = a.i !== undefined ? a.i : dates.findIndex((d) => d === a.date);
       const coordX = useTimeAxis ? timestamps[xIdx] : xIdx;
+      const hasReason = !!(a && (a.reason || a.Reason || a.Top_Reason || a.top_reason));
+      const color = hasReason ? '#ff8c00' : '#6b7280';
       return {
         coord: [coordX, a.y],
-        itemStyle: { color: 'red' },
-        symbol: 'triangle',
-        symbolSize: 8,
-        name: 'Anomaly'
+        itemStyle: { color },
+        symbol: 'circle',
+        symbolSize: 10,
+        name: 'Anomaly',
+        reason: a.reason || a.Reason || a.Top_Reason || a.top_reason || null
       };
     }).filter((m) => m.coord[0] !== undefined && m.coord[0] !== null);
   }, [anomalies, showAnomaly, dates, useTimeAxis, timestamps]);
+
+  // Also build a scatter data series for anomalies so we can show richer tooltip and labels
+  const anomalyScatterData = useMemo(() => {
+    if (!anomalies || anomalies.length === 0 || !showAnomaly) return [];
+    // Reason -> visual mapping (include canonical labels from train_service.identify_reason)
+    const REASON_MAP = {
+      price_spike: { color: '#ff3b30', symbol: 'circle', short: 'PS', label: 'Price Shock' },
+      volume_spike: { color: '#ff8c00', symbol: 'circle', short: 'VS', label: 'High Vol' },
+      vol_price: { color: '#ff2d55', symbol: 'circle', short: 'V+P', label: 'Vol+Price' },
+      unusual_vwap: { color: '#f59e0b', symbol: 'circle', short: 'VW', label: 'VWAP' },
+      earnings_gap: { color: '#7c3aed', symbol: 'circle', short: 'EG', label: 'Earnings' },
+      split_dividend: { color: '#06b6d4', symbol: 'circle', short: 'SP', label: 'Split/Dividend' },
+      vei_break: { color: '#8b5cf6', symbol: 'circle', short: 'VEI', label: 'VEI Break' },
+      vei_gradual: { color: '#a78bfa', symbol: 'circle', short: 'VEI+', label: 'VEI Gradual' },
+      absorption: { color: '#0ea5a4', symbol: 'circle', short: 'AB', label: 'Absorption' },
+      price_warning: { color: '#f59e0b', symbol: 'circle', short: 'PW', label: 'Price Warning' },
+      news: { color: '#10b981', symbol: 'circle', short: 'NW', label: 'News' },
+      system: { color: '#6b7280', symbol: 'circle', short: 'SY', label: 'System' },
+      other: { color: '#6b7280', symbol: 'circle', short: 'OT', label: 'Other' }
+    };
+
+    const normalizeReasonType = (r) => {
+      if (!r) return 'other';
+      let s = '';
+      try {
+        if (Array.isArray(r)) s = r.join(' ');
+        else if (typeof r === 'object') s = JSON.stringify(r);
+        else s = String(r);
+      } catch (e) {
+        s = String(r || '');
+      }
+      s = s.toLowerCase().trim();
+
+      // Exact canonical labels emitted by backend.train_service.identify_reason
+      if (s === 'vol+price' || s === 'vol+price' || s.includes('vol+price') || s === 'vol+price') return 'vol_price';
+      if (s === 'high vol' || s === 'high vol' || s.includes('high vol') || s.includes('high_vol')) return 'volume_spike';
+      if (s === 'price shock' || s.includes('price shock') || s.includes('price_shock')) return 'price_spike';
+      if (s === 'vei break' || s.includes('vei break') || s.includes('vei_break')) return 'vei_break';
+      if (s === 'vei gradual' || s.includes('vei gradual') || s.includes('vei_gradual')) return 'vei_gradual';
+      if (s === 'absorption') return 'absorption';
+      if (s === 'price warning' || s.includes('price warning')) return 'price_warning';
+      if (s === 'system anomaly detected' || s.includes('system anomaly') || s.includes('system')) return 'system';
+
+      // fallback token matching
+      if (/price[_\- ]?spike|\bprice\b/.test(s) || (s.includes('spike') && s.includes('price'))) return 'price_spike';
+      if (/volume|vol[_\- ]?spike|high[_ ]?volume|vol\b/.test(s)) return 'volume_spike';
+      if (/vwap|unusual[_\- ]?vwap|vwap_anomaly|vwap anomaly/.test(s)) return 'unusual_vwap';
+      if (/earnings?|eps|earn[_\- ]?gap|earnings[_\- ]?gap|gap/.test(s)) return 'earnings_gap';
+      if (/split|dividend|split[_\- ]?dividend/.test(s)) return 'split_dividend';
+      if (/news|headline|press|article/.test(s)) return 'news';
+      return 'other';
+    };
+
+    // Build two-layer data per anomaly: background circle + foreground icon (path)
+    const ICON_PATHS = {
+      price_spike: 'M12 2 L20 12 L14 12 L22 22 L10 14 L14 14 Z',
+      volume_spike: 'M3 21h4V10H3v11zM9 21h4V3H9v18zM15 21h4v-8h-4v8z',
+      vol_price: 'M2 12h20v2H2z M6 6h12v2H6z M10 18h4v2h-4z',
+      unusual_vwap: 'M4 12h16v2H4z M8 6h8v2H8z M6 18h12v2H6z',
+      earnings_gap: 'M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
+      split_dividend: 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z',
+      vei_break: 'M4 4h16v4H4z M4 12h16v4H4z M8 20h8v0H8z',
+      vei_gradual: 'M3 18h4V8H3v10zM9 18h4V6H9v12zM15 18h4V4h-4v14z',
+      absorption: 'M12 2c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8z',
+      price_warning: 'M12 2 L2 22h20L12 2z M11 8h2v6h-2z M11 16h2v2h-2z',
+      news: 'M3 4h18v14H3z M6 7h12v2H6z M6 11h8v2H6z',
+      system: 'M12 2a10 10 0 100 20 10 10 0 000-20z',
+      other: 'M12 2a10 10 0 100 20 10 10 0 000-20z'
+    };
+
+    const bg = [];
+    const icons = [];
+    anomalies.forEach((a) => {
+      const xIdx = a.i !== undefined ? a.i : dates.findIndex((d) => d === a.date);
+      const coordX = useTimeAxis ? timestamps[xIdx] : xIdx;
+      if (coordX === undefined || coordX === null) return;
+      const rawReason = a.reason || a.Reason || a.Top_Reason || a.top_reason || null;
+      const reasonType = normalizeReasonType(rawReason);
+      const map = REASON_MAP[reasonType] || REASON_MAP.other;
+      const fill = map.color || '#6b7280';
+      const short = map.short || '';
+      const iconPath = ICON_PATHS[reasonType] || ICON_PATHS.other;
+
+      // Compute size once so icon hit area can match background circle
+      // Use a smaller range to avoid overlaps (scale by height conservatively)
+      const size = Math.max(6, (height && typeof height === 'number') ? Math.min(10, Math.floor(height / 40)) : 8);
+
+      // Background circle (larger, subtle halo)
+      bg.push({
+        value: [coordX, a.y],
+        itemStyle: { color: fill, opacity: 0.30, borderColor: fill, borderWidth: 1 },
+        symbol: 'circle',
+        // Use computed size
+        symbolSize: size,
+        silent: true
+      });
+
+      // Foreground icon (white SVG path) with reason attached for tooltip
+      // Always-show labels for critical reasons
+      const alwaysShow = ['price_spike', 'volume_spike', 'vei_break'];
+
+      icons.push({
+        value: [coordX, a.y],
+        reason: rawReason,
+        reasonType,
+        reasonLabel: map.label || '',
+        bgColor: fill,
+        // Foreground icon rendered white; its hit area will match the background circle size
+        itemStyle: { color: '#ffffff' },
+        label: {
+          show: alwaysShow.includes(reasonType),
+          formatter: map.label || map.short || '',
+          color: '#ffffff',
+          backgroundColor: fill,
+          padding: [6, 8],
+          borderRadius: 6,
+          fontSize: 11,
+          position: 'top'
+        },
+        emphasis: {
+          label: { show: true }
+        },
+        symbol: `path://${iconPath}`,
+        // Use same size so hovering anywhere on the circle triggers icon tooltip/label
+        symbolSize: size
+      });
+    });
+
+    return { bg, icons };
+  }, [anomalies, showAnomaly, dates, useTimeAxis, timestamps, height]);
 
   const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
 
@@ -465,7 +598,8 @@ export default function EchartsCard({
         lineStyle: { color: '#53c262ff', width: 1.5 },
         symbolSize: 0,
         progressive: 4000,
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        // anomaly markers handled by dedicated scatter series below
+        markPoint: undefined
       });
     } else if (mode === 'candlestick') {
       series.push({
@@ -479,7 +613,7 @@ export default function EchartsCard({
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'hollowcandlestick') {
       series.push({
@@ -493,7 +627,7 @@ export default function EchartsCard({
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'ohlc' || mode === 'heikin' || mode === 'heiken' || mode === 'heikinashi') {
       // OHLC chart - render Heiken-Ashi candlesticks
@@ -508,7 +642,7 @@ export default function EchartsCard({
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'bar') {
       // Bar chart using open prices
@@ -517,7 +651,7 @@ export default function EchartsCard({
         type: 'bar',
         data: open || [],
         itemStyle: { color: '#3fa34d' },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'column') {
       // Column chart using close prices
@@ -526,7 +660,7 @@ export default function EchartsCard({
         type: 'bar',
         data: close || [],
         itemStyle: { color: 'rgba(44, 193, 127, 0.8)' },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'area') {
       // Area chart using close prices
@@ -539,7 +673,7 @@ export default function EchartsCard({
         lineStyle: { color: '#2cc17f', width: 2 },
         symbolSize: 0,
         progressive: 4000,
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else if (mode === 'hlc') {
       // HLC (High-Low-Close) chart - use candlestick as it's most similar
@@ -554,7 +688,7 @@ export default function EchartsCard({
           borderColor: '#26a69a',
           borderColor0: '#e03b3b'
         },
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
       });
     } else {
       // Default to candlestick
@@ -581,7 +715,55 @@ export default function EchartsCard({
         lineStyle: { color: '#53c262ff', width: 1.5 },
         symbolSize: 0,
         progressive: 4000,
-        markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
+        markPoint: undefined
+      });
+    }
+
+    // Overlay anomalies using two scatter layers: a translucent background circle and a foreground SVG icon
+    if (anomalyScatterData && anomalyScatterData.icons && anomalyScatterData.icons.length > 0) {
+      // Background circles (silent, no tooltip)
+      if (anomalyScatterData.bg && anomalyScatterData.bg.length > 0) {
+        series.push({
+          name: 'AnomalyBg',
+          type: 'scatter',
+          data: anomalyScatterData.bg,
+          symbol: 'circle',
+          label: { show: false },
+          tooltip: { show: false },
+          silent: true,
+          zlevel: 108
+        });
+      }
+
+      // Foreground icons (white paths) - these carry the tooltip and reason metadata
+      series.push({
+        name: 'Anomalies',
+        type: 'scatter',
+        data: anomalyScatterData.icons,
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 11, fontWeight: 600 } },
+        zlevel: 110,
+        tooltip: {
+          show: true,
+          trigger: 'item',
+          formatter: (param) => {
+            try {
+              const d = param && param.value ? param.value : (param && param.data && param.data.value) || null;
+              const rawDate = useTimeAxis ? (typeof d[0] === 'number' ? new Date(d[0]).toISOString() : (dates && param.dataIndex !== undefined ? dates[param.dataIndex] : param.name)) : (dates && param.dataIndex !== undefined ? dates[param.dataIndex] : param.name);
+              const dt = parseToTimezone(rawDate, timezone);
+              const dateStr = dt ? dt.toFormat('MM/dd/yyyy HH:mm:ss') : rawDate;
+              const price = Array.isArray(d) ? (d.length === 2 ? d[1] : d[1] || d[2] || d[0]) : d;
+              const reason = (param.data && (param.data.reason || param.data.Reason)) || param.data?.reasonLabel || '';
+              const bg = param.data && param.data.bgColor ? param.data.bgColor : '#ff8c00';
+              let html = `<div style="font-weight:600;margin-bottom:6px;color:${bg}">${dateStr}</div>`;
+              html += `<div style="font-size:12px; color:#333; margin-bottom:6px">Price: <span style=\"font-weight:700\">${formatWithCommas(Number(price || 0), 2)}</span></div>`;
+              if (reason) html += `<div style="font-size:12px;color:#ff8c00">Reason: <span style=\"font-weight:700;color:#333\">${String(reason)}</span></div>`;
+              return html;
+            } catch (e) {
+              return '';
+            }
+          }
+        }
       });
     }
 
@@ -765,7 +947,7 @@ export default function EchartsCard({
           }
           
           let html = '<div style="font-weight: 600; font-size: 13px; margin-bottom: 8px; color: #2cc17f;">';
-          html += `📅 ${dateStr}`;
+          html += ` ${dateStr}`;
           if (timeStr) html += ` <span style="color: #666; font-weight: 400;">⏰ ${timeStr}</span>`;
           html += '</div>';
           html += '<div style="border-top: 1px solid #e5e7eb; margin: 8px 0;"></div>';
@@ -819,6 +1001,16 @@ export default function EchartsCard({
             } else {
               addRow(seriesName, Number.isNaN(num) ? String(param.value) : formatWithCommas(num, 2), seriesColor);
             }
+
+            // If this param corresponds to an anomaly marker/scatter, include the server-provided reason
+            try {
+              // Robustly extract reason from different param shapes (scatter data object, markPoint, or raw)
+              const maybeData = param.data || {};
+              const maybeReason = maybeData.reason || maybeData.Reason || (maybeData._raw && (maybeData._raw.reason || maybeData._raw.Reason));
+              if (maybeReason) {
+                addRow('Reason', String(maybeReason), '#ff8c00');
+              }
+            } catch (e) { /* ignore */ }
           });
           
           return html;
@@ -947,15 +1139,15 @@ export default function EchartsCard({
         {
           type: 'inside',
           xAxisIndex: [0, 1],
-          yAxisIndex: [0, 1],
+          // Do NOT include yAxisIndex here — keep inside/dataZoom operating on X axis only
           start: 0,
           end: 100,
           minValueSpan: useTimeAxis ? 3600000 : undefined,
-          // Allow direct mouse-wheel zoom (no modifier key) and enable
-          // dragging/panning with mouse drag for a natural pan/zoom UX.
-          zoomOnMouseWheel: true,
+          // Disable built-in wheel/move handling here; we implement vertical-scroll
+          // -> horizontal slider zoom below so scroll up/down adjusts the slider.
+          zoomOnMouseWheel: false,
           moveOnMouseMove: true,
-          moveOnMouseWheel: true
+          moveOnMouseWheel: false
         }
       ],
       series: series.map((s, i) => {
@@ -1017,93 +1209,43 @@ export default function EchartsCard({
 
   const chartRef = React.useRef(null);
 
-  // Attach lightweight zr handlers to ensure wheel zoom and mouse-drag panning
-  // still work even if some parent/container interferes with native events.
+  // Attach a lightweight wheel handler to map vertical scroll -> horizontal slider zoom.
+  // This keeps zooming limited to the x-axis slider and avoids interfering with page scroll.
   React.useEffect(() => {
     const inst = chartRef.current && chartRef.current.getEchartsInstance && chartRef.current.getEchartsInstance();
-    if (!inst || !inst.getZr) return;
-    const zr = inst.getZr();
+    if (!inst) return undefined;
 
-    let dragging = false;
-    let dragStartX = 0;
-    let savedStart = 0;
-    let savedEnd = 100;
+    const dom = (typeof inst.getDom === 'function') ? inst.getDom() : (chartRef.current && chartRef.current.container);
+    if (!dom || !dom.addEventListener) return undefined;
 
-    const getInsideIndex = () => {
+    const handler = (ev) => {
       try {
-        const dz = inst.getOption && inst.getOption().dataZoom;
-        if (!dz) return 1;
-        const idx = dz.findIndex(d => d && d.type === 'inside');
-        return idx >= 0 ? idx : 1;
-      } catch { return 1; }
-    };
-
-    const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
-
-    const onWheel = (e) => {
+        ev.preventDefault();
+      } catch (_) {}
       try {
-        // prevent page scroll while over chart
-        if (e && e.preventDefault) e.preventDefault();
-        const dzIndex = getInsideIndex();
-        const opt = inst.getOption();
-        const dz = (opt && opt.dataZoom && opt.dataZoom[dzIndex]) || { start: 0, end: 100 };
+        const opt = inst.getOption && inst.getOption();
+        const dzList = (opt && opt.dataZoom) || [];
+        let dzIndex = dzList.findIndex(d => d && d.type === 'slider');
+        if (dzIndex < 0) dzIndex = 0;
+        const dz = dzList[dzIndex] || { start: 0, end: 100 };
         const start = Number.isFinite(dz.start) ? dz.start : 0;
         const end = Number.isFinite(dz.end) ? dz.end : 100;
         const span = Math.max(1, end - start);
-        const delta = (e.wheelDelta || -e.deltaY || 0);
-        const zoomFactor = delta > 0 ? 0.9 : 1.1;
+        const delta = ev.deltaY || ev.wheelDelta || 0;
+        const zoomFactor = delta < 0 ? 0.9 : 1.1; // scroll up -> zoom in
         const center = (start + end) / 2;
-        let newSpan = clamp(span * zoomFactor, 1, 100);
-        let newStart = clamp(center - newSpan / 2, 0, 100 - newSpan);
+        const minSpan = 1;
+        let newSpan = Math.max(minSpan, Math.min(100, span * zoomFactor));
+        let newStart = Math.max(0, Math.min(100 - newSpan, center - newSpan / 2));
         let newEnd = newStart + newSpan;
         inst.dispatchAction({ type: 'dataZoom', dataZoomIndex: dzIndex, start: +newStart.toFixed(3), end: +newEnd.toFixed(3) });
-      } catch (err) { /* swallow */ }
+      } catch (err) {
+        // ignore
+      }
     };
 
-    const onMouseDown = (e) => {
-      try {
-        dragging = true;
-        dragStartX = e.offsetX != null ? e.offsetX : (e.event && e.event.offsetX) || 0;
-        const dzIndex = getInsideIndex();
-        const opt = inst.getOption();
-        const dz = (opt && opt.dataZoom && opt.dataZoom[dzIndex]) || { start: 0, end: 100 };
-        savedStart = Number.isFinite(dz.start) ? dz.start : 0;
-        savedEnd = Number.isFinite(dz.end) ? dz.end : 100;
-      } catch {}
-    };
-
-    const onMouseMove = (e) => {
-      if (!dragging) return;
-      try {
-        const dzIndex = getInsideIndex();
-        const rect = zr.getBoundingRect ? zr.getBoundingRect() : { width: zr.getWidth ? zr.getWidth() : 1 };
-        const width = (rect && rect.width) || zr.getWidth && zr.getWidth() || 1;
-        const curX = e.offsetX != null ? e.offsetX : (e.event && e.event.offsetX) || 0;
-        const dx = curX - dragStartX;
-        const pct = (dx / Math.max(1, width)) * 100;
-        let newStart = clamp(savedStart - pct, 0, 100);
-        let newEnd = clamp(savedEnd - pct, 0, 100);
-        const span = newEnd - newStart;
-        if (span <= 0) { newStart = 0; newEnd = Math.max(1, span); }
-        inst.dispatchAction({ type: 'dataZoom', dataZoomIndex: dzIndex, start: +newStart.toFixed(3), end: +newEnd.toFixed(3) });
-      } catch (err) { /* swallow */ }
-    };
-
-    const onMouseUp = () => { dragging = false; };
-
-    zr.on('mousewheel', onWheel);
-    zr.on('mousedown', onMouseDown);
-    zr.on('mousemove', onMouseMove);
-    zr.on('mouseup', onMouseUp);
-
-    return () => {
-      try {
-        zr.off('mousewheel', onWheel);
-        zr.off('mousedown', onMouseDown);
-        zr.off('mousemove', onMouseMove);
-        zr.off('mouseup', onMouseUp);
-      } catch {}
-    };
+    dom.addEventListener('wheel', handler, { passive: false });
+    return () => dom.removeEventListener('wheel', handler);
   }, [chartRef]);
 
   // Tooltip overlay state for accessibility / mobile readability

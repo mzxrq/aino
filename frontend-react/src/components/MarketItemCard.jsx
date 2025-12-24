@@ -139,9 +139,8 @@ export default function MarketItemCard({ item }) {
 
   const changeStr = `${priceChange >= 0 ? "+" : ""}${priceChange.toFixed(2)}%`;
 
-  // --- 4. Logo Handling (Parqet primary, Clearbit fallback) ---
+  // --- 4. Logo Handling (Parqet primary) ---
   const logoUrl = item.logo || `https://assets.parqet.com/logos/symbol/${encodeURIComponent(ticker)}?format=png`;
-  const fallbackLogoUrl = `https://logo.clearbit.com/${ticker.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
   const showLogo = !logoError;
 
   // --- 5. Click Handler ---
@@ -156,18 +155,11 @@ export default function MarketItemCard({ item }) {
       <div className="card-left">
         {showLogo ? (
           <img
-            src={logoUrl}
-            alt={displayTicker}
-            className="card-logo"
-            onError={(e) => {
-              // Try fallback URL once
-              if (e.target.src !== fallbackLogoUrl) {
-                e.target.src = fallbackLogoUrl;
-              } else {
-                setLogoError(true);
-              }
-            }}
-          />
+              src={logoUrl}
+              alt={displayTicker}
+              className="card-logo"
+              onError={(e) => { e.target.onerror = null; setLogoError(true); }}
+            />
         ) : (
           <div className="card-logo-placeholder" />
         )}

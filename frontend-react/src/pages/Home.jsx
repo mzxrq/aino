@@ -31,8 +31,7 @@ export default function Home() {
   const [loadingMap, setLoadingMap] = useState({});
   const API_URL = import.meta.env.VITE_API_URL;
   const PY_URL = import.meta.env.VITE_LINE_PY_URL;
-  const GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-  const PY_BASE = `${GATEWAY_URL}/py`;
+  const PY_BASE = `${PY_URL}/py`;
   async function fetchPyJson(path, init) {
     try {
       const r = await fetch(`${PY_BASE}${path}`, init);
@@ -478,17 +477,13 @@ export default function Home() {
                       if (loading) return <div className="ticker-loader" />;
                       const logo = info && (info.logo || info?.logo_url);
                       const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
-                      const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
                       const src = logo || parqetLogo;
                       return (
                         <img
                           src={src}
                           alt={getDisplayFromRaw(key) || a.company}
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                          onError={(e) => {
-                            if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
-                            else e.target.onerror = null;
-                          }}
+                          onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
                         />
                       );
                     })()}
@@ -539,17 +534,13 @@ export default function Home() {
                       const info = tickerInfoMap.get(key);
                       const logo = info && (info.logo || info?.logo_url);
                       const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
-                      const fallbackLogo = `https://logo.clearbit.com/${key.replace(/[^A-Za-z]/g, '').toLowerCase()}.com`;
                       const src = logo || parqetLogo;
                       return (
                         <img
                           src={src}
                           alt={getDisplayFromRaw(key) || a.company}
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                          onError={(e) => {
-                            if (e.target.src !== fallbackLogo) e.target.src = fallbackLogo;
-                            else e.target.onerror = null;
-                          }}
+                          onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
                         />
                       );
                     })()}
