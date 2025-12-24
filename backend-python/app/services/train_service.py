@@ -878,7 +878,7 @@ def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
     """Populate rule-based flag columns used to annotate reasons.
 
     Adds: Price_Shock (if missing), Price_Shock_Std, is_vol_anomaly,
-    is_price_anomaly, is_vei_anomaly, is_absorption.
+    is_price_anomaly, is_vei_anomaly, is_absorption, Price_warning.
     Operates in-place and returns the DataFrame.
     """
     if df is None or df.empty:
@@ -892,14 +892,19 @@ def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
 
         # Ensure series alignment using the dataframe index
         vol_z = df['Vol_Z'] if 'Vol_Z' in df.columns else pd.Series(0, index=df.index)
+        vol_z = vol_z.astype(float)
         vei = df['VEI'] if 'VEI' in df.columns else pd.Series(0, index=df.index)
+        vei = vei.astype(float)
         price_shock = df['Price_Shock'] if 'Price_Shock' in df.columns else pd.Series(0, index=df.index)
-        pstd = df['Price_Shock_Std'].fillna(0)
+        price_shock = price_shock.astype(float)
+        pstd = df['Price_Shock_Std'].fillna(0).astype(float)
 
         df['is_vol_anomaly'] = vol_z > 3.0
         df['is_price_anomaly'] = price_shock.abs() > (pstd * 2.5)
         df['is_vei_anomaly'] = vei > 1.2
         df['is_absorption'] = (vol_z > 2.0) & (price_shock.abs() < (pstd * 0.5))
+        # Price warning: elevated volume but below the 'vol anomaly' threshold
+        df['Price_warning'] = vol_z > 2.0
     except Exception:
         logger.debug('compute_rule_flags failed', exc_info=True)
     return df
@@ -943,13 +948,14 @@ def detect_anomalies(tickers, period, interval):
         df['Price_Shock_Std'] = df.get('Price_Shock', pd.Series()).rolling(20).std() if 'Price_Shock' in df.columns else pd.Series([np.nan]*len(df))
 
         # 1. Define individual thresholds (rule-based signals)
-        df['is_vol_anomaly'] = df.get('Vol_Z', pd.Series(0)) > 3.0
+        df['is_vol_anomaly'] = df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 3.0
         df['is_price_anomaly'] = df.get('Price_Shock', pd.Series(0)).abs() > (df['Price_Shock'].rolling(20).std().fillna(0) * 2.5)
-        df['is_vei_anomaly'] = df.get('VEI', pd.Series(0)) > 1.2
-        df['is_absorption'] = (df.get('Vol_Z', pd.Series(0)) > 2.0) & (df.get('Price_Shock', pd.Series(0)).abs() < (df['Price_Shock_Std'].fillna(0) * 0.5))
-
+        df['is_vei_anomaly'] = df.get('VEI', pd.Series(0.0, index=df.index)).astype(float) > 1.2
+        df['is_absorption'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0) & (df.get('Price_Shock', pd.Series(0)).abs() < (df['Price_Shock_Std'].fillna(0) * 0.5))
+        df['Price_warning'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0)
+        
         # Combine model-based and rule-based results: mark anomaly if either indicates one
-        df['Is_Anomaly'] = df['Is_Anomaly_model'] | df['is_vol_anomaly'] | df['is_price_anomaly'] | df['is_vei_anomaly'] | df['is_absorption']
+        df['Is_Anomaly'] = df['Is_Anomaly_model'] | df['is_vol_anomaly'] | df['is_price_anomaly'] | df['is_vei_anomaly'] | df['is_absorption'] | df['Price_warning']
 
         # Annotate Top_Reason for any detected anomaly row
         try:
