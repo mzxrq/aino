@@ -183,6 +183,20 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
     return meta
 
 
+def _get_marketlist_display_ticker(t: str) -> Optional[str]:
+    """Return a displayTicker from the marketlists collection if present."""
+    if db is None:
+        return None
+    try:
+        doc = db.marketlists.find_one({"ticker": t.upper()})
+        if not doc:
+            return None
+        # common field name: displayTicker (case-sensitive in seed may vary)
+        return doc.get('displayTicker') or doc.get('displayTickerName') or doc.get('display')
+    except Exception:
+        return None
+
+
 def _market_open_close_for_label(market_label: str):
     """Return (timezone, open_time, close_time) for a market label.
 
@@ -554,6 +568,7 @@ def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
         'pct_change': payload.get('pct_change'),
         'companyName': payload.get('companyName'),
         'market': payload.get('market'),
+        'displayTicker': payload.get('displayTicker'),
     }
 
     return normalized
@@ -675,6 +690,12 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                 meta = _get_ticker_meta(t)
                 cached['companyName'] = cached.get('companyName') or meta.get('companyName')
                 cached['market'] = cached.get('market') or meta.get('market')
+                # Prefer displayTicker from cache or marketlists metadata when available
+                ml_display = cached.get('displayTicker') if isinstance(cached, dict) else None
+                if not ml_display:
+                    ml_display = _get_marketlist_display_ticker(t)
+                if ml_display:
+                    cached['displayTicker'] = ml_display
                 enriched = _enrich_anomalies_from_db_if_missing(t, cached)
                 result[t] = _ensure_payload_shape(enriched)
                 continue
@@ -755,6 +776,15 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
         meta = _get_ticker_meta(t)
         payload['companyName'] = payload.get('companyName') or meta.get('companyName')
         payload['market'] = payload.get('market') or meta.get('market')
+        # attach displayTicker when available (marketlists preferred)
+        try:
+            ml_display = payload.get('displayTicker')
+            if not ml_display:
+                ml_display = _get_marketlist_display_ticker(t)
+            if ml_display:
+                payload['displayTicker'] = ml_display
+        except Exception:
+            pass
 
         # Add best-effort market open/close ISO timestamps for the payload
         try:
@@ -823,6 +853,7 @@ def search_ticker(query: str) -> List[dict]:
         exchange = doc.get("country") or doc.get("market") or doc.get("primaryExchange") or ""
         results.append({
             "ticker": doc.get("ticker"),
+            "displayTicker": doc.get("displayTicker") or doc.get("display") or None,
             "name": doc.get("companyName"),
             "exchange": exchange,
             "market": exchange

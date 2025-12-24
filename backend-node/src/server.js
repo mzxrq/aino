@@ -8,7 +8,7 @@ require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const express = require("express");
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const { connectDB } = require("./config/db");
+const { connectDB, getDb } = require("./config/db");
 const cors = require("cors");
 
 const app = express();
@@ -65,6 +65,10 @@ app.use('/node/mail', mailRoutes);
 const newsRoutes = require('./routes/newsRoutes');
 app.use('/node/news', newsRoutes);
 
+// News views (record article view counts and fetch top viewed articles)
+const newsViewsRoutes = require('./routes/newsViewsRoute');
+app.use('/node/news/views', newsViewsRoutes);
+
 // Debug routes
 const debugRoutes = require('./routes/debugRoutes');
 app.use('/node/debug', debugRoutes);
@@ -115,8 +119,18 @@ const PORT = process.env.PORT || 5050;
 
 // Connect to MongoDB but start server regardless
 connectDB()
-  .then(() => {
+  .then(async () => {
     console.log('Connected to DB');
+    // ensure indexes for news_views
+    try{
+      const db = getDb();
+      const col = db.collection('news_views');
+      await col.createIndex({ articleKey: 1 }, { unique: true, sparse: true });
+      await col.createIndex({ views: -1 });
+      console.log('Ensured indexes for news_views');
+    }catch(e){
+      console.warn('Failed to ensure news_views indexes', e);
+    }
     startServer();
   })
   .catch(err => {

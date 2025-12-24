@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import ReactEcharts from 'echarts-for-react';
 import { DateTime } from 'luxon';
 
@@ -141,6 +142,7 @@ export default function EchartsCard({
   showSAR = false,
   bbSigma = '2sigma'
 }) {
+  const displayTicker = getDisplayFromRaw(ticker);
   // Normalize chartMode to accept both 'lines' and 'line' (some callers use plural)
   const mode = chartMode === 'lines' ? 'line' : chartMode;
   // Build candlestick data: each item is [open, close, low, high]
@@ -455,7 +457,7 @@ export default function EchartsCard({
     // 1. Main price series based on selected chart mode
     if (mode === 'line') {
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'line',
         data: useTimeAxis ? timeLineData : lineData,
         smooth: false,
@@ -467,7 +469,7 @@ export default function EchartsCard({
       });
     } else if (mode === 'candlestick') {
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'candlestick',
         data: useTimeAxis ? timeCandleData : candleData,
         encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
@@ -481,7 +483,7 @@ export default function EchartsCard({
       });
     } else if (mode === 'hollowcandlestick') {
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'candlestick',
         data: useTimeAxis ? timeCandleData : candleData,
         encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
@@ -493,11 +495,13 @@ export default function EchartsCard({
         },
         markPoint: anomalyMarkers.length > 0 ? { data: anomalyMarkers } : undefined
       });
-    } else if (mode === 'ohlc') {
-      // OHLC chart - Heiken-Ashi candlestick
+    } else if (mode === 'ohlc' || mode === 'heikin' || mode === 'heiken' || mode === 'heikinashi') {
+      // OHLC chart - render Heiken-Ashi candlesticks
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'candlestick',
+        data: useTimeAxis ? timeHeikinAshiData : heikinAshiData,
+        encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
         itemStyle: {
           color: '#26a69a',
           color0: '#e03b3b',
@@ -509,7 +513,7 @@ export default function EchartsCard({
     } else if (mode === 'bar') {
       // Bar chart using open prices
       series.push({
-        name: `${ticker} Open`,
+        name: `${displayTicker} Open`,
         type: 'bar',
         data: open || [],
         itemStyle: { color: '#3fa34d' },
@@ -518,7 +522,7 @@ export default function EchartsCard({
     } else if (mode === 'column') {
       // Column chart using close prices
       series.push({
-        name: `${ticker} Close`,
+        name: `${displayTicker} Close`,
         type: 'bar',
         data: close || [],
         itemStyle: { color: 'rgba(44, 193, 127, 0.8)' },
@@ -527,7 +531,7 @@ export default function EchartsCard({
     } else if (mode === 'area') {
       // Area chart using close prices
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'line',
         data: useTimeAxis ? timeLineData : lineData,
         smooth: true,
@@ -540,7 +544,7 @@ export default function EchartsCard({
     } else if (mode === 'hlc') {
       // HLC (High-Low-Close) chart - use candlestick as it's most similar
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'line',
         data: useTimeAxis ? timeHlcData : hlcData,
         encode: useTimeAxis ? { x: 0, y: [1, 2, 3, 4] } : undefined,
@@ -569,7 +573,7 @@ export default function EchartsCard({
       // });
       // Default to line chart
       series.push({
-        name: `${ticker}`,
+        name: `${displayTicker}`,
         type: 'line',
         data: useTimeAxis ? timeLineData : lineData,
         smooth: false,
@@ -947,7 +951,11 @@ export default function EchartsCard({
           start: 0,
           end: 100,
           minValueSpan: useTimeAxis ? 3600000 : undefined,
-          zoomOnMouseWheel: 'shift'
+          // Allow direct mouse-wheel zoom (no modifier key) and enable
+          // dragging/panning with mouse drag for a natural pan/zoom UX.
+          zoomOnMouseWheel: true,
+          moveOnMouseMove: true,
+          moveOnMouseWheel: true
         }
       ],
       series: series.map((s, i) => {
@@ -1008,6 +1016,95 @@ export default function EchartsCard({
   ]);
 
   const chartRef = React.useRef(null);
+
+  // Attach lightweight zr handlers to ensure wheel zoom and mouse-drag panning
+  // still work even if some parent/container interferes with native events.
+  React.useEffect(() => {
+    const inst = chartRef.current && chartRef.current.getEchartsInstance && chartRef.current.getEchartsInstance();
+    if (!inst || !inst.getZr) return;
+    const zr = inst.getZr();
+
+    let dragging = false;
+    let dragStartX = 0;
+    let savedStart = 0;
+    let savedEnd = 100;
+
+    const getInsideIndex = () => {
+      try {
+        const dz = inst.getOption && inst.getOption().dataZoom;
+        if (!dz) return 1;
+        const idx = dz.findIndex(d => d && d.type === 'inside');
+        return idx >= 0 ? idx : 1;
+      } catch { return 1; }
+    };
+
+    const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
+
+    const onWheel = (e) => {
+      try {
+        // prevent page scroll while over chart
+        if (e && e.preventDefault) e.preventDefault();
+        const dzIndex = getInsideIndex();
+        const opt = inst.getOption();
+        const dz = (opt && opt.dataZoom && opt.dataZoom[dzIndex]) || { start: 0, end: 100 };
+        const start = Number.isFinite(dz.start) ? dz.start : 0;
+        const end = Number.isFinite(dz.end) ? dz.end : 100;
+        const span = Math.max(1, end - start);
+        const delta = (e.wheelDelta || -e.deltaY || 0);
+        const zoomFactor = delta > 0 ? 0.9 : 1.1;
+        const center = (start + end) / 2;
+        let newSpan = clamp(span * zoomFactor, 1, 100);
+        let newStart = clamp(center - newSpan / 2, 0, 100 - newSpan);
+        let newEnd = newStart + newSpan;
+        inst.dispatchAction({ type: 'dataZoom', dataZoomIndex: dzIndex, start: +newStart.toFixed(3), end: +newEnd.toFixed(3) });
+      } catch (err) { /* swallow */ }
+    };
+
+    const onMouseDown = (e) => {
+      try {
+        dragging = true;
+        dragStartX = e.offsetX != null ? e.offsetX : (e.event && e.event.offsetX) || 0;
+        const dzIndex = getInsideIndex();
+        const opt = inst.getOption();
+        const dz = (opt && opt.dataZoom && opt.dataZoom[dzIndex]) || { start: 0, end: 100 };
+        savedStart = Number.isFinite(dz.start) ? dz.start : 0;
+        savedEnd = Number.isFinite(dz.end) ? dz.end : 100;
+      } catch {}
+    };
+
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+      try {
+        const dzIndex = getInsideIndex();
+        const rect = zr.getBoundingRect ? zr.getBoundingRect() : { width: zr.getWidth ? zr.getWidth() : 1 };
+        const width = (rect && rect.width) || zr.getWidth && zr.getWidth() || 1;
+        const curX = e.offsetX != null ? e.offsetX : (e.event && e.event.offsetX) || 0;
+        const dx = curX - dragStartX;
+        const pct = (dx / Math.max(1, width)) * 100;
+        let newStart = clamp(savedStart - pct, 0, 100);
+        let newEnd = clamp(savedEnd - pct, 0, 100);
+        const span = newEnd - newStart;
+        if (span <= 0) { newStart = 0; newEnd = Math.max(1, span); }
+        inst.dispatchAction({ type: 'dataZoom', dataZoomIndex: dzIndex, start: +newStart.toFixed(3), end: +newEnd.toFixed(3) });
+      } catch (err) { /* swallow */ }
+    };
+
+    const onMouseUp = () => { dragging = false; };
+
+    zr.on('mousewheel', onWheel);
+    zr.on('mousedown', onMouseDown);
+    zr.on('mousemove', onMouseMove);
+    zr.on('mouseup', onMouseUp);
+
+    return () => {
+      try {
+        zr.off('mousewheel', onWheel);
+        zr.off('mousedown', onMouseDown);
+        zr.off('mousemove', onMouseMove);
+        zr.off('mouseup', onMouseUp);
+      } catch {}
+    };
+  }, [chartRef]);
 
   // Tooltip overlay state for accessibility / mobile readability
   const [tooltipVisible, setTooltipVisible] = React.useState(false);

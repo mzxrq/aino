@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import TimezoneSelect from '../components/TimezoneSelect';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import EchartsCard from '../components/EchartsCard';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
@@ -16,16 +17,16 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const PY_API = `${API_URL}/py`;
 
-async function fetchJsonWithFallback(path){
+async function fetchJsonWithFallback(path) {
   // Try Node gateway first, then fall back to direct Python service
   const primary = `${PY_API}${path}`; // e.g. http://localhost:5050/py/news...
   const fallback = `${PY_DIRECT}/py${path}`; // e.g. http://localhost:5000/py/news...
-  try{ const r = await fetch(primary); if (r.ok) return await r.json(); }catch(e){}
-  try{ const r2 = await fetch(fallback); if (r2.ok) return await r2.json(); }catch(e){}
+  try { const r = await fetch(primary); if (r.ok) return await r.json(); } catch (e) { }
+  try { const r2 = await fetch(fallback); if (r2.ok) return await r2.json(); } catch (e) { }
   throw new Error('request failed');
 }
 
-export default function CompanyProfile(){
+export default function CompanyProfile() {
   const { ticker: param } = useParams();
   const ticker = (param || '').toUpperCase();
 
@@ -55,47 +56,47 @@ export default function CompanyProfile(){
   const [finOverlayTitle, setFinOverlayTitle] = useState('');
   const [finOverlayData, setFinOverlayData] = useState(null);
 
-  function limitedObject(obj, max){
+  function limitedObject(obj, max) {
     if (!obj || typeof obj !== 'object') return {};
     const keys = Object.keys(obj || {});
     const pick = keys.slice(0, max);
     const out = {};
-    pick.forEach(k=> out[k] = obj[k]);
+    pick.forEach(k => out[k] = obj[k]);
     return out;
   }
 
-  function openFinancialsOverlay(title, data){
+  function openFinancialsOverlay(title, data) {
     setFinOverlayTitle(title);
     setFinOverlayData(data);
     setFinOverlayOpen(true);
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!ticker) return;
     let cancelled = false;
-    async function loadAll(){
+    async function loadAll() {
       setLoading(true);
-      try{
+      try {
         let m = {};
-        try{ m = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(ticker)}`); }catch(e){}
-        let chosen = Array.isArray(m) && m.length ? (m.find(x=>x.ticker===ticker) || m[0]) : (m || {});
-        if (!(chosen && (chosen.companyName || (chosen.yfinance && chosen.yfinance.description)))){
-          try{ const r = await fetch(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(ticker)}`); if (r.ok){ const body = await r.json(); if (body && body.success && body.data) chosen = body.data; } }catch(e){}
+        try { m = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(ticker)}`); } catch (e) { }
+        let chosen = Array.isArray(m) && m.length ? (m.find(x => x.ticker === ticker) || m[0]) : (m || {});
+        if (!(chosen && (chosen.companyName || (chosen.yfinance && chosen.yfinance.description)))) {
+          try { const r = await fetch(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(ticker)}`); if (r.ok) { const body = await r.json(); if (body && body.success && body.data) chosen = body.data; } } catch (e) { }
         }
         if (!cancelled) setMeta(chosen || {});
 
-        try{ const c = await fetchJsonWithFallback(`/chart?ticker=${encodeURIComponent(ticker)}&period=3mo&interval=1d`); if (!cancelled) setChartData(c && (c[ticker] || c[Object.keys(c||{})[0]] || c)); }catch(e){ if (!cancelled) setChartData(null); }
+        try { const c = await fetchJsonWithFallback(`/chart?ticker=${encodeURIComponent(ticker)}&period=3mo&interval=1d`); if (!cancelled) setChartData(c && (c[ticker] || c[Object.keys(c || {})[0]] || c)); } catch (e) { if (!cancelled) setChartData(null); }
 
-        try{
+        try {
           const f = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}`);
-          if (!cancelled){
+          if (!cancelled) {
             setFinancials({ income_stmt: f.income_stmt || {}, balance_sheet: f.balance_sheet || {}, cash_flow: f.cash_flow || f.cashflow || {}, fetched_at: f.fetched_at || f.fetchedAt || null });
             setHolders({ major: f.major_holders || {}, institutional: f.institutional_holders || {}, mutualfund: f.mutualfund_holders || {} });
             setInsiders({ purchases: f.insider_purchases || {}, transactions: f.insider_transactions || {}, roster: f.insider_roster_holders || {} });
             setRecommendations(f.recommendations || {});
             setSchemas(f.schema || {});
             // keep financials.news only as fallback; primary news fetched via /py/news
-            if (!Array.isArray(f.news)){
+            if (!Array.isArray(f.news)) {
               // leave news alone
             } else if (!f.news || f.news.length === 0) {
               // nothing
@@ -110,31 +111,31 @@ export default function CompanyProfile(){
               setNews(mapped);
             }
           }
-        }catch(e){ console.warn('financials fetch failed', e); }
+        } catch (e) { console.warn('financials fetch failed', e); }
 
         // fetch news via py/news (yfinance)
-        try{
+        try {
           // initial page
           loadNews(1);
-        }catch(e){ console.warn('news fetch failed', e); }
+        } catch (e) { console.warn('news fetch failed', e); }
 
         // fetch company info (yf.get_info())
-        try{
+        try {
           const info = await fetchJsonWithFallback(`/company/info?ticker=${encodeURIComponent(ticker)}`);
           if (!cancelled) setCompanyInfo(info || null);
-        }catch(e){ console.warn('company info fetch failed', e); }
+        } catch (e) { console.warn('company info fetch failed', e); }
 
-      }catch(e){ console.error('loadAll err', e); }
-      finally{ if (!cancelled) setLoading(false); }
+      } catch (e) { console.error('loadAll err', e); }
+      finally { if (!cancelled) setLoading(false); }
     }
     loadAll();
-    return ()=>{ cancelled = true; };
+    return () => { cancelled = true; };
   }, [ticker]);
 
-  async function loadNews(page = 1){
+  async function loadNews(page = 1) {
     if (!ticker) return;
     setNewsLoading(true);
-    try{
+    try {
       const path = `/news?ticker=${encodeURIComponent(ticker)}&page=${page}&pageSize=${newsPageSize}`;
       const res = await fetchJsonWithFallback(path);
       // support multiple response shapes: { items: [...] } or [...] or { news: [...] }
@@ -181,49 +182,81 @@ export default function CompanyProfile(){
         };
       });
 
+      // attach stored view counts where available
+      try {
+        const keys = items.map(a => a.link).filter(Boolean);
+        if (keys.length) {
+          const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
+          if (lookup.ok) {
+            const pl = await lookup.json();
+            const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
+            for (let i = 0; i < items.length; i++) { const k = items[i].link; items[i].views = (map[k] && map[k].views) ? map[k].views : 0; }
+          }
+        }
+      } catch (err) { console.debug('views lookup failed', err); }
+
       setNews(items);
       setNewsPage(page);
       setNewsTotal((res && res.total) || items.length);
       setNewsTotalPages((res && res.totalPages) || (items.length ? 1 : 0));
-    }catch(e){ console.warn('loadNews error', e); }
-    finally{ setNewsLoading(false); }
+    } catch (e) { console.warn('loadNews error', e); }
+    finally { setNewsLoading(false); }
   }
 
-  const dates = useMemo(()=> (chartData?.dates || []).map(d=>d), [chartData]);
-  const close = useMemo(()=> chartData?.close || [], [chartData]);
+  // Report a news view to backend then open link
+  async function handleNewsClick(e, item) {
+    try {
+      if (e && e.preventDefault) e.preventDefault();
+      const link = item.link || item.url || '#';
+      // fire-and-forget POST to backend
+      fetch(`${API_URL}/node/news/views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: link, articleId: item.id, title: item.title, ticker })
+      }).catch(() => { });
+      // open the article
+      window.open(link, '_blank', 'noopener');
+    } catch (err) {
+      const link = item.link || item.url || '#';
+      window.open(link, '_blank', 'noopener');
+    }
+  }
+
+  const dates = useMemo(() => (chartData?.dates || []).map(d => d), [chartData]);
+  const close = useMemo(() => chartData?.close || [], [chartData]);
   const open = chartData?.open || [];
   const high = chartData?.high || [];
   const low = chartData?.low || [];
   const volume = chartData?.volume || [];
 
-  function formatNumber(v){ if (v == null) return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); const abs = Math.abs(n); if (abs >= 1e12) return `${(n/1e12).toFixed(2)}T`; if (abs >= 1e9) return `${(n/1e9).toFixed(2)}B`; if (abs >= 1e6) return `${(n/1e6).toFixed(2)}M`; return n.toLocaleString(); }
-  function isEmptyObj(x){ if (!x) return true; try{ if (Array.isArray(x)) return x.length === 0; if (typeof x === 'object') return Object.keys(x).length === 0; }catch(e){return true} return false; }
-  function formatPre(x){ try{ return JSON.stringify(x,null,2); }catch(e){ return String(x);} }
-  function parseMajorHolders(obj){ if (!obj) return {}; if (obj.Value && typeof obj.Value === 'object') return obj.Value; return obj; }
-  function parseColumnTable(colObj){ if (!colObj || typeof colObj !== 'object') return []; const cols = Object.keys(colObj || {}); if (cols.length === 0) return []; const idxs = new Set(); cols.forEach(c=>{ const col = colObj[c] || {}; Object.keys(col).forEach(k=>idxs.add(k)); }); const rows = Array.from(idxs).sort((a,b)=>Number(a)-Number(b)).map(i=>{ const row = {}; cols.forEach(c=>{ const col = colObj[c]||{}; row[c] = col[i] != null ? col[i] : ''; }); return row; }); return rows; }
-  function formatPercent(v){ if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); if (Math.abs(n) <= 1) return `${(n*100).toFixed(2)}%`; return `${n.toFixed(2)}%`; }
-  function formatCurrency(v){ if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); try{ if (meta && meta.yfinance && meta.yfinance.currency) return new Intl.NumberFormat(undefined,{style:'currency',currency:meta.yfinance.currency}).format(n); }catch(e){} return formatNumber(n); }
-  function formatCell(header, value){ if (value == null || value === '') return '-'; const h = (header||'').toLowerCase(); if (typeof value === 'string' && value.trim().endsWith('%')) return value; if (h.includes('pct') || h.includes('percent') || h.includes('%') || h.includes('pctheld')) return formatPercent(value); if (h.includes('value') || h.includes('market') || h.includes('amt') || h.includes('price') || h.includes('amount')) return formatCurrency(value); if (h.includes('share')) return formatNumber(value); if (!Number.isNaN(Number(value))) return formatNumber(value); return String(value); }
+  function formatNumber(v) { if (v == null) return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); const abs = Math.abs(n); if (abs >= 1e12) return `${(n / 1e12).toFixed(2)}T`; if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`; if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`; return n.toLocaleString(); }
+  function isEmptyObj(x) { if (!x) return true; try { if (Array.isArray(x)) return x.length === 0; if (typeof x === 'object') return Object.keys(x).length === 0; } catch (e) { return true } return false; }
+  function formatPre(x) { try { return JSON.stringify(x, null, 2); } catch (e) { return String(x); } }
+  function parseMajorHolders(obj) { if (!obj) return {}; if (obj.Value && typeof obj.Value === 'object') return obj.Value; return obj; }
+  function parseColumnTable(colObj) { if (!colObj || typeof colObj !== 'object') return []; const cols = Object.keys(colObj || {}); if (cols.length === 0) return []; const idxs = new Set(); cols.forEach(c => { const col = colObj[c] || {}; Object.keys(col).forEach(k => idxs.add(k)); }); const rows = Array.from(idxs).sort((a, b) => Number(a) - Number(b)).map(i => { const row = {}; cols.forEach(c => { const col = colObj[c] || {}; row[c] = col[i] != null ? col[i] : ''; }); return row; }); return rows; }
+  function formatPercent(v) { if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); if (Math.abs(n) <= 1) return `${(n * 100).toFixed(2)}%`; return `${n.toFixed(2)}%`; }
+  function formatCurrency(v) { if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); try { if (meta && meta.yfinance && meta.yfinance.currency) return new Intl.NumberFormat(undefined, { style: 'currency', currency: meta.yfinance.currency }).format(n); } catch (e) { } return formatNumber(n); }
+  function formatCell(header, value) { if (value == null || value === '') return '-'; const h = (header || '').toLowerCase(); if (typeof value === 'string' && value.trim().endsWith('%')) return value; if (h.includes('pct') || h.includes('percent') || h.includes('%') || h.includes('pctheld')) return formatPercent(value); if (h.includes('value') || h.includes('market') || h.includes('amt') || h.includes('price') || h.includes('amount')) return formatCurrency(value); if (h.includes('share')) return formatNumber(value); if (!Number.isNaN(Number(value))) return formatNumber(value); return String(value); }
 
-  const latestPrice = (close && close.length) ? Number(close[close.length-1]) : null;
-  const prevPrice = (close && close.length>1) ? Number(close[close.length-2]) : null;
+  const latestPrice = (close && close.length) ? Number(close[close.length - 1]) : null;
+  const prevPrice = (close && close.length > 1) ? Number(close[close.length - 2]) : null;
   const priceChange = (latestPrice != null && prevPrice != null) ? (latestPrice - prevPrice) : null;
   const priceChangePct = (priceChange != null && prevPrice) ? (priceChange / prevPrice) : null;
 
-  function toggleFollow(){ 
-    if (!isLoggedIn){
-      promptLogin({ title: 'Please log in', text: 'You must be logged in to follow tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel'}).then(ok => {
+  function toggleFollow() {
+    if (!isLoggedIn) {
+      promptLogin({ title: 'Please log in', text: 'You must be logged in to follow tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel' }).then(ok => {
         if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
       });
       return;
     }
-    setFollowed(f => !f); 
+    setFollowed(f => !f);
   }
-  function toggleFavorite(){ setFavorited(f => !f); }
+  function toggleFavorite() { setFavorited(f => !f); }
 
-  function toggleFavoriteProtected(){
-    if (!isLoggedIn){
-      promptLogin({ title: 'Please log in', text: 'You must be logged in to favorite tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel'}).then(ok => {
+  function toggleFavoriteProtected() {
+    if (!isLoggedIn) {
+      promptLogin({ title: 'Please log in', text: 'You must be logged in to favorite tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel' }).then(ok => {
         if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
       });
       return;
@@ -238,12 +271,12 @@ export default function CompanyProfile(){
       <div className="company-header">
         <div className="company-left">
           {logoUrl ? (
-            <img src={logoUrl} alt={`${ticker} logo`} className="company-logo" />
+            <img src={logoUrl} alt={`${meta?.displayTicker || getDisplayFromRaw(ticker)} logo`} className="company-logo" />
           ) : (
             <div className="company-logo placeholder" aria-hidden="true"></div>
           )}
           <div className="company-text">
-            <h1 className="company-ticker">{ticker}</h1>
+            <h1 className="company-ticker">{meta?.displayTicker || getDisplayFromRaw(ticker)}</h1>
             <div className="company-name">{meta?.companyName || ""}</div>
             <div className="company-meta">
               {meta?.primaryExchange || ""}
@@ -278,18 +311,18 @@ export default function CompanyProfile(){
         </div>
       </div>
 
-      <Dialog open={finOverlayOpen} onClose={()=>setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog open={finOverlayOpen} onClose={() => setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle>{finOverlayTitle}</DialogTitle>
         <DialogContent>
-          <div style={{paddingTop:8}}>
+          <div style={{ paddingTop: 8 }}>
             {finOverlayTitle === 'All Financials' ? (
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h5 style={{marginTop:0}}>Income Statement</h5>
+                  <h5 style={{ marginTop: 0 }}>Income Statement</h5>
                   <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} transpose={true} />
                 </div>
                 <div>
-                  <h5 style={{marginTop:0}}>Balance Sheet</h5>
+                  <h5 style={{ marginTop: 0 }}>Balance Sheet</h5>
                   <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
@@ -299,7 +332,7 @@ export default function CompanyProfile(){
           </div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setFinOverlayOpen(false)}>Close</Button>
+          <Button onClick={() => setFinOverlayOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
@@ -312,9 +345,8 @@ export default function CompanyProfile(){
                 {meta?.displayTicker || ticker} · {meta?.primaryExchange || ""}
               </div>
               <div
-                className={`meta-desc ${
-                  descExpanded ? "expanded" : "collapsed"
-                }`}
+                className={`meta-desc ${descExpanded ? "expanded" : "collapsed"
+                  }`}
               >
                 {meta?.yfinance?.description || ""}
               </div>
@@ -344,25 +376,23 @@ export default function CompanyProfile(){
                   {latestPrice != null
                     ? meta?.yfinance?.currency
                       ? new Intl.NumberFormat(undefined, {
-                          style: "currency",
-                          currency: meta.yfinance.currency,
-                        }).format(latestPrice)
+                        style: "currency",
+                        currency: meta.yfinance.currency,
+                      }).format(latestPrice)
                       : formatNumber(latestPrice)
                     : "-"}
                 </div>
                 <div
-                  className={`price-change ${
-                    priceChange > 0 ? "up" : priceChange < 0 ? "down" : ""
-                  }`}
+                  className={`price-change ${priceChange > 0 ? "up" : priceChange < 0 ? "down" : ""
+                    }`}
                 >
                   {priceChange != null
                     ? `${priceChange >= 0 ? "+" : ""}${formatNumber(
-                        priceChange
-                      )} (${
-                        priceChangePct != null
-                          ? (priceChangePct * 100).toFixed(2) + "%"
-                          : "-"
-                      })`
+                      priceChange
+                    )} (${priceChangePct != null
+                      ? (priceChangePct * 100).toFixed(2) + "%"
+                      : "-"
+                    })`
                     : "-"}
                 </div>
               </div>
@@ -442,23 +472,23 @@ export default function CompanyProfile(){
 
           <div className="card financials">
             <div className="card-header">
-                <h4>Financials</h4>
-                <Button size="small" onClick={()=>{ setFinOverlayTitle('All Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}>Show more</Button>
-              </div>
-            <div className="financial-tabs" style={{display:'flex',flexDirection:'column',gap:12}}>
+              <h4>Financials</h4>
+              <Button size="small" onClick={() => { setFinOverlayTitle('All Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}>Show more</Button>
+            </div>
+            <div className="financial-tabs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="fin-section">
                 <h5>Income</h5>
                 {Object.entries(financials.income_stmt || {}).length === 0 && (
                   <div className="lc-table-empty">No data</div>
                 )}
-                <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue","netIncome","operatingIncome","ebitda","basicEPS"]} />
+                <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
               </div>
               <div className="fin-section">
                 <h5>Balance</h5>
                 {Object.entries(financials.balance_sheet || {}).length === 0 && (
                   <div className="lc-table-empty">No data</div>
                 )}
-                <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets","totalLiab","totalLiabilities","totalCurrentAssets","totalCurrentLiabilities"]} />
+                <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
               </div>
             </div>
           </div>
@@ -577,7 +607,7 @@ export default function CompanyProfile(){
                   className="news-item"
                   key={n.id || i}
                   href={n.link || "#"}
-                  target="_blank"
+                  onClick={(e) => handleNewsClick(e, n)}
                   rel="noreferrer"
                 >
                   {n.thumbnail ? (
@@ -594,6 +624,7 @@ export default function CompanyProfile(){
                             ? new Date(n.pubDate).toLocaleString()
                             : "")}
                       </span>
+                      {n.views ? <span className="news-views" style={{ marginLeft: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{n.views} views</span> : null}
                     </div>
                   </div>
                 </a>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/useAuth';
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { useNavigate } from 'react-router-dom';
 import Swal from '../utils/muiSwal';
 import '../css/Dashboard.css';
@@ -36,7 +37,8 @@ export default function Dashboard() {
           typeof t === "string"
             ? { ticker: t, frequency: "N/A", status: "Unknown" }
             : {
-                ticker: t.ticker || t.symbol || "UNKNOWN",
+                // prefer displayTicker when available for UI
+                ticker: t.displayTicker || t.ticker || t.symbol || "UNKNOWN",
                 frequency: t.frequency ?? "N/A",
                 status: t.status ?? "Unknown",
               }
@@ -68,10 +70,11 @@ export default function Dashboard() {
   );
 
   // Handle unsubscribe
-  const handleUnsubscribe = async (ticker) => {
+    const handleUnsubscribe = async (ticker) => {
+    const display = getDisplayFromRaw(ticker);
     const result = await Swal.fire({
       title: 'Unsubscribe',
-      text: `Remove ${ticker} from your watchlist?`,
+      text: `Remove ${display} from your watchlist?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
@@ -98,7 +101,7 @@ export default function Dashboard() {
       await Swal.fire({
         icon: 'success',
         title: 'Removed',
-        text: `${ticker} removed from watchlist.`,
+        text: `${display} removed from watchlist.`,
         timer: 1200,
         confirmButtonColor: '#00aaff'
       });
@@ -114,7 +117,7 @@ export default function Dashboard() {
   };
 
   const handleViewChart = (ticker) => {
-    navigate('/chart', { state: { ticker } });
+    if (ticker) navigate(`/chart/u/${encodeURIComponent(ticker)}`);
   };
 
   if (isLoading || !user) {

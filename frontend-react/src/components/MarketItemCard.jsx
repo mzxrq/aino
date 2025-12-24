@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import "../css/MarketItemCard.css";
+import { getDisplayFromRaw } from '../utils/tickerUtils';
 
 // Utility function to get company name from various possible fields
 const getCompanyName = (item) => {
@@ -63,6 +64,7 @@ export default function MarketItemCard({ item }) {
 
   // --- 1. Normalized Fields ---
   const ticker = item.ticker || item.Ticker || "";
+  const displayTicker = getDisplayFromRaw(ticker);
   const company = metadata?.companyName || getCompanyName(item);
   const primaryExchange = item.primaryExchange || item["Primary Exchange"] || "";
   const sectorGroup = item.sectorGroup || item["Sector Group"] || "";
@@ -144,7 +146,7 @@ export default function MarketItemCard({ item }) {
 
   // --- 5. Click Handler ---
   const handleClick = () => {
-    navigate('/chart', { state: { ticker } });
+    if (ticker) navigate(`/chart/u/${encodeURIComponent(ticker)}`);
   };
 
   // --- 6. Render ---
@@ -155,7 +157,7 @@ export default function MarketItemCard({ item }) {
         {showLogo ? (
           <img
             src={logoUrl}
-            alt={ticker}
+            alt={displayTicker}
             className="card-logo"
             onError={(e) => {
               // Try fallback URL once
@@ -171,7 +173,7 @@ export default function MarketItemCard({ item }) {
         )}
 
         <div className="card-info">
-          <div className="card-ticker">{ticker}</div>
+          <div className="card-ticker">{displayTicker}</div>
           <div className="card-company">{company}</div>
           <div className="card-meta">
             {primaryExchange}

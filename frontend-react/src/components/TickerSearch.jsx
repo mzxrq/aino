@@ -35,6 +35,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
   }, []);
 
   // Search logic - fuzzy match on symbol and name
+  // Prioritize company name matches before symbol matches per UX request.
   const filteredSuggestions = useMemo(() => {
     if (!input.trim() || input.length < 1) {
       return [];
@@ -44,36 +45,43 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
     const results = [];
 
     for (const ticker of tickers) {
-      const symbol = ticker.symbol.toLowerCase();
+      const symbol = (ticker.symbol || '').toLowerCase();
       const name = (ticker.name || '').toLowerCase();
+      const display = ((ticker.displayTicker || ticker.display) || (ticker.symbol || '').split('.')[0]).toString().toLowerCase();
 
-      // Exact match on symbol gets priority
-      if (symbol === query) {
-        results.unshift({ ...ticker, score: 1000 });
+      // Name starts with query -> highest priority
+      if (name.startsWith(query) && name.length) {
+        results.push({ ...ticker, score: 1000 });
         continue;
       }
 
-      // Symbol starts with query
-      if (symbol.startsWith(query)) {
+      // DisplayTicker exact/starts includes (e.g., user types "1301")
+      if (display === query && display.length) {
+        results.push({ ...ticker, score: 950 });
+        continue;
+      }
+
+      // Exact match on symbol still ranks high but after name-starts
+      if (symbol === query && symbol.length) {
         results.push({ ...ticker, score: 900 });
         continue;
       }
 
-      // Name starts with query
-      if (name.startsWith(query)) {
+      // Name contains query
+      if (name.includes(query) && name.length) {
+        results.push({ ...ticker, score: 900 });
+        continue;
+      }
+
+      // Symbol starts with query
+      if (symbol.startsWith(query) && symbol.length) {
         results.push({ ...ticker, score: 800 });
         continue;
       }
 
       // Symbol contains query
-      if (symbol.includes(query)) {
+      if (symbol.includes(query) && symbol.length) {
         results.push({ ...ticker, score: 700 });
-        continue;
-      }
-
-      // Name contains query
-      if (name.includes(query)) {
-        results.push({ ...ticker, score: 600 });
         continue;
       }
     }
@@ -107,7 +115,12 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
     const doFallbackFilter = () => {
       if (!q) return [];
       const lq = q.toLowerCase();
-      return tickers.filter(t => (t.symbol || '').toLowerCase().includes(lq) || (t.name || '').toLowerCase().includes(lq)).slice(0, 400);
+      return tickers.filter(t => {
+        const symbol = (t.symbol || '').toLowerCase();
+        const name = (t.name || '').toLowerCase();
+        const display = ((t.displayTicker || t.display) || (t.symbol || '').split('.')[0]).toString().toLowerCase();
+        return symbol.includes(lq) || name.includes(lq) || display.includes(lq);
+      }).slice(0, 400);
     };
 
     if (!q) {
@@ -141,15 +154,34 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
         }
 
         const json = await res.json();
-        // Normalize server response to { symbol, name, exchange }
+        // Normalize server response to { symbol, name, exchange } and prioritize name matches
         if (Array.isArray(json)) {
           const norm = json.map(item => {
             const rawSym = (item.symbol || item.ticker || item.ticker_symbol || item.code || '').toString();
             const symbol = rawSym ? rawSym.toUpperCase() : '';
             const name = item.name || item.company || item.label || item.longName || '';
             const exchange = item.exchange || item.exch || item.market || item.market_code || '';
-            return { symbol, name, exchange };
-          }).filter(x => x.symbol || x.name);
+            const display = (item.displayTicker || item.display || (symbol ? symbol.split('.')[0] : '')).toString();
+            return { symbol, name, exchange, displayTicker: display };
+          }).filter(x => x.symbol || x.name || x.displayTicker);
+
+          // If we have a query, sort so that results with company name matches come first
+          if (q) {
+            const lq = q.toLowerCase();
+            norm.sort((a, b) => {
+              const aName = (a.name || '').toLowerCase();
+              const bName = (b.name || '').toLowerCase();
+              const aSym = (a.symbol || '').toLowerCase();
+              const bSym = (b.symbol || '').toLowerCase();
+              const aDisp = (a.displayTicker || '').toLowerCase();
+              const bDisp = (b.displayTicker || '').toLowerCase();
+
+              const aScore = (aName.startsWith(lq) ? 1100 : (aName.includes(lq) ? 1000 : 0)) + (aDisp === lq ? 900 : (aDisp.startsWith(lq) ? 700 : (aDisp.includes(lq) ? 400 : 0))) + (aSym === lq ? 500 : (aSym.startsWith(lq) ? 300 : (aSym.includes(lq) ? 100 : 0)));
+              const bScore = (bName.startsWith(lq) ? 1100 : (bName.includes(lq) ? 1000 : 0)) + (bDisp === lq ? 900 : (bDisp.startsWith(lq) ? 700 : (bDisp.includes(lq) ? 400 : 0))) + (bSym === lq ? 500 : (bSym.startsWith(lq) ? 300 : (bSym.includes(lq) ? 100 : 0)));
+              return bScore - aScore;
+            });
+          }
+
           if (mounted) setModalResults(norm.slice(0, 400));
         } else {
           // fallback to client-side if unexpected payload
@@ -202,12 +234,11 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
   }, [showModal]);
 
   const handleSelect = (ticker) => {
-    // Display user-friendly format, return yfinance format
+    // Show displayTicker but return raw symbol to parent
     const sym = (ticker.symbol || ticker.ticker || '').toString().toUpperCase();
-    setInput(`${ticker.name} (${sym})`);
+    const display = (ticker.displayTicker || ((sym || '').split('.')[0]) || sym).toString();
+    setInput(`${ticker.name} (${display})`);
     setShowDropdown(false);
-    
-    // Call parent callback with symbol only (for charting)
     if (onSelect) onSelect(sym);
   };
 
@@ -235,7 +266,8 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
 
   const handleModalSelect = (ticker) => {
     const sym = (ticker.symbol || ticker.ticker || '').toString().toUpperCase();
-    setInput(`${ticker.name} (${sym})`);
+    const display = (ticker.displayTicker || ((sym || '').split('.')[0]) || sym).toString();
+    setInput(`${ticker.name} (${display})`);
     setShowModal(false);
     if (onSelect) onSelect(sym);
   };
@@ -270,53 +302,55 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
 
       {/* Modal overlay */}
       {showModal && (
-        <div className="ticker-search-overlay" role="dialog" aria-modal="true">
-          <div className="ticker-search-panel" id="ticker-search-panel">
-            <div className="ticker-search-panel-header">
-              <input
-                ref={modalInputRef}
-                className="ticker-search-panel-input"
-                placeholder={placeholder}
-                value={modalQuery}
-                onChange={(e) => setModalQuery(e.target.value)}
-                aria-label="Search tickers"
-              />
-              <button className="ticker-search-panel-close" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
+        <div className="lc-modal-overlay" role="dialog" aria-modal="true">
+          <div className="lc-modal-content lc-ticker-search-modal" id="ticker-search-panel">
+            <div className="lc-modal-header">
+              <h2>Search Ticker</h2>
+              <button className="lc-modal-close" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
             </div>
 
-            <div className="ticker-search-panel-body">
-              {modalLoading ? (
-                <div className="ticker-search-loading">Searching...</div>
-              ) : (
-                (modalResults && modalResults.length) ? (
-                  <ul className="ticker-search-compact-list">
-                    {modalResults.slice(0, 400).map((t) => {
+            <div className="lc-modal-body">
+              <div className="lc-ticker-search-input-wrapper">
+                <input
+                  ref={modalInputRef}
+                  className="lc-ticker-search-input"
+                  placeholder={placeholder}
+                  value={modalQuery}
+                  onChange={(e) => setModalQuery(e.target.value)}
+                  aria-label="Search tickers"
+                />
+              </div>
+
+              <div className="lc-ticker-search-list">
+                {modalLoading ? (
+                  <div className="ticker-search-loading">Searching...</div>
+                ) : (
+                  (modalResults && modalResults.length) ? (
+                    modalResults.slice(0, 400).map((t) => {
                       const symbolText = (t.symbol || t.ticker || '').toString().toUpperCase();
                       const exchangeText = (t.exchange || '').toString();
                       const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
+                      const displayTicker = (t.displayTicker || t.display || symbolText).toString();
                       return (
-                        <li key={`${symbolText}-${exchangeText}`} className="ticker-search-compact-item" onClick={() => handleModalSelect(t)}>
-                          <div className="ticker-search-compact-left">
+                        <button key={`${symbolText}-${exchangeText}`} type="button" className="lc-ticker-search-item" onClick={() => handleModalSelect(t)}>
+                          <div className="lc-ticker-search-item-ticker">
                             {logoUrl ? (
                               <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             ) : (
                               <div className="ticker-logo-placeholder" aria-hidden></div>
                             )}
+                            <div style={{marginLeft:6, fontWeight:700}}>{displayTicker}</div>
                           </div>
-                          <div className="ticker-search-compact-main">
-                            <div className="compact-line-1"><span className="compact-symbol">{symbolText}</span>
-                              <span className={`ticker-exchange exchange-${exchangeText}`}>{exchangeText}</span>
-                            </div>
-                            <div className="compact-line-2">{t.name}</div>
-                          </div>
-                        </li>
+                          <div className="lc-ticker-search-item-name">{t.name}</div>
+                          <div className="lc-ticker-search-item-market">{exchangeText}</div>
+                        </button>
                       );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="ticker-search-empty">No results</div>
-                )
-              )}
+                    })
+                  ) : (
+                    <div className="ticker-search-empty">No results</div>
+                  )
+                )}
+              </div>
             </div>
           </div>
         </div>

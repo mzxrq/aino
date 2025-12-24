@@ -218,9 +218,10 @@ const MonitoringDashboard = () => {
                 <div className="stocks-reference">
                     <h3>Monitored Stocks ({status.all_stocks?.length || 0})</h3>
                     <div className="stocks-list">
-                        {status.all_stocks && status.all_stocks.map((ticker, idx) => (
-                            <span key={idx} className="stock-badge">{ticker}</span>
-                        ))}
+                        {status.all_stocks && status.all_stocks.map((ticker, idx) => {
+                            const disp = (window.__MASTER_TICKERS__ && window.__MASTER_TICKERS__.rawToDisplay && window.__MASTER_TICKERS__.rawToDisplay[ticker]) ? window.__MASTER_TICKERS__.rawToDisplay[ticker] : (ticker ? ticker.split('.')[0] : ticker);
+                            return (<span key={idx} className="stock-badge">{disp}</span>);
+                        })}
                     </div>
                 </div>
             </div>
