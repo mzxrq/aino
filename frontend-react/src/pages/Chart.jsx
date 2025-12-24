@@ -368,7 +368,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     setIsLoadingFollow(true);
     try {
       if (followed) {
-        const res = await fetch(`${front}/node/tickers/remove`, {
+        const res = await fetch(`${front}/node/subscribers/tickers/remove`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] })

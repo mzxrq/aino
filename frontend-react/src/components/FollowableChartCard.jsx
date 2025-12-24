@@ -67,7 +67,7 @@ export default function FollowableChartCard({
 
     try {
       if (followed) {
-        const res = await fetch(`${front}/node/tickers/remove`, {
+        const res = await fetch(`${front}/node/subscribers/tickers/remove`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -35,5 +35,7 @@
     "react-plotly.js": "^2.6.0",
     "react-router-dom": "^7.9.6",
     "sweetalert2": "^11.26.10"
+    ,
+    "@theme-toggles/react": "^2.0.0"
   }
 }

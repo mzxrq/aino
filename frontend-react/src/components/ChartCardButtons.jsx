@@ -19,6 +19,7 @@ export default function ChartCardButtons({
 }) {
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const modeBtnRef = React.useRef(null);
+  const [followHoverLocal, setFollowHoverLocal] = useState(false);
 
   const isOverridden = globalChartMode !== 'auto';
   const display = getDisplayFromRaw(ticker);
@@ -30,8 +31,10 @@ export default function ChartCardButtons({
         className={`chart-btn chart-btn-follow ${followed ? 'followed' : ''} ${isLoadingFollow ? 'loading' : ''}`}
         onClick={onFollowToggle}
         disabled={isLoadingFollow}
-        title={followed ? 'Unfollow' : 'Follow'}
-        aria-label={followed ? 'Unfollow' : 'Follow'}
+        title={followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow'}
+        aria-label={followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow'}
+        onMouseEnter={() => setFollowHoverLocal(true)}
+        onMouseLeave={() => setFollowHoverLocal(false)}
       >
         <span className="icon-stack" aria-hidden>
           <svg className="icon-plus" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,6 +47,8 @@ export default function ChartCardButtons({
             <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </span>
+        {/* Text label shown next to icon - shows Following by default, Unfollow on hover */}
+        <span className="chart-btn-label">{isLoadingFollow ? '...' : (followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow')}</span>
       </button>
 
       {/* Expanded View Button */}

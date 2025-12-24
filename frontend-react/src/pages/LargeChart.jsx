@@ -5,6 +5,8 @@ import EchartsCard from '../components/EchartsCard';
 import TimezoneSelect from '../components/TimezoneSelect';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/LargeChart.css';
+import { useAuth } from '../context/useAuth';
+import Swal from '../utils/muiSwal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -205,6 +207,75 @@ export default function LargeChart() {
   const [isSearching, setIsSearching] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
   const [tickerSearchQuery, setTickerSearchQuery] = useState('');
+
+  // Follow state (check whether current user follows this ticker)
+  const { user, token } = useAuth();
+  const [followed, setFollowed] = useState(false);
+  const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+  const [followHover, setFollowHover] = useState(false);
+
+  // Check follow status on mount / when ticker or auth changes
+  useEffect(() => {
+    let mounted = true;
+    async function checkFollowStatus() {
+      if (!user || !token) {
+        if (mounted) setFollowed(false);
+        return;
+      }
+      try {
+        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const res = await fetch(`${front}/node/subscribers/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, ticker })
+        });
+        const j = await res.json();
+        if (mounted) setFollowed(!!j.subscribed);
+      } catch {
+        if (mounted) setFollowed(false);
+      }
+    }
+    checkFollowStatus();
+    return () => { mounted = false; };
+  }, [ticker, token, user]);
+
+  async function handleFollowToggle() {
+    if (!user || !token) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Please Login',
+        text: 'You need to be signed in to follow tickers.',
+        confirmButtonColor: '#00aaff'
+      });
+      return;
+    }
+    const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    setIsLoadingFollow(true);
+    try {
+      if (followed) {
+        const res = await fetch(`${front}/node/subscribers/tickers/remove`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] })
+        });
+        if (!res.ok) throw new Error('Failed to unfollow');
+        setFollowed(false);
+      } else {
+        const res = await fetch(`${front}/node/subscribers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] })
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.message || 'Failed to follow');
+        setFollowed(true);
+      }
+    } catch (e) {
+      await Swal.fire({ icon: 'error', title: 'Error', text: e.message || e.toString(), confirmButtonColor: '#dc2626' });
+    } finally {
+      setIsLoadingFollow(false);
+    }
+  }
 
   // Preloaded list of interesting stocks
   const INTERESTING_STOCKS = useMemo(() => [
@@ -557,99 +628,7 @@ export default function LargeChart() {
 
   return (
     <div className="lc-shell">
-      {/* Navbar with compact controls (ticker button + period/interval + chart type) */}
-      <div className="lc-navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            type="button"
-            className="lc-ticker-name lc-ticker-name-btn"
-            onClick={() => setShowTickerSearchModal(true)}
-            title="Click to search for another ticker"
-          >
-            {displayTicker}
-          </button>
-
-          <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 0 }}>
-            <label style={{ fontSize: 12, color: '#666' }}>Period</label>
-            <button
-              ref={periodBtnRef}
-              type="button"
-              className="lc-tz-select period-select"
-              onClick={() => setPeriodOpen(p => !p)}
-              aria-haspopup="listbox"
-              aria-expanded={periodOpen}
-            >
-              {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
-            </button>
-            <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
-            <button
-              ref={intervalBtnRef}
-              type="button"
-              className="lc-tz-select interval-select"
-              onClick={() => setIntervalOpen(s => !s)}
-              aria-haspopup="listbox"
-              aria-expanded={intervalOpen}
-            >
-              {interval}
-            </button>
-
-            {periodOpen && periodBtnRef.current && (
-              <PortalDropdown
-                anchorRect={periodBtnRef.current.getBoundingClientRect()}
-                align="right"
-                onClose={() => setPeriodOpen(false)}
-                className="mode-dropdown"
-              >
-                {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
-                  <div
-                    key={p}
-                    role="option"
-                    tabIndex={0}
-                    className={`mode-item ${p === period ? 'active' : ''}`}
-                    onClick={() => {
-                      const enforced = enforceIntervalRules(p, interval);
-                      setPeriod(p);
-                      setInterval(enforced);
-                      setPeriodOpen(false);
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
-                  >
-                    {p}
-                  </div>
-                ))}
-              </PortalDropdown>
-            )}
-
-            {intervalOpen && intervalBtnRef.current && (
-              <PortalDropdown
-                anchorRect={intervalBtnRef.current.getBoundingClientRect()}
-                align="right"
-                onClose={() => setIntervalOpen(false)}
-                className="mode-dropdown"
-              >
-                {getIntervalOptions(period).map(iv => (
-                  <div
-                    key={iv}
-                    role="option"
-                    tabIndex={0}
-                    className={`mode-item ${iv === interval ? 'active' : ''}`}
-                    onClick={() => { setInterval(iv); setIntervalOpen(false); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
-                  >
-                    {iv}
-                  </div>
-                ))}
-              </PortalDropdown>
-            )}
-          </div>
-        </div>
-
-        {/* chart type buttons moved into main area */}
-
-        <Link to={`/company/${ticker}`} className="lc-company-btn lc-company-profile-btn" title="Open company profile">
-          Profile
-        </Link>
-      </div>
+      {/* Navbar elements merged into main controls (removed fixed bottom navbar) */}
 
       <div className="lc-body">
         {/* Sidebar with ticker info, financials, news */}
@@ -680,7 +659,19 @@ export default function LargeChart() {
               </div>
             </div>
             <div className="lc-market">{payload.market || 'US (NASDAQ)'}</div>
-            <button className="lc-btn follow" type="button">Follow</button>
+            {/* Follow button: shows Follow / Following (hover -> Unfollow) */}
+            <button
+              className={`lc-btn follow chart-btn-follow ${followed ? 'followed' : ''}`}
+              type="button"
+              onClick={handleFollowToggle}
+              onMouseEnter={() => setFollowHover(true)}
+              onMouseLeave={() => setFollowHover(false)}
+              aria-pressed={followed}
+              title={isLoadingFollow ? 'Updating...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
+              disabled={isLoadingFollow}
+            >
+              {isLoadingFollow ? '...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
+            </button>
           </div>
 
           {/* Financials Card - TradingView Style */}
@@ -835,6 +826,92 @@ export default function LargeChart() {
           {/* Controls placed inside main: chart type + indicators */}
           <div className="lc-main-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {/* Move ticker + period/interval selector here so controls live inside main */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+                <button
+                  type="button"
+                  className="lc-ticker-name lc-ticker-name-btn"
+                  onClick={() => setShowTickerSearchModal(true)}
+                  title="Click to search for another ticker"
+                >
+                  {displayTicker}
+                </button>
+
+                <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 0 }}>
+                  <label style={{ fontSize: 12, color: '#666' }}>Period</label>
+                  <button
+                    ref={periodBtnRef}
+                    type="button"
+                    className="lc-tz-select period-select"
+                    onClick={() => setPeriodOpen(p => !p)}
+                    aria-haspopup="listbox"
+                    aria-expanded={periodOpen}
+                  >
+                    {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
+                  </button>
+                  <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
+                  <button
+                    ref={intervalBtnRef}
+                    type="button"
+                    className="lc-tz-select interval-select"
+                    onClick={() => setIntervalOpen(s => !s)}
+                    aria-haspopup="listbox"
+                    aria-expanded={intervalOpen}
+                  >
+                    {interval}
+                  </button>
+
+                  {periodOpen && periodBtnRef.current && (
+                    <PortalDropdown
+                      anchorRect={periodBtnRef.current.getBoundingClientRect()}
+                      align="right"
+                      onClose={() => setPeriodOpen(false)}
+                      className="mode-dropdown"
+                    >
+                      {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+                        <div
+                          key={p}
+                          role="option"
+                          tabIndex={0}
+                          className={`mode-item ${p === period ? 'active' : ''}`}
+                          onClick={() => {
+                            const enforced = enforceIntervalRules(p, interval);
+                            setPeriod(p);
+                            setInterval(enforced);
+                            setPeriodOpen(false);
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
+                        >
+                          {p}
+                        </div>
+                      ))}
+                    </PortalDropdown>
+                  )}
+
+                  {intervalOpen && intervalBtnRef.current && (
+                    <PortalDropdown
+                      anchorRect={intervalBtnRef.current.getBoundingClientRect()}
+                      align="right"
+                      onClose={() => setIntervalOpen(false)}
+                      className="mode-dropdown"
+                    >
+                      {getIntervalOptions(period).map(iv => (
+                        <div
+                          key={iv}
+                          role="option"
+                          tabIndex={0}
+                          className={`mode-item ${iv === interval ? 'active' : ''}`}
+                          onClick={() => { setInterval(iv); setIntervalOpen(false); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
+                        >
+                          {iv}
+                        </div>
+                      ))}
+                    </PortalDropdown>
+                  )}
+                </div>
+              </div>
+
               <div className="lc-chart-type-group">
                 <button
                   type="button"
@@ -919,6 +996,9 @@ export default function LargeChart() {
               >
                 Indicators
               </button>
+              <Link to={`/company/${ticker}`} className="lc-company-btn lc-company-profile-btn" title="Open company profile">
+                Profile
+              </Link>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>

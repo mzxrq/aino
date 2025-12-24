@@ -242,6 +242,45 @@
     color: #fff;
     box-shadow: 0 4px 12px rgba(44, 193, 127, 0.3);
   }
+
+  /* Follow button variants for followed state */
+  .chart-btn-follow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-weight: 600;
+    transition: all 0.18s ease;
+  }
+
+  .chart-btn-follow.followed {
+    background: rgba(22,163,74,0.08); /* subtle green background when following */
+    border: 1px solid rgba(22,163,74,0.5);
+    color: #16a34a; /* green text */
+    box-shadow: none;
+  }
+
+  .chart-btn-follow.followed:hover {
+    background: var(--danger); /* turn red on hover to indicate Unfollow */
+    color: #fff;
+    border-color: var(--danger);
+    transform: translateY(-2px);
+  }
+
+  /* small text label next to follow icon */
+  .chart-btn-label {
+    margin-left: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  /* compact buttons (used in small card headers) keep label hidden to avoid layout shift */
+  .chart-card-buttons .chart-btn-label {
+    display: inline-block;
+  }
   
   .lc-body {
     /* Two-column grid with emphasis on the main chart area */
@@ -2746,4 +2785,57 @@
       padding: 1px 6px;
     }
   }
+
+  .lc-btn.chart-btn-follow.followed {
+  background: rgba(22,163,74,0.08);
+  border: 1px solid rgba(22,163,74,0.5);
+  color: #16a34a;
+  box-shadow: none;
+}
+.lc-btn.chart-btn-follow.followed:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  transform: translateY(-2px);
+}
+.chart-btn-label {
+  color: inherit;
+}
+
+/* Ensure main and sidebar render above the fixed bottom navbar so
+   interactive controls (like ECharts sliders) receive pointer events. */
+.lc-main,
+.lc-sidebar {
+  position: relative;
+  z-index: 999; /* higher than navbar (was 40) so controls are above it */
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  /* keep comfortable spacing from the fixed navbar on small screens */
+  .lc-main {
+    padding-bottom: calc(var(--lc-navbar-h) + 16px);
+  }
+  .lc-sidebar {
+    padding-bottom: calc(var(--lc-navbar-h) + 8px);
+  }
+}
+
+/* Make hover *enter* wait 100ms so accidental touches won't immediately toggle visuals,
+   but keep the un-hover transition immediate for snappy feedback. */
+.chart-btn-follow.followed,
+.lc-btn.chart-btn-follow.followed {
+  transition-property: all;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+.chart-btn-follow.followed:not(:hover),
+.lc-btn.chart-btn-follow.followed:not(:hover) {
+  transition-delay: 100ms; /* delay before applying hover styles */
+}
+.chart-btn-follow.followed:hover,
+.lc-btn.chart-btn-follow.followed:hover {
+  transition-delay: 0ms; /* no delay on leave (uses this value when hovered) */
+}
+
 }/* Layout Container */

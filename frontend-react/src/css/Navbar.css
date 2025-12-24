@@ -183,6 +183,36 @@
     border-color: rgba(255, 255, 255, 0.4);
   }
 
+  /* Theme icon animation styles (simple port of provided rules) */
+  .theme-icon {
+    cursor: pointer;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+  }
+
+  .theme-icon .animatable {
+    /* SMIL will handle motion of cx/cy; keep CSS neutral as fallback */
+    will-change: auto;
+    transform: none;
+    transition: none;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .theme-icon .animatable.is-animated {
+    /* no-op: SMIL plays the actual movement; class kept for non-SMIL fallback */
+  }
+
+  /* Fallback behavior: move the visible white circle when CSS-only fallback is used */
+  .theme-icon .animatable {
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .theme-icon .animatable.is-animated {
+    transform: translate(6px, -6px);
+  }
+
   body.dark .btn-outline {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);

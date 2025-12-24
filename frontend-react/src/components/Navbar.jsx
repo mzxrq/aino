@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import '../css/Navbar.css';
+import "@theme-toggles/react/css/Expand.css";
+import { Expand } from "@theme-toggles/react";
 import logoSvg from '../assets/aino.svg';
 
 export default function Navbar() {
@@ -78,6 +80,35 @@ export default function Navbar() {
   // refs for controlling SVG SMIL animations programmatically
   const pathOpenAnimRef = useRef(null);
   const pathCloseAnimRef = useRef(null);
+  const themeIconRef = useRef(null);
+  const animCxForwardRef = useRef(null);
+  const animCyForwardRef = useRef(null);
+  const animCxReverseRef = useRef(null);
+  const animCyReverseRef = useRef(null);
+
+  // JS fallback animator for browsers without SMIL support
+  const animateMaskFallback = (maskCircle, fromX, fromY, toX, toY, duration = 320) => {
+    if (!maskCircle) return Promise.resolve();
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        // easeOutCubic
+        const eased = 1 - Math.pow(1 - t, 3);
+        const cx = fromX + (toX - fromX) * eased;
+        const cy = fromY + (toY - fromY) * eased;
+        try {
+          maskCircle.setAttribute('cx', String(cx));
+          maskCircle.setAttribute('cy', String(cy));
+        } catch (e) {
+          // ignore
+        }
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  };
 
   useEffect(() => {
     // When menuOpen changes, trigger the matching SVG animation
@@ -176,19 +207,14 @@ export default function Navbar() {
             Full Scan
           </button>
         )}
-        <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle color theme">
-          {theme === 'dark' ? (
-            // Moon icon
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M21.64 13.01A9 9 0 0 1 11 2.36a1 1 0 0 0-1.33 1.22 7 7 0 1 0 10.75 10.75 1 1 0 0 0 1.22-1.32Z"/>
-            </svg>
-          ) : (
-            // Sun icon
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.48 14.32l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM12 4V1h-0v3h0zm0 19v-3h0v3h0zM4 12H1v0h3v0zm19 0h-3v0h3v0zM6.76 19.16l-1.42 1.42-1.79-1.8 1.41-1.41 1.8 1.79zM19.16 6.76l1.4-1.4 1.8 1.79-1.41 1.41-1.79-1.8zM12 6a6 6 0 100 12 6 6 0 000-12z"/>
-            </svg>
-          )}
-        </button>
+        <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Expand
+            size={20}
+            duration={750}
+            toggled={theme === 'dark'}
+            onToggle={() => toggleTheme()}
+          />
+        </div>
         {isLoggedIn ? (
           <>
             <Link to="/profile" className="profile-avatar-link" onClick={handleNavClick}>

@@ -562,9 +562,6 @@ export default function Home() {
                         </div>
                       );
                     })()}
-                    <div className="anomaly-time">
-                      {a.datetime ? (new Date(a.datetime).toLocaleString()) : (a.date || a.Datetime ? String(a.date || a.Datetime) : '―')}
-                    </div>
                     <div className="anomaly-count">
                       <span className="count-number">{a.anomalies}</span>
                       <span className="count-text">{a.anomalies} anml</span>
