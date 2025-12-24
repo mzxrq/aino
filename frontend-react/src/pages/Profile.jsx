@@ -64,16 +64,18 @@ const Profile = () => {
     
     // Password Logic:
     // 1. Password Empty? (null or empty string)
-    const isPasswordEmpty = user?.password === null || user?.password === '';
+    const isHasPassword = user?.hasPassword;
     
     // 2. Has Email?
     const hasEmail = !!user?.email && user.email !== '';
 
     // Can Change: If you have an email AND the password is NOT empty.
-    const canChangePassword = hasEmail && !isPasswordEmpty;
+    const canChangePassword = hasEmail && isHasPassword;
 
     // Can Add: If you have an email BUT password IS empty.
-    const canAddPassword = hasEmail && isPasswordEmpty;
+    const canAddPassword = hasEmail && !isHasPassword;
+
+    console.log({ loginMethod, isLineUser, isHasPassword, hasEmail, canChangePassword, canAddPassword });
 
     // --- State ---
     const [editMode, setEditMode] = useState(false);

@@ -354,7 +354,8 @@ exports.getProfile = async (req, res) => {
           createdAt: user.createdAt,
           lastLogin: user.lastLogin,
           timeZone: user.timeZone,
-          role: user.role
+          role: user.role,
+          hasPassword: !!user.password || false
         },
       });
     }
