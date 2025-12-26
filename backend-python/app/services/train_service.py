@@ -379,148 +379,119 @@ def _calculate_parabolic_sar(high, low, initial_af=0.02, max_af=0.2):
 
 # 4. data_preprocessing function
 def data_preprocessing(df: pd.DataFrame):
-
-    # ---- Guard: drop duplicate columns to avoid pandas setitem errors ----
-    if df.columns.duplicated().any():
-        df = df.loc[:, ~df.columns.duplicated()]
-
-    # ---- Clean ----
-    df = df.dropna().reset_index(drop=True)
-
-    # ---- Preserve ticker ----
-    tickers = df["Ticker"].copy()
-
-    # ---- Only ffill/bfill numeric columns ----
-    num_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    if num_cols:
-        # Use a safer approach: fill by ticker group
-        for ticker in df["Ticker"].unique():
-            mask = df["Ticker"] == ticker
-            for col in num_cols:
-                if col in df.columns:
-                    df.loc[mask, col] = df.loc[mask, col].ffill().bfill()
-
-    # ---- Restore Ticker (in case it was modified) ----
-    df["Ticker"] = tickers
-
-    # ---- Feature engineering ----
-    df["return_1"] = df["Close"].pct_change(1)
-    df["return_3"] = df["Close"].pct_change(3)
-    df["return_6"] = df["Close"].pct_change(6)
-
-    df["roll_mean_20"] = df["Close"].rolling(20, min_periods=1).mean()
-    df["roll_std_20"] = df["Close"].rolling(20, min_periods=1).std()
-    df["zscore_20"] = (df["Close"] - df["roll_mean_20"]) / df["roll_std_20"].replace(0, np.nan)
-
-    prev_close = df["Close"].shift(1)
-    h_l = df["High"] - df["Low"]
-    h_pc = (df["High"] - prev_close).abs()
-    l_pc = (df["Low"] - prev_close).abs()
-    tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
-    df["ATR_14"] = tr.ewm(span=14, adjust=False, min_periods=14).mean()
-
-    # ---- Bollinger Bands (adaptive: use 1.5σ or 2σ based on volatility) ----
-    # Standard 2σ, but we'll also calculate 1.5σ as an alternative for lower volatility markets
-    df["bb_upper_2sigma"] = df["roll_mean_20"] + 2 * df["roll_std_20"]
-    df["bb_lower_2sigma"] = df["roll_mean_20"] - 2 * df["roll_std_20"]
-    df["bb_upper_1_5sigma"] = df["roll_mean_20"] + 1.5 * df["roll_std_20"]
-    df["bb_lower_1_5sigma"] = df["roll_mean_20"] - 1.5 * df["roll_std_20"]
-    df["bb_width"] = df["bb_upper_2sigma"] - df["bb_lower_2sigma"]
+    # --- 1. Data Integrity & Cleaning ---
+    # Drop duplicate columns
+    df = df.loc[:, ~df.columns.duplicated()]
     
-    # Default to 2σ, but we'll let frontend decide based on market
-    df["bb_upper"] = df["bb_upper_2sigma"]
-    df["bb_lower"] = df["bb_lower_2sigma"]
+    # Drop rows with missing essential OHLCV data early
+    df = df.dropna(subset=['Open', 'High', 'Low', 'Close', 'Volume']).reset_index(drop=True)
 
-    # ---- Moving Averages (5, 25, 75 periods) ----
-    df["MA5"] = df["Close"].rolling(window=5, min_periods=1).mean()
-    df["MA25"] = df["Close"].rolling(window=25, min_periods=1).mean()
-    df["MA75"] = df["Close"].rolling(window=75, min_periods=1).mean()
+    # Preserve ticker for restoration
+    if "Ticker" in df.columns:
+        tickers = df["Ticker"].copy()
+    else:
+        df["Ticker"] = "Unknown"
+        tickers = df["Ticker"]
 
-    # ---- Parabolic SAR (Stop and Reverse) ----
-    df["SAR"], df["SAR_ep"] = _calculate_parabolic_sar(df["High"], df["Low"])
+    # --- 2. Basic Price Features ---
+    df["return_1"] = df.groupby("Ticker")["Close"].pct_change(1)
+    df["return_3"] = df.groupby("Ticker")["Close"].pct_change(3)
+    df["return_6"] = df.groupby("Ticker")["Close"].pct_change(6)
 
-    delta = df["Close"].diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(com=13, adjust=False, min_periods=14).mean()
-    avg_loss = loss.ewm(com=13, adjust=False, min_periods=14).mean()
-    rs = avg_gain / avg_loss.replace(0, 1e-6)
-    df["RSI"] = 100 - (100 / (1 + rs))
+    # Rolling Statistics (20-period)
+    rolling_20 = df.groupby("Ticker")["Close"].rolling(20, min_periods=1)
+    df["roll_mean_20"] = rolling_20.mean().reset_index(level=0, drop=True)
+    df["roll_std_20"] = rolling_20.std().reset_index(level=0, drop=True)
+    df["Close_Z"] = (df["Close"] - df["roll_mean_20"]) / (df["roll_std_20"] + 1e-9)
 
-    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
-    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+    # --- 3. Volatility (ATR) ---
+    # Compute True Range per-row, then apply exponential smoothing per ticker
+    prev_close = df.groupby("Ticker")["Close"].shift(1)
+    tr1 = df["High"] - df["Low"]
+    tr2 = (df["High"] - prev_close).abs()
+    tr3 = (df["Low"] - prev_close).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    # ATR (14) and shorter ATR (3) computed per-Ticker and aligned to original index
+    df['ATR'] = tr.groupby(df['Ticker']).transform(lambda s: s.ewm(alpha=1/14, min_periods=14, adjust=False).mean())
+    df['ATR_short'] = tr.groupby(df['Ticker']).transform(lambda s: s.ewm(alpha=1/3, min_periods=3, adjust=False).mean())
+
+    # --- 4. Envelopes & Channels (Bollinger Bands) ---
+    df["bb_upper"] = df["roll_mean_20"] + 2 * df["roll_std_20"]
+    df["bb_lower"] = df["roll_mean_20"] - 2 * df["roll_std_20"]
+    df["bb_width"] = df["bb_upper"] - df["bb_lower"]
+    df['B_Percent'] = (df['Close'] - df['bb_lower']) / (df['bb_width'] + 1e-9)
+
+    # --- 5. Moving Averages & Trend ---
+    df["MA5"] = df.groupby("Ticker")["Close"].transform(lambda x: x.rolling(5, min_periods=1).mean())
+    df["MA25"] = df.groupby("Ticker")["Close"].transform(lambda x: x.rolling(25, min_periods=1).mean())
+    df["MA75"] = df.groupby("Ticker")["Close"].transform(lambda x: x.rolling(75, min_periods=1).mean())
+    
+    df['EMA_Fast'] = df.groupby("Ticker")["Close"].transform(lambda x: x.ewm(span=20, adjust=False).mean())
+    df['EMA_Slow'] = df.groupby("Ticker")["Close"].transform(lambda x: x.ewm(span=50, adjust=False).mean())
+
+    # --- 6. Momentum Indicators (RSI & MACD) ---
+    # RSI
+    def calculate_rsi(series, period=14):
+        delta = series.diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        avg_gain = gain.ewm(com=period-1, adjust=False).mean()
+        avg_loss = loss.ewm(com=period-1, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, 1e-6)
+        return 100 - (100 / (1 + rs))
+
+    df["RSI"] = df.groupby("Ticker")["Close"].transform(calculate_rsi)
+
+    # MACD (Price)
+    ema12 = df.groupby("Ticker")["Close"].transform(lambda x: x.ewm(span=12, adjust=False).mean())
+    ema26 = df.groupby("Ticker")["Close"].transform(lambda x: x.ewm(span=26, adjust=False).mean())
     df["MACD"] = ema12 - ema26
-    df["Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
-    df["MACD_hist"] = df["MACD"] - df["Signal"]
+    df["Signal_Line"] = df.groupby("Ticker")["MACD"].transform(lambda x: x.ewm(span=9, adjust=False).mean())
+    df["MACD_Hist"] = df["MACD"] - df["Signal_Line"]
 
-    cum_vol = df["Volume"].cumsum()
-    cum_vol_price = (df["Volume"] * df["Close"]).cumsum()
-    df["VWAP"] = cum_vol_price / cum_vol.replace(0, np.nan)
+    # --- 7. Volume Analysis ---
+    # VWAP
+    df["VWAP"] = (df["Volume"] * df["Close"]).cumsum() / df["Volume"].cumsum().replace(0, np.nan)
+    
+    # Volume Z-Score
+    v_rolling = df.groupby("Ticker")["Volume"].rolling(14)
+    v_mean = v_rolling.mean().reset_index(level=0, drop=True)
+    v_std = v_rolling.std().reset_index(level=0, drop=True)
+    df['Vol_Z'] = (df['Volume'] - v_mean) / (v_std + 1e-9)
 
+    # Volume MACD
+    v_ema12 = df.groupby("Ticker")["Volume"].transform(lambda x: x.ewm(span=12, adjust=False).mean())
+    v_ema26 = df.groupby("Ticker")["Volume"].transform(lambda x: x.ewm(span=26, adjust=False).mean())
+    df['Vol_MACD'] = v_ema12 - v_ema26
+    df['Vol_MACD_Signal'] = df.groupby("Ticker")['Vol_MACD'].transform(lambda x: x.ewm(span=9, adjust=False).mean())
+
+    # --- 8. Volume Efficiency Index (VEI) - Stabilized Version ---
+    price_intensity = np.log1p(df["return_1"].abs() * 100).clip(upper=3.0)
+    vol_ema = df.groupby("Ticker")["Volume"].transform(lambda x: x.ewm(span=20, adjust=False).mean())
+    vol_effort = (np.log1p(df['Volume']) - np.log1p(vol_ema)).clip(-1.5, 1.5)
+    df['VEI'] = price_intensity - vol_effort
+
+    # --- 9. Candlestick Anatomy ---
     df["body"] = (df["Close"] - df["Open"]).abs()
     df["upper_wick"] = df["High"] - df[["Open", "Close"]].max(axis=1)
     df["lower_wick"] = df[["Open", "Close"]].min(axis=1) - df["Low"]
+    df['Relative_Wick'] = df['lower_wick'] / (df['ATR'] + 1e-9)
 
-    df['wick_ratio'] = np.where(
-        df['body'] != 0,
-        (df['upper_wick'] + df['lower_wick']) / df['body'],
-        np.nan
-    )
-
-    df['wick_ratio'] = df['wick_ratio'].ffill().fillna(0).clip(upper=20)
-
-
-    # --- 2. Volatility: ATR (Manual Calculation) ---
-    def get_atr(high, low, close, length):
-        tr1 = high - low
-        tr2 = (high - close.shift()).abs()
-        tr3 = (low - close.shift()).abs()
-        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-        # ATR also uses Wilder's Smoothing
-        return tr.ewm(alpha=1/length, min_periods=length, adjust=False).mean()
-
-    df['ATR'] = get_atr(df['High'], df['Low'], df['Close'], 14)
-
-    # Surgical VEI Re-tuning
-    atr_short = get_atr(df['High'], df['Low'], df['Close'], 3)
-    atr_long = get_atr(df['High'], df['Low'], df['Close'], 10)
-    df['VEI'] = atr_short / (atr_long + 1e-9)
-
-    # --- 3. Advanced Volume Features ---
-    vol_mean = df['Volume'].rolling(14).mean()
-    vol_std = df['Volume'].rolling(14).std()
-    df['Vol_Z'] = (df['Volume'] - vol_mean) / (vol_std + 1e-9)
+    # --- 10. Signals & Crossovers ---
+    df['MACD_Cross_Up'] = (df['MACD'] > df['Signal_Line']) & (df['MACD'].shift(1) <= df['Signal_Line'].shift(1))
+    df['MACD_Cross_Down'] = (df['MACD'] < df['Signal_Line']) & (df['MACD'].shift(1) >= df['Signal_Line'].shift(1))
+    df['EMA_Cross_Up'] = (df['EMA_Fast'] > df['EMA_Slow']) & (df['EMA_Fast'].shift(1) <= df['EMA_Slow'].shift(1))
     
-    # Log-scaling for anomalies
-    df['Vol_Intensity'] = np.sign(df['Vol_Z']) * np.log1p(np.abs(df['Vol_Z']))
-    df['Vol_Eff'] = df['Vol_Z'] / (df['ATR'] + 1e-9)
-
-    # --- 4. Price Action Sensitivity ---
-    df['Price_Shock'] = df['Close'].pct_change(periods=1)
-    
-    # Close Z-Score
-    c_mean = df['Close'].rolling(20).mean()
-    c_std = df['Close'].rolling(20).std()
-    df['Close_Z'] = (df['Close'] - c_mean) / (c_std + 1e-9)
-
-    # --- 5. Bollinger Band %B (Manual Calculation) ---
-    bb_mean = df['Close'].rolling(20).mean()
-    bb_std = df['Close'].rolling(20).std()
-    upper_band = bb_mean + (bb_std * 2)
-    lower_band = bb_mean - (bb_std * 2)
-    
-    # Calculate %B
-    df['B_Percent'] = (df['Close'] - lower_band) / (upper_band - lower_band + 1e-9)
-
-    # Fill remaining NaNs using ffill->bfill strategy to preserve historical date range
-    # This ensures charts show the full period without losing early/late rows
+    # --- 11. Final Polish ---
+    # Restore Ticker and fill remaining gaps
+    df["Ticker"] = tickers
     df = df.ffill().bfill()
     
-    # Final safety check: drop any rows where critical OHLCV columns are still NaN
-    df = df.dropna(subset=['Open', 'High', 'Low', 'Close', 'Volume']).reset_index(drop=True)
+    # Final safety drop for any remaining NaNs in core features
+    df = df.dropna(subset=['MACD', 'ATR', 'RSI']).reset_index(drop=True)
 
     return df
-
 
 def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str = '10y', trigger: str = 'manual'):
     """
@@ -849,30 +820,35 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         logger.error(f"Adaptive detection failed for {ticker}: {e}")
         return pd.DataFrame()
 
+# --- 5. Final Reason Hierarchy ---
 def identify_reason(row):
-    # Use safe .get access to avoid KeyError when fields are missing.
-    try:
-        if row.get('is_vol_anomaly', False) and row.get('is_price_anomaly', False):
-            return "Vol+Price"
-        if row.get('is_vol_anomaly', False):
-            return "High Vol"
-        if row.get('is_price_anomaly', False):
-            return "Price Shock"
-        if row.get('is_vei_anomaly', False):
-            return "VEI Break"
-        if row.get('is_absorption', False):
-            return "Absorption"
-        if row.get('Price_warning', False):
-            return "Price Warning"
-        if row.get('is_vei_increasing_gradually', False):
-            return "VEI Gradual"
-        if row.get('Is_Anomaly', False) == True:
-            return "System anomaly detected"
-    except Exception:
-        # If any unexpected structure, fall back to generic label
-        return "Other"
-    return "Other"
+    # P1: Extreme Market Events
+    if row['is_flash_crash']: return "Flash Crash"
+    if row['is_vol_anomaly'] and row['is_price_anomaly']: return "Vol+Price Spike"
 
+    # P2: Technical Action (Crossovers)
+    if row['MACD_Cross_Up'] and row['EMA_Cross_Up']: return "Double Bull Cross"
+    if row['MACD_Cross_Down'] and row['EMA_Cross_Down']: return "Double Bear Cross"
+    if row['MACD_Cross_Up']: return "MACD Bull Cross"
+    if row['MACD_Cross_Down']: return "MACD Bear Cross"
+
+    # P3: Institutional Behavior
+    if row['is_absorption']: return "Absorption"
+
+    # P4: Individual Breaches
+    if row['is_vol_anomaly']: return "High Vol"
+    if row['is_price_anomaly']: return "Price Shock"
+    if row['is_vei_anomaly']: return "VEI Break"
+
+    # P5: General Trend Signals (Removed)
+    # if row['is_bullish_trend']: return "Bullish Trend"
+    # if row['is_bearish_trend']: return "Bearish Trend"
+
+    # P6: Warnings
+    if row['is_price_volume_warning']: return "P+V Warning"
+    if abs(row['Close_Z']) > 2: return "Price Z-Score"
+
+    return "Normal"
 
 def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
     """Populate rule-based flag columns used to annotate reasons.
@@ -911,7 +887,7 @@ def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
 
 def detect_anomalies(tickers, period, interval):
     all_anomalies = pd.DataFrame()
-    features = ["RSI","ATR","VEI","Vol_Z","Vol_Intensity","Vol_Eff","Price_Shock","Close_Z","B_Percent"]
+    # features = ["RSI","ATR","VEI","Vol_Z","Vol_Intensity","Vol_Eff","Price_Shock","Close_Z","B_Percent"]
     if isinstance(tickers, str):
         tickers = [tickers]
 
@@ -924,40 +900,50 @@ def detect_anomalies(tickers, period, interval):
         if df.empty:
             continue
 
-        model = get_model('JP') if ticker.endswith('.T') else get_model('US')
-        if model is None:
-            logger.warning(f"No model available for ticker {ticker}")
-            continue
+        # model = get_model('JP') if ticker.endswith('.T') else get_model('US')
+        # if model is None:
+        #     logger.warning(f"No model available for ticker {ticker}")
+        #     continue
 
-        X = df[features].dropna()
-        if X.empty:
-            continue
+        # X = df[features].dropna()
+        # if X.empty:
+        #     continue
 
         # Model predictions: map to boolean and align with original df indices
-        try:
-            prediction = model.predict(X)
-            status_map = {-1: True, 1: False}
-            # create a series indexed by X.index so we only assign predicted rows
-            pred_ser = pd.Series(prediction, index=X.index).map(status_map)
-            df['Is_Anomaly_model'] = False
-            df.loc[pred_ser.index, 'Is_Anomaly_model'] = pred_ser
-        except Exception:
-            df['Is_Anomaly_model'] = False
+        # try:
+        #     prediction = model.predict(X)
+        #     status_map = {-1: True, 1: False}
+        #     # create a series indexed by X.index so we only assign predicted rows
+        #     pred_ser = pd.Series(prediction, index=X.index).map(status_map)
+        #     df['Is_Anomaly_model'] = False
+        #     df.loc[pred_ser.index, 'Is_Anomaly_model'] = pred_ser
+        # except Exception:
+        #     df['Is_Anomaly_model'] = False
 
         # Ensure price shock std exists before using it in absorption rule
-        df['Price_Shock_Std'] = df.get('Price_Shock', pd.Series()).rolling(20).std() if 'Price_Shock' in df.columns else pd.Series([np.nan]*len(df))
+        # df['Price_Shock_Std'] = df.get('Price_Shock', pd.Series()).rolling(20).std() if 'Price_Shock' in df.columns else pd.Series([np.nan]*len(df))
 
-        # 1. Define individual thresholds (rule-based signals)
-        df['is_vol_anomaly'] = df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 3.0
-        df['is_price_anomaly'] = df.get('Price_Shock', pd.Series(0)).abs() > (df['Price_Shock'].rolling(20).std().fillna(0) * 2.5)
-        df['is_vei_anomaly'] = df.get('VEI', pd.Series(0.0, index=df.index)).astype(float) > 1.2
-        df['is_absorption'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0) & (df.get('Price_Shock', pd.Series(0)).abs() < (df['Price_Shock_Std'].fillna(0) * 0.5))
-        df['Price_warning'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0)
+        # # 1. Define individual thresholds (rule-based signals)
+        # df['is_vol_anomaly'] = df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 3.0
+        # df['is_price_anomaly'] = df.get('Price_Shock', pd.Series(0)).abs() > (df['Price_Shock'].rolling(20).std().fillna(0) * 2.5)
+        # df['is_vei_anomaly'] = df.get('VEI', pd.Series(0.0, index=df.index)).astype(float) > 1.2
+        # df['is_absorption'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0) & (df.get('Price_Shock', pd.Series(0)).abs() < (df['Price_Shock_Std'].fillna(0) * 0.5))
+        # df['Price_warning'] = (df.get('Vol_Z', pd.Series(0.0, index=df.index)).astype(float) > 2.0)
         
         # Combine model-based and rule-based results: mark anomaly if either indicates one
-        df['Is_Anomaly'] = df['Is_Anomaly_model'] | df['is_vol_anomaly'] | df['is_price_anomaly'] | df['is_vei_anomaly'] | df['is_absorption'] | df['Price_warning']
+        # df['Is_Anomaly'] = df['Is_Anomaly_model'] | df['is_vol_anomaly'] | df['is_price_anomaly'] | df['is_vei_anomaly'] | df['is_absorption'] | df['Price_warning']
 
         # Annotate Top_Reason for any detected anomaly row
+        price_std_rolling = df['Price_Shock'].rolling(20).std().fillna(0)
+
+        # --- 4. Unified Anomaly Flags ---
+        df['is_vol_anomaly'] = df['Vol_Z'] > 2.0
+        df['is_price_anomaly'] = df['Price_Shock'].abs() > (price_std_rolling * 1.8)
+        df['is_vei_anomaly'] = df['VEI_Z'] > 2.0
+        df['is_flash_crash'] = df['Relative_Wick'] > 2.5
+        df['is_absorption'] = (df['Vol_Z'] > 2.0) & (df['Price_Shock'].abs() < (price_std_rolling * 0.5))
+        df['is_price_volume_warning'] = (df['Close_Z'].abs() > 1.5) & (df['Vol_Z'] > 1.5)
+
         try:
             df['Top_Reason'] = df.apply(identify_reason, axis=1)
         except Exception:
