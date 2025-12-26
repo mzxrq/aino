@@ -4,6 +4,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
 import TimezoneSelect from '../components/TimezoneSelect';
 import FinancialsTable from '../components/FinancialsTable';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/MainChart.css';
 import { useAuth } from '../context/useAuth';
@@ -300,7 +305,9 @@ export default function LargeChart() {
   const [lcNewsPageSize] = useState(3);
   const [modalResults, setModalResults] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
-  const [showFinancialModal, setShowFinancialModal] = useState(false);
+  const [finOverlayOpen, setFinOverlayOpen] = useState(false);
+  const [finOverlayTitle, setFinOverlayTitle] = useState('');
+  const [finOverlayData, setFinOverlayData] = useState(null);
   const [showMarketModal, setShowMarketModal] = useState(false);
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
@@ -1134,8 +1141,8 @@ export default function LargeChart() {
               <button
                 type="button"
                 className="lc-btn-small"
-                onClick={() => setShowFinancialModal(true)}
-                title="View all financial data"
+                onClick={() => { setFinOverlayTitle('Recent Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}
+                title="View recent financial data (2 periods)"
               >
                 More
               </button>
@@ -1471,70 +1478,31 @@ export default function LargeChart() {
         </main>
       </div>
 
-      {/* Financial Details Modal */}
-      {showFinancialModal && (
-        <div className="lc-modal-overlay" onClick={() => setShowFinancialModal(false)}>
-          <div className="lc-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-modal-header">
-              <h2>{displayTicker} — Financial Data</h2>
-              <button
-                type="button"
-                className="lc-modal-close"
-                onClick={() => setShowFinancialModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lc-modal-body">
-              {/* Income Statement */}
-              <div className="lc-modal-section">
-                <h3>Income Statement</h3>
-                <div className="lc-modal-table">
-                  <div className="lc-table-header">
-                    <div>Period</div>
-                    <div>Value</div>
-                  </div>
-                  {Object.entries(financials.income_stmt || {}).map(([period, value]) => {
-                    const numVal = typeof value === 'number' ? value : parseFloat(value) || 0;
-                    return (
-                      <div key={period} className="lc-table-row">
-                        <div className="lc-table-cell">{period}</div>
-                        <div className="lc-table-cell">{currencySymbol}{Math.abs(numVal) > 1e9 ? (numVal / 1e9).toFixed(2) : (numVal / 1e6).toFixed(2)}{Math.abs(numVal) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    );
-                  })}
-                  {Object.keys(financials.income_stmt || {}).length === 0 && (
-                    <div className="lc-table-empty">No data available</div>
-                  )}
+      <Dialog open={finOverlayOpen} onClose={() => setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>{displayTicker} — {finOverlayTitle}</DialogTitle>
+        <DialogContent>
+          <div style={{ paddingTop: 8 }}>
+            {finOverlayTitle === 'Recent Financials' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <h5 style={{ marginTop: 0 }}>Income Statement (most recent 2 periods)</h5>
+                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} transpose={true} />
+                </div>
+                <div>
+                  <h5 style={{ marginTop: 0 }}>Balance Sheet (most recent 2 periods)</h5>
+                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
-
-              {/* Balance Sheet */}
-              <div className="lc-modal-section">
-                <h3>Balance Sheet</h3>
-                <div className="lc-modal-table">
-                  <div className="lc-table-header">
-                    <div>Period</div>
-                    <div>Value</div>
-                  </div>
-                  {Object.entries(financials.balance_sheet || {}).map(([period, value]) => {
-                    const numVal = typeof value === 'number' ? value : parseFloat(value) || 0;
-                    return (
-                      <div key={period} className="lc-table-row">
-                        <div className="lc-table-cell">{period}</div>
-                        <div className="lc-table-cell">{currencySymbol}{Math.abs(numVal) > 1e9 ? (numVal / 1e9).toFixed(2) : (numVal / 1e6).toFixed(2)}{Math.abs(numVal) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    );
-                  })}
-                  {Object.keys(financials.balance_sheet || {}).length === 0 && (
-                    <div className="lc-table-empty">No data available</div>
-                  )}
-                </div>
-              </div>
-            </div>
+            ) : (
+              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} transpose={true} />
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFinOverlayOpen(false)}>Close</Button>
+          <Button component={Link} to={`/company/${encodeURIComponent(ticker)}`} onClick={() => setFinOverlayOpen(false)}>Open Company Profile</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Market Selection Modal */}
       {showMarketModal && marketCandidates.length > 0 && (
