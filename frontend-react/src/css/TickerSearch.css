@@ -198,6 +198,18 @@
   border-radius: 12px !important;
   flex: 0 0 24px;
 }
+
+/* small 'current' badge shown next to a ticker in MainChart modal */
+.lc-current-badge {
+  margin-left: 8px;
+  background: rgba(44, 193, 127, 0.12);
+  color: #2cc17f;
+  border: 1px solid rgba(44,193,127,0.18);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
 .lc-ticker-search-item-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -287,6 +299,7 @@
     white-space: normal !important;
     display: -webkit-box !important;
     -webkit-line-clamp: 2 !important; /* limit to 2 lines */
+    line-clamp: 2 !important;
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
   }

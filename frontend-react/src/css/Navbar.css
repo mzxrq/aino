@@ -3,7 +3,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #28c97d 0%, #41ce7e 100%);
+    background: transparent;
     margin: 0;
     padding: 6px 16px;
     border-radius: 0;
@@ -79,7 +79,7 @@
   }
 
   .theme-toggle {
-    background: rgba(255, 255, 255, 0);
+    background: transparent;
     border: none;
     color: white;
     font-size: 14px;
@@ -128,7 +128,7 @@
   }
 
   body.dark .navbar {
-    background: linear-gradient(135deg, #1e9c66 0%, #147a51 100%);
+    background: transparent;
   }
 
   body.dark .theme-toggle {
@@ -181,36 +181,6 @@
   .btn-outline:hover {
     background: rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.4);
-  }
-
-  /* Theme icon animation styles (simple port of provided rules) */
-  .theme-icon {
-    cursor: pointer;
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-  }
-
-  .theme-icon .animatable {
-    /* SMIL will handle motion of cx/cy; keep CSS neutral as fallback */
-    will-change: auto;
-    transform: none;
-    transition: none;
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  .theme-icon .animatable.is-animated {
-    /* no-op: SMIL plays the actual movement; class kept for non-SMIL fallback */
-  }
-
-  /* Fallback behavior: move the visible white circle when CSS-only fallback is used */
-  .theme-icon .animatable {
-    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .theme-icon .animatable.is-animated {
-    transform: translate(6px, -6px);
   }
 
   body.dark .btn-outline {
@@ -386,7 +356,7 @@
   .logo-img {
     height: 35px;
     width: 52px;
-    filter: brightness(0) invert(1);
+    filter: none;
   }
 
   .nav-links {
@@ -428,6 +398,42 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
+
+/* Strong overrides to ensure navbar is transparent across all breakpoints */
+.navbar {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Ensure dropdowns don't reintroduce colored backgrounds */
+.nav-links {
+  background: transparent !important;
+}
+
+/* Theme-aware link colors */
+.nav-link,
+.nav-actions .btn,
+.btn-login,
+.btn-outline,
+.profile-avatar-placeholder {
+  color: var(--text-primary, #111) !important;
+}
+
+body.dark .nav-link,
+body.dark .nav-actions .btn,
+body.dark .btn-login,
+body.dark .btn-outline,
+body.dark .profile-avatar-placeholder {
+  color: #ffffff !important;
+}
+
+/* Logo color handling */
+.logo-img { filter: none !important; }
+body.dark .logo-img { filter: brightness(0) invert(1) !important; }
+
 
   .theme-toggle {
     background: rgba(255, 255, 255, 0.15);
@@ -498,6 +504,35 @@
 
   body.dark .logo {
     color: white;
+  }
+
+  /* Theme-aware text colors for navbar */
+  .nav-link,
+  .nav-actions .btn,
+  .btn-login,
+  .btn-outline,
+  .profile-avatar-placeholder {
+    color: var(--text-primary, #111);
+  }
+
+  body.dark .nav-link,
+  body.dark .nav-actions .btn,
+  body.dark .btn-login,
+  body.dark .btn-outline,
+  body.dark .profile-avatar-placeholder {
+    color: #ffffff;
+  }
+
+  /* In dark mode, make the logo white */
+  body.dark .logo-img {
+    filter: brightness(0) invert(1);
+  }
+
+  /* Remove navbar chrome so page backgrounds show through */
+  .navbar {
+    border-bottom: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
   }
 
   body.dark .btn-login {
@@ -863,6 +898,119 @@
     background: rgba(255, 255, 255, 0.25);
   }
 
+}
+
+/* Final global overrides (outside media queries) */
+/* Make navbar inherit its parent's background so it visually matches the page */
+.navbar {
+  background: inherit !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Specifically ensure dark mode doesn't reapply gradients */
+body.dark .navbar {
+  background: inherit !important;
+}
+
+/* Desktop breakpoint safety: override any remaining desktop gradients */
+@media (min-width: 1025px) {
+  .navbar {
+    background: inherit !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .nav-links {
+    background: transparent !important;
+  }
+}
+
+/* Fix hamburger visibility and ensure light-theme text/logo colors */
+.menu-toggle {
+  display: inline-flex !important;
+  color: var(--text-primary, #111) !important;
+  background: transparent !important;
+}
+
+.menu-toggle .hb {
+  color: inherit !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.menu-toggle .hb path {
+  stroke: currentColor !important;
+  stroke-width: 0.8 !important;
+}
+
+/* Ensure links/logo are dark on light theme across all breakpoints */
+body:not(.dark) .nav-link,
+body:not(.dark) .logo,
+body:not(.dark) .nav-actions .btn,
+body:not(.dark) .btn-login,
+body:not(.dark) .btn-outline,
+body:not(.dark) .profile-avatar-placeholder {
+  color: var(--text-primary, #111) !important;
+}
+
+body:not(.dark) .logo-img {
+  filter: none !important;
+}
+
+/* Keep white in dark theme */
+body.dark .menu-toggle,
+body.dark .nav-link,
+body.dark .logo,
+body.dark .nav-actions .btn {
+  color: #fff !important;
+}
+
+/* Hide hamburger by default for desktop; show only on small screens */
+.menu-toggle {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: flex !important;
+  }
+
+  /* Mobile nav dropdown should match theme: white for light, dark for dark */
+  .nav-links {
+    background: #ffffff !important;
+    color: var(--text-primary, #111) !important;
+    border-bottom-left-radius: 12px !important;
+    border-bottom-right-radius: 12px !important;
+    padding-bottom: 12px !important;
+    box-shadow: 0 6px 18px rgba(16,24,40,0.08) !important;
+  }
+
+  body.dark .nav-links {
+    background: #071124 !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45) !important;
+  }
+
+  /* Ensure nav-link colors inherit from nav-links background */
+  .nav-links .nav-link {
+    color: inherit !important;
+    background: transparent !important;
+  }
+
+  .nav-links.open {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+}
+
+
+
   body.dark .navbar {
     background: linear-gradient(135deg, #1e9c66 0%, #147a51 100%);
   }
@@ -1082,10 +1230,8 @@
     flex-shrink: 0;
   }
 
-  body.dark .navbar .profile-avatar-placeholder {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
+body.dark .navbar .profile-avatar-placeholder {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Fix: remove unwanted underlines/underbar artifacts from navbar anchors */

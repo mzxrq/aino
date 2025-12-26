@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import EchartsCard from '../components/EchartsCard';
+import * as echarts from 'echarts';
 import TimezoneSelect from '../components/TimezoneSelect';
+import FinancialsTable from '../components/FinancialsTable';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
-import '../css/LargeChart.css';
+import '../css/MainChart.css';
 import { useAuth } from '../context/useAuth';
 import Swal from '../utils/muiSwal';
 
@@ -30,12 +31,7 @@ const TICKER_EXTENSIONS = ['.BK', '.T', '.L', '.TO', '.HK', '.NS', '.BO', '.TW',
 // Helper: try Node gateway first, then fall back to Python 5000
 async function fetchJsonWithFallback(path, init) {
   // path should start with '/'
-  const primary = `${PY_API}${path}`;
   const fallback = `${PY_DIRECT}/py${path}`;
-  try {
-    const res = await fetch(primary, init);
-    if (res.ok) return await res.json();
-  } catch (_) { /* continue to fallback */ }
   const res2 = await fetch(fallback, init);
   if (!res2.ok) throw new Error(`Request failed: ${res2.status}`);
   return await res2.json();
@@ -97,18 +93,130 @@ function getTimezoneTimeString(iana) {
     return '';
   }
 }
+// City-based timezone labels mapped to IANA identifiers
+const CITY_TZ_MAP = {
+  UTC: 'UTC',
+  'New York': 'America/New_York',
+  Chicago: 'America/Chicago',
+  Denver: 'America/Denver',
+  'Los Angeles': 'America/Los_Angeles',
+  Anchorage: 'America/Anchorage',
+  'São Paulo': 'America/Sao_Paulo',
+  'Mexico City': 'America/Mexico_City',
+  Toronto: 'America/Toronto',
+  London: 'Europe/London',
+  Paris: 'Europe/Paris',
+  Berlin: 'Europe/Berlin',
+  Rome: 'Europe/Rome',
+  Madrid: 'Europe/Madrid',
+  Amsterdam: 'Europe/Amsterdam',
+  Brussels: 'Europe/Brussels',
+  Zurich: 'Europe/Zurich',
+  Vienna: 'Europe/Vienna',
+  Stockholm: 'Europe/Stockholm',
+  Copenhagen: 'Europe/Copenhagen',
+  Oslo: 'Europe/Oslo',
+  Helsinki: 'Europe/Helsinki',
+  Athens: 'Europe/Athens',
+  Istanbul: 'Europe/Istanbul',
+  Moscow: 'Europe/Moscow',
+  Warsaw: 'Europe/Warsaw',
+  Prague: 'Europe/Prague',
+  Tokyo: 'Asia/Tokyo',
+  Seoul: 'Asia/Seoul',
+  Shanghai: 'Asia/Shanghai',
+  'Hong Kong': 'Asia/Hong_Kong',
+  Singapore: 'Asia/Singapore',
+  Bangkok: 'Asia/Bangkok',
+  Jakarta: 'Asia/Jakarta',
+  Manila: 'Asia/Manila',
+  Taipei: 'Asia/Taipei',
+  'Kuala Lumpur': 'Asia/Kuala_Lumpur',
+  Dubai: 'Asia/Dubai',
+  Karachi: 'Asia/Karachi',
+  Tashkent: 'Asia/Tashkent',
+  Almaty: 'Asia/Almaty',
+  Sydney: 'Australia/Sydney',
+  Melbourne: 'Australia/Melbourne',
+  Brisbane: 'Australia/Brisbane',
+  Perth: 'Australia/Perth',
+  Auckland: 'Pacific/Auckland',
+  Fiji: 'Pacific/Fiji',
+  Honolulu: 'Pacific/Honolulu',
+  Cairo: 'Africa/Cairo',
+  Johannesburg: 'Africa/Johannesburg',
+  Lagos: 'Africa/Lagos',
+  Nairobi: 'Africa/Nairobi'
+};
 
-const TIMEZONES = [
-  { offset: 0, label: 'UTC', name: 'UTC' },
-  { offset: 1, label: 'UTC+1', name: 'Europe/London' },
-  { offset: 2, label: 'UTC+2', name: 'Europe/Paris' },
-  { offset: 3, label: 'UTC+3', name: 'Europe/Moscow' },
-  { offset: 5.5, label: 'UTC+5:30', name: 'Asia/Kolkata' },
-  { offset: 8, label: 'UTC+8', name: 'Asia/Singapore' },
-  { offset: 9, label: 'UTC+9', name: 'Asia/Tokyo' },
-  { offset: -5, label: 'UTC-5', name: 'America/New_York' },
-  { offset: -8, label: 'UTC-8', name: 'America/Los_Angeles' }
-];
+// Get UTC offset for a city label (returns hours, may be fractional)
+function getTimezoneOffset(cityLabel) {
+  try {
+    const now = new Date();
+    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = tzDate - utcDate;
+    const offsetHours = offsetMs / (1000 * 60 * 60);
+    return offsetHours;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Format timezone with UTC offset: "(+09:00) Tokyo"
+function formatTimezoneLabel(cityLabel) {
+  try {
+    const now = new Date();
+    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = tzDate - utcDate;
+    const offsetHours = offsetMs / (1000 * 60 * 60);
+    const absHours = Math.abs(Math.floor(offsetHours));
+    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
+    const signedHours = offsetHours >= 0 ? absHours : -absHours;
+    const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
+    return `${offsetStr} ${cityLabel}`;
+  } catch (e) {
+    return cityLabel;
+  }
+}
+
+// Sort timezones by UTC offset
+function sortTimezonesByOffset(timezones) {
+  return [...timezones].sort((a, b) => getTimezoneOffset(a) - getTimezoneOffset(b));
+}
+
+// Auto-detect user's timezone (returns city label present in CITY_TZ_MAP or 'UTC')
+function detectUserTimezone() {
+  try {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const city = Object.keys(CITY_TZ_MAP).find(c => CITY_TZ_MAP[c] === detected);
+    if (city) return city;
+    const offset = new Date().getTimezoneOffset();
+    if (offset === -540) return 'Tokyo'; // UTC+9
+    if (offset === -480) return 'Singapore'; // UTC+8
+    if (offset === -420) return 'Bangkok'; // UTC+7
+    if (offset === 0) return 'London'; // UTC+0
+    if (offset === 300) return 'New York'; // UTC-5
+    if (offset === 420) return 'Los Angeles'; // UTC-7
+  } catch (e) {
+    console.warn('Timezone detection failed:', e);
+  }
+  return 'UTC';
+}
+
+// Get current time string for a city label (wraps existing IANA helper)
+function getTimezoneTimeStringCity(cityLabel) {
+  try {
+    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
+    return getTimezoneTimeString(iana);
+  } catch (e) { return ''; }
+}
+
+// Build TIMEZONES array used by TimezoneSelect: array of objects { offset, label, name }
+const TIMEZONES = sortTimezonesByOffset(Object.keys(CITY_TZ_MAP)).map(name => ({ offset: getTimezoneOffset(name), label: formatTimezoneLabel(name), name: CITY_TZ_MAP[name] }));
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
@@ -189,16 +297,35 @@ export default function LargeChart() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [lcNews, setLcNews] = useState([]);
   const [lcNewsLoading, setLcNewsLoading] = useState(false);
-  const [lcNewsPageSize] = useState(5);
+  const [lcNewsPageSize] = useState(3);
+  const [modalResults, setModalResults] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
   const [showFinancialModal, setShowFinancialModal] = useState(false);
   const [showMarketModal, setShowMarketModal] = useState(false);
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
   const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
+  const [showDIF, setShowDIF] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showDIF !== undefined) ? p.showDIF : true; } catch { return true; } });
+  const [showDEA, setShowDEA] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showDEA !== undefined) ? p.showDEA : true; } catch { return true; } });
   const [showMA5, setShowMA5] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA5 !== undefined) ? p.showMA5 : false; } catch { return false; } });
   const [showMA25, setShowMA25] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA25 !== undefined) ? p.showMA25 : false; } catch { return false; } });
   const [showMA75, setShowMA75] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA75 !== undefined) ? p.showMA75 : false; } catch { return false; } });
+  useEffect(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}');
+      p.showBB = !!showBB;
+      p.showVWAP = !!showVWAP;
+      p.showVolume = !!showVolume;
+      p.showAnomaly = !!showAnomaly;
+      p.showMA5 = !!showMA5;
+      p.showMA25 = !!showMA25;
+      p.showMA75 = !!showMA75;
+      p.showDIF = !!showDIF;
+      p.showDEA = !!showDEA;
+      localStorage.setItem('lc_prefs', JSON.stringify(p));
+    } catch (e) {}
+  }, [showBB, showVWAP, showVolume, showAnomaly, showMA5, showMA25, showMA75, showDIF, showDEA]);
   const [showSAR, setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
   const [bbSigma, setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -308,6 +435,74 @@ export default function LargeChart() {
     ).slice(0, 20);
   }, [tickerSearchQuery, INTERESTING_STOCKS]);
 
+  // Modal server-side search (debounced)
+  useEffect(() => {
+    if (!showTickerSearchModal) return;
+    let mounted = true;
+    let timer = null;
+    const q = tickerSearchQuery && tickerSearchQuery.trim();
+    const doFallbackFilter = () => {
+      if (!q) return [];
+      const lq = q.toLowerCase();
+      return INTERESTING_STOCKS.filter(t => {
+        const symbol = (t.ticker || '').toLowerCase();
+        const name = (t.name || '').toLowerCase();
+        return symbol.includes(lq) || name.includes(lq);
+      }).slice(0, 400);
+    };
+
+    if (!q) {
+      setModalResults([]);
+      setModalLoading(false);
+      return () => {};
+    }
+
+    timer = setTimeout(async () => {
+      setModalLoading(true);
+      try {
+        let url = `${API_URL}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+        let res;
+        try {
+          res = await fetch(url);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+        } catch (err) {
+          try {
+            url = `${PY_DIRECT}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+            res = await fetch(url);
+            if (!res.ok) throw new Error(`fallback status ${res.status}`);
+          } catch (err2) {
+            const fb = doFallbackFilter();
+            if (mounted) setModalResults(fb);
+            return;
+          }
+        }
+
+        const json = await res.json();
+        if (Array.isArray(json)) {
+          const norm = json.map(item => {
+            const rawSym = (item.symbol || item.ticker || item.ticker_symbol || item.code || '').toString();
+            const symbol = rawSym ? rawSym.toUpperCase() : '';
+            const name = item.name || item.company || item.label || item.longName || '';
+            const exchange = item.exchange || item.exch || item.market || item.market_code || '';
+            const display = (item.displayTicker || item.display || (symbol ? symbol.split('.')[0] : '')).toString();
+            return { symbol, name, exchange, displayTicker: display };
+          }).filter(x => x.symbol || x.name || x.displayTicker);
+          if (mounted) setModalResults(norm.slice(0, 400));
+        } else {
+          const fb = doFallbackFilter();
+          if (mounted) setModalResults(fb);
+        }
+      } catch (e) {
+        const fb = doFallbackFilter();
+        if (mounted) setModalResults(fb);
+      } finally {
+        if (mounted) setModalLoading(false);
+      }
+    }, 250);
+
+    return () => { mounted = false; if (timer) clearTimeout(timer); };
+  }, [tickerSearchQuery, showTickerSearchModal, INTERESTING_STOCKS]);
+
   useEffect(() => {
     if (!paramTicker) return;
     setTicker(paramTicker.toUpperCase());
@@ -338,6 +533,26 @@ export default function LargeChart() {
       setTimezone(tz);
     }
   }, [market, tzUserOverridden]);
+
+  // On mount, if user hasn't set timezone, prefer browser's timezone (IANA)
+  useEffect(() => {
+    if (tzUserOverridden) return;
+    try {
+      const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (resolved) {
+        setTimezone(resolved);
+        return;
+      }
+    } catch (e) {
+      // ignore
+    }
+    // fallback: map detected city label to IANA
+    try {
+      const city = detectUserTimezone();
+      const iana = CITY_TZ_MAP[city] || city;
+      setTimezone(iana);
+    } catch (e) {}
+  }, [tzUserOverridden]);
 
   // Search for tickers by name or symbol
   useEffect(() => {
@@ -462,163 +677,402 @@ export default function LargeChart() {
   const bollinger_bands = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
   const movingAverages = useMemo(() => payload.moving_averages || { MA5: [], MA25: [], MA75: [] }, [payload.moving_averages]);
 
+  // Refs for ECharts
+  const mainChartRef = useRef(null);
+  const echartsInstance = useRef(null);
+
+  // Build and render ECharts option (main price + compact subchart for volume/MACD/VWAP)
+  useEffect(() => {
+    try {
+      console.debug('MainChart useEffect start', { mainChartRef: !!mainChartRef.current, datesLen: (dates||[]).length, closeLen: (close||[]).length });
+    } catch (e) {}
+    if (!mainChartRef.current) return;
+
+    // prepare data arrays
+    const toTime = (d) => {
+      if (!d) return null;
+      const t = (typeof d === 'number') ? d : Date.parse(d);
+      return isNaN(t) ? null : t;
+    };
+
+    const timestamps = (dates || []).map(d => toTime(d)).filter(Boolean);
+    const priceArr = (close || []).slice(0, timestamps.length).map((v, i) => [timestamps[i], v]);
+    const volArr = (volume || []).slice(0, timestamps.length).map((v, i) => [timestamps[i], v]);
+    // VWAP: use payload VWAP if present otherwise compute cumulative VWAP
+    const vwapArr = (VWAP && VWAP.length === timestamps.length) ? VWAP.map((v, i) => [timestamps[i], v]) : (() => {
+      const out = [];
+      let sump = 0, sumv = 0;
+      for (let i = 0; i < timestamps.length; i++) {
+        const p = (close && close[i]) || 0;
+        const v = (volume && volume[i]) || 0;
+        sump += p * v;
+        sumv += v;
+        out.push([timestamps[i], sumv ? (sump / sumv) : p]);
+      }
+      return out;
+    })();
+
+    // MACD calculation (adapted)
+    function calculateEMA(prices, period) {
+      const ema = [];
+      const k = 2 / (period + 1);
+      if (prices.length >= period) {
+        let sum = 0;
+        for (let i = 0; i < period; i++) sum += prices[i][1];
+        const first = sum / period;
+        ema.push([prices[period - 1][0], first]);
+        for (let i = period; i < prices.length; i++) {
+          const newEMA = prices[i][1] * k + ema[ema.length - 1][1] * (1 - k);
+          ema.push([prices[i][0], newEMA]);
+        }
+      }
+      return ema;
+    }
+
+    const shortP = 12, longP = 26, signalP = 9;
+    const macdLineData = [];
+    const signalLineData = [];
+    const macdHistData = [];
+    if (priceArr.length >= longP) {
+      const shortEMA = calculateEMA(priceArr, shortP);
+      const longEMA = calculateEMA(priceArr, longP);
+      const shortMap = new Map(shortEMA.map(it => [it[0], it[1]]));
+      const longMap = new Map(longEMA.map(it => [it[0], it[1]]));
+      const macdLine = [];
+      for (let i = 0; i < priceArr.length; i++) {
+        const t = priceArr[i][0];
+        if (shortMap.has(t) && longMap.has(t)) {
+          macdLine.push([t, (shortMap.get(t) || 0) - (longMap.get(t) || 0)]);
+        }
+      }
+      const signal = calculateEMA(macdLine, signalP);
+      const signalMap = new Map(signal.map(it => [it[0], it[1]]));
+      const macdMap = new Map(macdLine.map(it => [it[0], it[1]]));
+      const common = Array.from(macdMap.keys()).filter(k => signalMap.has(k)).sort((a,b)=>a-b);
+      for (const t of common) {
+        const m = macdMap.get(t) || 0;
+        const s = signalMap.get(t) || 0;
+        macdLineData.push([t, m]);
+        signalLineData.push([t, s]);
+        const hist = m - s;
+        macdHistData.push({ value: [t, hist], itemStyle: { color: hist > 0 ? '#eb5454' : '#47b262' } });
+      }
+    }
+
+    // build category labels from timestamps (ISO strings)
+    const labels = timestamps.map(t => new Date(t).toISOString());
+
+    // helper to align arrays to labels and insert '-' for gaps
+    const alignOrDash = (arr) => {
+      const out = [];
+      for (let i = 0; i < labels.length; i++) {
+        const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : '-';
+        out.push(v);
+      }
+      return out;
+    };
+
+    // support multiple series payloads: payload.seriesList = [{ name, close, open, high, low, volume, vwap, movingAverages, anomalies }]
+    const multi = Array.isArray(payload.seriesList) && payload.seriesList.length > 0;
+
+    // build main and sub option (multi-grid) dynamically so main chart can expand
+    const hasVolume = showVolume && volArr && volArr.length;
+    const hasMACD = macdHistData && macdHistData.length;
+    const subGrids = [];
+    if (hasVolume) subGrids.push('volume');
+    if (hasMACD) subGrids.push('macd');
+
+    let grid = [];
+    let xAxis = [];
+    let yAxis = [];
+    if (subGrids.length === 0) {
+      // single full-height grid
+      grid = [{ left: 50, right: 20, top: 10, height: '88%' }];
+      xAxis = [{ type: 'category', gridIndex: 0, data: labels, boundaryGap: false }];
+      yAxis = [{ type: 'value', gridIndex: 0, scale: true }];
+    } else if (subGrids.length === 1) {
+      // main + one subgrid
+      grid = [{ left: 50, right: 20, top: 10, height: '72%' }, { left: 50, right: 20, top: '84%', height: '14%' }];
+      xAxis = [
+        { type: 'category', gridIndex: 0, data: labels, boundaryGap: false },
+        { type: 'category', gridIndex: 1, data: labels, boundaryGap: false }
+      ];
+      yAxis = [ { type: 'value', gridIndex: 0, scale: true }, { type: 'value', gridIndex: 1, scale: true } ];
+    } else {
+      // main + two subgrids (volume + macd)
+      grid = [
+        { left: 50, right: 20, top: 10, height: '58%' },
+        { left: 50, right: 20, top: '62%', height: '18%' },
+        { left: 50, right: 20, top: '82%', height: '16%' }
+      ];
+      xAxis = [
+        { type: 'category', gridIndex: 0, data: labels, boundaryGap: false },
+        { type: 'category', gridIndex: 1, data: labels, boundaryGap: false },
+        { type: 'category', gridIndex: 2, data: labels, boundaryGap: false }
+      ];
+      yAxis = [ { type: 'value', gridIndex: 0, scale: true }, { type: 'value', gridIndex: 1, scale: true }, { type: 'value', gridIndex: 2, scale: true } ];
+    }
+
+    // dataZoom xAxisIndex list depends on number of axes
+    const xAxisIndices = xAxis.map((_, i) => i);
+
+    const option = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+      grid,
+      xAxis,
+      yAxis,
+      dataZoom: [ { type: 'inside', xAxisIndex: xAxisIndices }, { show: true, xAxisIndex: xAxisIndices, type: 'slider', top: '94%' } ],
+      series: []
+    };
+
+    // determine which grid index to use for volume and macd
+    const volGridIndex = subGrids.length === 0 ? 0 : (subGrids.length === 1 ? 1 : 1);
+    const macdGridIndex = subGrids.length === 0 ? 0 : (subGrids.length === 1 ? 1 : 2);
+
+    // build series for single or multiple stocks
+    if (multi) {
+      // stacked area/line per payload.seriesList
+      payload.seriesList.forEach((s, idx) => {
+        const name = s.name || `Series ${idx+1}`;
+        const sClose = s.close || [];
+        const data = alignOrDash(sClose);
+        const seriesItem = {
+          name,
+          type: chartType === 'area' ? 'line' : (chartType === 'candlestick' ? 'candlestick' : 'line'),
+          data: data,
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          stack: chartType === 'area' ? 'x' : undefined,
+          areaStyle: chartType === 'area' ? {} : undefined,
+          showSymbol: false
+        };
+        // if candlestick, replace data format with ohlc arrays
+        if (chartType === 'candlestick' && s.open && s.high && s.low && s.close) {
+          seriesItem.type = 'candlestick';
+          seriesItem.data = labels.map((l,i) => {
+            const o = s.open[i], h = s.high[i], lo = s.low[i], c = s.close[i];
+            return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o,c,lo,h] : '-';
+          });
+        }
+        option.series.push(seriesItem);
+      });
+    } else {
+      // single series flow (existing payload arrays)
+      if (chartType === 'candlestick' && open.length && high.length && low.length && close.length) {
+        const ohlc = labels.map((lab, i) => {
+          const o = open[i], h = high[i], lo = low[i], c = close[i];
+          return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o,c,lo,h] : '-';
+        });
+        option.series.push({ name: 'Price', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0 });
+      } else {
+        option.series.push({ name: 'Close', type: 'line', data: alignOrDash(close), showSymbol: false, smooth: false, xAxisIndex: 0, yAxisIndex: 0 });
+      }
+
+      // moving averages on main chart
+      if (showMA5 && movingAverages.MA5) {
+        option.series.push({ name: 'MA5', type: 'line', data: alignOrDash(movingAverages.MA5), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+      }
+      if (showMA25 && movingAverages.MA25) {
+        option.series.push({ name: 'MA25', type: 'line', data: alignOrDash(movingAverages.MA25), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+      }
+      if (showMA75 && movingAverages.MA75) {
+        option.series.push({ name: 'MA75', type: 'line', data: alignOrDash(movingAverages.MA75), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+      }
+
+      // Bollinger Bands (upper/lower and SMA) — draw when enabled
+      if (showBB && bollinger_bands && Array.isArray(bollinger_bands.upper) && bollinger_bands.upper.length) {
+        option.series.push({ name: 'BB Upper', type: 'line', data: alignOrDash(bollinger_bands.upper), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 }, showSymbol: false });
+        option.series.push({ name: 'BB Lower', type: 'line', data: alignOrDash(bollinger_bands.lower), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 }, showSymbol: false });
+        if (bollinger_bands.sma && bollinger_bands.sma.length) {
+          option.series.push({ name: 'BB SMA', type: 'line', data: alignOrDash(bollinger_bands.sma), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#6b7280', width: 1, opacity: 0.8 }, showSymbol: false });
+        }
+      }
+    }
+
+    // anomalies as scatter overlay. Show labels by default, hide on hover, exclude from main tooltip.
+    if (showAnomaly && anomalies && anomalies.length) {
+      const reasonPriority = ['Price Spike', 'Vol+Price', 'VEI Break', 'High Vol', 'Price Warning'];
+      const colorMap = { 'Price Spike': '#e74c3c', 'Vol+Price': '#c0392b', 'VEI Break': '#d35400', 'High Vol': '#f39c12', 'Price Warning': '#7f8c8d' };
+      const scat = anomalies.map(a => {
+        const reason = a.reason || 'anomaly';
+        const pr = reasonPriority.indexOf(reason) >= 0 ? reasonPriority.indexOf(reason) : reasonPriority.length;
+        const symbolSize = 10 + Math.max(0, (reasonPriority.length - pr));
+        return {
+          name: reason,
+          value: [new Date(a.date).toISOString(), a.y],
+          itemStyle: { color: colorMap[reason] || '#dc3545' },
+          label: { show: true, formatter: reason, position: 'top', backgroundColor: 'rgba(0,0,0,0.6)', padding: 4 },
+          symbolSize
+        };
+      });
+      option.series.push({ name: 'Anomalies', type: 'scatter', data: scat, xAxisIndex: 0, yAxisIndex: 0, symbol: 'triangle', tooltip: { show: false }, emphasis: { label: { show: false } } });
+    }
+
+    // Volume series in sub-grid
+    if (showVolume && volArr.length) {
+      option.series.push({
+        name: 'Volume', type: 'bar', xAxisIndex: volGridIndex, yAxisIndex: volGridIndex,
+        data: volArr.map((it, idx) => {
+          let color = '#888';
+          if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? '#eb5454' : '#47b262';
+          return { value: [labels[idx], it[1]], itemStyle: { color } };
+        }),
+        barWidth: '60%'
+      });
+    }
+
+    // VWAP in sub-grid
+    if (showVWAP && vwapArr.length) {
+      option.series.push({ name: 'VWAP', type: 'line', xAxisIndex: volGridIndex, yAxisIndex: volGridIndex, data: vwapArr.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#FFC458', width: 1 } });
+    }
+
+    // MACD in lowest grid (histogram always, DIF/DEA opt-in)
+    if (macdHistData.length) {
+      option.series.push({ name: 'MACD', type: 'bar', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: macdHistData, barWidth: '70%' });
+      if (showDIF && macdLineData.length) {
+        option.series.push({ name: 'DIF', type: 'line', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: macdLineData.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#FFC458', width: 1 }, showSymbol: false });
+      }
+      if (showDEA && signalLineData.length) {
+        option.series.push({ name: 'DEA', type: 'line', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: signalLineData.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#333', width: 1 }, showSymbol: false });
+      }
+    }
+
+    // init or set option
+    try {
+      if (!echartsInstance.current) {
+        echartsInstance.current = echarts.init(mainChartRef.current, undefined, { renderer: 'canvas' });
+      }
+      echartsInstance.current.setOption(option, { replaceMerge: ['series'] });
+      // ensure chart resizes after layout finishes
+      const t = setTimeout(() => { try { echartsInstance.current && echartsInstance.current.resize(); } catch (e) {} }, 50);
+      const resize = () => { try { echartsInstance.current && echartsInstance.current.resize(); } catch (e) {} };
+      window.addEventListener('resize', resize);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener('resize', resize);
+        try {
+          // keep instance alive between renders but dispose when component unmounts
+          if (echartsInstance.current) {
+            echartsInstance.current.dispose();
+            echartsInstance.current = null;
+          }
+        } catch (e) { console.warn('ECharts dispose error', e); }
+      };
+    } catch (e) {
+      console.error('ECharts init error', e, { optionSize: (option && option.series && option.series.length) });
+    }
+  }, [dates, open, high, low, close, volume, VWAP, movingAverages, chartType, showVolume, showVWAP, showBB, showAnomaly, showMA5, showMA25, showMA75, showDIF, showDEA]);
+
   const lastClose = close.length ? close[close.length - 1] : null;
   const prevClose = close.length > 1 ? close[close.length - 2] : null;
   const change = (lastClose !== null && prevClose !== null) ? (lastClose - prevClose) : null;
   const changePct = (change !== null && prevClose) ? (change / prevClose) * 100 : null;
 
-  const netIncome = useMemo(() => {
-    const data = financials.income_stmt || {};
-    return Object.entries(data).slice(0, 4).map(([key, value]) => {
-      const numVal = typeof value === 'number' ? value : (typeof value === 'object' && value !== null ? 0 : parseFloat(value) || 0);
-      return { period: key, value: numVal };
-    });
-  }, [financials.income_stmt]);
+  // Truncate financials to most recent N periods for compact display in sidebar
+  const truncatedFinancials = useMemo(() => {
+    const takeLastN = (obj, n = 2) => {
+      if (!obj || typeof obj !== 'object') return {};
+      // keys are period strings; sort descending (newest first) by string comparison then take first n
+      const keys = Object.keys(obj || {}).sort((a,b) => b.localeCompare(a)).slice(0, n);
+      const out = {};
+      for (const k of keys) out[k] = obj[k];
+      return out;
+    };
+    return {
+      income_stmt: takeLastN(financials.income_stmt || {}, 2),
+      balance_sheet: takeLastN(financials.balance_sheet || {}, 2),
+      cash_flow: takeLastN(financials.cash_flow || {}, 2)
+    };
+  }, [financials]);
 
-  const balanceSheetData = useMemo(() => {
-    const data = financials.balance_sheet || {};
-    return Object.entries(data).slice(0, 8).map(([key, value]) => {
-      const numVal = typeof value === 'number' ? value : (typeof value === 'object' && value !== null ? 0 : parseFloat(value) || 0);
-      return { period: key, value: numVal };
+  // Normalize provider news entries (shape may vary) and prefer lcNews if present
+  const mappedProviderNews = useMemo(() => {
+    const arr = Array.isArray(financials.news) ? financials.news : [];
+    const lookupUrl = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.clickThroughUrl) return (obj.clickThroughUrl.url || obj.clickThroughUrl);
+      if (obj.canonicalUrl) return (obj.canonicalUrl.url || obj.canonicalUrl);
+      if (obj.link) return obj.link;
+      if (obj.url) return obj.url;
+      if (obj.href) return obj.href;
+      return null;
+    };
+    return arr.map((it, idx) => {
+      const c = (it && it.content) ? it.content : it || {};
+      const raw = (c.raw && typeof c.raw === 'object') ? c.raw : (it.raw || it || {});
+      const title = c.title || c.headline || c.summary || raw.title || raw.headline || raw.headlineText || '';
+      const link = lookupUrl(c) || lookupUrl(raw) || '#';
+      const thumbnail = (c.thumbnail && (c.thumbnail.originalUrl || c.thumbnail.url)) || raw.image || raw.thumbnail || raw.summary_img || raw.mediaUrl || null;
+      const contentType = (c.contentType || c.type || raw.type || 'STORY').toString().toUpperCase();
+      const source = c.source || (raw.provider && raw.provider.displayName) || raw.source || raw.publisher || '';
+      const pubDate = c.pubDate || raw.pubDate || raw.providerPublishTime || null;
+      return {
+        id: it.id || `prov-${ticker}-${idx}`,
+        title: title || '',
+        link,
+        thumbnail,
+        contentType,
+        source,
+        pubDate,
+        displayTime: c.displayTime || null
+      };
     });
-  }, [financials.balance_sheet]);
+  }, [financials.news, ticker]);
 
-  const cashFlowData = useMemo(() => {
-    const data = financials.cash_flow || {};
-    return Object.entries(data).slice(0, 4).map(([key, value]) => {
-      const numVal = typeof value === 'number' ? value : (typeof value === 'object' && value !== null ? 0 : parseFloat(value) || 0);
-      return { period: key, value: numVal };
-    });
-  }, [financials.cash_flow]);
+  // prefer lcNews (cached top news), otherwise mapped provider news limited to 2 items
+  const news = (lcNews && lcNews.length) ? lcNews : (mappedProviderNews.length ? mappedProviderNews.slice(0, 2) : []);
 
-  const news = lcNews.length ? lcNews : (Array.isArray(financials.news) ? financials.news.slice(0, 5) : []);
+  // Format news time: prefer displayTime (but if it's an ISO timestamp, present as local string)
+  function formatNewsTime(item) {
+    try {
+      const dt = item && (item.displayTime || item.pubDate || item.date || item.providerPublishTime);
+      if (!dt) return '';
+      // detect ISO Z format like 2025-12-25T15:36:47Z
+      if (typeof dt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(dt)) {
+        const d = new Date(dt);
+        if (!isNaN(d.getTime())) {
+          // format without seconds: e.g., "Dec 25, 2025, 15:36"
+          try {
+            return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            return d.toLocaleString();
+          }
+        }
+      }
+      // if it's a relative string (e.g., '2d ago' or '3h ago'), return as-is
+      return String(dt);
+    } catch (e) {
+      return '';
+    }
+  }
 
   const currencySymbol = useMemo(() => getCurrency(market), [market]);
 
-  const handleSearchAllMarkets = async (cleanedInput) => {
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadLcNews(){
-      if (!ticker) return;
-      setLcNewsLoading(true);
-      try{
-        const res = await fetchJsonWithFallback(`/news?ticker=${encodeURIComponent(ticker)}&page=1&pageSize=${lcNewsPageSize}`);
-        if (!cancelled) {
-          // support response shapes: { items: [...] } | { news: [...] } | array
-          let rawItems = [];
-          if (!res) rawItems = [];
-          else if (Array.isArray(res)) rawItems = res;
-          else if (Array.isArray(res.items)) rawItems = res.items;
-          else if (Array.isArray(res.news)) rawItems = res.news;
-          else rawItems = [];
-
-          const mapped = rawItems.map((it, idx) => {
-            const c = (it && it.content) ? it.content : it || {};
-            const raw = (c.raw && typeof c.raw === 'object') ? c.raw : (it.raw || it || {});
-
-            const title = c.title || c.headline || c.summary || raw.title || raw.headline || '';
-
-            const lookup = (obj) => {
-              if (!obj || typeof obj !== 'object') return null;
-              if (obj.clickThroughUrl && (obj.clickThroughUrl.url || obj.clickThroughUrl)) return (obj.clickThroughUrl.url || obj.clickThroughUrl);
-              if (obj.canonicalUrl && (obj.canonicalUrl.url || obj.canonicalUrl)) return (obj.canonicalUrl.url || obj.canonicalUrl);
-              if (obj.link) return obj.link;
-              if (obj.url) return obj.url;
-              if (obj.href) return obj.href;
-              return null;
-            };
-
-            const link = lookup(c) || lookup(raw) || lookup(raw.content) || lookup(it) || '#';
-            const source = (c.source) || (raw.provider && raw.provider.displayName) || raw.source || raw.publisher || '';
-            const thumbnail = (c.thumbnail && (c.thumbnail.originalUrl || c.thumbnail.url)) || raw.image || raw.thumbnail || raw.summary_img || null;
-            const date = c.pubDate || raw.pubDate || raw.providerPublishTime || null;
-            const displayTime = c.displayTime || null;
-
-            return {
-              title: title || 'Headline',
-              source: source || 'News',
-              link,
-              date,
-              displayTime,
-              thumbnail
-            };
-          });
-          setLcNews(mapped);
-        }
-      }catch(e){ console.warn('lc news fetch', e); }
-      finally{ if(!cancelled) setLcNewsLoading(false); }
-    }
-    loadLcNews();
-    return ()=>{ cancelled = true; };
-  }, [ticker, lcNewsPageSize]);
-    // Try to find the ticker in all markets
-    const candidates = [];
-    
-    for (const marketConfig of MARKET_EXTENSIONS) {
-      for (const ext of marketConfig.extensions) {
-        const tickerToTry = cleanedInput + ext;
-        try {
-          const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(tickerToTry)}`);
-          const match = Array.isArray(data) ? data.find(d => d.ticker.toUpperCase() === tickerToTry.toUpperCase()) : null;
-          if (match) {
-            candidates.push({
-              ticker: match.ticker,
-              name: match.name,
-              market: marketConfig.label,
-              marketCode: marketConfig.market
-            });
-          }
-        } catch (e) {
-          // Silent fail
-        }
-      }
-    }
-    
-    return candidates;
-  };
-
-  const handlePreset = (p) => {
-    setPeriod(p.period);
-    setInterval(p.interval);
-  };
-
-  const handleSelectTicker = (selectedTicker, selectedName) => {
-    // Store full ticker with extensions for backend, clean only for display
-    setTicker(selectedTicker);
-    setSearchInput(cleanTickerInput(selectedTicker));
-    setCompanyName(selectedName || '');
-    setSearchResults([]);
-    setShowSearchDropdown(false);
-  };
-
-  const downloadFinancialsCSV = () => {
-    const currentData = financialTab === 'income' ? netIncome : financialTab === 'balance' ? balanceSheetData : cashFlowData;
-    if (!currentData.length) return;
-
-    const header = ['Period', 'Value'];
-    const rows = currentData.map(item => [item.period, item.value]);
-    const csv = [header, ...rows].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${ticker}-${financialTab}-financials.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Report news view and open link
-  function handleNewsClick(e, item){
+  // Report news view and open link. Ensure cache entry exists (first-click creates thumbnail/pubDate).
+  async function handleNewsClick(e, item){
     try{
       if (e && e.preventDefault) e.preventDefault();
       const link = item.link || item.url || '#';
-      fetch(`${API_URL}/node/news/views`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: link, articleId: item.id, title: item.title, ticker })
-      }).catch(()=>{});
+      let articleId = item.articleKey || item.cacheId || item.id || link;
+      if (!item.cacheId) {
+        try {
+          const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.date || item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: ticker || null }].filter(x => x.url && x.url !== '#');
+          let cr = null;
+          if (toCache.length) cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+          if (cr.ok) {
+            const cj = await cr.json();
+            const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
+            if (found) {
+              articleId = found.id || found.articleKey || articleId;
+              item.cacheId = found.id || null;
+              if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
+              if (!item.date && found.pubDate) item.date = found.pubDate;
+            }
+          }
+        } catch (e) { /* ignore cache errors */ }
+      }
+      const payload = { url: link, articleId, title: item.title, ticker, thumbnail: item.thumbnail || null, pubDate: item.date || item.pubDate || null };
+      fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(()=>{});
       window.open(link, '_blank', 'noopener');
     }catch(err){
       const link = item.link || item.url || '#';
@@ -674,7 +1128,6 @@ export default function LargeChart() {
             </button>
           </div>
 
-          {/* Financials Card - TradingView Style */}
           <div className="lc-card">
             <div className="lc-card-header">
               <span>Financials</span>
@@ -700,54 +1153,16 @@ export default function LargeChart() {
               >
                 Balance
               </button>
-              <button
-                className={`lc-tab ${financialTab === 'cash' ? 'active' : ''}`}
-                onClick={() => setFinancialTab('cash')}
-              >
-                Cash Flow
-              </button>
             </div>
             <div className="lc-financials-content">
               {financialTab === 'income' && (
-                <div className="lc-financial-table">
-                  {netIncome.length === 0 ? (
-                    <div className="lc-muted">No income data available</div>
-                  ) : (
-                    netIncome.map(item => (
-                      <div key={item.period} className="lc-fin-row">
-                        <div className="lc-fin-label">{item.period}</div>
-                        <div className="lc-fin-value">{currencySymbol}{Math.abs(item.value) > 1e9 ? (item.value / 1e9).toFixed(2) : (item.value / 1e6).toFixed(2)}{Math.abs(item.value) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    ))
-                  )}
+                <div style={{ padding: 4 }}>
+                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} compact importantMetrics={["totalRevenue","netIncome","operatingIncome","ebitda","basicEPS"]} />
                 </div>
               )}
               {financialTab === 'balance' && (
-                <div className="lc-financial-table">
-                  {balanceSheetData.length === 0 ? (
-                    <div className="lc-muted">No balance sheet data available</div>
-                  ) : (
-                    balanceSheetData.map(item => (
-                      <div key={item.period} className="lc-fin-row">
-                        <div className="lc-fin-label">{item.period}</div>
-                        <div className="lc-fin-value">{currencySymbol}{Math.abs(item.value) > 1e9 ? (item.value / 1e9).toFixed(2) : (item.value / 1e6).toFixed(2)}{Math.abs(item.value) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-              {financialTab === 'cash' && (
-                <div className="lc-financial-table">
-                  {cashFlowData.length === 0 ? (
-                    <div className="lc-muted">No cash flow data available</div>
-                  ) : (
-                    cashFlowData.map(item => (
-                      <div key={item.period} className="lc-fin-row">
-                        <div className="lc-fin-label">{item.period}</div>
-                        <div className="lc-fin-value">{currencySymbol}{Math.abs(item.value) > 1e9 ? (item.value / 1e9).toFixed(2) : (item.value / 1e6).toFixed(2)}{Math.abs(item.value) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    ))
-                  )}
+                <div style={{ padding: 4 }}>
+                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} compact importantMetrics={["totalAssets","totalLiab","totalLiabilities","totalCurrentAssets","totalCurrentLiabilities"]} />
                 </div>
               )}
             </div>
@@ -757,31 +1172,44 @@ export default function LargeChart() {
           <div className="lc-card">
             <div className="lc-card-header">
               <span>News</span>
+              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}>More</Link>
+              {/* <button
+                type="button"
+                className="lc-btn-small"
+              >
+                More
+              </button> */}
             </div>
             <div className="lc-news-list">
               {news.length === 0 && <div className="lc-muted">No recent news</div>}
               {news.map((n, idx) => (
                 <a
-                  key={idx}
-                  className="lc-news-item"
+                  className="news-item"
+                  key={n.id || idx}
                   href={n.link || n.url || '#'}
                   onClick={(e) => handleNewsClick(e, n)}
                   rel="noreferrer"
                 >
-                  <div className="lc-news-source">{n.source || 'News'}</div>
-                  <div className="lc-news-title">{n.title || 'Headline'}</div>
-                  <div className="lc-news-date">{n.date || n.providerPublishTime || ''}</div>
+                  {n.thumbnail ? (
+                    <img className="news-thumb" src={n.thumbnail} alt="thumb" />
+                  ) : null}
+                  <div className="news-body">
+                    <div className="news-title">{n.title}</div>
+                    <div className="news-meta">
+                      <span className="news-badge">{n.contentType}</span>
+                      {n.source ? ` ${n.source} · ` : " "}
+                      <span className="news-time">{formatNewsTime(n)}</span>
+                      {n.views ? <span className="news-views" style={{ marginLeft: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{n.views} views</span> : null}
+                    </div>
+                  </div>
                 </a>
               ))}
               {/* More link to open full company news/profile */}
               </div>
-            <div style={{ paddingTop: 8, textAlign: 'right' }}>
-              <Link to={`/company/${ticker}`} className="lc-btn ghost" title={`Open ${getDisplayFromRaw(ticker)} company page`}>More</Link>
-            </div>
           </div>
 
           {/* Footer Controls */}
-          <div className="lc-footer">
+          {/* <div className="lc-footer">
             <button
               type="button"
               className="lc-btn ghost"
@@ -818,7 +1246,7 @@ export default function LargeChart() {
                 className="lc-timezone-select-component"
               />
             </div>
-          </div>
+          </div> */}
         </aside>
 
         {/* Main chart area */}
@@ -828,17 +1256,7 @@ export default function LargeChart() {
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {/* Move ticker + period/interval selector here so controls live inside main */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
-                <button
-                  type="button"
-                  className="lc-ticker-name lc-ticker-name-btn"
-                  onClick={() => setShowTickerSearchModal(true)}
-                  title="Click to search for another ticker"
-                >
-                  {displayTicker}
-                </button>
-
                 <div className="lc-selector-row" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 0 }}>
-                  <label style={{ fontSize: 12, color: '#666' }}>Period</label>
                   <button
                     ref={periodBtnRef}
                     type="button"
@@ -849,7 +1267,6 @@ export default function LargeChart() {
                   >
                     {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
                   </button>
-                  <label style={{ fontSize: 12, color: '#666' }}>Interval</label>
                   <button
                     ref={intervalBtnRef}
                     type="button"
@@ -988,7 +1405,7 @@ export default function LargeChart() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 ref={indicatorsBtnRef}
-                className={`lc-btn ghost ${showVolume || showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showSAR ? 'active' : ''}`}
+                className={`lc-btn ghost ${showVolume || showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showSAR || showDIF || showDEA ? 'active' : ''}`}
                 onClick={() => setIndicatorsOpen(v => !v)}
                 aria-haspopup="true"
                 aria-expanded={indicatorsOpen}
@@ -1030,6 +1447,14 @@ export default function LargeChart() {
                       <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       MA (75)
                     </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showDIF} onClick={() => setShowDIF(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDIF: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowDIF(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDIF: nv })); return nv; }); } }}>
+                      <span className={`indicator-dot ${showDIF ? 'checked' : ''}`} aria-hidden>{showDIF && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MACD — DIF
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showDEA} onClick={() => setShowDEA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDEA: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowDEA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDEA: nv })); return nv; }); } }}>
+                      <span className={`indicator-dot ${showDEA ? 'checked' : ''}`} aria-hidden>{showDEA && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MACD — DEA
+                    </div>
                   </div>
                 </PortalDropdown>
               )}
@@ -1039,35 +1464,9 @@ export default function LargeChart() {
           {loading && <div className="lc-muted">Loading chart…</div>}
           {error && <div className="lc-error">{error}</div>}
           {!loading && !error && (
-            <EchartsCard
-              ticker={ticker}
-              dates={dates}
-              open={open}
-              high={high}
-              low={low}
-              close={close}
-              volume={volume}
-              vwap={VWAP}
-              bb={bollinger_bands}
-              anomalies={anomalies}
-              timezone={timezone}
-              period={period}
-              interval={interval}
-              chartMode={chartType}
-              showVolume={showVolume}
-              showVWAP={showVWAP}
-              showBB={showBB}
-              showAnomaly={showAnomaly}
-              showRSI={false}
-              showMACD={false}
-              height="100%"
-              showMA5={showMA5}
-              showMA25={showMA25}
-              showMA75={showMA75}
-              showSAR={showSAR}
-              bbSigma={bbSigma}
-              movingAverages={movingAverages}
-            />
+            <div style={{ width: '100%' }}>
+              <div id="main-chart-container" ref={mainChartRef} style={{ width: '100%', height: '62vh' }} />
+            </div>
           )}
         </main>
       </div>
@@ -1128,29 +1527,6 @@ export default function LargeChart() {
                     );
                   })}
                   {Object.keys(financials.balance_sheet || {}).length === 0 && (
-                    <div className="lc-table-empty">No data available</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Cash Flow */}
-              <div className="lc-modal-section">
-                <h3>Cash Flow</h3>
-                <div className="lc-modal-table">
-                  <div className="lc-table-header">
-                    <div>Period</div>
-                    <div>Value</div>
-                  </div>
-                  {Object.entries(financials.cash_flow || {}).map(([period, value]) => {
-                    const numVal = typeof value === 'number' ? value : parseFloat(value) || 0;
-                    return (
-                      <div key={period} className="lc-table-row">
-                        <div className="lc-table-cell">{period}</div>
-                        <div className="lc-table-cell">{currencySymbol}{Math.abs(numVal) > 1e9 ? (numVal / 1e9).toFixed(2) : (numVal / 1e6).toFixed(2)}{Math.abs(numVal) > 1e9 ? 'B' : 'M'}</div>
-                      </div>
-                    );
-                  })}
-                  {Object.keys(financials.cash_flow || {}).length === 0 && (
                     <div className="lc-table-empty">No data available</div>
                   )}
                 </div>
@@ -1223,25 +1599,81 @@ export default function LargeChart() {
                 />
               </div>
               <div className="lc-ticker-search-list">
-                {filteredStocks.map((stock, idx) => (
-                  <button
-                    key={idx}
-                    className="lc-ticker-search-item"
-                    onClick={() => {
-                      setTicker(stock.ticker);
-                      setCompanyName(stock.name);
-                      setShowTickerSearchModal(false);
-                      setTickerSearchQuery('');
-                    }}
-                    type="button"
-                  >
-                    <div className="lc-ticker-search-item-ticker">{stock.ticker}</div>
-                    <div className="lc-ticker-search-item-name">{stock.name}</div>
-                    <div className="lc-ticker-search-item-market">{stock.market}</div>
-                  </button>
-                ))}
-                {filteredStocks.length === 0 && (
-                  <div className="lc-ticker-search-empty">No results found</div>
+                {(!tickerSearchQuery || !tickerSearchQuery.trim()) ? (
+                  // show featured interesting stocks (with logos) and current ticker at top
+                  (() => {
+                    const cur = ticker ? { ticker, name: companyName || ticker, market } : null;
+                    const interesting = INTERESTING_STOCKS.slice();
+                    const list = [];
+                    if (cur) {
+                      const already = interesting.find(s => (s.ticker || '').toUpperCase() === cur.ticker.toUpperCase());
+                      if (!already) list.push({ ticker: cur.ticker, name: cur.name, market: cur.market, isCurrent: true });
+                    }
+                    for (const s of interesting) {
+                      list.push({ ticker: s.ticker, name: s.name, market: s.market, isCurrent: (s.ticker === (ticker || '')) });
+                    }
+                    return list.map((stock, idx) => {
+                      const displayTicker = (stock.ticker || '').toString().toUpperCase();
+                      const logoUrl = displayTicker ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(displayTicker)}?format=png` : null;
+                      return (
+                        <button
+                          key={`feat-${idx}-${displayTicker}`}
+                          className="lc-ticker-search-item"
+                          onClick={() => {
+                            setTicker(stock.ticker);
+                            setCompanyName(stock.name || '');
+                            setShowTickerSearchModal(false);
+                            setTickerSearchQuery('');
+                          }}
+                          type="button"
+                        >
+                          <div className="lc-ticker-search-item-ticker">
+                            {logoUrl ? (
+                              <img src={logoUrl} alt={`${displayTicker} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : (
+                              <div className="ticker-logo-placeholder" aria-hidden></div>
+                            )}
+                            <div style={{ marginLeft: 8, fontWeight: 700 }}>{displayTicker}</div>
+                            {stock.isCurrent && (
+                              <div className="lc-current-badge">current</div>
+                            )}
+                          </div>
+                          <div className="lc-ticker-search-item-name">{stock.name}</div>
+                          <div className="lc-ticker-search-item-market">{stock.market}</div>
+                        </button>
+                      );
+                    });
+                  })()
+                ) : (
+                  // show server-backed modalResults
+                  modalLoading ? (
+                    <div className="ticker-search-loading">Searching...</div>
+                  ) : (
+                    (modalResults && modalResults.length) ? (
+                      modalResults.slice(0,400).map((t, idx) => {
+                        const symbolText = (t.symbol || t.displayTicker || '').toString().toUpperCase();
+                        const exchangeText = (t.exchange || '').toString();
+                        const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
+                        const displayTicker = (t.displayTicker || symbolText).toString();
+                        return (
+                          <button key={`res-${idx}-${symbolText}`} type="button" className="lc-ticker-search-item" onClick={() => { setTicker(symbolText); setCompanyName(t.name || ''); setShowTickerSearchModal(false); setTickerSearchQuery(''); }}>
+                            <div className="lc-ticker-search-item-ticker">
+                              {logoUrl ? (
+                                <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                              ) : (
+                                <div className="ticker-logo-placeholder" aria-hidden></div>
+                              )}
+                              <div style={{ marginLeft: 6, fontWeight: 700 }}>{displayTicker}</div>
+                            </div>
+                            <div className="lc-ticker-search-item-name">{t.name}</div>
+                            <div className="lc-ticker-search-item-market">{exchangeText}</div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="lc-ticker-search-empty">No results found</div>
+                    )
+                  )
                 )}
               </div>
             </div>

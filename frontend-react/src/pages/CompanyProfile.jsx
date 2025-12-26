@@ -18,14 +18,12 @@ const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const PY_API = `${API_URL}/py`;
 
 async function fetchJsonWithFallback(path) {
-  // Try Node gateway first, then fall back to direct Python service
-  const primary = `${PY_API}${path}`; // e.g. http://localhost:5050/py/news...
-  const fallback = `${PY_DIRECT}/py${path}`; // e.g. http://localhost:5000/py/news...
-  try { const r = await fetch(primary); if (r.ok) return await r.json(); } catch (e) { }
-  try { const r2 = await fetch(fallback); if (r2.ok) return await r2.json(); } catch (e) { }
-  throw new Error('request failed');
+  // Call Python service directly (default port 5000)
+  const url = `${PY_DIRECT}/py${path}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  return await res.json();
 }
-
 export default function CompanyProfile() {
   const { ticker: param } = useParams();
   const ticker = (param || '').toUpperCase();
@@ -109,6 +107,20 @@ export default function CompanyProfile() {
                 source: n.source || (n.provider && n.provider.displayName) || n.publisher || ''
               }));
               setNews(mapped);
+                // Cache provider metadata (thumbnail/pubDate) with ticker context so backend top endpoint can serve thumbnails
+                try {
+                  const toCache = mapped.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: ticker || null })).filter(x => x.url && x.url !== '#');
+                  if (toCache.length) {
+                    try {
+                      const cacheResp = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+                      if (cacheResp.ok) {
+                        const cacheJson = await cacheResp.json();
+                        const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
+                        mapped.forEach(m => { const key = m.articleKey || m.link; const cached = map[key]; if (cached) { m.cacheId = cached.id; m.thumbnail = m.thumbnail || cached.thumbnail || null; m.pubDate = m.pubDate || cached.pubDate || null; } });
+                      }
+                    } catch (err) { console.debug('CompanyProfile cache post failed', err); }
+                  }
+                } catch (err) { console.debug('CompanyProfile cache post failed', err); }
             }
           }
         } catch (e) { console.warn('financials fetch failed', e); }
@@ -205,15 +217,28 @@ export default function CompanyProfile() {
 
   // Report a news view to backend then open link
   async function handleNewsClick(e, item) {
-    try {
+      try {
       if (e && e.preventDefault) e.preventDefault();
       const link = item.link || item.url || '#';
+        let articleId = item.cacheId || item.articleKey || item.id || link;
+        if (!item.cacheId) {
+          try {
+            const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: ticker }];
+            const cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+            if (cr.ok) {
+              const cj = await cr.json();
+              const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
+              if (found) {
+                articleId = found.id || found.articleKey || articleId;
+                item.cacheId = found.id || null;
+                if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
+              }
+            }
+          } catch (e) { }
+        }
       // fire-and-forget POST to backend
-      fetch(`${API_URL}/node/news/views`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: link, articleId: item.id, title: item.title, ticker })
-      }).catch(() => { });
+        const payload = { url: link, articleId, title: item.title, ticker, thumbnail: item.thumbnail || null, pubDate: item.pubDate || null };
+        fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
       // open the article
       window.open(link, '_blank', 'noopener');
     } catch (err) {
@@ -504,25 +529,7 @@ export default function CompanyProfile() {
             }}
           >
             <h3 style={{ margin: 0 }}>Chart</h3>
-            <div className="company-right">
-              <TimezoneSelect
-                value={timezone}
-                onChange={(v) => setTimezone(v)}
-                options={[
-                  "UTC",
-                  "America/New_York",
-                  "Asia/Tokyo",
-                  "Asia/Bangkok",
-                  "Europe/London",
-                ]}
-                currentTimezone={timezone}
-                formatLabel={(v) => v}
-                displayTime={null}
-              />
-              <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
-                Open Chart
-              </Link>
-            </div>
+            
             {financials.fetched_at ? (
               <div
                 style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}
@@ -530,6 +537,11 @@ export default function CompanyProfile() {
                 financials.fetched_at
               ).toLocaleDateString()}`}</div>
             ) : null}
+            <div className="company-right">
+              <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
+                Open Chart
+              </Link>
+            </div>
           </div>
 
           {loading && !chartData && <div className="muted">Loading chart…</div>}
@@ -543,9 +555,9 @@ export default function CompanyProfile() {
               close={close}
               volume={volume}
               timezone={timezone}
-              period={"3mo"}
+              period={"6mo"}
               interval={"1d"}
-              chartMode={"lines"}
+              chartMode={"candlestick"}
               height={320}
               showVolume
             />

@@ -4,7 +4,6 @@ import '../css/TickerSearch.css';
 /**
  * TickerSearch Component
  * Autocomplete search with global ticker database
- * Displays: "KYOKUYO CO.,LTD (1301.T)" but returns symbol "1301.T" for charting
  */
 const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = "Search stocks by name or symbol...", showInput = true }, ref) {
   const [input, setInput] = useState('');

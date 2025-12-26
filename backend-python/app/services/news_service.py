@@ -59,15 +59,53 @@ def _normalize_item(raw: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pub = None
 
-    # thumbnail handling: prefer originalUrl/url if nested dict, else raw url string
+    # thumbnail handling: prefer nested dict originalUrl/url, then common alt fields returned by providers
     thumbnail = None
+    # 1) standard nested thumbnail dict (yfinance normalized)
     if isinstance(raw.get('thumbnail'), dict):
         thumb = raw.get('thumbnail')
         thumbnail = thumb.get('originalUrl') or thumb.get('url') or thumb.get('thumbnail') or None
-    elif raw.get('image'):
+        # if still not found, try resolutions array (many providers include sized variants)
+        if not thumbnail:
+            res = thumb.get('resolutions') or thumb.get('resolution') or thumb.get('sizes') or None
+            if isinstance(res, (list, tuple)) and res:
+                first = res[0]
+                if isinstance(first, dict):
+                    thumbnail = first.get('url') or first.get('originalUrl') or first.get('src') or None
+                elif isinstance(first, str):
+                    thumbnail = first
+            elif isinstance(res, dict):
+                thumbnail = res.get('url') or res.get('originalUrl') or None
+    # 2) common single-field variants
+    if not thumbnail:
+        thumbnail = raw.get('thumbnailUrl') or raw.get('thumbnail_url') or raw.get('image_url') or raw.get('imageUrl') or None
+    # 3) older keys
+    if not thumbnail and raw.get('image'):
         thumbnail = raw.get('image')
-    elif raw.get('summary_img'):
+    if not thumbnail and raw.get('summary_img'):
         thumbnail = raw.get('summary_img')
+    # 4) arrays of images
+    if not thumbnail and isinstance(raw.get('images'), (list, tuple)) and raw.get('images'):
+        first = raw.get('images')[0]
+        if isinstance(first, str):
+            thumbnail = first
+        elif isinstance(first, dict):
+            thumbnail = first.get('url') or first.get('originalUrl') or first.get('thumbnail') or None
+    # 5) media field (common RSS/enclosures)
+    if not thumbnail and raw.get('media'):
+        m = raw.get('media')
+        if isinstance(m, dict):
+            thumbnail = m.get('url') or m.get('media_url') or m.get('image') or None
+        elif isinstance(m, (list, tuple)) and m:
+            first = m[0]
+            if isinstance(first, str):
+                thumbnail = first
+            elif isinstance(first, dict):
+                thumbnail = first.get('url') or first.get('media_url') or first.get('image') or None
+    # 6) provider object may contain logos
+    if not thumbnail and isinstance(raw.get('provider'), dict):
+        prov = raw.get('provider')
+        thumbnail = prov.get('logo') or prov.get('logo_url') or prov.get('image') or None
 
     content_type = 'STORY'
     if raw.get('contentType'):

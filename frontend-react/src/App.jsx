@@ -12,7 +12,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Chart from "./pages/Chart";
-import LargeChart from "./pages/LargeChart";
+import LargeChart from "./pages/MainChart";
 import LineCallback from "./pages/LineCallback";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
@@ -68,17 +68,18 @@ function App() {
       <div
         style={{ height: "100vh", display: "flex", flexDirection: "column" }}
       >
-        {/* Navbar is outside Routes, so it stays on every page */}
-        <Navbar />
+        {/* Background wrapper so the page background extends under the transparent navbar */}
+        <div className="page-background" style={{ background: "var(--bg-secondary)", display: 'flex', flexDirection: 'column', minHeight: '0' }}>
+          <Navbar />
 
-        {/* The main content area that changes */}
-        <div className="main-content container-centered"
-          style={{
-            flex: 1,
-            overflow: "auto",
-            background: "var(--bg-secondary)",
-          }}
-        >
+          {/* The main content area that changes (transparent to let background show through) */}
+          <div className="main-content container-centered"
+            style={{
+              flex: 1,
+              overflow: "auto",
+              background: "transparent",
+            }}
+          >
           <Routes>
             {/* 🔐 ADMIN ONLY */}
             <Route element={<AdminRoute />}>
@@ -110,8 +111,9 @@ function App() {
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />
           </Routes>
+          </div>
+          </div>
         </div>
-      </div>
     </AuthProvider>
   );
 }

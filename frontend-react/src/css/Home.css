@@ -239,9 +239,12 @@ body.dark .anomaly-row:hover {
 .anomaly-count .count-text { display: inline; color: var(--cute-green-900); font-weight: 800; }
 
 .right-column { display:flex; flex-direction:column; gap:18px; }
-.news-card { padding:12px 16px; }
+.news-card { padding:12px 16px; box-sizing: border-box; width: 100%; max-width: 100%; }
+/* prevent the news card or its children from forcing the grid wider than available */
+.homepage-grid, .right-column, .news-card, .news-list, .news-item { min-width: 0; }
+.news-item { word-break: break-word; }
 .news-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
-.news-item { position:relative; padding:12px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(243,255,249,0.84)); display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(44,193,127,0.08); border: 1px dashed rgba(44,193,127,0.32); transition: all 0.18s ease; }
+.news-item { position:relative; padding:12px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(243,255,249,0.84)); display:flex; justify-content:space-between; align-items:flex-start; box-shadow: 0 4px 12px rgba(44,193,127,0.08); border: 1px dashed rgba(44,193,127,0.32); transition: all 0.18s ease; min-width: 0; }
 .news-item:hover { background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(243,255,249,0.92)); box-shadow: 0 6px 20px rgba(44,193,127,0.12); border-color: rgba(44,193,127,0.5); }
 .news-item::after {
     content: "";
@@ -253,7 +256,10 @@ body.dark .anomaly-row:hover {
     transform: rotate(15deg);
     box-shadow: 0 3px 6px rgba(44,193,127,0.22);
 }
-.news-title { font-size:0.95rem; overflow-wrap:anywhere; }
+.news-title { font-size:0.95rem; overflow-wrap:anywhere; word-break: break-word; white-space: normal; }
+
+/* ensure the content column in news items can shrink so titles wrap correctly */
+.news-item > div { min-width: 0; }
 .news-source { font-size:0.8rem; color:var(--cute-muted); }
 
 /* News thumbnail (small) */

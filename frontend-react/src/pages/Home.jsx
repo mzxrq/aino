@@ -30,16 +30,14 @@ export default function Home() {
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
   const API_URL = import.meta.env.VITE_API_URL;
-  const PY_URL = import.meta.env.VITE_LINE_PY_URL;
+  const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${PY_URL}/py`;
   async function fetchPyJson(path, init) {
-    try {
-      const r = await fetch(`${PY_BASE}${path}`, init);
-      if (r.ok) return await r.json();
-    } catch (_) { /* ignore */ }
-    const r2 = await fetch(`${(PY_URL || 'http://localhost:5000')}/py${path}`, init);
-    if (!r2.ok) throw new Error(`status ${r2.status}`);
-    return await r2.json();
+    // call Python service directly on configured port (default 5000)
+    const url = `${PY_BASE}${path}`;
+    const r = await fetch(url, init);
+    if (!r.ok) throw new Error(`status ${r.status}`);
+    return await r.json();
   }
 
   // Fetch recent anomalies and compute top tickers by anomaly count
@@ -227,29 +225,25 @@ export default function Home() {
       const name = masterTickersMap.get(v);
       if (name) return name;
     }
-    // debug log for misses — can be removed later
-    console.debug('master_tickers lookup miss', sym, variants);
     return null;
   };
-
-  // Fetch /py/stock/info for a list of tickers and store results in tickerInfoMap
-  const fetchTickerInfos = async (tickers) => {
+  const fetchTickerInfos = async (tickers = []) => {
     if (!Array.isArray(tickers) || tickers.length === 0) return;
-    const map = new Map(tickerInfoMap);
-    const newLoading = { ...loadingMap };
-
-    const TTL = 1000 * 60 * 60 * 6; // 6 hours
+    const map = new Map(tickerInfoMap || []);
+    const newLoading = { ...(loadingMap || {}) };
+    const requests = [];
+    const TTL = 24 * 60 * 60 * 1000; // 1 day cache
     const now = Date.now();
 
-    const requests = [];
     for (const t of tickers) {
-      const key = `tickerInfo::${t.toUpperCase()}`;
+      if (!t) continue;
+      const key = `ticker_info_${String(t).toUpperCase()}`;
       try {
         const cachedRaw = localStorage.getItem(key);
         if (cachedRaw) {
           const parsed = JSON.parse(cachedRaw);
           if (parsed && parsed.ts && (now - parsed.ts) < TTL && parsed.info) {
-            map.set(t.toUpperCase(), parsed.info);
+            map.set(String(t).toUpperCase(), parsed.info);
             continue; // skip network fetch
           }
         }
@@ -257,20 +251,16 @@ export default function Home() {
         // ignore localStorage parse errors
       }
 
-      // mark loading
-      newLoading[t.toUpperCase()] = true;
+      newLoading[String(t).toUpperCase()] = true;
 
-      // build a request promise
       const p = (async () => {
         try {
           const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
-          map.set(t.toUpperCase(), json);
+          map.set(String(t).toUpperCase(), json);
           try {
             localStorage.setItem(key, JSON.stringify({ ts: Date.now(), info: json }));
-          } catch (e) {
-            // ignore storage errors
-          }
-          return { ticker: t.toUpperCase(), info: json };
+          } catch (e) { /* ignore storage errors */ }
+          return { ticker: String(t).toUpperCase(), info: json };
         } catch (e) {
           return null;
         }
@@ -282,9 +272,8 @@ export default function Home() {
 
     if (requests.length) {
       await Promise.allSettled(requests);
-      // clear loading flags for fetched tickers
-      const cleared = { ...loadingMap };
-      for (const t of tickers) cleared[t.toUpperCase()] = false;
+      const cleared = { ...newLoading };
+      for (const t of tickers) cleared[String(t).toUpperCase()] = false;
       setLoadingMap(cleared);
     }
 
@@ -337,10 +326,21 @@ export default function Home() {
             }));
 
             // cache provider metadata so backend can serve thumbnails / pubDate for top endpoint
-            try {
-              const toCache = articles.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail }));
+              try {
+              const toCache = articles.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: topTicker || null })).filter(x => x.url && x.url !== '#');
               if (toCache.length) {
-                await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+                try {
+                  const cacheResp = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+                  if (cacheResp.ok) {
+                    const cacheJson = await cacheResp.json();
+                    const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
+                    articles = articles.map(a => {
+                      const key = a.articleKey || a.link;
+                      const cached = map[key];
+                      return { ...a, cacheId: cached && cached.id || null, thumbnail: a.thumbnail || (cached && cached.thumbnail) || null, pubDate: a.pubDate || (cached && cached.pubDate) || null };
+                    });
+                  }
+                } catch (err) { console.debug('cache post failed', err); }
               }
             } catch (err) { console.debug('cache post failed', err); }
 
@@ -430,14 +430,27 @@ export default function Home() {
     // don't record or open items without a real link or articleKey
     if ((!item.link || item.link === '#') && !item.articleKey) return;
     try {
-      const payload = {
-        articleId: item.articleKey || item.link,
-        url: item.link || null,
-        title: item.title || null,
-        ticker: (anomalies && anomalies[0] && anomalies[0].ticker) || null,
-        source: item.source || null
-      };
-      // fire-and-forget
+      // If cache not present, create cache entry first so thumbnail/pubDate are stored
+      let articleId = item.cacheId || item.articleKey || item.link;
+      if (!item.cacheId) {
+        try {
+          const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: (anomalies && anomalies[0] && anomalies[0].ticker) || null }];
+          const cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+          if (cr.ok) {
+            const cj = await cr.json();
+            const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
+            if (found) {
+              articleId = found.id || found.articleKey || articleId;
+              // attach to item for future clicks in this session
+              item.cacheId = found.id || null;
+              if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
+            }
+          }
+        } catch (e) { /* ignore cache errors */ }
+      }
+
+      const payload = { articleId, url: item.link || null, title: item.title || null, ticker: (anomalies && anomalies[0] && anomalies[0].ticker) || null, source: item.source || null, thumbnail: item.thumbnail || null, pubDate: item.pubDate || null };
+      // fire-and-forget view post
       fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
     } catch (e) { /* ignore */ }
     try { if (item.link) window.open(item.link, '_blank'); } catch (e) { if (item.link) location.href = item.link; }
@@ -575,7 +588,10 @@ export default function Home() {
 
         <div className="right-column">
           <div className="news-card card">
-            <h3>News</h3>
+            <div className="card-header">
+              <h3>News</h3>
+            </div>
+            
             <ul className="news-list">
               {(news.length ? news : fallbackn_loading).map(n => (
                 <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)}>

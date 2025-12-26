@@ -6,9 +6,9 @@ export default function Footer() {
 
   return (
     <footer className="footer">
-      <div className="footer-content">
+      {/* <div className="footer-content">
         <div className="footer-section">
-          <h4>Stock Dashboard</h4>
+          <h4>Aino</h4>
           <p>Real-time market monitoring with anomaly detection and LINE notifications.</p>
           <div className="footer-links">
             <a href="#about">About</a>
@@ -47,12 +47,12 @@ export default function Footer() {
             <a href="#email" title="Email" className="social-link">Email</a>
           </div>
         </div>
-      </div>
+      </div> */}
 
       <div className="footer-bottom">
         <div className="footer-bottom-content">
-          <p>&copy; {currentYear} Stock Dashboard. All rights reserved.</p>
-          <p className="footer-note">Data provided by yfinance. Market data is delayed.</p>
+          <p>&copy; {currentYear} Aino. Real-time market monitoring with anomaly detection and LINE notifications.</p>
+          <p className="footer-note">yfinance, Apache ECharts.</p>
         </div>
       </div>
     </footer>

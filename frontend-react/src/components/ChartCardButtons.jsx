@@ -47,8 +47,10 @@ export default function ChartCardButtons({
             <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </span>
-        {/* Text label shown next to icon - shows Following by default, Unfollow on hover */}
-        <span className="chart-btn-label">{isLoadingFollow ? '...' : (followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow')}</span>
+        {/* Text label: only show when loading or already followed (keep icon-only for the default follow state) */}
+        {(isLoadingFollow || followed) && (
+          <span className="chart-btn-label">{isLoadingFollow ? '...' : (followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow')}</span>
+        )}
       </button>
 
       {/* Expanded View Button */}

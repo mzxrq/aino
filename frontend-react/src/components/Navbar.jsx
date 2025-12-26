@@ -12,27 +12,18 @@ export default function Navbar() {
   const location = useLocation();
   const [theme, setTheme] = useState(() => {
     try {
-      return (typeof window !== 'undefined' && localStorage.getItem('theme')) || 'light';
+      return localStorage.getItem('theme') || 'light';
     } catch (e) {
-      void e;
       return 'light';
     }
   });
-  const { user, token, isLoggedIn, logout } = useAuth();
-  const isAdmin =
-  user && (user.role === 'admin' || user.role === 'superadmin');
-
-  // no pin/collapsed behavior: navbar is static/sticky full-width
 
   useEffect(() => {
-    // Apply theme class to body whenever `theme` changes
-    try {
-      if (theme === 'dark') document.body.classList.add('dark');
-      else document.body.classList.remove('dark');
-    } catch (e) {
-      void e;
-    }
+    if (theme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
   }, [theme]);
+
+  const { isLoggedIn, isAdmin, token, user, logout } = useAuth() || {};
 
   useEffect(() => {
     // Scroll detection for homepage logo visibility
