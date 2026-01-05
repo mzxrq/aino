@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/Home.css';
@@ -24,7 +24,7 @@ export default function Home() {
   const [anomalies, setAnomalies] = useState([]);
   const [recentAnomalies, setRecentAnomalies] = useState([]);
   const [topAnomalies, setTopAnomalies] = useState([]);
-  const [allAnomalies, setAllAnomalies] = useState([]);
+  const [_allAnomalies, setAllAnomalies] = useState([]);
   const [news, setNews] = useState([]);
   const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
@@ -39,6 +39,90 @@ export default function Home() {
     if (!r.ok) throw new Error(`status ${r.status}`);
     return await r.json();
   }
+
+  // Helpers: normalize ticker variants and lookup company name from master map
+  const normalizeTickerVariants = useCallback((sym) => {
+    if (!sym) return [];
+    const s = String(sym).toUpperCase().trim();
+    const variants = new Set();
+    variants.add(s);
+    // strip common separators
+    if (s.includes('.')) variants.add(s.split('.')[0]);
+    if (s.includes('-')) variants.add(s.split('-')[0]);
+    if (s.includes(':')) variants.add(s.split(':')[0]);
+    // remove non-alphanumeric characters
+    variants.add(s.replace(/[^A-Z0-9]/g, ''));
+    // common exchange suffixes to strip
+    const suffixes = ['.T', '.TO', '.BK', '.KS', '.PA', '.L', '.V', '.SA', '.AX', '.MI', '.SS', '.SZ'];
+    for (const suf of suffixes) {
+      if (s.endsWith(suf)) variants.add(s.slice(0, -suf.length));
+    }
+    return Array.from(variants).filter(Boolean);
+  }, []);
+
+  const findCompanyName = useCallback((sym) => {
+    if (!sym) return null;
+    if (!masterTickersMap) return null;
+    const variants = normalizeTickerVariants(sym);
+    for (const v of variants) {
+      const name = masterTickersMap.get(v);
+      if (name) return name;
+    }
+    return null;
+  }, [masterTickersMap, normalizeTickerVariants]);
+
+  const fetchTickerInfos = useCallback(async (tickers = []) => {
+    if (!Array.isArray(tickers) || tickers.length === 0) return;
+    const map = new Map(tickerInfoMap || []);
+    const newLoading = { ...(loadingMap || {}) };
+    const requests = [];
+    const TTL = 24 * 60 * 60 * 1000; // 1 day cache
+    const now = Date.now();
+
+    for (const t of tickers) {
+      if (!t) continue;
+      const key = `ticker_info_${String(t).toUpperCase()}`;
+      try {
+        const cachedRaw = localStorage.getItem(key);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (parsed && parsed.ts && (now - parsed.ts) < TTL && parsed.info) {
+            map.set(String(t).toUpperCase(), parsed.info);
+            continue; // skip network fetch
+          }
+        }
+      } catch (_e) {
+        // ignore localStorage parse errors
+      }
+
+      newLoading[String(t).toUpperCase()] = true;
+
+      const p = (async () => {
+        try {
+          const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
+          map.set(String(t).toUpperCase(), json);
+          try {
+            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), info: json }));
+          } catch (_e) { /* ignore storage errors */ }
+          return { ticker: String(t).toUpperCase(), info: json };
+        } catch (_e) {
+          return null;
+        }
+      })();
+      requests.push(p);
+    }
+
+    setLoadingMap(newLoading);
+
+    if (requests.length) {
+      await Promise.allSettled(requests);
+      const cleared = { ...newLoading };
+      for (const t of tickers) cleared[String(t).toUpperCase()] = false;
+      setLoadingMap(cleared);
+    }
+
+    setTickerInfoMap(map);
+  }, [tickerInfoMap, loadingMap]);
 
   // Fetch recent anomalies and compute top tickers by anomaly count
   useEffect(() => {
@@ -79,8 +163,8 @@ export default function Home() {
                 }
               }
             }
-          } catch (e) {
-            console.debug('Cache fallback failed', e);
+          } catch (_e) {
+            console.debug('Cache fallback failed', _e);
           }
         }
 
@@ -163,16 +247,16 @@ export default function Home() {
           try {
             const tickersToFetch = Array.from(new Set([...(finalRecent || []).map(r => r.ticker), ...(finalTop || []).map(r => r.ticker)])).filter(Boolean).slice(0, 48);
             if (tickersToFetch.length) fetchTickerInfos(tickersToFetch);
-          } catch (e) { console.debug('ticker info fetch schedule failed', e) }
+          } catch (_e) { console.debug('ticker info fetch schedule failed', _e) }
         }
-      } catch (e) {
-        console.debug('Anomaly fetch error, using sample:', e);
+      } catch (_e) {
+        console.debug('Anomaly fetch error, using sample:', _e);
         if (isMounted) setAnomalies(fallbacka_loading);
       }
     };
     fetchAnomalies();
     return () => { isMounted = false; };
-  }, [API_URL]);
+  }, [API_URL, findCompanyName, fetchTickerInfos]);
 
   // Load master tickers (client-public copy) once and build a symbol->name map
   useEffect(() => {
@@ -196,89 +280,6 @@ export default function Home() {
     loadMaster();
     return () => { mounted = false; };
   }, []);
-
-  // Helpers: normalize ticker variants and lookup company name from master map
-  const normalizeTickerVariants = (sym) => {
-    if (!sym) return [];
-    const s = String(sym).toUpperCase().trim();
-    const variants = new Set();
-    variants.add(s);
-    // strip common separators
-    if (s.includes('.')) variants.add(s.split('.')[0]);
-    if (s.includes('-')) variants.add(s.split('-')[0]);
-    if (s.includes(':')) variants.add(s.split(':')[0]);
-    // remove non-alphanumeric characters
-    variants.add(s.replace(/[^A-Z0-9]/g, ''));
-    // common exchange suffixes to strip
-    const suffixes = ['.T', '.TO', '.BK', '.KS', '.PA', '.L', '.V', '.SA', '.AX', '.MI', '.SS', '.SZ'];
-    for (const suf of suffixes) {
-      if (s.endsWith(suf)) variants.add(s.slice(0, -suf.length));
-    }
-    return Array.from(variants).filter(Boolean);
-  };
-
-  const findCompanyName = (sym) => {
-    if (!sym) return null;
-    if (!masterTickersMap) return null;
-    const variants = normalizeTickerVariants(sym);
-    for (const v of variants) {
-      const name = masterTickersMap.get(v);
-      if (name) return name;
-    }
-    return null;
-  };
-  const fetchTickerInfos = async (tickers = []) => {
-    if (!Array.isArray(tickers) || tickers.length === 0) return;
-    const map = new Map(tickerInfoMap || []);
-    const newLoading = { ...(loadingMap || {}) };
-    const requests = [];
-    const TTL = 24 * 60 * 60 * 1000; // 1 day cache
-    const now = Date.now();
-
-    for (const t of tickers) {
-      if (!t) continue;
-      const key = `ticker_info_${String(t).toUpperCase()}`;
-      try {
-        const cachedRaw = localStorage.getItem(key);
-        if (cachedRaw) {
-          const parsed = JSON.parse(cachedRaw);
-          if (parsed && parsed.ts && (now - parsed.ts) < TTL && parsed.info) {
-            map.set(String(t).toUpperCase(), parsed.info);
-            continue; // skip network fetch
-          }
-        }
-      } catch (e) {
-        // ignore localStorage parse errors
-      }
-
-      newLoading[String(t).toUpperCase()] = true;
-
-      const p = (async () => {
-        try {
-          const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
-          map.set(String(t).toUpperCase(), json);
-          try {
-            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), info: json }));
-          } catch (e) { /* ignore storage errors */ }
-          return { ticker: String(t).toUpperCase(), info: json };
-        } catch (e) {
-          return null;
-        }
-      })();
-      requests.push(p);
-    }
-
-    setLoadingMap(newLoading);
-
-    if (requests.length) {
-      await Promise.allSettled(requests);
-      const cleared = { ...newLoading };
-      for (const t of tickers) cleared[String(t).toUpperCase()] = false;
-      setLoadingMap(cleared);
-    }
-
-    setTickerInfoMap(map);
-  };
 
   // Fetch news for the top anomaly ticker. Try backend news proxy first, then fall back to Python financials
   useEffect(() => {
@@ -446,14 +447,14 @@ export default function Home() {
               if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
             }
           }
-        } catch (e) { /* ignore cache errors */ }
+        } catch (_e) { /* ignore cache errors */ }
       }
 
       const payload = { articleId, url: item.link || null, title: item.title || null, ticker: (anomalies && anomalies[0] && anomalies[0].ticker) || null, source: item.source || null, thumbnail: item.thumbnail || null, pubDate: item.pubDate || null };
       // fire-and-forget view post
       fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
-    } catch (e) { /* ignore */ }
-    try { if (item.link) window.open(item.link, '_blank'); } catch (e) { if (item.link) location.href = item.link; }
+    } catch (_e) { /* ignore */ }
+    try { if (item.link) window.open(item.link, '_blank'); } catch (_e) { if (item.link) window.location.href = item.link; }
   };
 
   return (

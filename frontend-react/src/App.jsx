@@ -19,7 +19,6 @@ import Profile from "./pages/Profile";
 import CompanyProfile from "./pages/CompanyProfile";
 import Compare from "./pages/Compare";
 import MarketList from "./pages/MarketList";
-import MonitoringDashboard from "./pages/MonitoringDashboard";
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
 import AdminLayout from "../src/layouts/AdminLayout";
@@ -54,7 +53,9 @@ function App() {
         if (!ticker) return;
 
         navigate(`/chart/u/${encodeURIComponent(ticker)}`);
-      } catch (err) { /* swallow */ }
+      } catch {
+        /* swallow */
+      }
     };
 
     document.addEventListener('click', handler);
@@ -91,7 +92,6 @@ function App() {
                 <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                 <Route path="/cache" element={<CacheManagementPage />} />
                 <Route path="/marketlists" element={<MarketlistsManagementPage />} />
-                <Route path="/monitoring" element={<MonitoringDashboard />} />
                 <Route path="/users" element={<UsersManagementPage />} />
                 <Route path="/subscribers" element={<SubscribersManagementPage />} />
               </Route>

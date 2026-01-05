@@ -158,8 +158,8 @@ export default function Navbar() {
               <Link to="/anomalies" className="nav-link admin-link" onClick={handleNavClick}>
                 Anomalies
               </Link>
-              <Link to="/monitoring" className="nav-link" onClick={handleNavClick}>
-                Monitoring
+              <Link to="/admin-dashboard" className="nav-link admin-link" onClick={handleNavClick}>
+                Admin Dashboard
               </Link>
             </>
         )}

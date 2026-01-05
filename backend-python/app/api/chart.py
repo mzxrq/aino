@@ -898,6 +898,8 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                 # If pandas-like object, convert to dict then normalize keys/values
                 if hasattr(dframe, 'to_dict'):
                     try:
+                        # Convert with orient='index' so the index becomes a column (which we'll need to handle)
+                        # Or better, reset the index and then convert
                         raw = dframe.to_dict()
                     except Exception:
                         # fallback: try orient records
@@ -910,7 +912,23 @@ def get_financials(ticker: str, force: Optional[bool] = False):
 
                     def make_jsonable(o):
                         if isinstance(o, dict):
-                            return {str(k): make_jsonable(v) for k, v in o.items()}
+                            import re
+                            result = {}
+                            for k, v in o.items():
+                                # Convert key to string first (handles Timestamp objects)
+                                if not isinstance(k, str):
+                                    formatted_key = str(k)
+                                else:
+                                    formatted_key = k
+                                
+                                # Now extract just the year YYYY from the stringified key
+                                # Handles formats like: "2025-09-30", "2025-09-30 00:00:00", "2025 09 30 00:00:00"
+                                match = re.match(r'^(\d{4})', formatted_key)
+                                if match:
+                                    formatted_key = match.group(1)  # "2025"
+                                
+                                result[formatted_key] = make_jsonable(v)
+                            return result
                         if isinstance(o, (list, tuple)):
                             return [make_jsonable(x) for x in o]
                         # numpy scalars
@@ -925,10 +943,16 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                                 return None
                         except Exception:
                             pass
-                        # pandas Timestamp / datetime
+                        # pandas Timestamp / datetime: convert to ISO format then extract YYYY-MM
                         try:
                             if hasattr(o, 'isoformat'):
-                                return o.isoformat()
+                                iso_str = o.isoformat()
+                                # Extract YYYY-MM from formats like "2025-09-30" or "2025-09-30T00:00:00"
+                                import re
+                                match = re.match(r'^(\d{4}-\d{2})', iso_str)
+                                if match:
+                                    return match.group(1)  # Return "2025-09"
+                                return iso_str
                         except Exception:
                             pass
                         return o

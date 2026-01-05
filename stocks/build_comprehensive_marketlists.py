@@ -6,6 +6,7 @@ Stores tickers in dual format:
 - displayTicker: For display (without suffixes)
 """
 import os
+import re
 import json
 import pandas as pd
 import yfinance as yf
@@ -18,13 +19,56 @@ from datetime import datetime
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/stock_anomaly_db")
 
+
+def normalize_name_and_asset(name, default_asset="stock"):
+    """Standardize companyName and derive assetType from common suffix phrases."""
+    if not name:
+        return "", default_asset
+
+    cleaned = str(name)
+    asset = default_asset
+    lower = cleaned.lower()
+
+    if "exchange traded fund" in lower:
+        asset = "etf"
+    elif "listed index fund" in lower:
+        asset = "funds"
+    elif "warrant" in lower:
+        asset = "warrant"
+    elif "american depositary share" in lower or "american depository share" in lower or "ordinary share" in lower:
+        asset = "shares"
+
+    patterns = [
+        (r"(?i)\bclass\s+a\s+common\s+stock\b", "Class A"),
+        (r"(?i)\bclass\s+b\s+common\s+stock\b", "Class B"),
+        (r"(?i)\bcommon\s+stock\b", "")
+    ]
+    for pat, repl in patterns:
+        cleaned = re.sub(pat, repl, cleaned, flags=re.IGNORECASE)
+
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned, asset
+
 def parse_jp_market():
-    """Parse Japanese market from data_e.xls - separates stocks and ETFs"""
-    print("\n📊 Parsing JP market (data_e.xls)...")
+    """Parse Japanese market from data_e.xlsx - separates stocks and ETFs"""
+    print("\n📊 Parsing JP market (data_e.xlsx)...")
     
-    file_path = "stocks/data/data_e.xls"
-    if not os.path.exists(file_path):
-        print(f"⚠️  {file_path} not found, skipping JP market")
+    # Try multiple paths (run from root or stocks/ directory)
+    possible_paths = [
+        "data/data_e.xlsx",
+        "stocks/data/data_e.xlsx",
+        "data/data_e.xls",
+        "stocks/data/data_e.xls"
+    ]
+    file_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            file_path = path
+            print(f"   Found: {path}")
+            break
+    
+    if not file_path:
+        print(f"⚠️  JP market file not found in any of: {possible_paths}")
         return []
     
     try:
@@ -84,10 +128,12 @@ def parse_jp_market():
                 else:
                     stock_count += 1
             
+            company_name, asset_type = normalize_name_and_asset(company_name.strip(), asset_type)
+
             results.append({
                 "ticker": ticker,
                 "displayTicker": display_ticker,
-                "companyName": company_name.strip(),
+                "companyName": company_name,
                 "country": "JP",
                 "primaryExchange": "TSE",
                 "sectorGroup": sector.strip(),
@@ -107,12 +153,27 @@ def parse_jp_etfs():
     return []
 
 def parse_th_market():
-    """Parse Thai market from listedCompanies_en_US.xls"""
-    print("\n📊 Parsing TH market (listedCompanies_en_US.xls)...")
+    """Parse Thai market from listedCompanies_en_US.xlsm"""
+    print("\n📊 Parsing TH market (listedCompanies_en_US.xlsm)...")
     
-    file_path = "stocks/data/listedCompanies_en_US.xlsx"
-    if not os.path.exists(file_path):
-        print(f"⚠️  {file_path} not found, skipping TH market")
+    # Try multiple paths and extensions
+    possible_paths = [
+        "data/listedCompanies_en_US.xlsm",
+        "stocks/data/listedCompanies_en_US.xlsm",
+        "data/listedCompanies_en_US.xlsx",
+        "stocks/data/listedCompanies_en_US.xlsx",
+        "data/listedCompanies_en_US.xls",
+        "stocks/data/listedCompanies_en_US.xls"
+    ]
+    file_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            file_path = path
+            print(f"   Found: {path}")
+            break
+    
+    if not file_path:
+        print(f"⚠️  TH market file not found in any of: {possible_paths}")
         return []
     
     try:
@@ -147,15 +208,17 @@ def parse_th_market():
             
             company_name = str(row.get(name_col, ticker_clean)) if name_col else ticker_clean
             sector = str(row.get(sector_col, "")) if sector_col else ""
+
+            company_name, asset_type = normalize_name_and_asset(company_name.strip(), "stock")
             
             results.append({
                 "ticker": ticker,
                 "displayTicker": display_ticker,
-                "companyName": company_name.strip(),
+                "companyName": company_name,
                 "country": "TH",
                 "primaryExchange": "SET",
                 "sectorGroup": sector.strip(),
-                "assetType": "stock",
+                "assetType": asset_type,
                 "status": "active"
             })
         
@@ -243,14 +306,16 @@ def parse_us_market():
                 elif industry:
                     sector_group = industry
                 
+                name_clean, asset_type = normalize_name_and_asset(name.strip(), "stock")
+
                 results.append({
                     "ticker": ticker,
                     "displayTicker": ticker,  # US tickers don't need suffixes
-                    "companyName": name.strip(),
+                    "companyName": name_clean,
                     "country": "US",
                     "primaryExchange": exchange_name,
                     "sectorGroup": sector_group.strip(),
-                    "assetType": "stock",
+                    "assetType": asset_type,
                     "status": "active"
                 })
             
@@ -291,14 +356,16 @@ def parse_us_etfs():
             name = item.get("name", item.get("Name", ticker))
             sector = item.get("sector", item.get("Sector", ""))
             
+            name_clean, asset_type = normalize_name_and_asset(name.strip(), "etf")
+
             results.append({
                 "ticker": ticker,
                 "displayTicker": ticker,
-                "companyName": name.strip(),
+                "companyName": name_clean,
                 "country": "US",
                 "primaryExchange": "ETF",
                 "sectorGroup": sector.strip() if sector else "ETF",
-                "assetType": "etf",
+                "assetType": asset_type,
                 "status": "active"
             })
         
@@ -347,6 +414,24 @@ def enrich_with_yfinance(tickers, sample_size=10):
         enriched.append(ticker_data)
     
     return enriched
+
+
+def load_backup(file_path):
+    """Load backup marketlist JSON if available."""
+    if not os.path.exists(file_path):
+        print(f"⚠️  Backup file {file_path} not found")
+        return []
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            print(f"⚠️  Backup file {file_path} is not a list, ignoring")
+            return []
+        print(f"✅ Loaded {len(data)} entries from backup")
+        return data
+    except Exception as e:
+        print(f"❌ Failed to load backup {file_path}: {e}")
+        return []
 
 def import_to_mongodb(tickers):
     """Import tickers to MongoDB marketlists collection"""
@@ -411,6 +496,26 @@ def main():
     all_tickers.extend(th_etfs)
     all_tickers.extend(us_tickers)
     all_tickers.extend(us_etfs)
+
+    backup_path = "stocks/json/251218-1404 marketlists_backup.json"
+    if os.path.exists(backup_path):
+        use_backup = input(f"\n📂 Merge missing tickers from backup {backup_path}? (y/N): ").strip().lower() == "y"
+        if use_backup:
+            backup_items = load_backup(backup_path)
+            if backup_items:
+                existing = {t["ticker"]: t for t in all_tickers}
+                added = 0
+                for item in backup_items:
+                    tic = item.get("ticker")
+                    if not tic or tic in existing:
+                        continue
+                    name_clean, asset_type = normalize_name_and_asset(item.get("companyName"), item.get("assetType", "stock"))
+                    item["companyName"] = name_clean
+                    item["assetType"] = asset_type
+                    existing[tic] = item
+                    added += 1
+                all_tickers = list(existing.values())
+                print(f"✅ Added {added} tickers from backup")
     
     # Breakdown by asset type and country
     print("\n📊 Breakdown by type and country:")
@@ -435,7 +540,7 @@ def main():
     import_to_mongodb(all_tickers)
     
     # Save to JSON backup
-    backup_file = "stocks/marketlists_backup.json"
+    backup_file = "stocks/json/marketlists_backup.json"
     print(f"\n💾 Saving backup to {backup_file}...")
     with open(backup_file, "w", encoding="utf-8") as f:
         json.dump(all_tickers, f, indent=2, ensure_ascii=False)

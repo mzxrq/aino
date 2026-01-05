@@ -77,7 +77,7 @@ function formatPresetLabel(p) {
   return (p.label || '').split(' ')[0] || p.label;
 }
 
-function formatTZLabel(iana) {
+function _formatTZLabel(iana) {
   const found = TIMEZONES.find(t => t.name === iana);
   return found ? found.label : iana;
 }
@@ -94,7 +94,7 @@ function getTimezoneTimeString(iana) {
     const absHours = Math.abs(Math.floor(offsetHours));
     const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
     return `${timeStr} UTC${sign}${absHours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
-  } catch (e) {
+  } catch (_e) {
     return '';
   }
 }
@@ -164,7 +164,7 @@ function getTimezoneOffset(cityLabel) {
     const offsetMs = tzDate - utcDate;
     const offsetHours = offsetMs / (1000 * 60 * 60);
     return offsetHours;
-  } catch (e) {
+  } catch (_e) {
     return 0;
   }
 }
@@ -183,7 +183,7 @@ function formatTimezoneLabel(cityLabel) {
     const signedHours = offsetHours >= 0 ? absHours : -absHours;
     const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
     return `${offsetStr} ${cityLabel}`;
-  } catch (e) {
+  } catch (_e) {
     return cityLabel;
   }
 }
@@ -213,11 +213,11 @@ function detectUserTimezone() {
 }
 
 // Get current time string for a city label (wraps existing IANA helper)
-function getTimezoneTimeStringCity(cityLabel) {
+function _getTimezoneTimeStringCity(cityLabel) {
   try {
     const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
     return getTimezoneTimeString(iana);
-  } catch (e) { return ''; }
+  } catch (_e) { return ''; }
 }
 
 // Build TIMEZONES array used by TimezoneSelect: array of objects { offset, label, name }
@@ -277,14 +277,14 @@ const MARKET_EXTENSIONS = [
 
 export default function LargeChart() {
   const { ticker: paramTicker } = useParams();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
   const displayTicker = getDisplayFromRaw(ticker);
   const [companyName, setCompanyName] = useState('');
   const [market, setMarket] = useState('US');
   const [searchInput, setSearchInput] = useState((paramTicker || 'AAPL').toUpperCase());
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [_searchResults, setSearchResults] = useState([]);
+  const [_showSearchDropdown, _setShowSearchDropdown] = useState(false);
   const [period, setPeriod] = useState('1d');
   const [interval, setInterval] = useState('1m');
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -311,34 +311,34 @@ export default function LargeChart() {
   const [showMarketModal, setShowMarketModal] = useState(false);
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
-  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
-  const [showDIF, setShowDIF] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showDIF !== undefined) ? p.showDIF : true; } catch { return true; } });
-  const [showDEA, setShowDEA] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showDEA !== undefined) ? p.showDEA : true; } catch { return true; } });
   const [showMA5, setShowMA5] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA5 !== undefined) ? p.showMA5 : false; } catch { return false; } });
   const [showMA25, setShowMA25] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA25 !== undefined) ? p.showMA25 : false; } catch { return false; } });
   const [showMA75, setShowMA75] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMA75 !== undefined) ? p.showMA75 : false; } catch { return false; } });
+  const [showEMA, setShowEMA] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showEMA !== undefined) ? p.showEMA : true; } catch { return true; } });
+  const [showMACD, setShowMACD] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showMACD !== undefined) ? p.showMACD : true; } catch { return true; } });
+  const [showVolume, setShowVolume] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVolume !== undefined) ? p.showVolume : true; } catch { return true; } });
   useEffect(() => {
     try {
       const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}');
       p.showBB = !!showBB;
       p.showVWAP = !!showVWAP;
-      p.showVolume = !!showVolume;
       p.showAnomaly = !!showAnomaly;
       p.showMA5 = !!showMA5;
       p.showMA25 = !!showMA25;
       p.showMA75 = !!showMA75;
-      p.showDIF = !!showDIF;
-      p.showDEA = !!showDEA;
+      p.showEMA = !!showEMA;
+      p.showMACD = !!showMACD;
+      p.showVolume = !!showVolume;
       localStorage.setItem('lc_prefs', JSON.stringify(p));
-    } catch (e) {}
-  }, [showBB, showVWAP, showVolume, showAnomaly, showMA5, showMA25, showMA75, showDIF, showDEA]);
-  const [showSAR, setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
-  const [bbSigma, setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
+    } catch (_e) { /* ignore */ }
+  }, [showBB, showVWAP, showAnomaly, showMA5, showMA25, showMA75, showEMA, showMACD, showVolume]);
+  const [_showSAR, _setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
+  const [_bbSigma, _setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const indicatorsBtnRef = useRef(null);
-  const [marketCandidates, setMarketCandidates] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [_marketCandidates, _setMarketCandidates] = useState([]);
+  const [_isSearching, _setIsSearching] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
   const [tickerSearchQuery, setTickerSearchQuery] = useState('');
 
@@ -433,7 +433,7 @@ export default function LargeChart() {
     { ticker: 'BTS.BK', name: 'Bangkok Mass Transit', market: 'TH' }
   ], []);
 
-  const filteredStocks = useMemo(() => {
+  const _filteredStocks = useMemo(() => {
     if (!tickerSearchQuery.trim()) return INTERESTING_STOCKS;
     const q = tickerSearchQuery.toLowerCase();
     return INTERESTING_STOCKS.filter(s => 
@@ -472,12 +472,12 @@ export default function LargeChart() {
         try {
           res = await fetch(url);
           if (!res.ok) throw new Error(`status ${res.status}`);
-        } catch (err) {
+        } catch (_err) {
           try {
             url = `${PY_DIRECT}/py/chart/ticker?query=${encodeURIComponent(q)}`;
             res = await fetch(url);
             if (!res.ok) throw new Error(`fallback status ${res.status}`);
-          } catch (err2) {
+          } catch (_err2) {
             const fb = doFallbackFilter();
             if (mounted) setModalResults(fb);
             return;
@@ -703,6 +703,9 @@ export default function LargeChart() {
     };
 
     const timestamps = (dates || []).map(d => toTime(d)).filter(Boolean);
+    const tsToIndex = new Map();
+    timestamps.forEach((t, idx) => tsToIndex.set(t, idx));
+    const categories = timestamps; // category axis using actual timestamps but without real-time gaps
     const priceArr = (close || []).slice(0, timestamps.length).map((v, i) => [timestamps[i], v]);
     const volArr = (volume || []).slice(0, timestamps.length).map((v, i) => [timestamps[i], v]);
     // VWAP: use payload VWAP if present otherwise compute cumulative VWAP
@@ -740,6 +743,8 @@ export default function LargeChart() {
     const macdLineData = [];
     const signalLineData = [];
     const macdHistData = [];
+    const shortEMAData = [];
+    const longEMAData = [];
     if (priceArr.length >= longP) {
       const shortEMA = calculateEMA(priceArr, shortP);
       const longEMA = calculateEMA(priceArr, longP);
@@ -764,17 +769,21 @@ export default function LargeChart() {
         const hist = m - s;
         macdHistData.push({ value: [t, hist], itemStyle: { color: hist > 0 ? '#eb5454' : '#47b262' } });
       }
+      // Add short and long EMA data for MACD panel
+      shortEMAData.push(...shortEMA);
+      longEMAData.push(...longEMA);
     }
 
-    // build category labels from timestamps (ISO strings)
-    const labels = timestamps.map(t => new Date(t).toISOString());
-
-    // helper to align arrays to labels and insert '-' for gaps
-    const alignOrDash = (arr) => {
+    // helper to create [timestamp, value] pairs for time-axis series
+    const toTimestampValuePairs = (arr) => {
       const out = [];
-      for (let i = 0; i < labels.length; i++) {
-        const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : '-';
-        out.push(v);
+      for (let i = 0; i < timestamps.length; i++) {
+        const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
+        if (v !== null) {
+          out.push([timestamps[i], v]);
+        } else {
+          out.push([timestamps[i], '-']);
+        }
       }
       return out;
     };
@@ -782,59 +791,232 @@ export default function LargeChart() {
     // support multiple series payloads: payload.seriesList = [{ name, close, open, high, low, volume, vwap, movingAverages, anomalies }]
     const multi = Array.isArray(payload.seriesList) && payload.seriesList.length > 0;
 
-    // build main and sub option (multi-grid) dynamically so main chart can expand
-    const hasVolume = showVolume && volArr && volArr.length;
-    const hasMACD = macdHistData && macdHistData.length;
-    const subGrids = [];
-    if (hasVolume) subGrids.push('volume');
-    if (hasMACD) subGrids.push('macd');
+    // MATRIX 5x6 layout: remove Order Book, keep Price/Volume/MACD/Depth
+    const matrixMargin = 0;
+    const chartWidth = mainChartRef.current?.offsetWidth || 800;
+    const chartHeight = mainChartRef.current?.offsetHeight || 600;
+    const matrixWidth = chartWidth - matrixMargin * 2;
+    const matrixHeight = chartHeight - matrixMargin * 2;
 
-    let grid = [];
-    let xAxis = [];
-    let yAxis = [];
-    if (subGrids.length === 0) {
-      // single full-height grid
-      grid = [{ left: 50, right: 20, top: 10, height: '88%' }];
-      xAxis = [{ type: 'category', gridIndex: 0, data: labels, boundaryGap: false }];
-      yAxis = [{ type: 'value', gridIndex: 0, scale: true }];
-    } else if (subGrids.length === 1) {
-      // main + one subgrid
-      grid = [{ left: 50, right: 20, top: 10, height: '72%' }, { left: 50, right: 20, top: '84%', height: '14%' }];
-      xAxis = [
-        { type: 'category', gridIndex: 0, data: labels, boundaryGap: false },
-        { type: 'category', gridIndex: 1, data: labels, boundaryGap: false }
-      ];
-      yAxis = [ { type: 'value', gridIndex: 0, scale: true }, { type: 'value', gridIndex: 1, scale: true } ];
-    } else {
-      // main + two subgrids (volume + macd)
-      grid = [
-        { left: 50, right: 20, top: 10, height: '58%' },
-        { left: 50, right: 20, top: '62%', height: '18%' },
-        { left: 50, right: 20, top: '82%', height: '16%' }
-      ];
-      xAxis = [
-        { type: 'category', gridIndex: 0, data: labels, boundaryGap: false },
-        { type: 'category', gridIndex: 1, data: labels, boundaryGap: false },
-        { type: 'category', gridIndex: 2, data: labels, boundaryGap: false }
-      ];
-      yAxis = [ { type: 'value', gridIndex: 0, scale: true }, { type: 'value', gridIndex: 1, scale: true }, { type: 'value', gridIndex: 2, scale: true } ];
+    const lastClose = close.length ? close[close.length - 1] : 0;
+    const maxPrice = Math.max(...close.filter(Boolean));
+    const minPrice = Math.min(...close.filter(Boolean));
+    const maxAbs = Math.max(maxPrice - lastClose, lastClose - minPrice);
+
+    const colorGreen = '#47b262';
+    const colorRed = '#eb5454';
+    const colorGray = '#888';
+
+    // Volume broken-axis helper (soft-compress tall spikes so small bars stay visible)
+    const volValues = (volArr || []).map(v => Array.isArray(v) ? v[1] : null).filter(v => typeof v === 'number' && v >= 0);
+    const sortedVol = [...volValues].sort((a, b) => a - b);
+    const volBreak = sortedVol.length ? sortedVol[Math.floor(sortedVol.length * 0.9)] : null; // 90th percentile
+    const volMax = sortedVol.length ? sortedVol[sortedVol.length - 1] : null;
+    const transformVol = (v) => {
+      if (volBreak === null || volMax === null) return v;
+      if (v <= volBreak) return v;
+      const extra = v - volBreak;
+      return volBreak + Math.sqrt(extra); // compress tail smoothly
+    };
+    const volMaxDisplay = (volBreak !== null && volMax !== null) ? transformVol(volMax) : null;
+
+    const getPriceColor = (price) => price === lastClose ? colorGray : price > lastClose ? colorRed : colorGreen;
+    const priceFormatter = (value) => {
+      const result = Math.round(value * 100) / 100 + '';
+      const dotIndex = result.indexOf('.');
+      if (dotIndex < 0) return result + '.00';
+      if (dotIndex === result.length - 2) return result + '0';
+      return result;
+    };
+
+    // Anomaly reason palette (used for scatter styling)
+    const reasonPriority = ['Price Spike', 'Vol+Price', 'VEI Break', 'High Vol', 'Price Warning'];
+    const colorMap = { 'Price Spike': '#e74c3c', 'Vol+Price': '#c0392b', 'VEI Break': '#d35400', 'High Vol': '#f39c12', 'Price Warning': '#7f8c8d' };
+
+    const toCategoryValues = (arr) => categories.map((_, i) => {
+      const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
+      return (v !== null) ? v : '-';
+    });
+    const toIndexValuePairs = (arr) => categories.map((_, i) => {
+      const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
+      return (v !== null) ? [i, v] : [i, '-'];
+    });
+
+    // Calculate dynamic grid coordinates based on visible charts
+    const indicatorsShown = [showEMA, showMACD, showVolume].filter(Boolean).length;
+    let volumeRow = 5;
+    let macdRow = 4;
+    let emaRow = 3;
+    let priceBottomRow = 2;
+
+    if (!showVolume && !showMACD && !showEMA) {
+      // All hidden: price takes full height (0-5)
+      priceBottomRow = 5;
+    } else if (!showVolume && !showMACD && showEMA) {
+      // Only EMA: Price (0-4), EMA (5)
+      priceBottomRow = 4;
+      emaRow = 5;
+    } else if (!showVolume && showMACD && !showEMA) {
+      // Only MACD: Price (0-4), MACD (5)
+      priceBottomRow = 4;
+      macdRow = 5;
+    } else if (showVolume && !showMACD && !showEMA) {
+      // Only Volume: Price (0-4), Volume (5)
+      priceBottomRow = 4;
+      volumeRow = 5;
+    } else if (!showVolume && showMACD && showEMA) {
+      // MACD + EMA: Price (0-3), EMA (4), MACD (5)
+      priceBottomRow = 3;
+      emaRow = 4;
+      macdRow = 5;
+    } else if (showVolume && !showMACD && showEMA) {
+      // Volume + EMA: Price (0-3), EMA (4), Volume (5)
+      priceBottomRow = 3;
+      emaRow = 4;
+      volumeRow = 5;
+    } else if (showVolume && showMACD && !showEMA) {
+      // Volume + MACD: Price (0-3), MACD (4), Volume (5)
+      priceBottomRow = 3;
+      macdRow = 4;
+      volumeRow = 5;
     }
 
-    // dataZoom xAxisIndex list depends on number of axes
-    const xAxisIndices = xAxis.map((_, i) => i);
+    const grid = [
+      { coordinateSystem: 'matrix', coord: [0, 0], coordSize: [undefined, (priceBottomRow - 0 + 1) / 6 * 100 + '%'], top: 0, bottom: 0, left: 0, right: 0 },
+      { coordinateSystem: 'matrix', coord: [0, volumeRow], top: 20, bottom: 0, left: 0, right: 0 },
+      { coordinateSystem: 'matrix', coord: [0, macdRow], top: 20, bottom: 0, left: 0, right: 0 },
+      { coordinateSystem: 'matrix', coord: [0, emaRow], top: 20, bottom: 0, left: 0, right: 0 }
+    ];
+
+    const xAxis = [
+      { type: 'category', show: false, boundaryGap: false, data: categories },
+      { type: 'category', gridIndex: 1, show: false, boundaryGap: false, data: categories },
+      { type: 'category', gridIndex: 2, show: false, boundaryGap: false, data: categories },
+      { type: 'category', gridIndex: 3, show: false, boundaryGap: false, data: categories }
+    ];
+
+    const yAxis = [
+      { type: 'value', show: false, min: lastClose - maxAbs, max: lastClose + maxAbs },
+      { type: 'value', gridIndex: 1, show: false, scale: true, max: volMaxDisplay || undefined },
+      { type: 'value', gridIndex: 2, show: false, scale: true },
+      { type: 'value', gridIndex: 2, show: false, scale: true, alignTicks: true },
+      { type: 'value', gridIndex: 3, show: false, scale: true }
+    ];
+
+    // Tooltip formatter to show values with 2 decimal places
+    const formatVolume = (vol) => {
+      if (!vol || vol === 0) return '0';
+      const absVol = Math.abs(vol);
+      if (absVol >= 1e9) return (vol / 1e9).toFixed(2) + 'B';
+      if (absVol >= 1e6) return (vol / 1e6).toFixed(2) + 'M';
+      if (absVol >= 1e3) return (vol / 1e3).toFixed(2) + 'K';
+      return vol.toFixed(0);
+    };
+
+    const tooltipFormatter = (params) => {
+      if (!Array.isArray(params)) params = [params];
+      const formatAxisValue = (val) => {
+        const num = Number(val);
+        if (!Number.isNaN(num)) {
+          const d = new Date(num);
+          if (!isNaN(d.getTime())) return d.toLocaleString();
+        }
+        return val || '';
+      };
+      let html = `<div style="color:#000;font-size:12px;">`;
+      html += `<strong>${formatAxisValue(params[0]?.axisValue)}</strong>`;
+      params.forEach(p => {
+        // Special handling for candlestick chart
+        if (p.seriesType === 'candlestick' && Array.isArray(p.value) && p.value.length >= 4) {
+          const [, open, close, low, high] = p.value;
+          html += `<br/><span style="color:${p.color}">Open: ${open?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">High: ${high?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">Low: ${low?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">Close: ${close?.toFixed(2)}</span>`;
+        } else {
+          let raw = null;
+          if (p && p.data && p.data.real !== undefined) {
+            raw = p.data.real;
+          } else if (Array.isArray(p.value)) {
+            raw = p.value.length > 1 ? p.value[p.value.length - 1] : p.value[0];
+          } else {
+            raw = p.value;
+          }
+          if (raw !== null && raw !== undefined && raw !== '-') {
+            let formatted;
+            let label = p.seriesName;
+            
+            // Special formatting for Volume
+            if (p.seriesName === 'Volume') {
+              formatted = formatVolume(raw);
+            } else {
+              formatted = typeof raw === 'number' ? raw.toFixed(2) : raw;
+            }
+            
+            // For line chart with Close data, rename to Price
+            if (p.seriesName === 'Close' && p.seriesType === 'line') {
+              label = 'Price';
+            }
+            html += `<br/><span style="color:${p.color}">${label}: ${formatted}</span>`;
+          }
+        }
+      });
+      html += `</div>`;
+      return html;
+    };
 
     const option = {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+      title: [
+        ...(showVolume ? [{ text: 'Volume', subtext: Math.round(volArr.reduce((s, v) => s + v[1], 0) / 1000) + 'B', left: 2, top: 2, padding: 0, textStyle: { fontSize: 12, fontWeight: 'bold', color: '#444' }, subtextStyle: { fontSize: 10, color: '#666' }, itemGap: 0, coordinateSystem: 'matrix', coord: [0, volumeRow] }] : []),
+        ...(showEMA ? [{ text: 'EMA', subtext: '', left: 2, top: 2, padding: 0, textStyle: { fontSize: 12, fontWeight: 'bold', color: '#444' }, subtextStyle: { fontSize: 10, color: '#666' }, itemGap: 0, coordinateSystem: 'matrix', coord: [0, emaRow] }] : []),
+        ...(showMACD ? [{ text: 'MACD', subtext: '', left: 2, top: 2, padding: 0, textStyle: { fontSize: 12, fontWeight: 'bold', color: '#444' }, subtextStyle: { fontSize: 10, color: '#666' }, itemGap: 0, coordinateSystem: 'matrix', coord: [0, macdRow] }] : [])
+      ],
       grid,
       xAxis,
       yAxis,
-      dataZoom: [ { type: 'inside', xAxisIndex: xAxisIndices }, { show: true, xAxisIndex: xAxisIndices, type: 'slider', top: '94%' } ],
-      series: []
+      dataZoom: [ { type: 'inside', xAxisIndex: [0, 1, 2, 3] }, { show: true, xAxisIndex: [0, 1, 2, 3], type: 'slider', top: '96%', height: 20, textStyle: { color: '#666' } } ],
+      series: [],
+      matrix: {
+        left: matrixMargin,
+        right: matrixMargin,
+        top: matrixMargin,
+        bottom: matrixMargin,
+        x: { show: false, data: Array(5).fill(null) },
+        y: { show: false, data: Array(6).fill(null) },
+        body: {
+          data: [
+            { coord: [[0, 4], [0, priceBottomRow]], mergeCells: true },
+            ...(showEMA ? [{ coord: [[0, 4], [emaRow, emaRow]], mergeCells: true }] : []),
+            ...(showMACD ? [{ coord: [[0, 4], [macdRow, macdRow]], mergeCells: true }] : []),
+            ...(showVolume ? [{ coord: [[0, 4], [volumeRow, volumeRow]], mergeCells: true }] : [])
+          ]
+        }
+      },
+      graphic: {
+        elements: Array.from({ length: 3 }, (_, i) => {
+          const lineWidth = 1;
+          return {
+            type: 'line',
+            shape: { x1: matrixMargin + lineWidth, y1: (matrixHeight / 6) * (i + 1), x2: matrixWidth + matrixMargin, y2: (matrixHeight / 6) * (i + 1) },
+            style: { stroke: i === 1 ? '#bbb' : '#eee', lineWidth, lineDash: i === 1 ? 'dashed' : false }
+          };
+        }).concat(
+          Array.from({ length: 4 }, (_, i) => {
+            const lineWidth = 1;
+            return {
+              type: 'line',
+              shape: { x1: (matrixWidth / 5) * (i + 1) + matrixMargin, y1: matrixMargin + lineWidth, x2: (matrixWidth / 5) * (i + 1) + matrixMargin, y2: matrixHeight + matrixMargin },
+              style: { stroke: '#eee', lineDash: false, lineWidth }
+            };
+          })
+        )
+      }
     };
 
-    // determine which grid index to use for volume and macd
-    const volGridIndex = subGrids.length === 0 ? 0 : (subGrids.length === 1 ? 1 : 1);
-    const macdGridIndex = subGrids.length === 0 ? 0 : (subGrids.length === 1 ? 1 : 2);
+    const volGridIndex = 1;
+    const macdGridIndex = 2;
+    const macdLineAxisIndex = 3;
 
     // build series for single or multiple stocks
     if (multi) {
@@ -842,7 +1024,7 @@ export default function LargeChart() {
       payload.seriesList.forEach((s, idx) => {
         const name = s.name || `Series ${idx+1}`;
         const sClose = s.close || [];
-        const data = alignOrDash(sClose);
+        const data = toCategoryValues(sClose);
         const seriesItem = {
           name,
           type: chartType === 'area' ? 'line' : (chartType === 'candlestick' ? 'candlestick' : 'line'),
@@ -853,12 +1035,12 @@ export default function LargeChart() {
           areaStyle: chartType === 'area' ? {} : undefined,
           showSymbol: false
         };
-        // if candlestick, replace data format with ohlc arrays
+        // if candlestick, replace data format with [timestamp, o, c, l, h] arrays
         if (chartType === 'candlestick' && s.open && s.high && s.low && s.close) {
           seriesItem.type = 'candlestick';
-          seriesItem.data = labels.map((l,i) => {
+          seriesItem.data = categories.map((_, i) => {
             const o = s.open[i], h = s.high[i], lo = s.low[i], c = s.close[i];
-            return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o,c,lo,h] : '-';
+            return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
           });
         }
         option.series.push(seriesItem);
@@ -866,83 +1048,205 @@ export default function LargeChart() {
     } else {
       // single series flow (existing payload arrays)
       if (chartType === 'candlestick' && open.length && high.length && low.length && close.length) {
-        const ohlc = labels.map((lab, i) => {
+        const ohlc = categories.map((_, i) => {
           const o = open[i], h = high[i], lo = low[i], c = close[i];
-          return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o,c,lo,h] : '-';
+          return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
         });
-        option.series.push({ name: 'Price', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0 });
+        option.series.push({ name: 'Price', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
       } else {
-        option.series.push({ name: 'Close', type: 'line', data: alignOrDash(close), showSymbol: false, smooth: false, xAxisIndex: 0, yAxisIndex: 0 });
+        option.series.push({ name: 'Close', type: 'line', data: toCategoryValues(close), showSymbol: false, smooth: false, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
       }
 
       // moving averages on main chart
       if (showMA5 && movingAverages.MA5) {
-        option.series.push({ name: 'MA5', type: 'line', data: alignOrDash(movingAverages.MA5), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+        option.series.push({ name: 'MA5', type: 'line', data: toCategoryValues(movingAverages.MA5), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { width: 1 } });
       }
       if (showMA25 && movingAverages.MA25) {
-        option.series.push({ name: 'MA25', type: 'line', data: alignOrDash(movingAverages.MA25), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+        option.series.push({ name: 'MA25', type: 'line', data: toCategoryValues(movingAverages.MA25), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { width: 1 } });
       }
       if (showMA75 && movingAverages.MA75) {
-        option.series.push({ name: 'MA75', type: 'line', data: alignOrDash(movingAverages.MA75), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { width: 1 } });
+        option.series.push({ name: 'MA75', type: 'line', data: toCategoryValues(movingAverages.MA75), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { width: 1 } });
       }
 
       // Bollinger Bands (upper/lower and SMA) — draw when enabled
       if (showBB && bollinger_bands && Array.isArray(bollinger_bands.upper) && bollinger_bands.upper.length) {
-        option.series.push({ name: 'BB Upper', type: 'line', data: alignOrDash(bollinger_bands.upper), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 }, showSymbol: false });
-        option.series.push({ name: 'BB Lower', type: 'line', data: alignOrDash(bollinger_bands.lower), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 }, showSymbol: false });
+        option.series.push({ name: 'BB Upper', type: 'line', data: toCategoryValues(bollinger_bands.upper), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 } });
+        option.series.push({ name: 'BB Lower', type: 'line', data: toCategoryValues(bollinger_bands.lower), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { color: '#9ca3af', width: 1, opacity: 0.9 } });
         if (bollinger_bands.sma && bollinger_bands.sma.length) {
-          option.series.push({ name: 'BB SMA', type: 'line', data: alignOrDash(bollinger_bands.sma), xAxisIndex: 0, yAxisIndex: 0, lineStyle: { color: '#6b7280', width: 1, opacity: 0.8 }, showSymbol: false });
+          option.series.push({ name: 'BB SMA', type: 'line', data: toCategoryValues(bollinger_bands.sma), xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, lineStyle: { color: '#6b7280', width: 1, opacity: 0.8 } });
         }
       }
     }
 
-    // anomalies as scatter overlay. Show labels by default, hide on hover, exclude from main tooltip.
+    // anomalies as scatter with labeled markers (like Chart.jsx)
     if (showAnomaly && anomalies && anomalies.length) {
-      const reasonPriority = ['Price Spike', 'Vol+Price', 'VEI Break', 'High Vol', 'Price Warning'];
-      const colorMap = { 'Price Spike': '#e74c3c', 'Vol+Price': '#c0392b', 'VEI Break': '#d35400', 'High Vol': '#f39c12', 'Price Warning': '#7f8c8d' };
-      const scat = anomalies.map(a => {
-        const reason = a.reason || 'anomaly';
-        const pr = reasonPriority.indexOf(reason) >= 0 ? reasonPriority.indexOf(reason) : reasonPriority.length;
-        const symbolSize = 10 + Math.max(0, (reasonPriority.length - pr));
-        return {
-          name: reason,
-          value: [new Date(a.date).toISOString(), a.y],
-          itemStyle: { color: colorMap[reason] || '#dc3545' },
-          label: { show: true, formatter: reason, position: 'top', backgroundColor: 'rgba(0,0,0,0.6)', padding: 4 },
-          symbolSize
-        };
-      });
-      option.series.push({ name: 'Anomalies', type: 'scatter', data: scat, xAxisIndex: 0, yAxisIndex: 0, symbol: 'triangle', tooltip: { show: false }, emphasis: { label: { show: false } } });
-    }
+      // Reason mapping from Chart.jsx/EchartsCard.jsx
+      const REASON_MAP = {
+        price_spike: { color: '#ff3b30', label: 'Price Shock' },
+        volume_spike: { color: '#ff8c00', label: 'High Vol' },
+        vol_price: { color: '#ff2d55', label: 'Vol+Price' },
+        unusual_vwap: { color: '#f59e0b', label: 'VWAP' },
+        earnings_gap: { color: '#7c3aed', label: 'Earnings' },
+        split_dividend: { color: '#06b6d4', label: 'Split/Dividend' },
+        vei_break: { color: '#8b5cf6', label: 'VEI Break' },
+        vei_gradual: { color: '#a78bfa', label: 'VEI Gradual' },
+        absorption: { color: '#0ea5a4', label: 'Absorption' },
+        price_warning: { color: '#f59e0b', label: 'Price Warning' },
+        news: { color: '#10b981', label: 'News' },
+        system: { color: '#6b7280', label: 'System' },
+        other: { color: '#6b7280', label: 'Other' }
+      };
 
-    // Volume series in sub-grid
-    if (showVolume && volArr.length) {
+      const normalizeReasonType = (r) => {
+        if (!r) return 'other';
+        const s = String(r).toLowerCase().trim();
+        if (s === 'vol+price' || s.includes('vol+price')) return 'vol_price';
+        if (s === 'high vol' || s.includes('high vol') || s.includes('high_vol')) return 'volume_spike';
+        if (s === 'price shock' || s.includes('price shock') || s.includes('price_shock')) return 'price_spike';
+        if (s === 'vei break' || s.includes('vei break') || s.includes('vei_break')) return 'vei_break';
+        if (s === 'vei gradual' || s.includes('vei gradual') || s.includes('vei_gradual')) return 'vei_gradual';
+        if (s === 'absorption') return 'absorption';
+        if (s === 'price warning' || s.includes('price warning')) return 'price_warning';
+        if (s === 'system anomaly detected' || s.includes('system anomaly') || s.includes('system')) return 'system';
+        if (/price[_\- ]?spike|\bprice\b/.test(s)) return 'price_spike';
+        if (/volume|vol[_\- ]?spike|high[_ ]?volume|vol\b/.test(s)) return 'volume_spike';
+        if (/vwap|unusual[_\- ]?vwap/.test(s)) return 'unusual_vwap';
+        if (/earnings?|eps|earn[_\- ]?gap|earnings[_\- ]?gap|gap/.test(s)) return 'earnings_gap';
+        if (/split|dividend|split[_\- ]?dividend/.test(s)) return 'split_dividend';
+        if (/news|headline|press|article/.test(s)) return 'news';
+        return 'other';
+      };
+
+      const scatterData = [];
+      const alwaysShow = []; // Empty array - labels only show on hover
+
+      anomalies.forEach(a => {
+        try {
+          const ts = Date.parse(a.date);
+          const idx = tsToIndex.has(ts) ? tsToIndex.get(ts) : null;
+          if (idx === null || idx === undefined) return;
+          
+          const rawReason = a.reason || '';
+          const reasonType = normalizeReasonType(rawReason);
+          const map = REASON_MAP[reasonType] || REASON_MAP.other;
+
+          scatterData.push({
+            value: [idx, a.y],
+            itemStyle: { color: map.color },
+            label: {
+              show: alwaysShow.includes(reasonType),
+              formatter: map.label,
+              color: '#ffffff',
+              backgroundColor: map.color,
+              padding: [6, 8],
+              borderRadius: 6,
+              fontSize: 11,
+              position: 'top'
+            },
+            emphasis: {
+              label: { show: true }
+            }
+          });
+        } catch (e) {
+          // ignore parse errors
+        }
+      });
+
       option.series.push({
-        name: 'Volume', type: 'bar', xAxisIndex: volGridIndex, yAxisIndex: volGridIndex,
-        data: volArr.map((it, idx) => {
-          let color = '#888';
-          if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? '#eb5454' : '#47b262';
-          return { value: [labels[idx], it[1]], itemStyle: { color } };
-        }),
-        barWidth: '60%'
+        name: 'Anomalies',
+        type: 'scatter',
+        data: scatterData,
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        symbol: 'circle',
+        symbolSize: 8,
+        zlevel: 15
       });
     }
 
-    // VWAP in sub-grid
+    // VWAP overlay on main price chart
     if (showVWAP && vwapArr.length) {
-      option.series.push({ name: 'VWAP', type: 'line', xAxisIndex: volGridIndex, yAxisIndex: volGridIndex, data: vwapArr.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#FFC458', width: 1 } });
+      option.series.push({ name: 'VWAP', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, data: toCategoryValues(vwapArr.map(v => v[1])), lineStyle: { color: '#FFC458', width: 1 } });
     }
 
-    // MACD in lowest grid (histogram always, DIF/DEA opt-in)
-    if (macdHistData.length) {
-      option.series.push({ name: 'MACD', type: 'bar', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: macdHistData, barWidth: '70%' });
-      if (showDIF && macdLineData.length) {
-        option.series.push({ name: 'DIF', type: 'line', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: macdLineData.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#FFC458', width: 1 }, showSymbol: false });
+    // Volume series in grid 1 (always show) with soft broken-axis compression
+    if (showVolume && volArr.length) {
+      const volMarkLine = (volBreak !== null) ? {
+        symbol: 'none',
+        lineStyle: { type: 'dashed', color: '#aaa' },
+        label: { show: true, position: 'insideEndTop', formatter: 'break', color: '#aaa', fontSize: 10, padding: [2, 4] },
+        data: [ { yAxis: transformVol(volBreak) } ]
+      } : undefined;
+
+      option.series.push({
+        name: 'Volume', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+        data: categories.map((_, idx) => {
+          let color = colorGray;
+          if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? colorRed : colorGreen;
+          const rawVal = volArr[idx] ? volArr[idx][1] : null;
+          return { value: [idx, transformVol(rawVal)], real: rawVal, itemStyle: { color } };
+        }),
+        barWidth: '60%',
+        markLine: volMarkLine
+      });
+    }
+
+    // MACD in grid 2
+    if (showMACD && macdHistData.length) {
+      const macdHistCat = macdHistData.map(it => {
+        const t = Array.isArray(it.value) ? it.value[0] : null;
+        const idx = (t !== null && tsToIndex.has(t)) ? tsToIndex.get(t) : null;
+        if (idx === null || idx === undefined) return null;
+        return { ...it, value: [idx, it.value[1]] };
+      }).filter(Boolean);
+      const macdLineCat = macdLineData.map(it => {
+        const t = Array.isArray(it) ? it[0] : null;
+        const idx = (t !== null && tsToIndex.has(t)) ? tsToIndex.get(t) : null;
+        if (idx === null || idx === undefined) return null;
+        return [idx, it[1]];
+      }).filter(Boolean);
+      const signalLineCat = signalLineData.map(it => {
+        const t = Array.isArray(it) ? it[0] : null;
+        const idx = (t !== null && tsToIndex.has(t)) ? tsToIndex.get(t) : null;
+        if (idx === null || idx === undefined) return null;
+        return [idx, it[1]];
+      }).filter(Boolean);
+
+      option.series.push({ name: 'MACD', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macdHistCat, barWidth: '70%' });
+      if (macdLineCat.length) {
+        option.series.push({ name: 'DIF', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: macdLineCat, lineStyle: { color: '#FFC458', width: 1 } });
       }
-      if (showDEA && signalLineData.length) {
-        option.series.push({ name: 'DEA', type: 'line', xAxisIndex: macdGridIndex, yAxisIndex: macdGridIndex, data: signalLineData.map(it=>[new Date(it[0]).toISOString(), it[1]]), lineStyle: { color: '#333', width: 1 }, showSymbol: false });
+      if (signalLineCat.length) {
+        option.series.push({ name: 'DEA', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: signalLineCat, lineStyle: { color: '#333', width: 1 } });
       }
     }
+
+    // EMA chart (separate, above volume)
+    const emaGridIndex = 3;
+    const emaLineAxisIndex = 4;
+    if (showEMA && shortEMAData.length) {
+      const shortEMACat = shortEMAData.map(it => {
+        const t = Array.isArray(it) ? it[0] : null;
+        const idx = (t !== null && tsToIndex.has(t)) ? tsToIndex.get(t) : null;
+        if (idx === null || idx === undefined) return null;
+        return [idx, it[1]];
+      }).filter(Boolean);
+      const longEMACat = longEMAData.map(it => {
+        const t = Array.isArray(it) ? it[0] : null;
+        const idx = (t !== null && tsToIndex.has(t)) ? tsToIndex.get(t) : null;
+        if (idx === null || idx === undefined) return null;
+        return [idx, it[1]];
+      }).filter(Boolean);
+
+      if (shortEMACat.length) {
+        option.series.push({ name: 'EMA12', type: 'line', xAxisIndex: 3, yAxisIndex: emaLineAxisIndex, showSymbol: false, data: shortEMACat, lineStyle: { color: '#1f77b4', width: 1 } });
+      }
+      if (longEMACat.length) {
+        option.series.push({ name: 'EMA26', type: 'line', xAxisIndex: 3, yAxisIndex: emaLineAxisIndex, showSymbol: false, data: longEMACat, lineStyle: { color: '#ff7f0e', width: 1 } });
+      }
+    }
+
+    // No side-panel series; main price uses full width
 
     // init or set option
     try {
@@ -968,7 +1272,7 @@ export default function LargeChart() {
     } catch (e) {
       console.error('ECharts init error', e, { optionSize: (option && option.series && option.series.length) });
     }
-  }, [dates, open, high, low, close, volume, VWAP, movingAverages, chartType, showVolume, showVWAP, showBB, showAnomaly, showMA5, showMA25, showMA75, showDIF, showDEA]);
+  }, [dates, open, high, low, close, volume, VWAP, movingAverages, chartType, showVWAP, showBB, showAnomaly, showMA5, showMA25, showMA75, showEMA, showMACD, showVolume]);
 
   const lastClose = close.length ? close[close.length - 1] : null;
   const prevClose = close.length > 1 ? close[close.length - 2] : null;
@@ -1164,12 +1468,12 @@ export default function LargeChart() {
             <div className="lc-financials-content">
               {financialTab === 'income' && (
                 <div style={{ padding: 4 }}>
-                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} compact importantMetrics={["totalRevenue","netIncome","operatingIncome","ebitda","basicEPS"]} />
+                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} compact importantMetrics={["totalRevenue"]} />
                 </div>
               )}
               {financialTab === 'balance' && (
                 <div style={{ padding: 4 }}>
-                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} compact importantMetrics={["totalAssets","totalLiab","totalLiabilities","totalCurrentAssets","totalCurrentLiabilities"]} />
+                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} compact importantMetrics={["totalAssets"]} />
                 </div>
               )}
             </div>
@@ -1412,24 +1716,21 @@ export default function LargeChart() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 ref={indicatorsBtnRef}
-                className={`lc-btn ghost ${showVolume || showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showSAR || showDIF || showDEA ? 'active' : ''}`}
+                className={`lc-btn ghost ${showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showEMA || showMACD || showVolume ? 'active' : ''}`}
                 onClick={() => setIndicatorsOpen(v => !v)}
                 aria-haspopup="true"
                 aria-expanded={indicatorsOpen}
                 title="Indicators"
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
               >
                 Indicators
               </button>
-              <Link to={`/company/${ticker}`} className="lc-company-btn lc-company-profile-btn" title="Open company profile">
+              <button onClick={() => window.location.href = `/company/${ticker}`} className="lc-btn ghost" title="Open company profile" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 Profile
-              </Link>
+              </button>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; }); } }}>
-                      <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Volume
-                    </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>{showBB && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       Bollinger Bands
@@ -1454,13 +1755,17 @@ export default function LargeChart() {
                       <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
                       MA (75)
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showDIF} onClick={() => setShowDIF(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDIF: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowDIF(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDIF: nv })); return nv; }); } }}>
-                      <span className={`indicator-dot ${showDIF ? 'checked' : ''}`} aria-hidden>{showDIF && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MACD — DIF
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showEMA} onClick={() => setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; }); } }}>
+                      <span className={`indicator-dot ${showEMA ? 'checked' : ''}`} aria-hidden>{showEMA && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      EMA
                     </div>
-                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showDEA} onClick={() => setShowDEA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDEA: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowDEA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showDEA: nv })); return nv; }); } }}>
-                      <span className={`indicator-dot ${showDEA ? 'checked' : ''}`} aria-hidden>{showDEA && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MACD — DEA
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showMACD} onClick={() => setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; }); } }}>
+                      <span className={`indicator-dot ${showMACD ? 'checked' : ''}`} aria-hidden>{showMACD && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      MACD
+                    </div>
+                    <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; }); } }}>
+                      <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
+                      Volume
                     </div>
                   </div>
                 </PortalDropdown>
@@ -1472,7 +1777,7 @@ export default function LargeChart() {
           {error && <div className="lc-error">{error}</div>}
           {!loading && !error && (
             <div style={{ width: '100%' }}>
-              <div id="main-chart-container" ref={mainChartRef} style={{ width: '100%', height: '62vh' }} />
+              <div id="main-chart-container" ref={mainChartRef} style={{ width: '100%', height: '78vh', minHeight: 520 }} />
             </div>
           )}
         </main>

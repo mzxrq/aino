@@ -41,7 +41,7 @@ export default function FollowableChartCard({
         });
         const j = await res.json();
         if (mounted) setFollowed(!!j.subscribed);
-      } catch (e) {
+      } catch (_e) {
         if (mounted) setFollowed(false);
       }
     }

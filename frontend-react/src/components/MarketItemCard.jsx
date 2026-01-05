@@ -80,7 +80,9 @@ export default function MarketItemCard({ item }) {
       try {
         const res = await fetch(`${PY_BASE}${path}`, init);
         if (res.ok) return await res.json();
-      } catch (_) { /* ignore */ }
+      } catch {
+        // fallback to direct
+      }
       const res2 = await fetch(`${PY_DIRECT}/py${path}`, init);
       if (!res2.ok) throw new Error(`status ${res2.status}`);
       return await res2.json();

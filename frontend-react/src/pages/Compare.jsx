@@ -10,7 +10,7 @@ const PY_API = `${API_URL}/py`;
 async function fetchJsonWithFallback(path){
   const primary = `${PY_DIRECT}/py${path}`;
   const fallback = `${PY_API}${path}`;
-  try{ const r = await fetch(primary); if (r.ok) return await r.json(); }catch(e){}
+  try{ const r = await fetch(primary); if (r.ok) return await r.json(); }catch(_e) { /* ignore */ }
   const r2 = await fetch(fallback); if (!r2.ok) return null; return await r2.json();
 }
 
@@ -24,7 +24,7 @@ export default function Compare(){
   const [tickers, setTickersParam] = useTickerListFromQuery();
   const [input, setInput] = useState('');
   const [items, setItems] = useState([]);
-  const [loadingMap, setLoadingMap] = useState({});
+  const [_loadingMap, setLoadingMap] = useState({});
 
   useEffect(()=>{
     let active = true;
@@ -37,7 +37,7 @@ export default function Compare(){
           const chosen = Array.isArray(meta) ? (meta.find(x=>x.ticker===t) || meta[0] || {}) : (meta || {});
           const fin = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(t)}`);
           return { ticker: t, meta: chosen, financials: fin || {} };
-        }catch(e){ return { ticker: t, error: String(e) }; }
+        }catch(_e){ return { ticker: t, error: String(_e) }; }
       }));
       if (!active) return;
       const map = {};
@@ -80,7 +80,7 @@ export default function Compare(){
 
       <div className="compare-grid">
         {tickers.length === 0 && <div className="muted">Add tickers to start comparing.</div>}
-        {tickers.map((t, i)=>{
+        {tickers.map((t, _i)=>{
           const row = items.find(x=>x.ticker===t) || {};
           const meta = row.meta || {};
           const fin = row.financials || {};

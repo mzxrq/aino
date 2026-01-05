@@ -499,7 +499,7 @@ export default function EchartsCard({
 
       // Foreground icon (white SVG path) with reason attached for tooltip
       // Always-show labels for critical reasons
-      const alwaysShow = ['price_spike', 'volume_spike', 'vei_break'];
+      const alwaysShow = []; // Empty array - labels only show on hover
 
       icons.push({
         value: [coordX, a.y],

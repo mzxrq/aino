@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DateTime } from 'luxon';
 import Swal from '../utils/muiSwal';
 import { useAuth } from '../context/useAuth';
@@ -580,6 +580,7 @@ export default function Chart() {
   const PREF_KEY = 'chart_prefs_v1';
 
   const savePrefsTimer = useRef(null);
+  const [searchParams] = useSearchParams();
 
   const [tickers, setTickers] = useState(() => {
     try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return p.tickers || []; } catch { return []; }
@@ -626,6 +627,21 @@ export default function Chart() {
 
   // Refs for pill keyboard navigation
   const pillRefs = useRef([]);
+
+  // Handle query parameter to add ticker from compare/market list
+  useEffect(() => {
+    const tickerParam = searchParams.get('ticker');
+    if (tickerParam) {
+      const upperTicker = tickerParam.toUpperCase();
+      setTickers(prev => {
+        // Only add if not already present
+        if (!prev.includes(upperTicker)) {
+          return [...prev, upperTicker];
+        }
+        return prev;
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Keep refs array in sync with tickers length

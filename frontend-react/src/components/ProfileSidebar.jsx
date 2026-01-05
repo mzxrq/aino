@@ -10,8 +10,7 @@ const ProfileSidebar = () => {
     { id: 'general', label: 'General', icon: '⚙️', path: '/profile' },
     { id: 'security', label: 'Security', icon: '🔒', path: '/profile?section=security' },
     { id: 'notifications', label: 'Notifications', icon: '🔔', path: '/profile?section=notifications' },
-    { id: 'appearance', label: 'Appearance', icon: '🎨', path: '/profile?section=appearance' },
-    { id: 'connected', label: 'Connected Services', icon: '🔗', path: '/profile?section=connected' },
+    { id: 'connected', label: 'Connection', icon: '🔗', path: '/profile?section=connected' },
   ];
 
   const currentSection = new URLSearchParams(location.search).get('section') || 'general';
