@@ -514,6 +514,31 @@ const toggleFavorite = async (ticker) => {
   }
 };
 
+const toggleFollow = async (ticker) => {
+  if (!user || !token) {
+    alert("Please log in to follow stocks");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/subscribers`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ticker }),
+    });
+    const json = await res.json();
+    
+    if (json.success) {
+      alert(`Now following ${ticker}`);
+    }
+  } catch (err) {
+    console.error("Error following stock:", err);
+  }
+};
+
 
   // Market status helper with real-time detection
   const isMarketOpen = (country, ticker) => {
@@ -858,24 +883,14 @@ const toggleFavorite = async (ticker) => {
                       <button className="action-icon" title="View Chart" onClick={(e) => { e.stopPropagation(); navigate(`/chart/u/${item.ticker}`); }}>
                         <ViewChartIcon />
                       </button>
-                      <button className="action-icon" title="Compare" onClick={(e) => e.stopPropagation()}>
+                      <button className="action-icon" title="Compare" onClick={(e) => { e.stopPropagation(); navigate(`/chart?ticker=${item.ticker}`); }}>
                         <CompareIcon />
                       </button>
-                      <button className="action-icon" title="Compare Data" onClick={(e) => e.stopPropagation()}>
+                      <button className="action-icon" title="Compare Data" onClick={(e) => { e.stopPropagation(); navigate(`/compare?ticker=${item.ticker}`); }}>
                         <CompareDataIcon />
                       </button>
-                      <button className="action-icon follow-btn" title="Follow" onClick={(e) => e.stopPropagation()}>
+                      <button className="action-icon follow-btn" title="Follow" onClick={(e) => { e.stopPropagation(); toggleFollow(item.ticker); }}>
                         <FollowIcon />
-                      </button>
-                      <button 
-                        className="action-icon" 
-                        title={favoritesSet.has(item.ticker.toUpperCase()) ? "Remove favorite" : "Add favorite"}
-                        onClick={(e) => { e.stopPropagation(); toggleFavorite(item.ticker); }}
-                      >
-                        <FavoriteIcon filled={favoritesSet.has(item.ticker.toUpperCase())} />
-                      </button>
-                      <button className="action-icon menu-btn" title="Menu" onClick={(e) => e.stopPropagation()}>
-                        <MenuIcon />
                       </button>
                     </div>
 
@@ -940,15 +955,8 @@ const toggleFavorite = async (ticker) => {
                   )}
 
                   <div className="box-actions">
-                    <button className="box-follow-btn" onClick={(e) => { e.stopPropagation(); }}>
+                    <button className="box-follow-btn" onClick={(e) => { e.stopPropagation(); toggleFollow(item.ticker); }}>
                       + Follow
-                    </button>
-                    <button 
-                      className="box-favorite-btn" 
-                      title={favoritesSet.has(item.ticker.toUpperCase()) ? "Remove favorite" : "Add favorite"}
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(item.ticker); }}
-                    >
-                      <FavoriteIcon filled={favoritesSet.has(item.ticker.toUpperCase())} />
                     </button>
                   </div>
 

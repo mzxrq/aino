@@ -898,6 +898,8 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                 # If pandas-like object, convert to dict then normalize keys/values
                 if hasattr(dframe, 'to_dict'):
                     try:
+                        # Convert with orient='index' so the index becomes a column (which we'll need to handle)
+                        # Or better, reset the index and then convert
                         raw = dframe.to_dict()
                     except Exception:
                         # fallback: try orient records
@@ -913,17 +915,18 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                             import re
                             result = {}
                             for k, v in o.items():
-                                # Format keys that look like dates (timestamps, ISO strings, etc.)
-                                formatted_key = str(k)
-                                # Extract YYYY-MM from various date formats
-                                # Handle ISO format: "2025-09-30" or "2025-09-30T00:00:00"
-                                match = re.match(r'^(\d{4})-(\d{2})', formatted_key)
+                                # Convert key to string first (handles Timestamp objects)
+                                if not isinstance(k, str):
+                                    formatted_key = str(k)
+                                else:
+                                    formatted_key = k
+                                
+                                # Now extract just the year YYYY from the stringified key
+                                # Handles formats like: "2025-09-30", "2025-09-30 00:00:00", "2025 09 30 00:00:00"
+                                match = re.match(r'^(\d{4})', formatted_key)
                                 if match:
-                                    formatted_key = match.group(0)  # "2025-09"
-                                # Handle space format: "2025 09 30 00:00:00"
-                                match = re.match(r'^(\d{4})\s+(\d{2})', formatted_key)
-                                if match:
-                                    formatted_key = f"{match.group(1)}-{match.group(2)}"  # Convert to "2025-09"
+                                    formatted_key = match.group(1)  # "2025"
+                                
                                 result[formatted_key] = make_jsonable(v)
                             return result
                         if isinstance(o, (list, tuple)):

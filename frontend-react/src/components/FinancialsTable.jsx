@@ -11,29 +11,27 @@ function formatPeriodLabel(p){
   if (!p) return '';
   const s = String(p).trim();
   
-  // Try to extract YYYY-MM from various formats
+  // Try to extract YYYY from various formats
   // Dash-separated: "2025-09-30" or "2025-09-30T00:00:00Z" or "2025-09-30 00:00:00"
   const dashMatch = s.match(/^(\d{4})-(\d{2})/);
-  if (dashMatch) return `${dashMatch[1]}/${dashMatch[2]}`;
+  if (dashMatch) return dashMatch[1];
   
   // Space-separated: "2025 09 30 00:00:00"
   const spaceMatch = s.match(/^(\d{4})\s+(\d{2})/);
-  if (spaceMatch) return `${spaceMatch[1]}/${spaceMatch[2]}`;
+  if (spaceMatch) return spaceMatch[1];
   
   // Slash-separated: "2025/09/30"
   const slashMatch = s.match(/^(\d{4})\/(\d{2})/);
-  if (slashMatch) return `${slashMatch[1]}/${slashMatch[2]}`;
+  if (slashMatch) return slashMatch[1];
   
   // Compact numeric: "202509" or "20250930"
   const compactMatch = s.match(/^(\d{4})(\d{2})/);
-  if (compactMatch) return `${compactMatch[1]}/${compactMatch[2]}`;
+  if (compactMatch) return compactMatch[1];
   
   // Fallback: try Date parsing
   const d = new Date(s);
   if (!isNaN(d.getTime())){
-    const y = d.getFullYear();
-    const mo = String(d.getMonth() + 1).padStart(2,'0');
-    return `${y}/${mo}`;
+    return String(d.getFullYear());
   }
   
   // Last resort: return as-is

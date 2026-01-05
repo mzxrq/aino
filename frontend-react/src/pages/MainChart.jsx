@@ -904,6 +904,15 @@ export default function LargeChart() {
     ];
 
     // Tooltip formatter to show values with 2 decimal places
+    const formatVolume = (vol) => {
+      if (!vol || vol === 0) return '0';
+      const absVol = Math.abs(vol);
+      if (absVol >= 1e9) return (vol / 1e9).toFixed(2) + 'B';
+      if (absVol >= 1e6) return (vol / 1e6).toFixed(2) + 'M';
+      if (absVol >= 1e3) return (vol / 1e3).toFixed(2) + 'K';
+      return vol.toFixed(0);
+    };
+
     const tooltipFormatter = (params) => {
       if (!Array.isArray(params)) params = [params];
       const formatAxisValue = (val) => {
@@ -934,8 +943,16 @@ export default function LargeChart() {
             raw = p.value;
           }
           if (raw !== null && raw !== undefined && raw !== '-') {
-            const formatted = typeof raw === 'number' ? raw.toFixed(2) : raw;
+            let formatted;
             let label = p.seriesName;
+            
+            // Special formatting for Volume
+            if (p.seriesName === 'Volume') {
+              formatted = formatVolume(raw);
+            } else {
+              formatted = typeof raw === 'number' ? raw.toFixed(2) : raw;
+            }
+            
             // For line chart with Close data, rename to Price
             if (p.seriesName === 'Close' && p.seriesType === 'line') {
               label = 'Price';
@@ -1061,28 +1078,90 @@ export default function LargeChart() {
       }
     }
 
-    // anomalies as scatter overlay on main price chart
+    // anomalies as scatter with labeled markers (like Chart.jsx)
     if (showAnomaly && anomalies && anomalies.length) {
-      const scat = anomalies.map(a => {
-        const reason = a.reason || 'anomaly';
-        const pr = reasonPriority.indexOf(reason) >= 0 ? reasonPriority.indexOf(reason) : reasonPriority.length;
-        const symbolSize = 10 + Math.max(0, (reasonPriority.length - pr));
+      // Reason mapping from Chart.jsx/EchartsCard.jsx
+      const REASON_MAP = {
+        price_spike: { color: '#ff3b30', label: 'Price Shock' },
+        volume_spike: { color: '#ff8c00', label: 'High Vol' },
+        vol_price: { color: '#ff2d55', label: 'Vol+Price' },
+        unusual_vwap: { color: '#f59e0b', label: 'VWAP' },
+        earnings_gap: { color: '#7c3aed', label: 'Earnings' },
+        split_dividend: { color: '#06b6d4', label: 'Split/Dividend' },
+        vei_break: { color: '#8b5cf6', label: 'VEI Break' },
+        vei_gradual: { color: '#a78bfa', label: 'VEI Gradual' },
+        absorption: { color: '#0ea5a4', label: 'Absorption' },
+        price_warning: { color: '#f59e0b', label: 'Price Warning' },
+        news: { color: '#10b981', label: 'News' },
+        system: { color: '#6b7280', label: 'System' },
+        other: { color: '#6b7280', label: 'Other' }
+      };
+
+      const normalizeReasonType = (r) => {
+        if (!r) return 'other';
+        const s = String(r).toLowerCase().trim();
+        if (s === 'vol+price' || s.includes('vol+price')) return 'vol_price';
+        if (s === 'high vol' || s.includes('high vol') || s.includes('high_vol')) return 'volume_spike';
+        if (s === 'price shock' || s.includes('price shock') || s.includes('price_shock')) return 'price_spike';
+        if (s === 'vei break' || s.includes('vei break') || s.includes('vei_break')) return 'vei_break';
+        if (s === 'vei gradual' || s.includes('vei gradual') || s.includes('vei_gradual')) return 'vei_gradual';
+        if (s === 'absorption') return 'absorption';
+        if (s === 'price warning' || s.includes('price warning')) return 'price_warning';
+        if (s === 'system anomaly detected' || s.includes('system anomaly') || s.includes('system')) return 'system';
+        if (/price[_\- ]?spike|\bprice\b/.test(s)) return 'price_spike';
+        if (/volume|vol[_\- ]?spike|high[_ ]?volume|vol\b/.test(s)) return 'volume_spike';
+        if (/vwap|unusual[_\- ]?vwap/.test(s)) return 'unusual_vwap';
+        if (/earnings?|eps|earn[_\- ]?gap|earnings[_\- ]?gap|gap/.test(s)) return 'earnings_gap';
+        if (/split|dividend|split[_\- ]?dividend/.test(s)) return 'split_dividend';
+        if (/news|headline|press|article/.test(s)) return 'news';
+        return 'other';
+      };
+
+      const scatterData = [];
+      const alwaysShow = []; // Empty array - labels only show on hover
+
+      anomalies.forEach(a => {
         try {
           const ts = Date.parse(a.date);
           const idx = tsToIndex.has(ts) ? tsToIndex.get(ts) : null;
-          if (idx === null || idx === undefined) return null;
-          return {
-            name: reason,
+          if (idx === null || idx === undefined) return;
+          
+          const rawReason = a.reason || '';
+          const reasonType = normalizeReasonType(rawReason);
+          const map = REASON_MAP[reasonType] || REASON_MAP.other;
+
+          scatterData.push({
             value: [idx, a.y],
-            itemStyle: { color: colorMap[reason] || '#dc3545' },
-            label: { show: true, formatter: reason, position: 'top', backgroundColor: 'rgba(0,0,0,0.6)', padding: 4 },
-            symbolSize
-          };
+            itemStyle: { color: map.color },
+            label: {
+              show: alwaysShow.includes(reasonType),
+              formatter: map.label,
+              color: '#ffffff',
+              backgroundColor: map.color,
+              padding: [6, 8],
+              borderRadius: 6,
+              fontSize: 11,
+              position: 'top'
+            },
+            emphasis: {
+              label: { show: true }
+            }
+          });
         } catch (e) {
-          return null;
+          // ignore parse errors
         }
-      }).filter(Boolean);
-      option.series.push({ name: 'Anomalies', type: 'scatter', data: scat, xAxisIndex: 0, yAxisIndex: 0, symbol: 'triangle', tooltip: { show: false }, emphasis: { label: { show: false } } });
+      });
+
+      option.series.push({
+        name: 'Anomalies',
+        type: 'scatter',
+        data: scatterData,
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        symbol: 'circle',
+        symbolSize: 8,
+        zlevel: 15
+      });
     }
 
     // VWAP overlay on main price chart
@@ -1637,17 +1716,18 @@ export default function LargeChart() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 ref={indicatorsBtnRef}
-                className={`lc-btn ghost ${showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showEMA || showMACD || showVolume || showSAR ? 'active' : ''}`}
+                className={`lc-btn ghost ${showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showEMA || showMACD || showVolume ? 'active' : ''}`}
                 onClick={() => setIndicatorsOpen(v => !v)}
                 aria-haspopup="true"
                 aria-expanded={indicatorsOpen}
                 title="Indicators"
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
               >
                 Indicators
               </button>
-              <Link to={`/company/${ticker}`} className="lc-company-btn lc-company-profile-btn" title="Open company profile">
+              <button onClick={() => window.location.href = `/company/${ticker}`} className="lc-btn ghost" title="Open company profile" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 Profile
-              </Link>
+              </button>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>

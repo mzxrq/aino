@@ -540,7 +540,7 @@ def main():
     import_to_mongodb(all_tickers)
     
     # Save to JSON backup
-    backup_file = "stocks/json/"+datetime+" marketlists_backup.json"
+    backup_file = "stocks/json/marketlists_backup.json"
     print(f"\n💾 Saving backup to {backup_file}...")
     with open(backup_file, "w", encoding="utf-8") as f:
         json.dump(all_tickers, f, indent=2, ensure_ascii=False)
