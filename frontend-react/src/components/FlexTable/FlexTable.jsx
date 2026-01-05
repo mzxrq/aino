@@ -61,7 +61,7 @@ export default function FlexTable({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }).format(n);
-        } catch (e) {
+        } catch (_e) {
           return n.toFixed(2);
         }
       }
@@ -115,15 +115,16 @@ export default function FlexTable({
             }
           };
 
-          const cmp = (a, b) => {
-            const vaRaw = a && (a[sortField] !== undefined ? a[sortField] : a[sortKey]);
-            const vbRaw = b && (b[sortField] !== undefined ? b[sortField] : b[sortKey]);
+          const _cmp = (a, b) => {
+            const dir = sortDir === 'desc' ? -1 : 1;
+            const vaRaw = a && (a[sortKey] !== undefined ? a[sortKey] : a[sortKey]);
+            const vbRaw = b && (b[sortKey] !== undefined ? b[sortKey] : b[sortKey]);
             if (vaRaw == null && vbRaw == null) return 0;
             if (vaRaw == null) return -1 * dir;
             if (vbRaw == null) return 1 * dir;
 
             // special-case duration-like fields
-            if (sortField === 'period' || sortField === 'interval') {
+            if (sortKey === 'period' || sortKey === 'interval') {
               const na = parseDurationToMinutes(vaRaw);
               const nb = parseDurationToMinutes(vbRaw);
               if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;

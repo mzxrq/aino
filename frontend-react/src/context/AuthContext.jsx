@@ -208,6 +208,7 @@ export function AuthProvider({ children }) {
             user,
             token,
             isLoggedIn: Boolean(user || token),
+            isAdmin: Boolean(user && user.role === 'admin'),
             login,
             logout,
             setToken,

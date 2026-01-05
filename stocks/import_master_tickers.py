@@ -23,7 +23,7 @@ def import_master_tickers():
     # Load master_tickers.json
     file_path = "frontend-react/public/master_tickers.json"
     if not os.path.exists(file_path):
-        file_path = "stocks/master_tickers.json"
+        file_path = "stocks/json/251218-1404 marketlists_backup.json"
     
     if not os.path.exists(file_path):
         print("❌ master_tickers.json not found!")

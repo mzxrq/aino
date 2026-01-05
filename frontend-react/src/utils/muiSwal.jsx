@@ -12,8 +12,8 @@ function renderDialog(opts, resolve) {
   const root = createRoot(div);
 
   function cleanup() {
-    try { root.unmount(); } catch(e){}
-    try { div.remove(); } catch(e){}
+    try { root.unmount(); } catch(_e) { /* ignore */ }
+    try { div.remove(); } catch(_e) { /* ignore */ }
   }
 
   function DialogCmp(props) {
@@ -33,7 +33,7 @@ function renderDialog(opts, resolve) {
     const title = opts.title || '';
     const text = opts.text || '';
     const html = opts.html || null;
-    const icon = opts.icon || null; // unused for now, kept for compatibility
+    const _icon = opts.icon || null; // unused for now, kept for compatibility
 
     function handleClose(reason) {
       setOpen(false);
@@ -60,8 +60,8 @@ function renderDialog(opts, resolve) {
   }
 
   const wrappedResolve = (v) => {
-    try { setTimeout(() => cleanup(), 50); } catch (e) {}
-    try { resolve(v); } catch (e) {}
+    try { setTimeout(() => cleanup(), 50); } catch (_e) { /* ignore */ }
+    try { resolve(v); } catch (_e) { /* ignore */ }
   };
 
   // make DialogCmp use wrappedResolve

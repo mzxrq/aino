@@ -11,13 +11,13 @@ const LINE_CLIENT_ID = import.meta.env.VITE_LINE_CLIENT_ID;
 const LINE_REDIRECT_URI = import.meta.env.VITE_LINE_REDIRECT_URI;
 
 // --- Helpers ---
-const buildHeaders = (token, isJson = true) => {
+const _buildHeaders = (token, isJson = true) => {
     const h = isJson ? { 'Content-Type': 'application/json' } : {};
     if (token) h['Authorization'] = `Bearer ${token}`;
     return h;
 };
 
-const toggle = (setter) => setter((prev) => !prev);
+const _toggle = (setter) => setter((prev) => !prev);
 
 // Common timezone presets — extend as needed
 const TIMEZONES = [
@@ -301,7 +301,7 @@ const PasswordForm = ({ passwordData, onChange, onSubmit, loading, isAdding }) =
     </form>
 );
 
-const GeneralSection = ({ user, formData, setFormData, editMode, setEditMode, status, handleUpdateProfile, handleInput, loading, resolvedAvatar, handleAvatarUpload, handleAvatarDelete, logout, navigate }) => (
+const GeneralSection = ({ user, formData, _setFormData, editMode, setEditMode, status, handleUpdateProfile, handleInput, loading, resolvedAvatar, handleAvatarUpload, handleAvatarDelete, _logout, _navigate }) => (
     <div className="profile-container">
         <div className="profile-content">
             <div className="profile-header">

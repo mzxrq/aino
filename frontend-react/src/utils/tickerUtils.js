@@ -22,8 +22,10 @@ async function loadMasterTickers() {
     _displayToRaw = mapDisp;
     _loaded = true;
     // expose globally for quick sync lookups from other code
-    try { window.__MASTER_TICKERS__ = { rawToDisplay: mapRaw, displayToRaw: mapDisp }; } catch(e){}
-  } catch (e) {
+    try { window.__MASTER_TICKERS__ = { rawToDisplay: mapRaw, displayToRaw: mapDisp }; } catch {
+      // ignore
+    }
+  } catch {
     // ignore; leave maps empty
   }
 }
@@ -35,7 +37,9 @@ function getDisplayFromRaw(raw) {
   if (!raw) return raw || '';
   const r = (raw || '').toString().toUpperCase();
   if (_rawToDisplay && _rawToDisplay[r]) return _rawToDisplay[r];
-  try { if (window && window.__MASTER_TICKERS__ && window.__MASTER_TICKERS__.rawToDisplay && window.__MASTER_TICKERS__.rawToDisplay[r]) return window.__MASTER_TICKERS__.rawToDisplay[r]; } catch(e){}
+  try { if (window && window.__MASTER_TICKERS__ && window.__MASTER_TICKERS__.rawToDisplay && window.__MASTER_TICKERS__.rawToDisplay[r]) return window.__MASTER_TICKERS__.rawToDisplay[r]; } catch {
+    // ignore
+  }
   // fallback: strip suffix after dot
   return r.split('.')[0];
 }
@@ -44,7 +48,9 @@ function getRawFromDisplay(display) {
   if (!display) return display || '';
   const d = display.toString();
   if (_displayToRaw && _displayToRaw[d]) return _displayToRaw[d];
-  try { if (window && window.__MASTER_TICKERS__ && window.__MASTER_TICKERS__.displayToRaw && window.__MASTER_TICKERS__.displayToRaw[d]) return window.__MASTER_TICKERS__.displayToRaw[d]; } catch(e){}
+  try { if (window && window.__MASTER_TICKERS__ && window.__MASTER_TICKERS__.displayToRaw && window.__MASTER_TICKERS__.displayToRaw[d]) return window.__MASTER_TICKERS__.displayToRaw[d]; } catch {
+    // ignore
+  }
   return display;
 }
 

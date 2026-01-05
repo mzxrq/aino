@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 
 const defaultMenu = [
   // Admin management links
-  { key: "admin-dashboard", label: "Admin: Dashboard", href: "/admin-dashboard" },
-  { key: "admin-anomalies", label: "Admin: Anomalies", href: "/anomalies" },
-  { key: "admin-users", label: "Admin: Users", href: "/users" },
-  { key: "admin-subscribers", label: "Admin: Subscribers", href: "/subscribers" },
-  { key: "admin-marketlists", label: "Admin: Marketlists", href: "/marketlists" },
-  { key: "admin-cache", label: "Admin: Cache", href: "/cache" },
+  { key: "admin-dashboard", label: "Dashboard", href: "/admin-dashboard" },
+  { key: "admin-anomalies", label: "Anomalies", href: "/anomalies" },
+  { key: "admin-users", label: "Users", href: "/users" },
+  { key: "admin-subscribers", label: "Subscribers", href: "/subscribers" },
+  { key: "admin-marketlists", label: "Stock List", href: "/marketlists" },
+  { key: "admin-cache", label: "Cache", href: "/cache" },
 ];
 
 export default function Sidebar({
@@ -24,7 +24,7 @@ export default function Sidebar({
         const u = JSON.parse(raw);
         setUsername(u.name || u.username || u.displayName || u.id || "");
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }, [propUsername]);

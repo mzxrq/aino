@@ -10,29 +10,33 @@ function humanizeLabel(key){
 function formatPeriodLabel(p){
   if (!p) return '';
   const s = String(p).trim();
-  // Prefer direct ISO-like formats (e.g. "2025-09-30", "2025-09")
-  const iso = s.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
-  if (iso) return `${iso[1]}/${iso[2]}`;
-  // Slash-separated (e.g. "2025/09/30" or "2025/09")
-  const slash = s.match(/^(\d{4})\/(\d{2})(?:\/(\d{2}))?/);
-  if (slash) return `${slash[1]}/${slash[2]}`;
-  // Compact numeric (e.g. "20250331" or "202506")
-  const compact = s.match(/^(\d{4})(\d{2})(\d{2})?$/);
-  if (compact) return `${compact[1]}/${compact[2]}`;
-  // If it's an ISO timestamp like "2025-09-30T00:00:00Z", take the date part
-  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}T/.test(s)) {
-    const part = s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (part) return `${part[1]}/${part[2]}`;
-  }
-  // Fallback to Date parsing
+  
+  // Try to extract YYYY-MM from various formats
+  // Dash-separated: "2025-09-30" or "2025-09-30T00:00:00Z" or "2025-09-30 00:00:00"
+  const dashMatch = s.match(/^(\d{4})-(\d{2})/);
+  if (dashMatch) return `${dashMatch[1]}/${dashMatch[2]}`;
+  
+  // Space-separated: "2025 09 30 00:00:00"
+  const spaceMatch = s.match(/^(\d{4})\s+(\d{2})/);
+  if (spaceMatch) return `${spaceMatch[1]}/${spaceMatch[2]}`;
+  
+  // Slash-separated: "2025/09/30"
+  const slashMatch = s.match(/^(\d{4})\/(\d{2})/);
+  if (slashMatch) return `${slashMatch[1]}/${slashMatch[2]}`;
+  
+  // Compact numeric: "202509" or "20250930"
+  const compactMatch = s.match(/^(\d{4})(\d{2})/);
+  if (compactMatch) return `${compactMatch[1]}/${compactMatch[2]}`;
+  
+  // Fallback: try Date parsing
   const d = new Date(s);
   if (!isNaN(d.getTime())){
     const y = d.getFullYear();
     const mo = String(d.getMonth() + 1).padStart(2,'0');
     return `${y}/${mo}`;
   }
-  const yOnly = s.match(/^(\d{4})$/);
-  if (yOnly) return yOnly[1];
+  
+  // Last resort: return as-is
   return s;
 }
 
