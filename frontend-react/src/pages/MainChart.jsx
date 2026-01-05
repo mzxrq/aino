@@ -1106,6 +1106,7 @@ export default function LargeChart() {
       // Reason mapping - MUST MATCH backend train_service.py identify_reason()
       const REASON_MAP = {
         'Volume Spike': { color: '#ff8c00', label: 'Volume Spike' },
+        'Volume Average (14d)': { color: '#ff9500', label: 'Volume Avg' },
         'Price Spike': { color: '#ff3b30', label: 'Price Spike' },
         'Flash Crash': { color: '#dc143c', label: 'Flash Crash' },
         'Price Average (20d)': { color: '#f59e0b', label: 'Price Avg' },
@@ -1125,6 +1126,7 @@ export default function LargeChart() {
         if (REASON_MAP[s]) return s;
         // Fallback to lowercase matching for legacy/typos
         const lower = s.toLowerCase();
+        if (lower.includes('volume average')) return 'Volume Average (14d)';
         if (lower.includes('volume spike') || lower.includes('vol spike')) return 'Volume Spike';
         if (lower.includes('price spike')) return 'Price Spike';
         if (lower.includes('flash crash')) return 'Flash Crash';
