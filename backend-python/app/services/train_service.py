@@ -811,7 +811,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         candidate_flags = [
             'is_vol_anomaly', 'is_price_anomaly', 'is_vei_anomaly',
             'is_absorption', 'is_bullish_start', 'is_bearish_start',
-            'is_flash_crash', 'Price_warning'
+            'is_flash_volume', 'is_flash_crash', 'Price_warning'
         ]
         available = [f for f in candidate_flags if f in df.columns]
         if not available:
@@ -837,11 +837,20 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
             anomalies_df['Top_Reason'] = 'Rule-based'
 
         # Optional post-filter by zscore to reduce noise
+        # Preserve volume-only rule anomalies: keep rows that meet zscore threshold OR are flagged by volume rules
         if 'zscore_20' in anomalies_df.columns:
             before = len(anomalies_df)
-            anomalies_df = anomalies_df[anomalies_df['zscore_20'].abs() >= ADAPTIVE_ZSCORE_THRESHOLD]
+            vol_mask = pd.Series(False, index=anomalies_df.index)
+            if 'is_vol_anomaly' in anomalies_df.columns:
+                vol_mask = vol_mask | anomalies_df['is_vol_anomaly'].fillna(False)
+            if 'is_flash_volume' in anomalies_df.columns:
+                vol_mask = vol_mask | anomalies_df['is_flash_volume'].fillna(False)
+
+            anomalies_df = anomalies_df[
+                (anomalies_df['zscore_20'].abs() >= ADAPTIVE_ZSCORE_THRESHOLD) | vol_mask
+            ]
             after = len(anomalies_df)
-            logger.debug(f"{ticker}: Post-filtered rule anomalies by |zscore_20|>={ADAPTIVE_ZSCORE_THRESHOLD}: {before} -> {after}")
+            logger.debug(f"{ticker}: Post-filtered rule anomalies by |zscore_20|>={ADAPTIVE_ZSCORE_THRESHOLD} OR volume flags: {before} -> {after}")
 
         # Persist to DB (avoid duplicates)
         if db is not None and not anomalies_df.empty:
@@ -892,7 +901,8 @@ def identify_reason(row):
 
     # 2. SECONDARY: Actual Anomalies
     if row.get('is_flash_crash', False): return "Flash Crash"
-    if row.get('is_vol_anomaly', False): return "Volume Spike"
+    if row.get('is_vol_anomaly', False): return "Volume Average (14d)"
+    if row.get('is_flash_volume', False): return "Volume Spike"
     if row.get('is_price_anomaly', False): return "Price Average (20d)"
     if row.get('is_vei_anomaly', False): return "Price Spike"
     if row.get('is_absorption', False): return "Absorption"
@@ -990,9 +1000,11 @@ def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
         
         # Anomaly Rules (Standard)
         vol_z = df['Vol_Z'].fillna(0)
-        price_z = df['Close_Z'].fillna(0)
+        # price_z = df['Close_Z'].fillna(0)
         pstd = df['Price_Shock'].rolling(20).std().fillna(0)
-        df['is_vol_anomaly'] = vol_z > 3.0
+        df['is_vol_anomaly'] = vol_z > 2.5
+        # Relax threshold so smaller but meaningful spikes are captured.
+        df['is_flash_volume'] = df['Vol_Intensity'].fillna(0) > 1.5
         df['is_price_anomaly'] = df['Price_Shock'].abs() > (pstd * 2.5)
         df['is_vei_anomaly'] = df['VEI'].fillna(0) > 1.2
         df['is_absorption'] = (vol_z > 2.0) & (df['Price_Shock'].abs() < (pstd * 0.5))
