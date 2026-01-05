@@ -24,6 +24,21 @@ export function AuthProvider({ children }) {
         return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role };
     };
 
+    // Helpers to unwrap backend response shapes like { success, data: <user> } or { user, token }
+    const getUserFromResponse = (json) => {
+        if (!json) return null;
+        if (json.data && typeof json.data === 'object') return json.data;
+        if (json.user) return json.user;
+        return json;
+    };
+
+    const getTokenFromResponse = (json) => {
+        if (!json) return null;
+        if (json.token) return json.token;
+        if (json.data && json.data.token) return json.data.token;
+        return null;
+    };
+
     const [user, setUser] = useState(() => {
         try {
             const raw = JSON.parse(localStorage.getItem('user')) || null;
@@ -78,7 +93,7 @@ export function AuthProvider({ children }) {
             let res = await fetch(`${API_URL}/node/users/profile`, {
                 headers: { Authorization: `Bearer ${tkn}` }
             });
-        
+
             // 2. If JS backend fails, try LINE backend
             if (!res.ok) {
                 console.warn('JS profile fetch failed, trying LINE backend...');
@@ -86,14 +101,15 @@ export function AuthProvider({ children }) {
                     headers: { Authorization: `Bearer ${tkn}` }
                 });
             }
-        
+
             if (!res.ok) {
                 console.error('Failed to fetch user profile from all backends after token set.');
                 logout();
                 return;
             }
 
-            const profile = await res.json();
+            const json = await res.json();
+            const profile = getUserFromResponse(json);
             setUser(normalizeUser(profile));
         } catch (err) {
             console.error('Error fetching user profile in setToken:', err);
@@ -111,23 +127,24 @@ export function AuthProvider({ children }) {
                     let res = await fetch(`${API_URL}/node/users/profile`, {
                         headers: { Authorization: `Bearer ${t}` }
                     });
-                    
+
                     // 2. If JS backend fails, try LINE backend
                     if (!res.ok) {
                         res = await fetch(`${LINE_API}/profile`, {
                             headers: { Authorization: `Bearer ${t}` }
                         });
                     }
-                    
+
                     if (!res.ok) {
                         // Token invalid -> clear both
                         setTokenState(null);
                         setUser(null);
                         return;
                     }
-                    const profile = await res.json();
-                    
+                    const json = await res.json();
+
                     // 🚨 REMOVED: setTokenState(t); as t is already the current state/LS value
+                    const profile = getUserFromResponse(json);
                     setUser(normalizeUser(profile));
                     return;
 
@@ -157,22 +174,33 @@ export function AuthProvider({ children }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || res.statusText || 'Login failed');
+            let data = {};
+            try { data = await res.json(); } catch { data = {}; }
 
-            // If backend returns a token, prefer using it (will fetch profile).
-            if (data.token) {
-                await setToken(data.token);
-                return { user: data.user, token: data.token };
+            if (!res.ok) {
+                // Surface backend error message when available
+                const errMsg = data && data.error ? data.error : res.statusText || 'Login failed';
+                console.error('Login failed:', res.status, errMsg);
+                throw new Error(errMsg);
             }
 
-            // Fallback: JS backend returns only a user object (no JWT).
-            if (data.user) {
-                setUser(normalizeUser(data.user));
-                return data.user;
+            // Unwrap possible response shapes
+            const tokenResp = getTokenFromResponse(data);
+            const userResp = getUserFromResponse(data);
+
+            if (tokenResp) {
+                await setToken(tokenResp);
+                return { user: userResp, token: tokenResp };
             }
+
+            if (userResp) {
+                setUser(normalizeUser(userResp));
+                return userResp;
+            }
+
             return data;
         } catch (err) {
+            console.error('loginWithCredentials error:', err);
             throw new Error(err.message || 'Network error during login');
         }
     };
@@ -187,16 +215,19 @@ export function AuthProvider({ children }) {
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || res.statusText || 'Register failed');
 
-            // If backend returns a token, use it.
-            if (data.token) {
-                await setToken(data.token);
-                return { user: data.user, token: data.token };
+            const tokenResp = getTokenFromResponse(data);
+            const userResp = getUserFromResponse(data);
+
+            if (tokenResp) {
+                await setToken(tokenResp);
+                return { user: userResp, token: tokenResp };
             }
 
-            if (data.user) {
-                setUser(normalizeUser(data.user));
-                return data.user;
+            if (userResp) {
+                setUser(normalizeUser(userResp));
+                return userResp;
             }
+
             return data;
         } catch (err) {
             throw new Error(err.message || 'Network error during register');

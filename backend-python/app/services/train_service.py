@@ -662,6 +662,10 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
         # 7. Store anomalies with full metadata
         anomaly_ids = []
         
+        # Reduce consecutive anomaly streaks to the first row only
+        if not anomalies_df.empty:
+            anomalies_df = _keep_first_of_streak(anomalies_df)
+
         if not anomalies_df.empty:
             docs = []
             # compute price warning emission mask for this df so we only emit milestone days
@@ -823,6 +827,9 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
         if anomalies_df.empty:
             return pd.DataFrame()
 
+        # Only keep first row of any consecutive anomaly streaks to avoid repeated emits
+        anomalies_df = _keep_first_of_streak(anomalies_df)
+
         # Annotate Top_Reason using existing logic
         try:
             anomalies_df['Top_Reason'] = anomalies_df.apply(identify_reason, axis=1)
@@ -937,6 +944,31 @@ def _price_warning_emit_mask(df: pd.DataFrame) -> pd.Series:
 
     return mask
 
+
+def _keep_first_of_streak(anom_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Given a DataFrame `anom_df` which is a subset of the preprocessed `df` and
+    uses the original integer/datetime index from that `df`, return a new
+    DataFrame containing only the first row of each consecutive-run (streak)
+    of anomaly rows. Consecutive means indices differ by 1 (adjacent rows).
+
+    This reduces repeated anomaly insertions for multi-bar streaks so the
+    system only emits the first event for a streak.
+    """
+    if anom_df is None or anom_df.empty:
+        return anom_df
+
+    # Ensure rows are in increasing original-index order
+    anom_df = anom_df.sort_index()
+    idx = anom_df.index.to_numpy()
+    if idx.size <= 1:
+        return anom_df
+
+    # Keep the first item, then any item that is NOT immediately consecutive
+    diffs = np.diff(idx)
+    keep_mask = np.concatenate(([True], diffs != 1))
+    return anom_df.iloc[keep_mask]
+
 def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return df
@@ -1041,6 +1073,8 @@ def detect_anomalies(tickers, period, interval):
         if db is not None and not anomalies.empty:
             # Compute price warning emission mask (emit start, 3rd, 5th days)
             price_emit = _price_warning_emit_mask(df)
+            # Reduce consecutive anomaly rows to single first-of-streak
+            anomalies = _keep_first_of_streak(anomalies)
             for idx, row in anomalies.iterrows():
                 ticker_key = row.get('Ticker') if 'Ticker' in row.index else None
                 if ticker_key is None:

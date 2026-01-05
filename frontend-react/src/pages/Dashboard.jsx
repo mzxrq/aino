@@ -88,13 +88,18 @@ export default function Dashboard() {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch(`${NODE_API_URL}/node/subscribers`, {
-        method: 'DELETE',
+      // Backend expects POST /node/subscribers/tickers/remove with { id, tickers }
+      const response = await fetch(`${NODE_API_URL}/node/subscribers/tickers/remove`, {
+        method: 'POST',
         headers,
         body: JSON.stringify({ id: user.id || user.userId, tickers: [ticker] }),
       });
 
-      if (!response.ok) throw new Error('Failed to unsubscribe');
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => null);
+        console.error('Unsubscribe failed:', response.status, errBody);
+        throw new Error('Failed to unsubscribe');
+      }
 
       setSubscriptions(subs => subs.filter(s => s.ticker !== ticker));
       

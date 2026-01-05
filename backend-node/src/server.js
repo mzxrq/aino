@@ -1,23 +1,36 @@
-/**
+/** server.js
  * Entry point for the Express server.
  * Loads environment variables, connects to MongoDB, and sets up routes & middleware.
  */
-
-const path = require('path');
-require("dotenv").config({ path: path.resolve(__dirname, '..', '..', '.env') });
-
-const express = require("express");
+const express = require('express');
+const { static: serveStatic } = express;
+const { resolve, join } = require('path');
+const { config } = require('dotenv');
+const { connectDB } = require('./config/db');
+const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const { connectDB, getDb } = require("./config/db");
-const cors = require("cors");
+
+// Load environment variables from .env file
+// Primary: backend-node/.env (for service-local settings). Fallback: project root .env.
+const primaryEnv = resolve(__dirname, '../.env');
+const fallbackEnv = resolve(__dirname, '../../.env');
+config({ path: primaryEnv });
+if (!process.env.JWT_SECRET_KEY) {
+  // Attempt to load root-level .env when service-local file is missing
+  console.warn(`JWT_SECRET_KEY not found in ${primaryEnv}, loading fallback ${fallbackEnv}`);
+  config({ path: fallbackEnv });
+}
 
 const app = express();
+const PORT = process.env.PORT || 5050;
+
+/* =======================
+   Middleware Setup
+   ======================= */
+app.use(express.json());
 
 // Enable CORS for all routes
 app.use(cors());
-
-// Middleware to parse JSON requests
-app.use(express.json());
 
 /* =======================
    Proxy Middleware - Forward /py/* to Python backend at 5000
@@ -32,70 +45,63 @@ app.use('/py', createProxyMiddleware({
   }
 }));
 
+/* =======================
+   Static File Serving
+   ======================= */
+app.use('/uploads', serveStatic(join(__dirname, 'public/uploads')));
 
 /* =======================
    Route Definitions
    ======================= */
 
-// Anomalies routes (CRUD operations)
-const anomaliesRoutes = require("./routes/anomaliesRoute");
-app.use("/node/anomalies", anomaliesRoutes);
+// 1. Activity logs route (for admin dashboard recent activity)
+const activityLogsRoutes = require('./modules/activity-log/activity-log.route');
+app.use('/node/logs', activityLogsRoutes);
 
-// Anomaly memos (notes) - persisted memos for anomalies
-// anomaly memos route removed (rolled back)
-
-// Cache routes (chart data CRUD operations)
-const cacheRoutes = require("./routes/cacheRoute");
-app.use("/node/cache", cacheRoutes);
-// Subscribers routes
-const subscribersRoutes = require("./routes/subscribersRoute");
-app.use("/node/subscribers", subscribersRoutes);
-// Marketlists routes
-const marketlistsRoutes = require('./routes/marketlistsRoute');
-app.use('/node/marketlists', marketlistsRoutes);
-  
-// Users routes
-const usersRoutes = require('./routes/usersRoutes');
+// 2. User route (for authentication, registration, profile)
+const usersRoutes = require('./modules/user/user.route');
 app.use('/node/users', usersRoutes);
 
-const mailRoutes = require('./routes/mailRoute');
+// 3. Mail route (for sending emails)
+const mailRoutes = require('./modules/nodemailer/nodemailer.route');
 app.use('/node/mail', mailRoutes);
 
-// News proxy route (fetches from external news provider via backend)
-const newsRoutes = require('./routes/newsRoutes');
-app.use('/node/news', newsRoutes);
+// 4. Anomalies route (CRUD operations for anomalies)
+const anomaliesRoutes = require('./modules/anomaly/anomaly.route');
+app.use('/node/anomalies', anomaliesRoutes);
+// Cache routes (chart data CRUD operations)
+const cacheRoutes = require('./modules/cache/cache.route');
+app.use('/node/cache', cacheRoutes);
 
-// News views (record article view counts and fetch top viewed articles)
-const newsViewsRoutes = require('./routes/newsViewsRoute');
-app.use('/node/news/views', newsViewsRoutes);
+// Subscribers routes
+const subscribersRoutes = require('./modules/subscribers/subscribers.route');
+app.use('/node/subscribers', subscribersRoutes);
 
-// Debug routes
-const debugRoutes = require('./routes/debugRoutes');
-app.use('/node/debug', debugRoutes);
-
-// Admin routes (protected)
-const adminRoutes = require('./routes/adminRoutes');
-app.use('/node/admin', adminRoutes);
+// Marketlists routes
+const marketlistsRoutes = require('./modules/marketlist/marketlist.route');
+app.use('/node/marketlists', marketlistsRoutes);
 
 // Stock info routes (proxy to Python)
-const stockInfoRoutes = require('./routes/stockInfoRoute');
+const stockInfoRoutes = require('./modules/stock-info/stock-info.route');
 app.use('/node/stock', stockInfoRoutes);
 
 // Stock groups routes (save/load user stock preferences)
-const stockGroupsRoutes = require('./routes/stockGroupsRoutes');
+const stockGroupsRoutes = require('./modules/stock-groups/stock-groups.route');
 app.use('/node/stock-groups', stockGroupsRoutes);
 
 // Seed routes
-const seedRoutes = require('./routes/seedRoute');
+const seedRoutes = require('./modules/seed/seed.route');
 app.use('/node/seed', seedRoutes);
 
-// Search routes (ticker search API)
-const searchRoutes = require('./routes/searchRoutes');
-app.use('/node', searchRoutes);
+// Favorites routes
+const favoriteRoutes = require('./modules/favorite/favorite.route');
+app.use('/node/favorites', favoriteRoutes);
 
-// Activity logs route (for admin dashboard recent activity)
-const activityLogsRoutes = require('./routes/activityLogsRoute');
-app.use('/node/logs', activityLogsRoutes);
+// Python-integrate routes
+const pythonIntegrateRoutes = require('./modules/python-integrate/python-integrate.route');
+app.use('/node/python-integrate', pythonIntegrateRoutes);
+
+
 
 /* =======================
    Basic Routes / Healthchecks
@@ -112,56 +118,43 @@ app.get("/health", (req, res) => {
 });
 
 /* =======================
-   Database Connection & Server Start
+   Start Server & Connect to DB
    ======================= */
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  }
+  );
+}).catch((err) => {
+  console.error("Failed to connect to MongoDB:", err);
+  process.exit(1); // Exit with failure
+});
 
-const PORT = process.env.PORT || 5050;
-
-// Connect to MongoDB but start server regardless
-connectDB()
-  .then(async () => {
-    console.log('Connected to DB');
-    // ensure indexes for news_views
-    try{
-      const db = getDb();
-      const col = db.collection('news_views');
-      await col.createIndex({ articleKey: 1 }, { unique: true, sparse: true });
-      await col.createIndex({ views: -1 });
-      console.log('Ensured indexes for news_views');
-    }catch(e){
-      console.warn('Failed to ensure news_views indexes', e);
-    }
-    startServer();
-  })
-  .catch(err => {
-    console.warn('DB connection failed, continuing without DB:', err);
-    startServer();
-  });
 
 /**
  * Starts the Express server on the specified PORT
  */
-function startServer() {
-  const server = app.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}`);
-  });
+// function startServer() {
+//   const server = app.listen(PORT, () => {
+//     console.log(`Server is listening on port ${PORT}`);
+//   });
 
-  // Listen for server errors
-  server.on('error', (err) => {
-    console.error('Server error:', err);
-  });
-}
+//   // Listen for server errors
+//   server.on('error', (err) => {
+//     console.error('Server error:', err);
+//   });
+// }
 
 /* =======================
    Global Error Handlers
    ======================= */
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
+// // Handle uncaught exceptions
+// process.on('uncaughtException', (err) => {
+//   console.error('Uncaught Exception:', err);
+// });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+// // Handle unhandled promise rejections
+// process.on('unhandledRejection', (reason, promise) => {
+//   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+// });
