@@ -2893,3 +2893,19 @@ html, body, #root {
 /* If the chart still appears blank, ensure parent containers don't collapse: force flex behavior */
 .lc-main .chart-wrapper { display:flex; flex-direction:column; }
 .lc-main .chart-wrapper > div { flex:1 1 auto; min-height:0; }
+
+/* Market status indicator styles */
+.lc-dot.open {
+  background: #1db954;
+  box-shadow: 0 0 4px rgba(29,185,84,0.25);
+}
+
+.lc-dot.closed {
+  background: #e03b3b;
+  box-shadow: none;
+  opacity: 0.95;
+}
+
+.lc-status .lc-dot.closed + span {
+  color: #e03b3b;
+}

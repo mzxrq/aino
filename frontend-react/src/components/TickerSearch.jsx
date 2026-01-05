@@ -17,6 +17,28 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
   const dropdownRef = useRef(null);
   const modalInputRef = useRef(null);
 
+  // Preloaded list of interesting stocks
+  const INTERESTING_STOCKS = useMemo(() => [
+    { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', displayTicker: 'AAPL' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ', displayTicker: 'MSFT' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ', displayTicker: 'GOOGL' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.', exchange: 'NASDAQ', displayTicker: 'AMZN' },
+    { symbol: 'TSLA', name: 'Tesla Inc.', exchange: 'NASDAQ', displayTicker: 'TSLA' },
+    { symbol: 'META', name: 'Meta Platforms Inc.', exchange: 'NASDAQ', displayTicker: 'META' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ', displayTicker: 'NVDA' },
+    { symbol: 'AMD', name: 'Advanced Micro Devices', exchange: 'NASDAQ', displayTicker: 'AMD' },
+    { symbol: 'INTC', name: 'Intel Corporation', exchange: 'NASDAQ', displayTicker: 'INTC' },
+    { symbol: 'JPM', name: 'JPMorgan Chase', exchange: 'NYSE', displayTicker: 'JPM' },
+    { symbol: '9020.T', name: 'East Japan Railway', exchange: 'JPX', displayTicker: '9020' },
+    { symbol: '6758.T', name: 'Sony Group Corporation', exchange: 'JPX', displayTicker: '6758' },
+    { symbol: '7203.T', name: 'Toyota Motor', exchange: 'JPX', displayTicker: '7203' },
+    { symbol: '8035.T', name: 'Tokyo Electron', exchange: 'JPX', displayTicker: '8035' },
+    { symbol: 'PTTEP.BK', name: 'PTT Exploration', exchange: 'SET', displayTicker: 'PTTEP' },
+    { symbol: 'ADVANC.BK', name: 'Advanced Info Service', exchange: 'SET', displayTicker: 'ADVANC' },
+    { symbol: 'CPALL.BK', name: 'CP ALL Public', exchange: 'SET', displayTicker: 'CPALL' },
+    { symbol: 'BTS.BK', name: 'Bangkok Mass Transit', exchange: 'SET', displayTicker: 'BTS' }
+  ], []);
+
   // Load master ticker list on mount (fallback source)
   useEffect(() => {
     const loadTickers = async () => {
@@ -123,7 +145,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
     };
 
     if (!q) {
-      setModalResults([]);
+      setModalResults(INTERESTING_STOCKS);
       setModalLoading(false);
       return () => {};
     }

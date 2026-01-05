@@ -13,6 +13,7 @@ import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/MainChart.css';
 import { useAuth } from '../context/useAuth';
 import Swal from '../utils/muiSwal';
+import { DateTime } from 'luxon';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -684,6 +685,28 @@ export default function LargeChart() {
   const bollinger_bands = useMemo(() => payload.bollinger_bands || { lower: [], upper: [], sma: [] }, [payload.bollinger_bands]);
   const movingAverages = useMemo(() => payload.moving_averages || { MA5: [], MA25: [], MA75: [] }, [payload.moving_averages]);
 
+  // Market status calculation (OPEN/CLOSED)
+  const isMarketOpen = useMemo(() => {
+    try {
+      if (payload.market_open && payload.market_close) {
+        const zone = timezone || 'UTC';
+        const now = DateTime.now().setZone(zone);
+        const openT = DateTime.fromISO(payload.market_open, { zone });
+        const closeT = DateTime.fromISO(payload.market_close, { zone });
+        return now >= openT && now <= closeT;
+      }
+    } catch (e) { /* ignore */ }
+    // fallback: if there's recent data within last 6 hours, treat as open
+    if (dates.length) {
+      try {
+        const last = DateTime.fromISO(dates[dates.length - 1], { zone: 'utc' }).toUTC();
+        const now = DateTime.utc();
+        return (now.toMillis() - last.toMillis()) < (1000 * 60 * 60 * 6);
+      } catch (e) { /* ignore */ }
+    }
+    return false;
+  }, [payload.market_open, payload.market_close, timezone, dates]);
+
   // Refs for ECharts
   const mainChartRef = useRef(null);
   const echartsInstance = useRef(null);
@@ -1080,40 +1103,37 @@ export default function LargeChart() {
 
     // anomalies as scatter with labeled markers (like Chart.jsx)
     if (showAnomaly && anomalies && anomalies.length) {
-      // Reason mapping from Chart.jsx/EchartsCard.jsx
+      // Reason mapping - MUST MATCH backend train_service.py identify_reason()
       const REASON_MAP = {
-        price_spike: { color: '#ff3b30', label: 'Price Shock' },
-        volume_spike: { color: '#ff8c00', label: 'High Vol' },
-        vol_price: { color: '#ff2d55', label: 'Vol+Price' },
-        unusual_vwap: { color: '#f59e0b', label: 'VWAP' },
-        earnings_gap: { color: '#7c3aed', label: 'Earnings' },
-        split_dividend: { color: '#06b6d4', label: 'Split/Dividend' },
-        vei_break: { color: '#8b5cf6', label: 'VEI Break' },
-        vei_gradual: { color: '#a78bfa', label: 'VEI Gradual' },
-        absorption: { color: '#0ea5a4', label: 'Absorption' },
-        price_warning: { color: '#f59e0b', label: 'Price Warning' },
-        news: { color: '#10b981', label: 'News' },
-        system: { color: '#6b7280', label: 'System' },
-        other: { color: '#6b7280', label: 'Other' }
+        'Volume Spike': { color: '#ff8c00', label: 'Volume Spike' },
+        'Price Spike': { color: '#ff3b30', label: 'Price Spike' },
+        'Flash Crash': { color: '#dc143c', label: 'Flash Crash' },
+        'Price Average (20d)': { color: '#f59e0b', label: 'Price Avg' },
+        'Absorption': { color: '#0ea5a4', label: 'Absorption' },
+        'Bullish Crossover': { color: '#10b981', label: 'Bullish' },
+        'Bearish Crossunder': { color: '#ef4444', label: 'Bearish' },
+        'Anomaly Detected': { color: '#6b7280', label: 'Anomaly' },
+        'System anomaly detected': { color: '#6b7280', label: 'System' },
+        'Rule-based': { color: '#8b5cf6', label: 'Rule' },
+        other: { color: '#9ca3af', label: 'Other' }
       };
 
       const normalizeReasonType = (r) => {
         if (!r) return 'other';
-        const s = String(r).toLowerCase().trim();
-        if (s === 'vol+price' || s.includes('vol+price')) return 'vol_price';
-        if (s === 'high vol' || s.includes('high vol') || s.includes('high_vol')) return 'volume_spike';
-        if (s === 'price shock' || s.includes('price shock') || s.includes('price_shock')) return 'price_spike';
-        if (s === 'vei break' || s.includes('vei break') || s.includes('vei_break')) return 'vei_break';
-        if (s === 'vei gradual' || s.includes('vei gradual') || s.includes('vei_gradual')) return 'vei_gradual';
-        if (s === 'absorption') return 'absorption';
-        if (s === 'price warning' || s.includes('price warning')) return 'price_warning';
-        if (s === 'system anomaly detected' || s.includes('system anomaly') || s.includes('system')) return 'system';
-        if (/price[_\- ]?spike|\bprice\b/.test(s)) return 'price_spike';
-        if (/volume|vol[_\- ]?spike|high[_ ]?volume|vol\b/.test(s)) return 'volume_spike';
-        if (/vwap|unusual[_\- ]?vwap/.test(s)) return 'unusual_vwap';
-        if (/earnings?|eps|earn[_\- ]?gap|earnings[_\- ]?gap|gap/.test(s)) return 'earnings_gap';
-        if (/split|dividend|split[_\- ]?dividend/.test(s)) return 'split_dividend';
-        if (/news|headline|press|article/.test(s)) return 'news';
+        const s = String(r).trim();
+        // Match exact backend strings first
+        if (REASON_MAP[s]) return s;
+        // Fallback to lowercase matching for legacy/typos
+        const lower = s.toLowerCase();
+        if (lower.includes('volume spike') || lower.includes('vol spike')) return 'Volume Spike';
+        if (lower.includes('price spike')) return 'Price Spike';
+        if (lower.includes('flash crash')) return 'Flash Crash';
+        if (lower.includes('absorption')) return 'Absorption';
+        if (lower.includes('bullish')) return 'Bullish Crossover';
+        if (lower.includes('bearish')) return 'Bearish Crossunder';
+        if (lower.includes('price average')) return 'Price Average (20d)';
+        if (lower.includes('system anomaly')) return 'System anomaly detected';
+        if (lower.includes('rule-based')) return 'Rule-based';
         return 'other';
       };
 
@@ -1413,8 +1433,8 @@ export default function LargeChart() {
                 <div className="lc-company-name">{companyName || 'Loading...'}</div>
               </div>
               <div className="lc-status">
-                <span className="lc-dot" />
-                <span>OPEN</span>
+                <span className={`lc-dot ${isMarketOpen ? 'open' : 'closed'}`} />
+                <span>{isMarketOpen ? 'OPEN' : 'CLOSED'}</span>
               </div>
             </div>
             <div className="lc-price-row">
@@ -1499,6 +1519,18 @@ export default function LargeChart() {
                   key={n.id || idx}
                   href={n.link || n.url || '#'}
                   onClick={(e) => handleNewsClick(e, n)}
+                  onMouseDown={(e) => {
+                    // Track views for middle-click (button 1) and any click that opens new tab
+                    if (e.button === 1 || e.button === 2) {
+                      handleNewsClick(null, n);
+                    }
+                  }}
+                  onAuxClick={(e) => {
+                    // Catch middle-click if onMouseDown missed it
+                    if (e.button === 1) {
+                      handleNewsClick(null, n);
+                    }
+                  }}
                   rel="noreferrer"
                 >
                   {n.thumbnail ? (

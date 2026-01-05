@@ -595,7 +595,7 @@ export default function Home() {
             
             <ul className="news-list">
               {(news.length ? news : fallbackn_loading).map(n => (
-                <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)}>
+                <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)} onMouseDown={(e) => { if (e.button === 1 || e.button === 2) handleNewsClick(n); }} onAuxClick={(e) => { if (e.button === 1) handleNewsClick(n); }}>
                   {n.thumbnail ? (
                     <img src={n.thumbnail} alt={n.title} className="news-thumb" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none' }} />
                   ) : (

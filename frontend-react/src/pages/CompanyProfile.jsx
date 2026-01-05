@@ -620,6 +620,18 @@ export default function CompanyProfile() {
                   key={n.id || i}
                   href={n.link || "#"}
                   onClick={(e) => handleNewsClick(e, n)}
+                  onMouseDown={(e) => {
+                    // Track views for middle-click (button 1) and any click that opens new tab
+                    if (e.button === 1 || e.button === 2) {
+                      handleNewsClick(null, n);
+                    }
+                  }}
+                  onAuxClick={(e) => {
+                    // Catch middle-click if onMouseDown missed it
+                    if (e.button === 1) {
+                      handleNewsClick(null, n);
+                    }
+                  }}
                   rel="noreferrer"
                 >
                   {n.thumbnail ? (

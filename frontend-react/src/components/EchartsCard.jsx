@@ -405,20 +405,19 @@ export default function EchartsCard({
   const anomalyScatterData = useMemo(() => {
     if (!anomalies || anomalies.length === 0 || !showAnomaly) return [];
     // Reason -> visual mapping (include canonical labels from train_service.identify_reason)
+    // Reason mapping - MUST MATCH backend train_service.py identify_reason()
     const REASON_MAP = {
-      price_spike: { color: '#ff3b30', symbol: 'circle', short: 'PS', label: 'Price Shock' },
-      volume_spike: { color: '#ff8c00', symbol: 'circle', short: 'VS', label: 'High Vol' },
-      vol_price: { color: '#ff2d55', symbol: 'circle', short: 'V+P', label: 'Vol+Price' },
-      unusual_vwap: { color: '#f59e0b', symbol: 'circle', short: 'VW', label: 'VWAP' },
-      earnings_gap: { color: '#7c3aed', symbol: 'circle', short: 'EG', label: 'Earnings' },
-      split_dividend: { color: '#06b6d4', symbol: 'circle', short: 'SP', label: 'Split/Dividend' },
-      vei_break: { color: '#8b5cf6', symbol: 'circle', short: 'VEI', label: 'VEI Break' },
-      vei_gradual: { color: '#a78bfa', symbol: 'circle', short: 'VEI+', label: 'VEI Gradual' },
-      absorption: { color: '#0ea5a4', symbol: 'circle', short: 'AB', label: 'Absorption' },
-      price_warning: { color: '#f59e0b', symbol: 'circle', short: 'PW', label: 'Price Warning' },
-      news: { color: '#10b981', symbol: 'circle', short: 'NW', label: 'News' },
-      system: { color: '#6b7280', symbol: 'circle', short: 'SY', label: 'System' },
-      other: { color: '#6b7280', symbol: 'circle', short: 'OT', label: 'Other' }
+      'Volume Spike': { color: '#ff8c00', symbol: 'circle', short: 'Vol', label: 'Volume Spike' },
+      'Price Spike': { color: '#ff3b30', symbol: 'circle', short: 'Price', label: 'Price Spike' },
+      'Flash Crash': { color: '#dc143c', symbol: 'circle', short: 'Crash', label: 'Flash Crash' },
+      'Price Average (20d)': { color: '#f59e0b', symbol: 'circle', short: 'Avg', label: 'Price Avg' },
+      'Absorption': { color: '#0ea5a4', symbol: 'circle', short: 'Abs', label: 'Absorption' },
+      'Bullish Crossover': { color: '#10b981', symbol: 'circle', short: 'Bull', label: 'Bullish' },
+      'Bearish Crossunder': { color: '#ef4444', symbol: 'circle', short: 'Bear', label: 'Bearish' },
+      'Anomaly Detected': { color: '#6b7280', symbol: 'circle', short: 'Anom', label: 'Anomaly' },
+      'System anomaly detected': { color: '#6b7280', symbol: 'circle', short: 'Sys', label: 'System' },
+      'Rule-based': { color: '#8b5cf6', symbol: 'circle', short: 'Rule', label: 'Rule' },
+      other: { color: '#9ca3af', symbol: 'circle', short: 'Oth', label: 'Other' }
     };
 
     const normalizeReasonType = (r) => {
@@ -431,42 +430,39 @@ export default function EchartsCard({
       } catch (e) {
         s = String(r || '');
       }
-      s = s.toLowerCase().trim();
-
-      // Exact canonical labels emitted by backend.train_service.identify_reason
-      if (s === 'vol+price' || s === 'vol+price' || s.includes('vol+price') || s === 'vol+price') return 'vol_price';
-      if (s === 'high vol' || s === 'high vol' || s.includes('high vol') || s.includes('high_vol')) return 'volume_spike';
-      if (s === 'price shock' || s.includes('price shock') || s.includes('price_shock')) return 'price_spike';
-      if (s === 'vei break' || s.includes('vei break') || s.includes('vei_break')) return 'vei_break';
-      if (s === 'vei gradual' || s.includes('vei gradual') || s.includes('vei_gradual')) return 'vei_gradual';
-      if (s === 'absorption') return 'absorption';
-      if (s === 'price warning' || s.includes('price warning')) return 'price_warning';
-      if (s === 'system anomaly detected' || s.includes('system anomaly') || s.includes('system')) return 'system';
-
-      // fallback token matching
-      if (/price[_\- ]?spike|\bprice\b/.test(s) || (s.includes('spike') && s.includes('price'))) return 'price_spike';
-      if (/volume|vol[_\- ]?spike|high[_ ]?volume|vol\b/.test(s)) return 'volume_spike';
-      if (/vwap|unusual[_\- ]?vwap|vwap_anomaly|vwap anomaly/.test(s)) return 'unusual_vwap';
-      if (/earnings?|eps|earn[_\- ]?gap|earnings[_\- ]?gap|gap/.test(s)) return 'earnings_gap';
-      if (/split|dividend|split[_\- ]?dividend/.test(s)) return 'split_dividend';
-      if (/news|headline|press|article/.test(s)) return 'news';
+      const original = s.trim();
+      
+      // Match exact backend strings first (case-sensitive)
+      if (REASON_MAP[original]) return original;
+      
+      // Fallback to lowercase matching
+      s = original.toLowerCase();
+      if (s.includes('volume spike') || s.includes('vol spike')) return 'Volume Spike';
+      if (s.includes('price spike')) return 'Price Spike';
+      if (s.includes('flash crash')) return 'Flash Crash';
+      if (s.includes('absorption')) return 'Absorption';
+      if (s.includes('bullish')) return 'Bullish Crossover';
+      if (s.includes('bearish')) return 'Bearish Crossunder';
+      if (s.includes('price average')) return 'Price Average (20d)';
+      if (s.includes('system anomaly')) return 'System anomaly detected';
+      if (s.includes('rule-based')) return 'Rule-based';
+      if (s.includes('anomaly detected')) return 'Anomaly Detected';
+      
       return 'other';
     };
 
     // Build two-layer data per anomaly: background circle + foreground icon (path)
     const ICON_PATHS = {
-      price_spike: 'M12 2 L20 12 L14 12 L22 22 L10 14 L14 14 Z',
-      volume_spike: 'M3 21h4V10H3v11zM9 21h4V3H9v18zM15 21h4v-8h-4v8z',
-      vol_price: 'M2 12h20v2H2z M6 6h12v2H6z M10 18h4v2h-4z',
-      unusual_vwap: 'M4 12h16v2H4z M8 6h8v2H8z M6 18h12v2H6z',
-      earnings_gap: 'M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
-      split_dividend: 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z',
-      vei_break: 'M4 4h16v4H4z M4 12h16v4H4z M8 20h8v0H8z',
-      vei_gradual: 'M3 18h4V8H3v10zM9 18h4V6H9v12zM15 18h4V4h-4v14z',
-      absorption: 'M12 2c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8z',
-      price_warning: 'M12 2 L2 22h20L12 2z M11 8h2v6h-2z M11 16h2v2h-2z',
-      news: 'M3 4h18v14H3z M6 7h12v2H6z M6 11h8v2H6z',
-      system: 'M12 2a10 10 0 100 20 10 10 0 000-20z',
+      'Volume Spike': 'M3 21h4V10H3v11zM9 21h4V3H9v18zM15 21h4v-8h-4v8z',
+      'Price Spike': 'M12 2 L20 12 L14 12 L22 22 L10 14 L14 14 Z',
+      'Flash Crash': 'M12 2 L20 12 L14 12 L22 22 L10 14 L14 14 Z',
+      'Price Average (20d)': 'M4 12h16v2H4z M8 6h8v2H8z M6 18h12v2H6z',
+      'Absorption': 'M12 2c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8z',
+      'Bullish Crossover': 'M12 2 L2 12 L12 22 L22 12 Z',
+      'Bearish Crossunder': 'M12 2 L2 12 L12 22 L22 12 Z',
+      'Anomaly Detected': 'M12 2a10 10 0 100 20 10 10 0 000-20z',
+      'System anomaly detected': 'M12 2a10 10 0 100 20 10 10 0 000-20z',
+      'Rule-based': 'M4 4h16v4H4z M4 12h16v4H4z M8 20h8v0H8z',
       other: 'M12 2a10 10 0 100 20 10 10 0 000-20z'
     };
 
