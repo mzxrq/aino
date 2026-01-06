@@ -20,7 +20,7 @@ const { COLLECTION_NAME } = require('./nodemailer.model');
  *  Basic Routes
     ========================= */
 // Send email (protected)
-router.post("/send", authorize(['admin']), NodemailerController.sendEmail);
+router.post("/send", NodemailerController.sendEmail);
 
 // Read local nodemailer logs cache (if present)
 router.get('/logs', requireAuth, async (req, res) => {
