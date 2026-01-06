@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 # -------------------------
 # Configuration
 # -------------------------
-CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
+# NOTE: read CHANNEL_ACCESS_TOKEN at send time (not only at import) so scripts
+# and runtime that load .env after import are respected. MAIL_API_URL and
+# DASHBOARD_URL may remain static at import time.
 MAIL_API_URL = os.getenv("MAIL_API_URL", "http://localhost:5050/node/mail/send")
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:5173")
 
@@ -235,7 +237,7 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
         
         bubble = {
             "type": "bubble",
-            "size": "micro",
+            "size": "mega",
             "header": {
                 "type": "box",
                 "layout": "vertical",
@@ -373,88 +375,156 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
     
     return bubbles
 
-def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezone="UTC"):
+def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezone="UTC", allow_empty: bool = False, is_summary: bool = False):
     """Send LINE notification with summary + detailed anomalies."""
+    # Import config flags here so they reflect runtime env
     from core.config import ENABLE_LINE_NOTIFICATIONS
-    
+
     if not ENABLE_LINE_NOTIFICATIONS:
         logger.debug("LINE notifications disabled via config")
         return False
-    
-    if not CHANNEL_ACCESS_TOKEN:
+
+    # Read token at call time to pick up `.env` or environment changes
+    channel_token = os.getenv("CHANNEL_ACCESS_TOKEN")
+    if not channel_token:
         logger.warning("CHANNEL_ACCESS_TOKEN not set, skipping LINE notification")
         return False
-    
+
     if not user_line_id:
         logger.warning("No LINE ID provided")
         return False
-    
-    if not anomalies:
+
+    if not anomalies and not allow_empty:
         logger.info("No anomalies to send")
         return False
-    
+
     try:
         # Create summary message
         summary_bubble = create_summary_flex_message(anomalies, user_timezone)
-        
+
         # Create detailed bubbles
         detail_bubbles = create_detail_flex_bubbles(anomalies, user_timezone)
-        
+
         # Combine: summary first, then details
         all_bubbles = [summary_bubble] + detail_bubbles
-        
+
         # Send in carousel format (max 10 bubbles per message)
         url = "https://api.line.me/v2/bot/message/push"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+
+        # Persist an attempt record so delivery issues can be inspected
+        attempt_doc = {
+            "type": "line_attempt",
+            "to": user_line_id,
+            "attempted_at": datetime.utcnow(),
+            "payload_preview": {
+                "bubbles": len(all_bubbles),
+                "anomalies": len(anomalies)
+            },
+            "result": None,
+            "response": None
         }
-        
+        try:
+            db.notification_logs.insert_one(attempt_doc)
+        except Exception:
+            logger.debug("Failed to write LINE attempt to notification_logs (non-fatal)")
+
+        # If this send is a scheduled summary, add a short text header so users
+        # can immediately recognize the message as a cron summary.
+        header_text = None
+        if is_summary:
+            try:
+                now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+                now_user = now.astimezone(ZoneInfo(user_timezone))
+                header_text = f"📋 Summary — {now_user.strftime('%Y-%m-%d %H:%M %Z')}"
+            except Exception:
+                header_text = "📋 Summary"
+
         for i in range(0, len(all_bubbles), 10):
             batch = all_bubbles[i:i+10]
-            payload = {
-                "to": user_line_id,
-                "messages": [{
-                    "type": "flex",
-                    "altText": f"⚠️ {len(anomalies)} Anomalies Detected",
-                    "contents": {
-                        "type": "carousel",
-                        "contents": batch
-                    }
-                }]
-            }
-            
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            response.raise_for_status()
-            logger.info(f"LINE notification sent to {user_line_id} (batch {i//10 + 1})")
-        
-        return True
-        
-    except requests.exceptions.HTTPError as e:
-        # Log detailed error for debugging LINE API issues
-        error_detail = ""
-        try:
-            error_detail = e.response.text if hasattr(e, 'response') else str(e)
-        except:
-            error_detail = str(e)
-        logger.error(f"Failed to send LINE notification (HTTP {e.response.status_code if hasattr(e, 'response') else 'error'}): {error_detail[:200]}")
-        return False
+            messages = []
+            if header_text:
+                messages.append({"type": "text", "text": header_text})
+            messages.append({
+                "type": "flex",
+                "altText": f"⚠️ {len(anomalies)} Anomalies Detected",
+                "contents": {
+                    "type": "carousel",
+                    "contents": batch
+                }
+            })
+
+            payload = {"to": user_line_id, "messages": messages}
+
+            try:
+                response = requests.post(url, headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {channel_token}"
+                }, json=payload, timeout=10)
+                # Save response for debugging
+                resp_text = None
+                try:
+                    resp_text = response.text
+                except Exception:
+                    resp_text = str(response)
+                if response.status_code >= 200 and response.status_code < 300:
+                    logger.info(f"LINE notification sent to {user_line_id} (batch {i//10 + 1})")
+                    # update attempt doc to mark success
+                    try:
+                        db.notification_logs.update_one({"type": "line_attempt", "to": user_line_id}, {"$set": {"result": "sent", "response": {"status_code": response.status_code, "body": resp_text}, "sent_at": datetime.utcnow()}}, upsert=False)
+                    except Exception:
+                        logger.debug("Failed to update LINE attempt log after success")
+                else:
+                    logger.error(f"LINE API returned HTTP {response.status_code}: {resp_text[:300]}")
+                    try:
+                        db.notification_logs.update_one({"type": "line_attempt", "to": user_line_id}, {"$set": {"result": "http_error", "response": {"status_code": response.status_code, "body": resp_text}, "sent_at": datetime.utcnow()}}, upsert=False)
+                    except Exception:
+                        logger.debug("Failed to update LINE attempt log after http error")
+                    # raise so outer handler can return False
+                    response.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                # Persist error details
+                try:
+                    db.notification_logs.update_one({"type": "line_attempt", "to": user_line_id}, {"$set": {"result": "http_exception", "response": {"status_code": getattr(e.response, 'status_code', None), "body": getattr(e.response, 'text', str(e))}, "sent_at": datetime.utcnow()}}, upsert=False)
+                except Exception:
+                    logger.debug("Failed to update LINE attempt after HTTPError")
+                error_detail = ""
+                try:
+                    error_detail = e.response.text if hasattr(e, 'response') else str(e)
+                except:
+                    error_detail = str(e)
+                logger.error(f"Failed to send LINE notification (HTTP {getattr(e.response, 'status_code', 'error')}): {error_detail[:200]}")
+                return False
+            # If we reach here, all batches succeeded
+            return True
     except Exception as e:
+        # Catch-all: update attempt record and log
+        try:
+            db.notification_logs.update_one({"type": "line_attempt", "to": user_line_id}, {"$set": {"result": "error", "response": {"error": str(e)[:100]}, "sent_at": datetime.utcnow()}}, upsert=False)
+        except Exception:
+            logger.debug("Failed to write LINE attempt error to notification_logs")
         logger.error(f"Failed to send LINE notification: {type(e).__name__}: {str(e)[:200]}")
         return False
 
 # -------------------------
 # Email Notification
 # -------------------------
-def create_email_html(anomalies: List[Dict], user_timezone="UTC"):
+def create_email_html(anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None):
     """Create HTML email with anomaly summary."""
     total = len(anomalies)
     tickers = list(set([a.get('Ticker') or a.get('ticker', '') for a in anomalies]))
     
-    # Current time
+    # Current time / range
     now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
     now_user = now.astimezone(ZoneInfo(user_timezone))
     time_str = now_user.strftime('%B %d, %Y at %I:%M %p %Z')
+    range_str = None
+    try:
+        if start_dt and end_dt:
+            range_start = start_dt.astimezone(ZoneInfo(user_timezone)) if getattr(start_dt, 'tzinfo', None) else start_dt
+            range_end = end_dt.astimezone(ZoneInfo(user_timezone)) if getattr(end_dt, 'tzinfo', None) else end_dt
+            range_str = f"{range_start.strftime('%Y-%m-%d')} → {range_end.strftime('%Y-%m-%d')}"
+    except Exception:
+        range_str = None
     
     # Group by ticker
     ticker_groups = {}
@@ -486,9 +556,8 @@ def create_email_html(anomalies: List[Dict], user_timezone="UTC"):
                 <div style="font-size:48px;font-weight:700;color:#dc3545;margin:0;">{total}</div>
                 <div style="font-size:14px;color:#666;margin-top:5px;">Anomal{'y' if total == 1 else 'ies'} Detected</div>
             </div>
-            <p style="margin:20px 0 0;font-size:14px;color:#666;">
-                Found in <strong>{len(tickers)}</strong> stock{'' if len(tickers) == 1 else 's'}
-            </p>
+            <p style="margin:20px 0 0;font-size:14px;color:#666;">Found in <strong>{len(tickers)}</strong> stock{'' if len(tickers) == 1 else 's'}</p>
+            {f'<p style="margin:8px 0 0;font-size:13px;color:#555;">Range: <strong>{range_str}</strong></p>' if range_str else ''}
         </div>
         
         <!-- Details by Ticker -->
@@ -587,7 +656,7 @@ def create_email_html(anomalies: List[Dict], user_timezone="UTC"):
     
     return html
 
-def send_email_notification(user_email: str, anomalies: List[Dict], user_timezone="UTC"):
+def send_email_notification(user_email: str, anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None, allow_empty: bool = False):
     """Send email notification with anomaly summary."""
     from core.config import ENABLE_EMAIL_NOTIFICATIONS
     
@@ -603,12 +672,12 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         logger.warning("No email provided")
         return False
     
-    if not anomalies:
-        logger.info("No anomalies to send")
+    if not anomalies and not allow_empty:
+        logger.info("No anomalies to send and empty emails not allowed")
         return False
     
     try:
-        html = create_email_html(anomalies, user_timezone)
+        html = create_email_html(anomalies, user_timezone, start_dt=start_dt, end_dt=end_dt)
         total = len(anomalies)
         
         payload = {
@@ -618,9 +687,39 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
             "text": f"{total} anomalies detected. Please view HTML version for details."
         }
         
+        # Diagnostic: persist an attempt record to MongoDB so we can inspect delivery issues
+        try:
+            log_doc = {
+                "type": "email_attempt",
+                "to": user_email,
+                "subject": payload.get("subject"),
+                "attempted_at": datetime.utcnow(),
+                "payload": payload,
+                "result": None,
+                "range": {
+                    "start": start_dt.isoformat() if start_dt else None,
+                    "end": end_dt.isoformat() if end_dt else None
+                }
+            }
+            try:
+                db.notification_logs.insert_one(log_doc)
+            except Exception:
+                # best-effort logging
+                logger.debug("Failed to write notification log to DB")
+
+        except Exception:
+            pass
+
         response = requests.post(MAIL_API_URL, json=payload, timeout=10)
         response.raise_for_status()
         logger.info(f"Email notification sent to {user_email}")
+
+        # update log with success
+        try:
+            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "sent", "sent_at": datetime.utcnow()}}, upsert=False)
+        except Exception:
+            logger.debug("Failed to update notification log after send")
+
         return True
         
     except requests.exceptions.HTTPError as e:
@@ -631,9 +730,17 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         except:
             error_detail = str(e)
         logger.error(f"Failed to send email notification (HTTP {e.response.status_code if hasattr(e, 'response') else 'error'}): {error_detail[:200]}")
+        try:
+            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "http_error", "error": error_detail, "sent_at": datetime.utcnow()}}, upsert=False)
+        except Exception:
+            pass
         return False
     except Exception as e:
         logger.error(f"Failed to send email notification: {type(e).__name__}: {str(e)[:200]}")
+        try:
+            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "error", "error": str(e)[:200], "sent_at": datetime.utcnow()}}, upsert=False)
+        except Exception:
+            pass
         return False
 
 # -------------------------

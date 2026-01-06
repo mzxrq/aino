@@ -155,11 +155,108 @@ def run_full_scan_all():
     return threads
 
 
+def _run_user_summaries_minute():
+    """Run user summary jobs that are scheduled via `summaryTime` on the user record.
+
+    This is a lightweight minute-runner: it checks users that have `summaryTime`
+    and, when the user's local clock matches the configured time (hour+minute),
+    triggers the same `run_user_summary` used by the cron router.
+    """
+    try:
+        # lazy import to avoid circular import at module load
+        from api.cron import run_user_summary
+    except Exception:
+        # If import fails, try relative import (when run as module)
+        try:
+            from .api.cron import run_user_summary
+        except Exception:
+            logger.debug("Could not import run_user_summary from api.cron; skipping user summaries")
+            return
+
+    now_utc = datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+    try:
+        cursor = db.users.find({"summaryTime": {"$exists": True}})
+    except Exception as e:
+        logger.debug(f"Failed fetching users for summaries: {e}")
+        return
+
+    for u in cursor:
+        try:
+            st = u.get('summaryTime')
+            if not st:
+                continue
+
+            # parse time string (HH:MM or HH:MM:SS)
+            parts = str(st).split(':')
+            if len(parts) < 2:
+                continue
+            try:
+                hh = int(parts[0])
+                mm = int(parts[1])
+            except Exception:
+                continue
+
+            tzname = u.get('timeZone') or u.get('timezone') or 'UTC'
+            try:
+                user_tz = pytz.timezone(tzname)
+            except Exception:
+                user_tz = pytz.UTC
+
+            now_local = datetime.datetime.now(user_tz)
+
+            # match hour and minute
+            if now_local.hour == hh and now_local.minute == mm:
+                # determine user's preferred period (day or week)
+                period = (u.get('summaryPeriod') or 'day').lower()
+
+                # check lastSummarySent to avoid duplicate runs in same period
+                last = u.get('lastSummarySent')
+                run_it = True
+                if last:
+                    try:
+                        last_dt = datetime.datetime.fromisoformat(last)
+                        if last_dt.tzinfo is None:
+                            last_dt = last_dt.replace(tzinfo=pytz.UTC)
+                        last_local = last_dt.astimezone(user_tz)
+                        if period.startswith('w'):
+                            # skip if already sent this ISO week
+                            if last_local.isocalendar()[0:2] == now_local.isocalendar()[0:2]:
+                                run_it = False
+                        else:
+                            # skip if already sent today
+                            if last_local.date() == now_local.date():
+                                run_it = False
+                    except Exception:
+                        run_it = True
+
+                if run_it:
+                    try:
+                        logger.info(f"Triggering user summary for user {u.get('_id')} period={period}")
+                        run_user_summary(str(u.get('_id')), period)
+                    except Exception as e:
+                        logger.exception(f"Error triggering run_user_summary for {u.get('_id')}: {e}")
+
+        except Exception as e:
+            logger.exception(f"Error processing user for summaries: {e}")
+
+
 def scheduler_loop():
     logger.info("Scheduler started")
     try:
+        tick = 0
         while not scheduler_stop_event.is_set():
-            combined_market_runner()
-            time.sleep(300)
+            try:
+                # Run per-minute user summary checks
+                _run_user_summaries_minute()
+
+                # Run market runner every 5 minutes
+                if tick % 5 == 0:
+                    combined_market_runner()
+
+                tick += 1
+            except Exception as e:
+                logger.exception(f"[scheduler] run error: {e}")
+            time.sleep(60)
     finally:
         logger.info("Scheduler stopped")

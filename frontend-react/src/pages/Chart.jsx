@@ -74,6 +74,22 @@ const CITY_TZ_MAP = {
 
 const TIMEZONES = Object.keys(CITY_TZ_MAP);
 
+// Small debug badge to show token presence and user id
+const TokenBadge = () => {
+  try {
+    const { token, user } = require('../context/useAuth').useAuth();
+    return (
+      <div style={{ position: 'absolute', right: 12, top: 12, zIndex: 60 }}>
+        <div style={{ padding: '6px 10px', background: token ? '#0f5132' : '#6c757d', color: 'white', borderRadius: 8, fontSize: 12 }}>
+          {token ? 'Token: present' : 'Token: missing'}{user && user.id ? ` • ${user.id.slice(0,6)}` : ''}
+        </div>
+      </div>
+    );
+  } catch (e) {
+    return null;
+  }
+};
+
 // Format timezone with UTC offset: "(-10:00) Honolulu"
 // tz is city label now; resolve to IANA for calculations
 function formatTimezoneLabel(tz) {

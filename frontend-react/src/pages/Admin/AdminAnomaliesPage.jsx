@@ -179,6 +179,33 @@ const AnomaliesManagementPage = () => {
     }
   }
 
+  // Delete all anomalies
+  async function handleDeleteAll() {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Delete All Anomalies',
+      html: '<strong>This will permanently delete ALL anomalies.</strong><br/>This action cannot be undone. Are you sure?',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete all'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/node/anomalies`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete all failed');
+      setRefreshSignal((s) => s + 1);
+      await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All anomalies have been deleted.', timer: 1500, confirmButtonColor: '#00aaff' });
+    } catch (err) {
+      console.error('Delete all error', err);
+      await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message, confirmButtonColor: '#dc2626' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function openCreate() {
     const today = new Date();
     const iso = today.toISOString().slice(0,10);
@@ -242,7 +269,9 @@ const AnomaliesManagementPage = () => {
           <h2>Anomalies Management</h2>
           <p className="admin-subtitle">Monitor and manage market irregularities.</p>
         </div>
-        <div className="admin-actions" />
+        <div className="admin-actions">
+          <button className="btn btn-danger" onClick={handleDeleteAll}>Delete All</button>
+        </div>
       </div>
 
       {!loading && !error && (

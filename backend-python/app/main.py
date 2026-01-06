@@ -20,7 +20,8 @@ from api.auth import router as auth_router
 from api.chart import router as chart_router
 from api.news import router as news_router
 from api.company_info import router as company_info_router
-from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all
+from api.cron import router as cron_router, ensure_scheduler_started
+from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all, scheduler_loop
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
@@ -50,6 +51,7 @@ app.include_router(auth_router, prefix="/py")
 app.include_router(chart_router, prefix="/py")
 app.include_router(news_router, prefix="/py")
 app.include_router(company_info_router, prefix="/py")
+app.include_router(cron_router, prefix="/py")
 
 # Toggle state - ENABLED BY DEFAULT
 scheduler_enabled = False
@@ -119,9 +121,19 @@ def _scheduler_loop(stop_event):
 @app.on_event("startup")
 async def _on_startup():
     global scheduler_thread, scheduler_stop_event
+    # Prefer the centralized scheduler loop in `scheduler.py` which handles
+    # both per-minute user summaries and market runners. Start it as a
+    # daemon thread so it runs alongside FastAPI.
     scheduler_stop_event.clear()
-    scheduler_thread = threading.Thread(target=_scheduler_loop, args=(scheduler_stop_event,), daemon=True)
+    scheduler_thread = threading.Thread(target=scheduler_loop, daemon=True)
     scheduler_thread.start()
+    # Ensure APScheduler for cron jobs is started so persisted jobs run
+    try:
+        ok, err = ensure_scheduler_started()
+        if not ok:
+            logger.error(f"Failed to start cron scheduler on startup: {err}")
+    except Exception as e:
+        logger.exception(f"Error ensuring cron scheduler started on startup: {e}")
 
 
 @app.on_event("shutdown")

@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
         const createdAt = fmtDate(createdRaw);
         const lastLogin = fmtDate(lastRaw);
 
-        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role };
+        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword };
     };
 
     // Helpers to unwrap backend response shapes like { success, data: <user> } or { user, token }
@@ -50,8 +50,17 @@ export function AuthProvider({ children }) {
 
     // Sync state to localStorage
     useEffect(() => {
-        if (user) localStorage.setItem('user', JSON.stringify(user));
-        else localStorage.removeItem('user');
+        if (user) {
+            const minimal = {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                timeZone: user.timeZone || user.timezone,
+                role: user.role,
+                pictureUrl: user.pictureUrl || user.avatar
+            };
+            localStorage.setItem('user', JSON.stringify(minimal));
+        } else localStorage.removeItem('user');
     }, [user]);
 
     useEffect(() => {
@@ -123,29 +132,8 @@ export function AuthProvider({ children }) {
             const t = localStorage.getItem('token');
             if (t) {
                 try {
-                    // 1. Try JS backend first
-                    let res = await fetch(`${API_URL}/node/users/profile`, {
-                        headers: { Authorization: `Bearer ${t}` }
-                    });
-
-                    // 2. If JS backend fails, try LINE backend
-                    if (!res.ok) {
-                        res = await fetch(`${LINE_API}/profile`, {
-                            headers: { Authorization: `Bearer ${t}` }
-                        });
-                    }
-
-                    if (!res.ok) {
-                        // Token invalid -> clear both
-                        setTokenState(null);
-                        setUser(null);
-                        return;
-                    }
-                    const json = await res.json();
-
-                    // 🚨 REMOVED: setTokenState(t); as t is already the current state/LS value
-                    const profile = getUserFromResponse(json);
-                    setUser(normalizeUser(profile));
+                    // Use setToken to consolidate logic: it saves token state and fetches profile
+                    await setToken(t);
                     return;
 
                 } catch (err) {

@@ -132,6 +132,21 @@ const deleteAnomaly = async (id) => {
 	return true;
 };
 
+const deleteAllAnomalies = async () => {
+	const db = (() => {
+		try { return getDb(); } catch { return null; }
+	})();
+
+	if (db) {
+		await db.collection(COLLECTION_NAME).deleteMany({});
+		return true;
+	}
+
+	// fallback: clear cache file
+	writeCache([]);
+	return true;
+};
+
 const markAsSent = async (id) => {
 	return await updateAnomaly(id, { sent: true });
 };

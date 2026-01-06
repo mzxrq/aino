@@ -5,7 +5,7 @@
 const express = require("express");
 const router = express.Router();
 const UsersController = require("./user.controller");
-const { requireAuth } = require("../../middleware/authMiddleware");
+const { requireAuth, authorize } = require("../../middleware/authMiddleware");
 const { upload } = require('../../middleware/upload.middleware');
 
 // Debug: Log route access
@@ -27,7 +27,7 @@ router.put("/profile", requireAuth, UsersController.updateUserProfile);
 router.delete("/profile", requireAuth, UsersController.deleteUserProfile);
 
 router.patch("/change-password", requireAuth, UsersController.changePassword);
-router.patch("/:id/change-password",requireAuth,UsersController.changePasswordForAdmin);
+router.patch("/:id/change-password", authorize(['admin']), UsersController.changePasswordForAdmin);
 router.patch("/add-password", requireAuth, UsersController.addPassword);
 
 
@@ -41,9 +41,9 @@ router.delete("/profile/avatar", requireAuth,upload.single('file'), UsersControl
 
 // CRUD Routes for Users
 router.get("/", requireAuth, UsersController.getAllUsers);
-router.post("/", requireAuth, UsersController.createUser);
+router.post("/", authorize(['admin']), UsersController.createUser);
 router.get("/:id", requireAuth, UsersController.getUserById);
-router.put("/:id", requireAuth, UsersController.updateUser);
-router.delete("/:id", requireAuth, UsersController.deleteUserForAdmin);
+router.put("/:id", authorize(['admin']), UsersController.updateUser);
+router.delete("/:id", authorize(['admin']), UsersController.deleteUserForAdmin);
 
 module.exports = router;

@@ -8,6 +8,10 @@ const defaultMenu = [
   { key: "admin-subscribers", label: "Subscribers", href: "/subscribers" },
   { key: "admin-marketlists", label: "Stock List", href: "/marketlists" },
   { key: "admin-cache", label: "Cache", href: "/cache" },
+    { key: "admin-activitylogs", label: "Activity Logs", href: "/activity-logs" },
+    { key: "admin-notificationlogs", label: "Notification Logs", href: "/notification-logs" },
+    { key: "admin-nodemailerlogs", label: "Nodemailer Logs", href: "/nodemailer-logs" },
+    { key: "admin-jobs", label: "Jobs", href: "/jobs" },
 ];
 
 export default function Sidebar({

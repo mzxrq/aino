@@ -7,7 +7,8 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('./stock-info.controller');
+const { requireAuth } = require('../../middleware/authMiddleware');
 
-router.get('/', controller.getStockInfo);
+router.get('/', requireAuth, controller.getStockInfo);
 
 module.exports = router;

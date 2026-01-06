@@ -24,6 +24,9 @@ export default function FlexTable({
   // new: allow callers to specify initial/default sort state
   defaultSortKey = null,
   defaultSortDir = null,
+  // If set to 'any', search will match the keyword against any column/value in the row.
+  // Alternatively, pass an array of field keys to restrict searchable fields.
+  searchFields = null,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -181,7 +184,8 @@ export default function FlexTable({
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Fetch failed');
-      let list = data.data || data || [];
+      // Support multiple server response shapes: { data: [...] }, { jobs: [...] }, { items: [...] }, or raw array
+      let list = data.data || data.jobs || data.items || data.results || data || [];
       // apply optional transformRow to shape data for client-side filtering
       if (typeof transformRow === 'function' && Array.isArray(list)) {
         list = list.map((r) => transformRow(r) || r);
@@ -192,6 +196,25 @@ export default function FlexTable({
       if (searching) {
         const q = String(search).toLowerCase();
         const filtered = list.filter((row) => {
+          if (!row) return false;
+          // If caller requested searching any field, stringify all values
+          if (searchFields === 'any') {
+            try {
+              const hay = Object.values(row).map((v) => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' ').toLowerCase();
+              return hay.indexOf(q) !== -1;
+            } catch (_e) {
+              return false;
+            }
+          }
+          // If caller provided an array of fields to search, use those
+          if (Array.isArray(searchFields) && searchFields.length > 0) {
+            const hay = searchFields.map((k) => {
+              const v = row[k];
+              return v === null || v === undefined ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+            }).join(' ').toLowerCase();
+            return hay.indexOf(q) !== -1;
+          }
+          // Backwards-compatible default: search common fields (ticker/companyName/name/note)
           const hay = `${row.ticker || ''} ${row.companyName || row.company || row.name || ''} ${row.note || ''}`.toLowerCase();
           return hay.indexOf(q) !== -1;
         });
@@ -202,10 +225,23 @@ export default function FlexTable({
         const pageSlice = filtered.slice(start, start + limit);
         setRows(pageSlice);
       } else {
-        setRows(list);
+        // If server provides an explicit total, use server-side pagination results
         const totalCount = data.total || data.totalCount || data.count || data.totalItems || null;
-        if (totalCount !== null && totalCount !== undefined) setTotal(Number(totalCount));
-        else setTotal(null);
+        if (totalCount !== null && totalCount !== undefined) {
+          setRows(list);
+          setTotal(Number(totalCount));
+        } else if (Array.isArray(list)) {
+          // Server returned an array but no total -> perform client-side pagination
+          const inferredTotal = list.length;
+          setTotal(inferredTotal);
+          const start = (page - 1) * limit;
+          const pageSlice = list.slice(start, start + limit);
+          setRows(pageSlice);
+        } else {
+          // Unknown shape, just set rows and leave total null
+          setRows(list);
+          setTotal(null);
+        }
       }
     } catch (err) {
       console.error('FlexTable load error', err);

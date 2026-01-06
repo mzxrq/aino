@@ -8,6 +8,26 @@ import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
 import { formatToUserTZSlash } from '../../utils/dateUtils';
 import { AuthContext } from '../../context/contextBase';
 
+function DebugCacheFetch({ refreshSignal }) {
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/node/cache`);
+        const status = res.status;
+        const txt = await res.text();
+        let parsed = null;
+        try { parsed = JSON.parse(txt); } catch (_) { parsed = txt; }
+        console.debug('[DebugCacheFetch] status=', status, 'body=', parsed);
+      } catch (err) {
+        console.error('[DebugCacheFetch] fetch error', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [refreshSignal]);
+  return null;
+}
+
 const AdminCachePage = () => {
   const [loading, setLoading] = useState(false);
   const [refreshSignal, setRefreshSignal] = useState(0);
@@ -19,12 +39,36 @@ const AdminCachePage = () => {
 
   const parseKey = (key) => {
     if (!key) return { ticker: '-', period: '-', interval: '-' };
-    const parts = String(key).split('::');
+    const k = stringifyId(key);
+    const parts = k.split('::');
     // common patterns: chart::TICKER::PERIOD::INTERVAL or chart::TICKER::INTERVAL::PERIOD
     const ticker = parts[1] || key;
     const p2 = parts[2] || '';
     const p3 = parts[3] || '';
     return { ticker, period: p2 || '-', interval: p3 || '-' };
+  };
+
+  // Normalize possible ObjectId or other object shapes into a hex/string id
+  const stringifyId = (raw) => {
+    if (raw === null || raw === undefined) return '';
+    // If already string
+    if (typeof raw === 'string') return raw;
+    // If has $oid (common in some serializations)
+    if (raw && typeof raw === 'object') {
+      if (typeof raw.$oid === 'string') return raw.$oid;
+      if (typeof raw.id === 'string') return raw.id;
+      if (typeof raw.toHexString === 'function') {
+        try { return raw.toHexString(); } catch (e) { /* ignore */ }
+      }
+      // toString may return useful hex
+      try {
+        const s = String(raw);
+        const m = s.match(/([0-9a-fA-F]{24})/);
+        if (m) return m[1];
+      } catch (e) { /* ignore */ }
+    }
+    // Fallback to JSON string
+    try { return JSON.stringify(raw); } catch { return String(raw); }
   };
 
   const openCreate = () => {
@@ -36,7 +80,9 @@ const AdminCachePage = () => {
   const startEdit = (item) => {
     setEditItem(item);
     // parse key into parts for editable inputs
-    const parts = String(item._id || item.id || '').split('::');
+    const idKey = (item && (item._id || item.id));
+    const idStr = idKey && idKey.toString ? idKey.toString() : String(idKey || '');
+    const parts = idStr.split('::');
     const ticker = parts[1] || '';
     const period = parts[2] || '';
     const interval = parts[3] || '';
@@ -119,9 +165,11 @@ const AdminCachePage = () => {
   const { user } = useContext(AuthContext) || {};
 
   const renderRow = useCallback(({ row }) => {
-    const parsed = parseKey(row._id || row.id);
+    const idKey = (row && (row._id || row.id));
+    const idStr = idKey && idKey.toString ? idKey.toString() : String(idKey || '');
+    const parsed = parseKey(idStr);
     return (
-      <tr key={row._id || row.id} onClick={() => setRowActions(row)}>
+      <tr key={idStr} onClick={() => setRowActions(row)}>
         <td className="col-ticker">{parsed.ticker}</td>
         <td className="col-date">{parsed.period}</td>
         <td className="col-number center-right">{parsed.interval}</td>
@@ -139,8 +187,24 @@ const AdminCachePage = () => {
         </div>
         <div className="admin-actions">
           <button className="btn btn-primary" onClick={openCreate}>+ Create Cache</button>
+          <button className="btn btn-danger" onClick={async () => {
+            const r = await Swal.fire({ icon: 'warning', title: 'Delete All Cache', html: '<strong>This will permanently delete ALL cache entries.</strong><br/>This action cannot be undone. Are you sure?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete all' });
+            if (!r.isConfirmed) return;
+            try {
+              const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=cache`, { method: 'DELETE' });
+              const body = await res.json();
+              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              setRefreshSignal(s => s + 1);
+              await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All cache entries deleted.', timer: 1200 });
+            } catch (err) {
+              console.error('Delete all cache error', err);
+              await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message });
+            }
+          }}>Delete All</button>
         </div>
       </div>
+      {/* Debug: log raw cache endpoint response to help diagnose display issues */}
+      <DebugCacheFetch refreshSignal={refreshSignal} />
 
       <FlexTable
         columns={[

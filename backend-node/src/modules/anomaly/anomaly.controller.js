@@ -125,6 +125,16 @@ const getTickerSummary = async (req, res) => {
 	}
 };
 
+const deleteAllAnomalies = async (req, res) => {
+	try {
+		await AnomalyService.deleteAllAnomalies();
+		return res.status(200).json({ success: true, message: 'All anomalies deleted.' });
+	} catch (err) {
+		console.error('Delete All Anomalies Error:', err);
+		return res.status(500).json({ success: false, error: 'Failed to delete all anomalies.' });
+	}
+};
+
 module.exports = {
 	createAnomaly,
 	bulkCreateAnomalies,
@@ -132,10 +142,12 @@ module.exports = {
 	getAnomalyById,
 	updateAnomaly,
 	deleteAnomaly,
+	deleteAllAnomalies,
 	markAsSent,
 	getUnsentAnomalies,
 	getRecentAnomalies,
 	getAnomaliesSummary,
 	getTickerSummary,
 };
+
 

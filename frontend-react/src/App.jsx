@@ -28,6 +28,11 @@ import MarketlistsManagementPage from "./pages/Admin/AdminMarketlistsPage";
 import UsersManagementPage from "./pages/Admin/AdminUsersPage";
 import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
 import AdminDashboardPage from "./pages/Admin/AdminDashboardPage";
+import AdminActivityLogsPage from './pages/Admin/AdminActivityLogsPage';
+import AdminNotificationLogsPage from './pages/Admin/AdminNotificationLogsPage';
+import AdminNodemailerLogsPage from './pages/Admin/AdminNodemailerLogsPage';
+import AdminJobsPage from './pages/Admin/AdminJobsPage';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   const navigate = useNavigate();
@@ -91,6 +96,10 @@ function App() {
                 />
                 <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                 <Route path="/cache" element={<CacheManagementPage />} />
+                <Route path="/activity-logs" element={<AdminActivityLogsPage />} />
+                <Route path="/notification-logs" element={<AdminNotificationLogsPage />} />
+                <Route path="/nodemailer-logs" element={<AdminNodemailerLogsPage />} />
+                <Route path="/jobs" element={<AdminJobsPage />} />
                 <Route path="/marketlists" element={<MarketlistsManagementPage />} />
                 <Route path="/users" element={<UsersManagementPage />} />
                 <Route path="/subscribers" element={<SubscribersManagementPage />} />
@@ -98,6 +107,7 @@ function App() {
             </Route>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/chart" element={<Chart />} />
             <Route path="/chart/u/:ticker" element={<LargeChart />} />

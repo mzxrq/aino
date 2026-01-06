@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../css/Auth.css';
 import { useAuth } from '../context/useAuth';
+import API_BASE from '../config/api';
+import Swal from '../utils/muiSwal';
 
 export default function Login() {
   const { loginWithCredentials } = useAuth();
@@ -52,6 +54,10 @@ export default function Login() {
         </form>
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        <p style={{ marginTop: 8 }}>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
 
         <p style={{ marginTop: 12 }}>
           No account? <Link to="/register">Register</Link>

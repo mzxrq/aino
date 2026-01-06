@@ -17,6 +17,7 @@ const BASE =
     import.meta.env &&
     import.meta.env.VITE_NODE_API_URL) ||
   "";
+const PY_BASE = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_LINE_PY_URL) || "";
 const ENDPOINTS = {
   users: `${BASE}/node/users`,
   subscribers: `${BASE}/node/subscribers`,
@@ -57,6 +58,9 @@ export default function AdminDashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState("");
   const [modalTitle, setModalTitle] = useState("");
+  const [cronRunning, setCronRunning] = useState(false);
+  const [marketSchedulerEnabled, setMarketSchedulerEnabled] = useState(false);
+  const [ctlLoading, setCtlLoading] = useState(false);
 
   // adjust chart heights responsively based on viewport width (smaller)
   useEffect(() => {
@@ -71,6 +75,59 @@ export default function AdminDashboardPage() {
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
+
+  // cron / scheduler controls
+  const startCron = async () => {
+    setCtlLoading(true);
+    try {
+      const res = await fetch(`${PY_BASE}/py/cron/start`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to start cron');
+      setCronRunning(true);
+    } catch (e) {
+      console.error(e);
+      alert(String(e));
+    } finally { setCtlLoading(false); }
+  };
+
+  const stopCron = async () => {
+    setCtlLoading(true);
+    try {
+      const res = await fetch(`${PY_BASE}/py/cron/stop`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to stop cron');
+      setCronRunning(false);
+    } catch (e) {
+      console.error(e);
+      alert(String(e));
+    } finally { setCtlLoading(false); }
+  };
+
+  const toggleMarketScheduler = async (enable) => {
+    setCtlLoading(true);
+    try {
+      const res = await fetch(`${PY_BASE}/py/scheduler/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: !!enable }) });
+      if (!res.ok) throw new Error('Failed to toggle market scheduler');
+      const data = await res.json().catch(() => ({}));
+      setMarketSchedulerEnabled(Boolean(data.scheduler_enabled));
+    } catch (e) {
+      console.error(e);
+      alert(String(e));
+    } finally { setCtlLoading(false); }
+  };
+
+  const refreshCronStatus = async () => {
+    try {
+      const res = await fetch(`${PY_BASE}/py/cron/jobs`);
+      if (!res.ok) { setCronRunning(false); return; }
+      const data = await res.json().catch(() => ({}));
+      const jobs = data && (Array.isArray(data) ? data : data.jobs) ? (Array.isArray(data) ? data : (data.jobs || [])) : [];
+      setCronRunning(jobs.length > 0);
+    } catch (e) {
+      console.warn('cron status fetch failed', e);
+      setCronRunning(false);
+    }
+  };
+
+  useEffect(() => { refreshCronStatus(); }, []);
 
   function tickerFromItem(it) {
     if (!it) return null;
@@ -218,10 +275,15 @@ export default function AdminDashboardPage() {
     const labels = buckets.map((b) => {
       try {
         if (chosenInterval === "day") {
-          return new Date(b).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const tz = (user && user.timeZone) || undefined;
+          try {
+            const s = formatToUserTZSlash(new Date(b), tz);
+            // formatToUserTZSlash -> "YYYY/MM/DD HH:mm:ss" so take time portion
+            const timePart = String(s).split(' ')[1] || '';
+            return timePart ? timePart.slice(0,5) : new Date(b).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            return new Date(b).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
         }
         const dt = new Date(b);
         const y = dt.getFullYear();
@@ -540,7 +602,10 @@ export default function AdminDashboardPage() {
     const ts = normalizeTimestampToMs(d);
     const dt = ts !== null ? new Date(ts) : new Date(d);
     try {
-      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const s = formatToUserTZSlash(dt, tz);
+      const parts = String(s).split(' ');
+      // parts[1] = HH:mm:ss
+      return parts[1] || s;
     } catch (e) {
       try { return new Date(d).toLocaleTimeString(); } catch { return String(d); }
     }
@@ -577,6 +642,24 @@ export default function AdminDashboardPage() {
     ]}
     placeholder="Select period"
   />
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 8 }}>
+      <button className="btn btn-small" disabled={ctlLoading} onClick={() => startCron()}>Start Cron</button>
+      <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => stopCron()}>Stop Cron</button>
+    </div>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 8 }}>
+      <button className="btn btn-small" disabled={ctlLoading} onClick={() => toggleMarketScheduler(true)}>Enable Market Scheduler</button>
+      <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => toggleMarketScheduler(false)}>Disable Market Scheduler</button>
+    </div>
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <button className="btn btn-small" onClick={() => refreshCronStatus()} disabled={ctlLoading}>Refresh Status</button>
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+        Cron: <strong style={{ color: cronRunning ? 'green' : '#666' }}>{cronRunning ? 'jobs' : 'none'}</strong>
+        {'  '}
+        Scheduler: <strong style={{ color: marketSchedulerEnabled ? 'green' : '#666' }}>{marketSchedulerEnabled ? 'enabled' : 'disabled'}</strong>
+      </div>
+    </div>
+  </div>
 </div>
         {singleLine ? (
           (() => {

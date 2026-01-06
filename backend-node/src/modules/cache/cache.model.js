@@ -2,7 +2,7 @@
  * Simple cache schema and collection name
  */
 
-const COLLECTION_NAME = "cache_items";
+const COLLECTION_NAME = "cache";
 
 function CacheSchema(data = {}) {
   return {

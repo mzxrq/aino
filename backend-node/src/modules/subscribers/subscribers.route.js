@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const subscribersController = require('./subscribers.controller');
-const { requireAuth} = require('../../middleware/authMiddleware');
+const { requireAuth, authorize } = require('../../middleware/authMiddleware');
 
 // Create or update subscriber (add tickers)
 router.post('/', subscribersController.addOrUpdate);
@@ -22,8 +22,8 @@ router.post('/status', subscribersController.status);
 router.get('/me',requireAuth, subscribersController.getMySubscriptions);
 
 // CRUD
-router.get('/', subscribersController.getAll);
-router.get('/:id', subscribersController.getOne);
-router.delete('/:id', subscribersController.deleteById);
+router.get('/', requireAuth, subscribersController.getAll);
+router.get('/:id', requireAuth, subscribersController.getOne);
+router.delete('/:id', authorize(['admin']), subscribersController.deleteById);
 
 module.exports = router;

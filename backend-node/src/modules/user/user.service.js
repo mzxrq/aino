@@ -239,6 +239,8 @@ const updateProfile = async (userId, updateData) => {
                 { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
                 { $set: { ...updateData, updatedAt: new Date() } }
             );
+      // Return the updated user document so controllers can return the current user state
+      return getUserById(userId);
     } else {
         // 1. Read users from file
         const users = readUser();

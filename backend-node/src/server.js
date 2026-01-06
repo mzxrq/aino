@@ -32,6 +32,10 @@ app.use(express.json());
 // Enable CORS for all routes
 app.use(cors());
 
+// Activity logger: record non-GET CRUD operations to activity logs
+const activityLogger = require('./middleware/activityLogger');
+app.use(activityLogger);
+
 /* =======================
    Proxy Middleware - Forward /py/* to Python backend at 5000
    ======================= */
@@ -100,6 +104,14 @@ app.use('/node/favorites', favoriteRoutes);
 // Python-integrate routes
 const pythonIntegrateRoutes = require('./modules/python-integrate/python-integrate.route');
 app.use('/node/python-integrate', pythonIntegrateRoutes);
+
+// Notification logs (created to expose Python notification logs to admin)
+const notificationLogsRoutes = require('./modules/notification-logs/notification-logs.route');
+app.use('/node/notification_logs', notificationLogsRoutes);
+
+// Admin utility routes (delete-all etc.)
+const adminRoutes = require('./modules/admin/admin.route');
+app.use('/node/admin', adminRoutes);
 
 
 

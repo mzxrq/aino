@@ -120,7 +120,23 @@ export default function AdminUsersPage() {
           <h2>Users Management</h2>
           <p className="admin-subtitle">Manage application users.</p>
         </div>
-        <div className="admin-actions" />
+        <div className="admin-actions">
+          <button className="btn btn-danger" onClick={async () => {
+            const r = await Swal.fire({ icon: 'warning', title: 'Delete All Users', html: '<strong>This will permanently delete ALL users.</strong><br/>This action cannot be undone. Are you sure?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete all' });
+            if (!r.isConfirmed) return;
+            try {
+              setLoading(true);
+              const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=users`, { method: 'DELETE' });
+              const body = await res.json();
+              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              setRefreshSignal((s) => s + 1);
+              await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All users deleted.', timer: 1500 });
+            } catch (err) {
+              console.error('Delete all users error', err);
+              await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message });
+            } finally { setLoading(false); }
+          }}>Delete All</button>
+        </div>
       </div>
 
       <FlexTable
