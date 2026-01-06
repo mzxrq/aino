@@ -57,7 +57,8 @@ export function AuthProvider({ children }) {
                 email: user.email,
                 timeZone: user.timeZone || user.timezone,
                 role: user.role,
-                pictureUrl: user.pictureUrl || user.avatar
+                pictureUrl: user.pictureUrl || user.avatar,
+                hasPassword: user.hasPassword
             };
             localStorage.setItem('user', JSON.stringify(minimal));
         } else localStorage.removeItem('user');

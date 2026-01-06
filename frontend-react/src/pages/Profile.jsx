@@ -501,8 +501,8 @@ const NotificationsSection = () => {
             setJobId('');
             // notify parent to reload profile/section once
             try { window.dispatchEvent(new Event('profile:refresh')); } catch(e) { /* noop */ }
-            // refresh jobs list
-            try { fetchJobs(); } catch (e) { /* noop */ }
+            // refresh jobs list and wait so UI updates immediately
+            try { await fetchJobs(); } catch (e) { /* noop */ }
         } catch (err) {
             setStatusMsg(err.message || 'Error scheduling job');
         } finally {
