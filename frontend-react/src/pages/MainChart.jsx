@@ -1106,10 +1106,10 @@ export default function LargeChart() {
       // Reason mapping - MUST MATCH backend train_service.py identify_reason()
       const REASON_MAP = {
         'Volume Spike': { color: '#ff8c00', label: 'Volume Spike' },
-        'Volume Average (14d)': { color: '#ff9500', label: 'Volume Avg' },
+        'Volume Average (14d)': { color: '#ff9500', label: 'Volume Average (14d)' },
         'Price Spike': { color: '#ff3b30', label: 'Price Spike' },
         'Flash Crash': { color: '#dc143c', label: 'Flash Crash' },
-        'Price Average (20d)': { color: '#f59e0b', label: 'Price Avg' },
+        'Price Average (20d)': { color: '#f59e0b', label: 'Price Average (20d)' },
         'Absorption': { color: '#0ea5a4', label: 'Absorption' },
         'Bullish Crossover': { color: '#10b981', label: 'Bullish' },
         'Bearish Crossunder': { color: '#ef4444', label: 'Bearish' },
