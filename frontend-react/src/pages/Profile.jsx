@@ -134,7 +134,7 @@ const Profile = () => {
         
         setLoading(l => ({ ...l, saving: true }));
         try {
-            const res = await fetch(`${NODE_API}/node/users/${user.id}`, {
+            const res = await fetch(`${NODE_API}/node/users/profile`, {
                 method: 'PUT',
                 headers: buildHeaders(token),
                 body: JSON.stringify(formData)

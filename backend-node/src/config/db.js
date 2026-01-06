@@ -1,36 +1,45 @@
-/**
- * db.js
- * ------------------
- * MongoDB connection helper
- * Handles connecting to the database and providing a singleton DB instance
- */
-
-const { MongoClient } = require("mongodb");
-// Load environment variables from .env
+const { MongoClient, ServerApiVersion } = require("mongodb");
 require("dotenv").config();
 
 let db = null;
 
-/**
- * Connects to MongoDB and returns the database instance.
- * Uses a singleton pattern to avoid multiple connections.
- *
- * @returns {Promise<Db>} MongoDB Database instance
- */
 const connectDB = async () => {
-  if (db) return db; // Return existing connection if already connected
+  if (db) return db;
 
-  // MongoDB URI (prefer environment variable, fallback to localhost)
   const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017";
-
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
   
+  // Detect if we are using Atlas based on the connection string prefix
+  const isAtlas = uri.startsWith("mongodb+srv");
+
+  // Define options dynamically
+  const clientOptions = {
+    serverSelectionTimeoutMS: isAtlas ? 8000 : 5000,
+  };
+
+  // Only add Atlas-specific API versioning if connecting to Atlas
+  if (isAtlas) {
+    clientOptions.serverApi = {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    };
+  }
+
+  const client = new MongoClient(uri, clientOptions);
+
   try {
     await client.connect();
-    // Determine database name from environment variables or default
-    const dbName = process.env.MONGO_DB_NAME || process.env.DB_NAME || 'stock_anomaly_db';
+
+    // Only perform the Ping check for Atlas connections
+    if (isAtlas) {
+      await client.db("admin").command({ ping: 1 });
+      console.log("Verified connection to MongoDB Atlas.");
+    }
+
+    const dbName = process.env.MONGO_DB_NAME || "stock_anomaly_db";
     db = client.db(dbName);
-    console.log(`Connected to MongoDB: ${dbName}`);
+    
+    console.log(`Connected to MongoDB: ${dbName} (${isAtlas ? 'Atlas' : 'Local'})`);
     return db;
   } catch (err) {
     console.error("Failed to connect to MongoDB:", err);
@@ -38,16 +47,9 @@ const connectDB = async () => {
   }
 };
 
-/**
- * Returns the connected MongoDB database instance.
- * Throws an error if the database is not connected.
- *
- * @returns {Db} MongoDB Database instance
- */
 const getDb = () => {
   if (!db) throw new Error("Database not connected. Call connectDB() first.");
   return db;
 };
 
-// Export helper functions
 module.exports = { connectDB, getDb };
