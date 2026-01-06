@@ -20,8 +20,9 @@ export function AuthProvider({ children }) {
 
         const createdAt = fmtDate(createdRaw);
         const lastLogin = fmtDate(lastRaw);
+        const tokenVal = src.token || src.accessToken || src.access_token || src.jwt || src.authToken || null;
 
-        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword };
+        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword, token: tokenVal ? String(tokenVal) : undefined };
     };
 
     // Helpers to unwrap backend response shapes like { success, data: <user> } or { user, token }
@@ -34,9 +35,16 @@ export function AuthProvider({ children }) {
 
     const getTokenFromResponse = (json) => {
         if (!json) return null;
-        if (json.token) return json.token;
-        if (json.data && json.data.token) return json.data.token;
-        return null;
+        const keys = ['token', 'accessToken', 'access_token', 'jwt', 'authToken'];
+        const findIn = (obj) => {
+            if (!obj || typeof obj !== 'object') return null;
+            for (const k of keys) if (obj[k]) return obj[k];
+            return null;
+        };
+
+        // check common top-level locations
+        let t = findIn(json) || findIn(json.data) || findIn(json.user) || (json.data && findIn(json.data.user));
+        return t || null;
     };
 
     const [user, setUser] = useState(() => {
@@ -46,21 +54,22 @@ export function AuthProvider({ children }) {
             return normalizeUser(raw);
         } catch { return null; }
     });
-    const [token, setTokenState] = useState(() => localStorage.getItem('token') || null);
+    const [token, setTokenState] = useState(() => {
+        try {
+            const t = localStorage.getItem('token');
+            if (t) return t;
+            const u = localStorage.getItem('user');
+            if (!u) return null;
+            const parsed = JSON.parse(u);
+            const tok = parsed && (parsed.token || parsed.accessToken || parsed.access_token || parsed.jwt || parsed.authToken || null);
+            return tok ? String(tok) : null;
+        } catch { return null; }
+    });
 
     // Sync state to localStorage
     useEffect(() => {
         if (user) {
-            const minimal = {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                timeZone: user.timeZone || user.timezone,
-                role: user.role,
-                pictureUrl: user.pictureUrl || user.avatar,
-                hasPassword: user.hasPassword
-            };
-            localStorage.setItem('user', JSON.stringify(minimal));
+            localStorage.setItem('user', JSON.stringify(user));
         } else localStorage.removeItem('user');
     }, [user]);
 
@@ -69,7 +78,13 @@ export function AuthProvider({ children }) {
         else localStorage.removeItem('token');
     }, [token]);
 
-    const login = (userData) => setUser(normalizeUser(userData));
+    const login = (userData) => {
+        const normalized = normalizeUser(userData);
+        setUser(normalized);
+        if (normalized && normalized.token) {
+            setTokenState(String(normalized.token));
+        }
+    };
 
     // Expose a normalized setter so pages can update the cached profile after mutations
     const setUserNormalized = (next) => {
@@ -148,6 +163,8 @@ export function AuthProvider({ children }) {
                 if (u) {
                     const parsed = JSON.parse(u);
                     setUser(normalizeUser(parsed));
+                    const parsedTok = parsed && (parsed.token || parsed.accessToken || parsed.access_token || parsed.jwt || parsed.authToken || null);
+                    if (parsedTok) setTokenState(String(parsedTok));
                 }
             } catch (err) {
                 console.error('Failed to restore user from localStorage', err);
@@ -207,12 +224,34 @@ export function AuthProvider({ children }) {
             const tokenResp = getTokenFromResponse(data);
             const userResp = getUserFromResponse(data);
 
+            // If backend returned a token in the JSON body, use it
             if (tokenResp) {
                 await setToken(tokenResp);
                 return { user: userResp, token: tokenResp };
             }
 
+            // Sometimes the token is returned in response headers (Authorization or x-auth-token)
+            try {
+                const authHeader = res.headers.get && (res.headers.get('authorization') || res.headers.get('x-auth-token'));
+                if (authHeader) {
+                    const m = String(authHeader).match(/Bearer\s+(.+)/i);
+                    const headerToken = m ? m[1] : authHeader;
+                    if (headerToken) {
+                        await setToken(headerToken);
+                        return { user: userResp, token: headerToken };
+                    }
+                }
+            } catch (_) { /* ignore header parsing errors */ }
+
+            // If server returned only a user object (no token), attempt to auto-login using provided credentials
             if (userResp) {
+                try {
+                    const loginResult = await loginWithCredentials(email, password);
+                    if (loginResult && loginResult.token) return loginResult;
+                } catch (e) {
+                    // Auto-login failed; fall back to returning the user object without token
+                }
+
                 setUser(normalizeUser(userResp));
                 return userResp;
             }
