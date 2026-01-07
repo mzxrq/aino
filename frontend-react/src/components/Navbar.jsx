@@ -178,7 +178,7 @@ export default function Navbar() {
             onClick={async () => {
               try {
                 const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
-                const res = await fetch(`${front}/node/admin/scan-all`, {
+                const res = await fetch(`${front}/node/python-integrate/scan-all`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
                   body: JSON.stringify({})
