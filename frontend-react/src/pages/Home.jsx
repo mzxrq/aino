@@ -29,7 +29,7 @@ export default function Home() {
   const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${PY_URL}/py`;
   async function fetchPyJson(path, init) {

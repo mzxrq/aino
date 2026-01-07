@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from '../utils/muiSwal';
 import '../css/Dashboard.css';
 
-const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || "http://localhost:5050";
 
 export default function Dashboard() {
   const { user, token } = useAuth();

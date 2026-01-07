@@ -153,7 +153,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
     timer = setTimeout(async () => {
       setModalLoading(true);
       try {
-        const front = import.meta.env.VITE_API_URL || '';
+        const front = import.meta.env.VITE_NODE_API_URL || '';
         const pyDirect = import.meta.env.VITE_LINE_PY_URL || '';
         let url = `${front}/py/chart/ticker?query=${encodeURIComponent(q)}`;
         let res;

@@ -8,7 +8,7 @@ export default function Search() {
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+  const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${API_URL}/py`;
   async function fetchPyJson(path, init) {

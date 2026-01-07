@@ -23,7 +23,7 @@ const { COLLECTION_NAME } = require('./nodemailer.model');
 router.post("/send", NodemailerController.sendEmail);
 
 // Read local nodemailer logs cache (if present)
-router.get('/logs', requireAuth, async (req, res) => {
+router.get('/logs', authorize(['admin']), async (req, res) => {
     try {
         // Prefer reading from DB when available
         try {
@@ -46,7 +46,7 @@ router.get('/logs', requireAuth, async (req, res) => {
 });
 
 // Delete a nodemailer log by id
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', authorize(['admin']), async (req, res) => {
     try {
         const id = req.params.id;
         try {
@@ -71,7 +71,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // Delete all nodemailer logs
-router.delete('/', requireAuth, async (req, res) => {
+router.delete('/', authorize(['admin']), async (req, res) => {
     try {
         try {
             const db = getDb();

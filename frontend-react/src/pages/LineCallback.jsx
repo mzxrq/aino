@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'; // 👈 Import useRef
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { LINE_API } from '../context/envConfig';
 
-// Use centralized `LINE_API` (falls back to configured LINE Python backend)
-const LINE_BACKEND = LINE_API || import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
+// Call Python directly
+const PY_BACKEND = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 
 const LineCallback = () => {
   const [searchParams] = useSearchParams();
@@ -33,7 +32,7 @@ const LineCallback = () => {
     const postCode = async () => {
       setStatus('Contacting backend...');
       try {
-        const res = await fetch(`${LINE_BACKEND}/py/auth/line/callback`, {
+        const res = await fetch(`${PY_BACKEND}/py/auth/line/callback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, state })

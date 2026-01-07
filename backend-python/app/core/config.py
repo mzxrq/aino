@@ -2,6 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from pymongo.server_api import ServerApi  # Required for Atlas Versioning
 
 load_dotenv()
 
@@ -12,29 +13,42 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-# Environment
+# --- Configuration ---
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI") or os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME") or os.getenv("DB_NAME") or "stock_anomaly_db"
 
-# Notification feature flags (set to "false" to disable)
 ENABLE_LINE_NOTIFICATIONS = os.getenv("ENABLE_LINE_NOTIFICATIONS", "true").lower() == "true"
-ENABLE_EMAIL_NOTIFICATIONS = os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true"
 
-if not CHANNEL_ACCESS_TOKEN:
-    logger.warning("CHANNEL_ACCESS_TOKEN not set — LINE messages will be skipped or fail.")
-elif not ENABLE_LINE_NOTIFICATIONS:
-    logger.info("LINE notifications are disabled via ENABLE_LINE_NOTIFICATIONS=false")
+# --- Smart Connection Logic ---
+is_atlas = MONGO_URI.startswith("mongodb+srv")
 
-if not os.getenv("MONGO_URI") and not os.getenv("MONGO_CONNECTION_STRING"):
-    logger.warning("MONGO_URI not set — defaulting to mongodb://localhost:27017")
-
-# MongoDB client
 try:
-    client = MongoClient(MONGO_URI)
+    if is_atlas:
+        # Atlas Configuration
+        client = MongoClient(
+            MONGO_URI,
+            server_api=ServerApi('1'),
+            serverSelectionTimeoutMS=8000
+        )
+        # Verify connectivity (The Atlas "Ping")
+        client.admin.command('ping')
+        logger.info(f"Connected to MongoDB Atlas: {MONGO_DB_NAME}")
+    else:
+        # Local Configuration
+        client = MongoClient(
+            MONGO_URI, 
+            serverSelectionTimeoutMS=5000
+        )
+        logger.info(f"Connected to Local MongoDB: {MONGO_DB_NAME}")
+
     db = client[MONGO_DB_NAME]
-    logger.info(f"Connected to MongoDB at {MONGO_URI}; using DB '{MONGO_DB_NAME}'")
+
 except Exception as e:
-    logger.exception(f"Failed to create MongoClient: {e}")
+    logger.exception(f"Failed to connect to MongoDB: {e}")
     client = None
     db = None
+
+# --- Feature Flag Warnings ---
+if not CHANNEL_ACCESS_TOKEN:
+    logger.warning("CHANNEL_ACCESS_TOKEN not set — LINE messages will be skipped.")

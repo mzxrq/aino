@@ -75,7 +75,7 @@ const Profile = () => {
     // --- UPDATED LOGIC USING loginMethod ---
     // We assume user.loginMethod is either 'line' or 'mail' (or 'email')
     const loginMethod = (user?.loginMethod || '').toLowerCase();
-    const isLineUser = loginMethod === 'line';
+    const isLineUser = user?.hasLineid;
     
     // Password Logic:
     // 1. Password Empty? (null or empty string)
@@ -244,7 +244,7 @@ const Profile = () => {
         setLoading((l) => ({ ...l, saving: true }));
         try {
             const res = await fetch(endpoint, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: buildHeaders(token),
                 body: JSON.stringify(payload),
             });

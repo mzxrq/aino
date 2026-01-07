@@ -204,7 +204,8 @@ const getProfile = async (userId) => {
           lastLogin: user.lastLogin,
           timeZone: user.timeZone,
           role: user.role,
-          setPassword: user.password ? true : false
+          setPassword: user.password ? true : false,
+          hasLineid : user.lineid ? true : false
         }};
     } else {
         // 1. Read users from file

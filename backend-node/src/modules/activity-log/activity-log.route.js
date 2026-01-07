@@ -11,7 +11,7 @@ const router = express.Router();
 // console.log('Handler check:', ActivityLogController);
 // console.log('Middleware check:', authMiddleware);
 
-router.post("/", requireAuth, createLog);
+router.post("/", authorize(['admin']), createLog);
 router.get("/", authorize(['admin']), getAllLogs);
 router.delete("/all", authorize(['admin']), deleteAllLogs);
 router.delete("/:id", authorize(['admin']), deleteLog);

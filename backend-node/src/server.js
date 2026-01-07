@@ -73,6 +73,7 @@ app.use('/node/mail', mailRoutes);
 // 4. Anomalies route (CRUD operations for anomalies)
 const anomaliesRoutes = require('./modules/anomaly/anomaly.route');
 app.use('/node/anomalies', anomaliesRoutes);
+
 // Cache routes (chart data CRUD operations)
 const cacheRoutes = require('./modules/cache/cache.route');
 app.use('/node/cache', cacheRoutes);
@@ -112,6 +113,15 @@ app.use('/node/notification_logs', notificationLogsRoutes);
 // Admin utility routes (delete-all etc.)
 const adminRoutes = require('./modules/admin/admin.route');
 app.use('/node/admin', adminRoutes);
+
+// news routes (proxy to NewsAPI)
+const newsRoutes = require('./modules/news/news.route');
+app.use('/node/news', newsRoutes);
+
+// price
+
+const priceRoutes = require('./modules/price/priceRoutes');
+app.use('/node/price', priceRoutes);
 
 
 

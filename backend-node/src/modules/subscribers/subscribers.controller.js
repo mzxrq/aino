@@ -15,7 +15,6 @@
 
 const subscriberService = require("./subscribers.service");
 const { getDb } = require('../../config/db');
-const { logActivity } = require('../logActivity/logActivity.service');
 
 /**
  * Add a new subscriber or update tickers for an existing subscriber.
@@ -26,13 +25,6 @@ const addOrUpdate = async (req, res) => {
     if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
     const result = await subscriberService.addOrUpdateSubscriber(id, tickers);
-
-                await logActivity({
-      type: 'Create/Update',
-      collection: 'subscribers',
-      target: req.body.ticker || req.params.id,
-      meta: { fields: Object.keys(req.body) },
-    });
 
     res.status(200).json(result);
   } catch (error) {
@@ -50,13 +42,6 @@ const removeTickers = async (req, res) => {
     if (!id || !tickers) return res.status(400).json({ message: "id and tickers are required" });
 
     const result = await subscriberService.deleteTickers(id, tickers);
-
-            await logActivity({
-      type: 'Delete',
-      collection: 'subscribers',
-      target: req.body.ticker || req.params.id,
-      meta: { fields: Object.keys(req.body) },
-    });
 
     res.status(200).json(result);
   } catch (error) {
@@ -87,13 +72,6 @@ const deleteById = async (req, res) => {
     if (!id) return res.status(400).json({ message: 'Missing id' });
 
     const result = await subscriberService.deleteSubscriberById(id);
-
-                await logActivity({
-      type: 'Delete',
-      collection: 'subscribers',
-      target: req.body.ticker || req.params.id,
-      meta: { fields: Object.keys(req.body) },
-    });
 
     res.status(200).json(result);
   } catch (error) {

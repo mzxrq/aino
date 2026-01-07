@@ -27,7 +27,7 @@ export default function FollowableChartCard({
         return;
       }
       try {
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
         const res = await fetch(`${front}/node/subscribers/status`, {
           method: 'POST',
           headers: {
@@ -62,7 +62,7 @@ export default function FollowableChartCard({
       return;
     }
 
-    const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
     setIsLoadingFollow(true);
 
     try {

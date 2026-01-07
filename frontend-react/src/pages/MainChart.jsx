@@ -15,7 +15,7 @@ import { useAuth } from '../context/useAuth';
 import Swal from '../utils/muiSwal';
 import { DateTime } from 'luxon';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const PY_API = `${API_URL}/py`;
 
@@ -358,7 +358,7 @@ export default function LargeChart() {
         return;
       }
       try {
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const front = API_URL;
         const res = await fetch(`${front}/node/subscribers/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -384,7 +384,7 @@ export default function LargeChart() {
       });
       return;
     }
-    const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    const front = API_URL;
     setIsLoadingFollow(true);
     try {
       if (followed) {

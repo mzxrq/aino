@@ -35,6 +35,10 @@ origins = [
     "http://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5050",
+    "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5050.app.github.dev",
+    "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5000.app.github.dev",
+    "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5173.app.github.dev",
+    "*"  # Allow all origins during development
 ]
 
 # Explicit CORS listing so responses include Access-Control-Allow-Origin reliably.

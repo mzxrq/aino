@@ -10,20 +10,20 @@ const subscribersController = require('./subscribers.controller');
 const { requireAuth, authorize } = require('../../middleware/authMiddleware');
 
 // Create or update subscriber (add tickers)
-router.post('/', subscribersController.addOrUpdate);
+router.post('/',requireAuth, subscribersController.addOrUpdate);
 
 // Remove tickers from subscriber
-router.post('/tickers/remove', subscribersController.removeTickers);
+router.post('/tickers/remove',requireAuth, subscribersController.removeTickers);
 
 // Check subscription status
-router.post('/status', subscribersController.status);
+router.post('/status', requireAuth, subscribersController.status);
 
 // Get current user's subscriptions
 router.get('/me',requireAuth, subscribersController.getMySubscriptions);
 
 // CRUD
-router.get('/', requireAuth, subscribersController.getAll);
-router.get('/:id', requireAuth, subscribersController.getOne);
+router.get('/', authorize(['admin']), subscribersController.getAll);
+router.get('/:id', authorize(['admin']), subscribersController.getOne);
 router.delete('/:id', authorize(['admin']), subscribersController.deleteById);
 
 module.exports = router;

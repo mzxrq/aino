@@ -4,14 +4,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 import httpx
 from jose import jwt, JWTError
-from pymongo import MongoClient
 import os
-import dotenv
 import logging
 from bson import ObjectId
+import json
+from pathlib import Path
+from core.config import db as mongo_db, logger as config_logger
 
 logger = logging.getLogger(__name__)
-dotenv.load_dotenv()
 
 # --- Config ---
 """Use same JWT secret names as Node so tokens are verifiable by the Node gateway.
@@ -20,17 +20,74 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY", "replace-me-
 ALGORITHM = os.getenv("JWT_ALGORITHM") or os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
-MONGO_URI = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
-DB_NAME = os.getenv("DB_NAME", "stock_anomaly_db")
+# Use centralized MongoDB from core.config
+db = mongo_db
 
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+# JSON fallback file for users when MongoDB unavailable
+USERS_JSON_FILE = Path(__file__).parent.parent.parent / "cache" / "users.json"
 
 LINE_CLIENT_ID = os.getenv("LINE_CLIENT_ID")
 LINE_CLIENT_SECRET = os.getenv("LINE_CLIENT_SECRET")
 LINE_REDIRECT_URI = os.getenv("LINE_REDIRECT_URI")
 
 router = APIRouter()
+
+# --- Helper: User Storage (MongoDB or JSON fallback) ---
+def read_users_json():
+    """Read users from JSON file fallback."""
+    try:
+        if USERS_JSON_FILE.exists():
+            with open(USERS_JSON_FILE) as f:
+                return json.load(f) or []
+    except Exception as e:
+        logger.warning(f"Failed to read users.json: {e}")
+    return []
+
+def write_users_json(users_list):
+    """Write users to JSON file fallback."""
+    try:
+        USERS_JSON_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(USERS_JSON_FILE, 'w') as f:
+            json.dump(users_list, f, indent=2, default=str)
+    except Exception as e:
+        logger.warning(f"Failed to write users.json: {e}")
+
+def find_user_by_lineid(lineid):
+    """Find user by LINE ID (MongoDB or JSON)."""
+    if db is not None:
+        return db.users.find_one({"lineid": lineid})
+    else:
+        users = read_users_json()
+        return next((u for u in users if u.get("lineid") == lineid), None)
+
+def upsert_user_line(lineid, profile_json):
+    """Create or update user with LINE data."""
+    user_document = {
+        "lineid": lineid,
+        "email": "",
+        "name": profile_json.get("displayName"),
+        "username": "",
+        "createdAt": datetime.utcnow(),
+        "role": "user",
+        "pictureUrl": profile_json.get("pictureUrl"),
+        "lastLogin": datetime.utcnow(),
+        "loginMethod": "line",
+        "sentOption": "line",
+        "timeZone": "Asia/Tokyo"
+    }
+    
+    if db is not None:
+        result = db.users.insert_one(user_document)
+        user_document["_id"] = str(result.inserted_id)
+        return user_document
+    else:
+        # JSON fallback: generate simple string ID
+        import uuid
+        user_document["_id"] = str(uuid.uuid4())
+        users = read_users_json()
+        users.append(user_document)
+        write_users_json(users)
+        return user_document
 
 # --- Pydantic Models ---
 class LineLoginRequest(BaseModel):
@@ -71,18 +128,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
     # REVISED: Look up user by MongoDB ObjectId
     try:
-        oid = ObjectId(user_id_str)
-    except Exception:
-        # The 'sub' isn't a valid ObjectId format, which indicates invalid token or old format
-        raise credentials_exception 
-
-    user = db.users.find_one({"_id": oid})
-
-    if not user:
-        raise credentials_exception
-        
-    user["_id"] = str(user["_id"])
-    return user
+        if db is not None:
+            oid = ObjectId(user_id_str)
+            user = db.users.find_one({"_id": oid})
+            if user:
+                user["_id"] = str(user["_id"])
+                return user
+        else:
+            # JSON fallback: look up by string ID
+            users = read_users_json()
+            for u in users:
+                if str(u.get("_id")) == user_id_str:
+                    return u
+    except Exception as e:
+        logger.debug(f"User lookup failed: {e}")
+    
+    raise credentials_exception
 
 # --- LINE callback ---
 @router.post("/auth/line/callback")
@@ -115,49 +176,54 @@ async def login_or_register_line(request: LineLoginRequest):
             if not lineid:
                 raise HTTPException(status_code=400, detail="Failed to fetch LINE user profile")
 
-            # 3. Check state for binding/integration (Logic Unchanged)
+            # 3. Check state for binding/integration
             user = None
             if request.state and request.state.startswith("integrate-"):
                 raw = request.state.replace("integrate-", "")
                 user_id_to_bind = raw.split("-")[0]
                 try:
-                    oid = ObjectId(user_id_to_bind)
-                except Exception:
-                    oid = user_id_to_bind # fallback for non-ObjectId IDs if needed
-                user = db.users.find_one({"_id": oid})
-                if user:
-                    db.users.update_one({"_id": oid}, {"$set": {
-                        "lineid": lineid,
-                        "pictureUrl": profile_json.get("pictureUrl"),
-                        "lastLogin": datetime.utcnow(),
-                        "loginMethod": "line",
-                    }})
+                    if db is not None:
+                        oid = ObjectId(user_id_to_bind)
+                        user = db.users.find_one({"_id": oid})
+                        if user:
+                            db.users.update_one({"_id": oid}, {"$set": {
+                                "lineid": lineid,
+                                "pictureUrl": profile_json.get("pictureUrl"),
+                                "lastLogin": datetime.utcnow(),
+                                "loginMethod": "line",
+                            }})
+                    else:
+                        users = read_users_json()
+                        for u in users:
+                            if str(u.get("_id")) == user_id_to_bind:
+                                u["lineid"] = lineid
+                                u["pictureUrl"] = profile_json.get("pictureUrl")
+                                u["lastLogin"] = datetime.utcnow()
+                                u["loginMethod"] = "line"
+                                user = u
+                        write_users_json(users)
+                except Exception as e:
+                    logger.debug(f"Binding error: {e}")
 
-            # 4. Login/register if not binding (Logic Unchanged)
+            # 4. Login/register if not binding
             if not user:
-                user = db.users.find_one({"lineid": lineid})
+                user = find_user_by_lineid(lineid)
                 if user:
-                    db.users.update_one({"lineid": lineid}, {"$set": {"lastLogin": datetime.utcnow()}})
+                    # Update lastLogin
+                    if db is not None:
+                        db.users.update_one({"lineid": lineid}, {"$set": {"lastLogin": datetime.utcnow()}})
+                    else:
+                        users = read_users_json()
+                        for u in users:
+                            if u.get("lineid") == lineid:
+                                u["lastLogin"] = datetime.utcnow()
+                        write_users_json(users)
                 else:
-                    user_document = {
-                        "lineid": lineid,
-                        "email" : "",
-                        "name": profile_json.get("displayName"),
-                        "username" : "",
-                        "createdAt": datetime.utcnow(),
-                        "role": "user",
-                        "pictureUrl": profile_json.get("pictureUrl"),
-                        "lastLogin": datetime.utcnow(),
-                        "loginMethod": "line",
-                        "sentOption": "line",
-                        "timeZone": "Asia/Tokyo"
-                    }
-                    r = db.users.insert_one(user_document)
-                    user = { **user_document, "_id": r.inserted_id }
+                    user = upsert_user_line(lineid, profile_json)
 
             user["_id"] = str(user["_id"])
 
-            # 5. REVISED: Generate JWT using MongoDB '_id' (string) as the subject
+            # 5. Generate JWT using '_id' (string) as the subject
             user_mongo_id = user["_id"] 
             token_jwt = create_access_token({"sub": user_mongo_id}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
 
