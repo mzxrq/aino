@@ -21,7 +21,16 @@ from api.chart import router as chart_router
 from api.news import router as news_router
 from api.company_info import router as company_info_router
 from api.cron import router as cron_router, ensure_scheduler_started
-from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all, scheduler_loop
+from scheduler import (
+    MARKETS,
+    combined_market_runner,
+    scheduler_stop_event,
+    job_for_market,
+    run_full_scan_all,
+    scheduler_loop,
+    set_scheduler_enabled,
+    is_scheduler_enabled,
+)
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
@@ -57,8 +66,7 @@ app.include_router(news_router, prefix="/py")
 app.include_router(company_info_router, prefix="/py")
 app.include_router(cron_router, prefix="/py")
 
-# Toggle state - ENABLED BY DEFAULT
-scheduler_enabled = False
+# Scheduler toggle is handled in scheduler.py via set_scheduler_enabled()/is_scheduler_enabled()
 
 def check_models():
     """Ensure per-market models exist. If a model file is missing, trigger training.
@@ -106,21 +114,7 @@ def check_models():
         except Exception as e:
             logger.exception(f"[check_models] error checking/training model for {market}: {e}")
 
-def _scheduler_loop(stop_event):
-    logger.info("[scheduler] loop started")
-    try:
-        while not stop_event.is_set():
-            try:
-                if scheduler_enabled:
-
-                    combined_market_runner()
-                else:
-                    logger.info("[scheduler] disabled - skipping run")
-            except Exception as e:
-                logger.exception(f"[scheduler] run error: {e}")
-            time.sleep(60)
-    finally:
-        logger.info("[scheduler] loop stopped")
+# Legacy _scheduler_loop removed in favor of scheduler.scheduler_loop
 
 @app.on_event("startup")
 async def _on_startup():
@@ -155,9 +149,8 @@ class SchedulerToggle(BaseModel):
 
 @app.post("/py/scheduler/toggle")
 def toggle_scheduler(toggle: SchedulerToggle):
-    global scheduler_enabled
-    scheduler_enabled = toggle.state
-    return {"scheduler_enabled": scheduler_enabled}
+    set_scheduler_enabled(toggle.state)
+    return {"scheduler_enabled": is_scheduler_enabled()}
 
 
 # Healthcheck
@@ -582,7 +575,7 @@ async def get_monitoring_status():
         
         return {
             "monitored_stocks": counts,
-            "scheduler_enabled": scheduler_enabled,
+            "scheduler_enabled": is_scheduler_enabled(),
             "anomalies_last_24h": anomaly_stats,
             "recent_detection_runs": recent_runs,
             "all_stocks": get_all_stocks()

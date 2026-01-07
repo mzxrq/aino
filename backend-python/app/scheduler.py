@@ -14,6 +14,17 @@ load_dotenv()
 
 scheduler_stop_event = threading.Event()
 
+# Global enable/disable flag for the scheduler loop.
+# Default to False so it only runs when explicitly enabled.
+scheduler_enabled = False
+
+def set_scheduler_enabled(state: bool):
+    global scheduler_enabled
+    scheduler_enabled = bool(state)
+
+def is_scheduler_enabled() -> bool:
+    return bool(scheduler_enabled)
+
 DEFAULT_MARKET_TZ = {
     "US": os.getenv("MARKET_TZ_US", "America/New_York"),
     "JP": os.getenv("MARKET_TZ_JP", "Asia/Tokyo"),
@@ -247,14 +258,17 @@ def scheduler_loop():
         tick = 0
         while not scheduler_stop_event.is_set():
             try:
-                # Run per-minute user summary checks
-                _run_user_summaries_minute()
+                if not scheduler_enabled:
+                    logger.debug("[scheduler] disabled - sleeping")
+                else:
+                    # Run per-minute user summary checks
+                    _run_user_summaries_minute()
 
-                # Run market runner every 5 minutes
-                if tick % 5 == 0:
-                    combined_market_runner()
+                    # Run market runner every 5 minutes
+                    if tick % 5 == 0:
+                        combined_market_runner()
 
-                tick += 1
+                    tick += 1
             except Exception as e:
                 logger.exception(f"[scheduler] run error: {e}")
             time.sleep(60)
