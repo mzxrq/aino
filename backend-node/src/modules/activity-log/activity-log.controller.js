@@ -38,11 +38,40 @@ const getAllLogs = async (req, res) => {
     // 1. Get all logs from service
     const logs = await LogsService.getAllLogs();
 
-    // 2. Respond with logs
-    return res.status(200).json({
-      success: true,
-      data: logs,
-    });
+    // Group logs by date (YYYY-MM-DD) and shape response for AdminDashboard
+    const groupsMap = {};
+    for (const lg of (logs || [])) {
+      try {
+        const ts = lg && lg.timestamp ? new Date(lg.timestamp) : new Date();
+        const y = ts.getFullYear();
+        const m = String(ts.getMonth() + 1).padStart(2, "0");
+        const d = String(ts.getDate()).padStart(2, "0");
+        const key = `${y}-${m}-${d}`;
+        if (!groupsMap[key]) groupsMap[key] = { date: key, displayDate: key, items: [] };
+
+        // Build a concise text summary for the UI
+        const actor = (lg.actor && (lg.actor.name || lg.actor.id)) || 'Unknown';
+        const action = lg.actionType || lg.action || 'Action';
+        const coll = lg.collectionName || (lg.collection || 'unknown');
+        const target = lg.targetIdentifier ? ` ${String(lg.targetIdentifier)}` : '';
+        const fields = lg.meta && Array.isArray(lg.meta.fields) ? ` [${lg.meta.fields.join(', ')}]` : '';
+        const text = `${actor} ${action} ${coll}${target}${fields}`;
+
+        groupsMap[key].items.push({
+          id: lg._id || lg.id || undefined,
+          timestamp: lg.timestamp || lg.ts || lg.time || new Date(),
+          text,
+          raw: lg,
+        });
+      } catch (e) {
+        // ignore grouping errors for individual entries
+      }
+    }
+
+    // Convert map to sorted array (most recent date first)
+    const groups = Object.values(groupsMap).sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    return res.status(200).json({ success: true, groups });
   } catch (err) {
     console.error("Get All Logs Error:", err);
     return res.status(500).json({
