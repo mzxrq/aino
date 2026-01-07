@@ -10,8 +10,8 @@ import "../css/MarketList.css";
 
 echarts.use([LineChart, GridComponent, SVGRenderer]);
 
-const API_URL = "http://localhost:5050/node";
-const PY_API_URL = "http://localhost:5000/py";
+const API_URL =  import.meta.env.VITE_NODE_API_URL || "http://localhost:5050/node";
+const PY_API_URL = import.meta.env.VITE_LINE_PY_URL || "http://localhost:5000";
 let bulkSparklineUnsupported = false; // remember if bulk endpoint 404s
 
 export default function MarketListScreen() {

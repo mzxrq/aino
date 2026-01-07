@@ -25,7 +25,7 @@ export default function Login() {
 
   const handleLineLogin = () => {
     const clientID = "2008465838";
-    const redirectURI = "http://localhost:5173/auth/callback";
+    const redirectURI = "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5173.app.github.dev/auth/callback";
     const state = Math.random().toString(36).slice(2);
     const lineUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientID}&redirect_uri=${redirectURI}&state=${state}&scope=profile%20openid`;
     window.location.href = lineUrl;

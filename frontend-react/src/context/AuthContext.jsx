@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
         const lastLogin = fmtDate(lastRaw);
         const tokenVal = src.token || src.accessToken || src.access_token || src.jwt || src.authToken || null;
 
-        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword, token: tokenVal ? String(tokenVal) : undefined };
+        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword, token: tokenVal ? String(tokenVal) : undefined , hasLineid : src.hasLineid ? true : false};
     };
 
     // Helpers to unwrap backend response shapes like { success, data: <user> } or { user, token }
@@ -119,10 +119,10 @@ export function AuthProvider({ children }) {
                 headers: { Authorization: `Bearer ${tkn}` }
             });
 
-            // 2. If JS backend fails, try LINE backend
+            // 2. If JS backend fails, try Python backend through gateway
             if (!res.ok) {
-                console.warn('JS profile fetch failed, trying LINE backend...');
-                res = await fetch(`${LINE_API}/profile`, {
+                console.warn('JS profile fetch failed, trying Python backend...');
+                res = await fetch(`${API_URL}/py/profile`, {
                     headers: { Authorization: `Bearer ${tkn}` }
                 });
             }

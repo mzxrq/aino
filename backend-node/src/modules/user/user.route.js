@@ -40,9 +40,9 @@ router.post("/profile/avatar",requireAuth,upload.single('file'), UsersController
 router.delete("/profile/avatar", requireAuth,upload.single('file'), UsersController.deleteAvatar);
 
 // CRUD Routes for Users
-router.get("/", requireAuth, UsersController.getAllUsers);
+router.get("/", authorize(['admin']), UsersController.getAllUsers);
 router.post("/", authorize(['admin']), UsersController.createUser);
-router.get("/:id", requireAuth, UsersController.getUserById);
+router.get("/:id", authorize(['admin']), UsersController.getUserById);
 router.put("/:id", authorize(['admin']), UsersController.updateUser);
 router.delete("/:id", authorize(['admin']), UsersController.deleteUserForAdmin);
 

@@ -12,6 +12,9 @@ module.exports = async function activityLogger(req, res, next) {
     // Avoid logging activity-log management endpoints to prevent recursion
     if (req.path && req.path.startsWith('/node/logs')) return next();
 
+    // Skip logging for subscribers collection (not audited)
+    if (req.path && req.path.startsWith('/node/subscribers')) return next();
+
     // Parse token if present to extract actor info (do not enforce)
     // Build actor info from JWT when available, but allow fallbacks to already-attached
     // request properties (e.g. set by other auth middleware) so actor.id isn't lost.
@@ -42,6 +45,21 @@ module.exports = async function activityLogger(req, res, next) {
       if (!actor.role && req.userRole) actor.role = String(req.userRole);
     } catch (_e) { /* ignore */ }
 
+    // For registration (anonymous create on users), capture submitted username/email for logs
+    try {
+      const isRegistrationAttempt = String(req.method || '').toUpperCase() === 'POST'
+        && String(req.baseUrl || req.path || '').includes('/users');
+      if (isRegistrationAttempt && !actor.name && req.body) {
+        const cand = req.body.username || req.body.email || req.body.name || null;
+        if (cand) actor.name = String(cand);
+      }
+    } catch (_e) { /* ignore */ }
+
+    // Prevent attaching multiple finish listeners to the same response
+    if (res.locals && res.locals._activityLoggerAttached) return next();
+    if (!res.locals) res.locals = {};
+    res.locals._activityLoggerAttached = true;
+
     // Wait for response finish to record only successful operations
     res.on('finish', async () => {
       try {
@@ -49,9 +67,17 @@ module.exports = async function activityLogger(req, res, next) {
         const status = res.statusCode;
         if (status < 200 || status >= 400) return; // only log successful responses
 
-        // Map HTTP method to actionType
+        // Prevent double logging for same request
+        if (res.locals && res.locals._activityLogged) return;
+
+        // Map HTTP method to actionType with special-case overrides
         const ACTION_MAP = { POST: 'Create', PUT: 'Update', PATCH: 'Update', DELETE: 'Delete' };
-        const actionType = ACTION_MAP[method] || method;
+        let actionType = ACTION_MAP[method] || method;
+        try {
+          const fullPath = `${req.baseUrl || ''}${req.path || ''}`;
+          if (method === 'POST' && fullPath.includes('/users/login')) actionType = 'Login';
+          if (method === 'POST' && fullPath.includes('/users/register')) actionType = 'Register';
+        } catch (_e) { /* ignore */ }
 
         // Attempt to infer collection name from multiple sources:
         // 1) explicit query param `collection`
@@ -102,13 +128,14 @@ module.exports = async function activityLogger(req, res, next) {
           }
         } catch (_e) { /* ignore */ }
 
-        // Allow anonymous logging only for user registration (create on `users`), otherwise require admin
+        // Allow anonymous logging only for user registration (create on `users`).
+        // All other operations require admin role.
         try {
           const actorIdPresent = actor && actor.id;
           const isAdmin = actor && actor.role && String(actor.role).toLowerCase() === 'admin';
           const isRegistration = String(collectionName || '').toLowerCase() === 'users' && String(actionType || '').toLowerCase() === 'create';
           if (!actorIdPresent && !isRegistration) return; // drop anonymous unless registration
-          if (!isAdmin && !isRegistration) return; // only persist admin actions unless registration
+          if (!isAdmin && !isRegistration) return; // only log admin actions or registration
         } catch (_e) { /* ignore */ }
 
         // Build log payload
@@ -122,6 +149,7 @@ module.exports = async function activityLogger(req, res, next) {
         // Create log entry via LogsService
         try {
           await LogsService.createLog({ body: payload, userId: actor.id, userName: actor.name, role: actor.role });
+          if (res.locals) res.locals._activityLogged = true;
         } catch (err) {
           console.warn('Activity logger failed to create log:', err && err.message ? err.message : err);
         }

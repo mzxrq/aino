@@ -12,7 +12,7 @@ import { getDisplayFromRaw } from '../utils/tickerUtils';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const PY_API = `${PY_DIRECT}/py`;
 
@@ -354,7 +354,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
         return;
       }
       try {
-        const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
         const res = await fetch(`${front}/node/subscribers/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -380,7 +380,7 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
       });
       return;
     }
-    const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+    const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
     setIsLoadingFollow(true);
     try {
       if (followed) {
@@ -894,7 +894,7 @@ export default function Chart() {
         if (savePrefsTimer.current) clearTimeout(savePrefsTimer.current);
         savePrefsTimer.current = setTimeout(async () => {
           try {
-            const front = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+            const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
             await fetch(`${front}/node/users/preferences`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify(p)
