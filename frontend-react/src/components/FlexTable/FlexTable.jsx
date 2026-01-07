@@ -190,6 +190,15 @@ export default function FlexTable({
       if (typeof transformRow === 'function' && Array.isArray(list)) {
         list = list.map((r) => transformRow(r) || r);
       }
+      // If server did not provide a total (no server-side pagination), apply client-side sorting when requested
+      const serverProvidedTotal = data.total || data.totalCount || data.count || data.totalItems || null;
+      if (Array.isArray(list) && !serverProvidedTotal && sortKey) {
+        try {
+          list.sort(_cmp);
+        } catch (e) {
+          // ignore sorting errors and leave original order
+        }
+      }
       list = Array.isArray(list) ? list : [];
 
       // If searching, apply client-side filtering across ticker/companyName/note

@@ -35,9 +35,6 @@ router.patch("/:id/mark-sent",authorize(['admin']), anomaliesController.markAsSe
 
 // Per-ticker summary
 router.get("/ticker/:symbol/summary", requireAuth, anomaliesController.getTickerSummary);
- 
-// Delete all anomalies (admin)
-router.delete("/", authorize(['admin']), anomaliesController.deleteAllAnomalies);
 
 
 module.exports = router;

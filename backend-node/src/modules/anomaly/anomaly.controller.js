@@ -27,7 +27,10 @@ const bulkCreateAnomalies = async (req, res) => {
 
 const getAllAnomalies = async (req, res) => {
 	try {
-		const anomalies = await AnomalyService.getAllAnomalies();
+		// Forward query params (limit, skip, sortBy, sortOrder, query, and other filters) to service
+		const opts = { ...req.query };
+		const anomalies = await AnomalyService.getAllAnomalies(opts);
+		// Service returns array when using cache fallback, or array of docs when DB used
 		return res.status(200).json({ success: true, data: anomalies });
 	} catch (err) {
 		console.error("Get All Error:", err);

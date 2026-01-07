@@ -27,8 +27,16 @@ const bulkCreate = async (req, res) => {
 };
 const getAll = async (req, res) => {
     try {
-        const marketlists = await MarketListModel.getAll();
-        return res.status(200).json({ success: true, data: marketlists });
+        // Support server-side pagination/sorting/search from query params
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+        const skip = req.query.skip ? parseInt(req.query.skip, 10) : null;
+        const sortBy = req.query.sortBy || req.query.sortKey || null;
+        const sortOrder = (req.query.sortOrder || req.query.sortDir || 'asc').toLowerCase();
+        const query = req.query.query || null;
+
+        const opts = { limit, skip, sortBy, sortOrder, query };
+        const result = await MarketListModel.getAll(opts);
+        return res.status(200).json({ success: true, data: result.items, total: result.total });
     } catch (err) {
         console.error('Get All Error:', err);
         return res.status(500).json({ success: false, error: 'Failed to retrieve market lists.' });

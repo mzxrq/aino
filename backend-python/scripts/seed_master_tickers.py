@@ -7,9 +7,17 @@ import json
 import os
 import sys
 from pathlib import Path
+from datetime import datetime
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from app.core.config import db, logger
+# Ensure the repository's `backend-python` package root is on sys.path so `app` imports work
+from pathlib import Path as _P
+base_dir = _P(__file__).resolve().parents[1]
+sys.path.insert(0, str(base_dir))
+try:
+    from app.core.config import db, logger
+except Exception as e:
+    print(f"Failed to import app.core.config from {base_dir}: {e}")
+    raise
 
 
 def seed_from_master():
@@ -60,7 +68,10 @@ def seed_from_master():
                 'companyName': company,
                 'country': item.get('country', ''),
                 'primaryExchange': exchange,
-                'sectorGroup': item.get('sectorGroup', '')
+                'sectorGroup': item.get('sectorGroup', ''),
+                'status': "active",
+                'createdAt': datetime.utcnow(),
+                'updatedAt': datetime.utcnow(),
             }
             documents.append(doc)
 

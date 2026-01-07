@@ -8,11 +8,18 @@ const COLLECTION_NAME = "marketlists";
 function MarketListSchema(data = {}) {
     return {
         ticker: (data.ticker || data.symbol || "").toString().toUpperCase(),
+        displayTicker: data.displayTicker ? String(data.displayTicker) : (((data.ticker || data.symbol || "").toString().split('.')[0]) || ''),
         market: (data.market || "US").toString().toUpperCase(),
-        name: data.name ? data.name.toString() : "",
-        sector: data.sector ? data.sector.toString() : "",
-        industry: data.industry ? data.industry.toString() : "",
-        addedAt: data.addedAt ? new Date(data.addedAt) : new Date(),
+        // support multiple incoming company name fields (companyName, name, company)
+        companyName: data.companyName ? data.companyName.toString() : (data.name ? data.name.toString() : (data.company ? data.company.toString() : "")),
+        name: data.name ? data.name.toString() : (data.companyName ? data.companyName.toString() : (data.company ? data.company.toString() : "")),
+        country: data.country ? data.country.toString() : (data.countryCode ? data.countryCode.toString() : ''),
+        primaryExchange: data.primaryExchange ? data.primaryExchange.toString() : (data.exchange ? data.exchange.toString() : ''),
+        sectorGroup: data.sectorGroup ? data.sectorGroup.toString() : (data.sector ? data.sector.toString() : ''),
+        status: data.status ? data.status.toString() : (data.state || 'inactive'),
+        sector: data.sector ? data.sector.toString() : '',
+        industry: data.industry ? data.industry.toString() : '',
+        createdAt: data.createdAt ? new Date(data.createdAt) : (data.addedAt ? new Date(data.addedAt) : new Date()),
         updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
     };
 }
@@ -42,11 +49,48 @@ async function bulkCreate(items = []) {
     return { insertedCount: r.insertedCount };
 }
 
-async function getAll() {
+async function getAll(options = {}) {
     const db = (() => { try { return getDb(); } catch { return null; } })();
-    if (!db) return [];
-    const docs = await db.collection(COLLECTION_NAME).find({}).toArray();
-    return docs.map(d => ({ id: d._id, ...d }));
+    if (!db) return { items: [], total: 0 };
+
+    const { limit, skip, sortBy, sortOrder, query } = options;
+    const filter = {};
+    if (query && typeof query === 'string' && query.trim().length > 0) {
+        const q = query.trim();
+        // simple text search on ticker and companyName (case-insensitive)
+        filter.$or = [
+            { ticker: { $regex: q, $options: 'i' } },
+            { companyName: { $regex: q, $options: 'i' } },
+        ];
+    }
+
+    const cursor = db.collection(COLLECTION_NAME).find(filter);
+
+    // apply sort if provided
+    if (sortBy) {
+        const order = (String(sortOrder || 'asc').toLowerCase() === 'desc') ? -1 : 1;
+        // support sortBy on nested fields; use provided field name directly
+        const sortObj = {};
+        sortObj[sortBy] = order;
+        cursor.sort(sortObj);
+    }
+
+    // compute total before applying limit/skip
+    const total = await cursor.count();
+
+    if (typeof skip === 'number' && skip > 0) cursor.skip(skip);
+    if (typeof limit === 'number' && limit > 0) cursor.limit(limit);
+
+    const docs = await cursor.toArray();
+    const items = docs.map(d => ({
+        _id: d._id,
+        id: d._id,
+        companyName: d.companyName || d.name || d.company || d.company_name || '',
+        createdAt: d.createdAt || d.addedAt || null,
+        updatedAt: d.updatedAt || null,
+        ...d
+    }));
+    return { items, total };
 }
 
 async function getByTicker(ticker) {

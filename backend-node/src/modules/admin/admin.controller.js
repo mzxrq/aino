@@ -14,6 +14,8 @@ const CACHE_FILES = {
 CACHE_FILES.cache = join(__dirname, '..', '..', 'cache', 'caches.json');
 // Backwards-compat alias some parts of the frontend may call
 CACHE_FILES.cache_items = CACHE_FILES.cache;
+// Add marketlists cache fallback for environments without DB
+CACHE_FILES.marketlists = join(__dirname, '..', '..', 'cache', 'marketlists.json');
 const deleteAll = async (req, res) => {
   try {
     const collection = req.query.collection || req.body.collection;

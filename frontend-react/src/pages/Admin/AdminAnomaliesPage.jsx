@@ -193,7 +193,7 @@ const AnomaliesManagementPage = () => {
     if (!result.isConfirmed) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/node/anomalies`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=anomalies`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete all failed');
       setRefreshSignal((s) => s + 1);
