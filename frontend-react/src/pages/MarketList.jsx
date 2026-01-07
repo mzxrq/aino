@@ -10,8 +10,8 @@ import "../css/MarketList.css";
 
 echarts.use([LineChart, GridComponent, SVGRenderer]);
 
-const API_URL =  import.meta.env.VITE_NODE_API_URL || "http://localhost:5050/node";
-const PY_API_URL = import.meta.env.VITE_LINE_PY_URL || "http://localhost:5000";
+const API_URL =  "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5050.app.github.dev";
+const PY_API_URL = "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5000.app.github.dev";
 let bulkSparklineUnsupported = false; // remember if bulk endpoint 404s
 
 export default function MarketListScreen() {
@@ -166,7 +166,7 @@ const executeWithConcurrency = async (tasks, maxConcurrent = 5) => {
 const fetchChartDataForSparkline = async (ticker, country) => {
   try {
     const yfTicker = resolveYfTicker(ticker, country);
-    const res = await fetch(`${API_URL}/cache?ticker=${encodeURIComponent(yfTicker)}&period=1mo&interval=1d`);
+    const res = await fetch(`${API_URL}/node/cache?ticker=${encodeURIComponent(yfTicker)}&period=1mo&interval=1d`);
     if (!res.ok) return "";
     const data = await res.json();
     
@@ -187,7 +187,7 @@ const fetchBulkPriceData = async (items) => {
     const tickersToFetch = items.map(item => resolveYfTicker(item.ticker, item.country));
     
     // Make bulk request with 1mo/1d for fast daily data
-    const res = await fetch(`${API_URL}/price/bulk`, {
+    const res = await fetch(`${API_URL}/node/price/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -220,7 +220,7 @@ const fetchBulkPriceData = async (items) => {
 
 const fetchSearchResults = async (q) => {
   try {
-    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}&limit=50`);
+    const res = await fetch(`${API_URL}/node/search?q=${encodeURIComponent(q)}&limit=50`);
     const json = await res.json();
     if (!json.success || !Array.isArray(json.results)) {
       setMarketData([]);
@@ -231,7 +231,7 @@ const fetchSearchResults = async (q) => {
     const results = json.results;
     const tasks = results.map(r => async () => {
       try {
-        const rr = await fetch(`${API_URL}/marketlists/ticker/${encodeURIComponent(r.symbol)}`);
+        const rr = await fetch(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(r.symbol)}`);
         if (!rr.ok) return null;
         const j = await rr.json();
         return j.data || null;
@@ -262,7 +262,7 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
   try {
     const countryParam = marketFilter && marketFilter !== 'All' ? `&country=${encodeURIComponent(marketFilter)}` : '';
     const statusParam = marketStatus && marketStatus !== 'all' ? `&status=${encodeURIComponent(marketStatus)}` : '';
-    const res = await fetch(`${API_URL}/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}`);
+    const res = await fetch(`${API_URL}/node/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
@@ -333,7 +333,7 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
     let sparklineMap = {};
     if (!bulkSparklineUnsupported) {
       try {
-        const sparklineRes = await fetch(`${API_URL}/cache/sparklines/all`);
+        const sparklineRes = await fetch(`${API_URL}/node/cache/sparklines/all`);
         if (sparklineRes.ok) {
           const sparklineData = await sparklineRes.json();
           if (sparklineData.success && Array.isArray(sparklineData.data)) {
@@ -407,8 +407,8 @@ const fetchRecentAnomalies = async () => {
     // Get summary for current filter market or all
     const market = marketFilter === "All" ? "" : marketFilter;
     const url = market 
-      ? `${API_URL}/anomalies/summary?market=${market}`
-      : `${API_URL}/anomalies/summary`;
+      ? `${API_URL}/node/anomalies/summary?market=${market}`
+      : `${API_URL}/node/anomalies/summary`;
     
     const res = await fetch(url);
     const json = await res.json();
@@ -433,7 +433,7 @@ const fetchUserFavorites = async () => {
   if (!user || !token) return;
 
   try {
-    const res = await fetch(`${API_URL}/favorites`, {
+    const res = await fetch(`${API_URL}/node/favorites`, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
@@ -478,7 +478,7 @@ const toggleFavorite = async (ticker) => {
     
     if (isFav) {
       // Remove favorite
-      const res = await fetch(`${API_URL}/favorites/${encodeURIComponent(ticker)}`, {
+      const res = await fetch(`${API_URL}/node/favorites/${encodeURIComponent(ticker)}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -495,7 +495,7 @@ const toggleFavorite = async (ticker) => {
       }
     } else {
       // Add favorite
-      const res = await fetch(`${API_URL}/favorites`, {
+      const res = await fetch(`${API_URL}/node/favorites`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -521,7 +521,7 @@ const toggleFollow = async (ticker) => {
   }
 
   try {
-    const res = await fetch(`${API_URL}/subscribers`, {
+    const res = await fetch(`${API_URL}/node/subscribers`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
