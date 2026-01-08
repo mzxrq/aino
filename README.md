@@ -1,45 +1,21 @@
 <div align="center">
-  <img src="https://snx.s-ul.eu/tmNmIQd0" alt="Stock Dashboard" width="280" />
-  <h1>Stock Market Anomaly Detection Dashboard</h1>
-  <p>A comprehensive full-stack application for real-time stock market monitoring, anomaly detection, and automated notifications.</p>
-  <p>
-    <a href="https://react.dev/">React</a> ·
-    <a href="https://nodejs.org/">Node.js</a> ·
-    <a href="https://fastapi.tiangolo.com/">FastAPI</a> ·
-    <a href="https://www.mongodb.com/">MongoDB</a>
-  </p>
+  <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/src/assets/aino.svg" alt="Aino" width="200" />
+  <div>
+    <br>
+      <p>A comprehensive full-stack application for stock market anomaly detection!</p>
+    </div>
+  </div>
 </div>
 
-![Project Status](https://img.shields.io/badge/status-active-success.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+---
 
+<div align="center">
+  <img src="https://img.shields.io/badge/Status-Educational-yellow" />
+  <img src="https://img.shields.io/badge/Requirement-Co--op_Program-blue" />
+</div>
 
-## 🏗️ Architecture
+# Information
 
-```
-┌─────────────────┐
-│  Frontend       │
-│  React + Vite   │  Port 5173
-│  (ECharts)      │
-└────────┬────────┘
-         │ HTTP
-         ▼
-┌─────────────────┐
-│  Node Gateway   │  Port 5050 (Public)
-│  Express.js     │  - Routes: /node/*
-│  MongoDB ⟷ JSON │  - Proxy: /py/* → Python
-└────────┬────────┘
-         │ Proxy
-         ▼
-┌─────────────────┐
-│  Python API     │  Port 5000 (Internal)
-│  FastAPI        │  - Routes: /py/*
-│  yfinance       │  - ML Models
-│  IsolationForest│  - Scheduler
-└────────┬────────┘
-         │
-         ▼
-    ┌─────────┐
-    │ MongoDB │  Port 27017
-    └─────────┘
-```
++ This repository contains the source code developed as part of the Cooperative Education Program at Thai-Nichi Institute of Technology.
+- 本プロジェクトは、コーオプ教育プログラムの要件として作成された成果物であり、教育・研究目的で公開されています。商用利用や本番環境での使用を想定したものではありません。
+> This code is published as a portfolio piece. Current students of Thai-Nichi Institute of Technology should refer to the institution's academic integrity policy regarding plagiarism before viewing or utilizing this source code.
