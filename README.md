@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/public/aino.ico" alt="icon" width="64" />
-  <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/src/assets/aino.svg" alt="Aino" width="200" />
+  <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/src/assets/aino.svg" alt="Aino" width="160" />
   
   <div>
     <br>
