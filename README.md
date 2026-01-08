@@ -1,5 +1,7 @@
 <div align="center">
+  <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/public/aino.ico" alt="icon" width="64" />
   <img src="https://github.com/mzxrq/aino/blob/main/frontend-react/src/assets/aino.svg" alt="Aino" width="200" />
+  
   <div>
     <br>
       <p>A comprehensive full-stack application for stock market anomaly detection!</p>
