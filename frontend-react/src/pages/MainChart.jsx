@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
-import TimezoneSelect from '../components/TimezoneSelect';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -17,7 +16,6 @@ import { DateTime } from 'luxon';
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-const PY_API = `${API_URL}/py`;
 
 // Currency mapping by market
 const MARKET_CURRENCIES = {
@@ -31,10 +29,8 @@ const MARKET_CURRENCIES = {
   'HK': 'HK$',
 };
 
-// Common ticker extensions (to be removed from user input, handled by backend)
-const TICKER_EXTENSIONS = ['.BK', '.T', '.L', '.TO', '.HK', '.NS', '.BO', '.TW', '.KS'];
 
-// Helper: try Node gateway first, then fall back to Python 5000
+// Helper: try Python direct endpoint (5000). Node gateway not used here.
 async function fetchJsonWithFallback(path, init) {
   // path should start with '/'
   const fallback = `${PY_DIRECT}/py${path}`;
@@ -57,48 +53,44 @@ const PERIOD_PRESETS = [
   { label: 'Max', period: 'max', interval: '1wk' }
 ];
 
+// User-friendly display names for yfinance interval values
+const INTERVAL_DISPLAY_NAMES = {
+  '1m': '1 Min',
+  '2m': '2 Min',
+  '5m': '5 Min',
+  '15m': '15 Min',
+  '30m': '30 Min',
+  '1h': '1 Hour',
+  '1d': '1 Day',
+  '1wk': '1 Week',
+  '1mo': '1 Month'
+};
+
+function getIntervalDisplayName(interval) {
+  return INTERVAL_DISPLAY_NAMES[interval] || interval.toUpperCase();
+}
+
 function formatPresetLabel(p) {
   if (!p) return '';
   const per = (p.period || '').toLowerCase();
   const itv = (p.interval || '').toLowerCase();
-  if (per === '1d') return '1D';
-  if (per === '5d') return '5D';
-  if (per === '1wk') return '1W';
+  if (per === '1d') return 'Intraday';
+  if (per === '5d') return '5 Days';
+  if (per === '1wk') return '1 Week';
   if (per === '1mo') {
-    if (itv === '30m') return '1M(30)';
-    if (itv === '1d') return '1M(1)';
-    return '1M';
+    if (itv === '30m') return '1 Month (30m)';
+    if (itv === '1d') return '1 Month (1d)';
+    return '1 Month';
   }
-  if (per === '3mo') return '3M';
-  if (per === '6mo') return '6M';
-  if (per === '1y') return '1Y';
-  if (per === '2y') return '2Y';
-  if (per === '5y') return '5Y';
+  if (per === '3mo') return '3 Months';
+  if (per === '6mo') return '6 Months';
+  if (per === '1y') return '1 Year';
+  if (per === '2y') return '2 Years';
+  if (per === '5y') return '5 Years';
   if (per === 'max') return 'Max';
   return (p.label || '').split(' ')[0] || p.label;
 }
 
-function _formatTZLabel(iana) {
-  const found = TIMEZONES.find(t => t.name === iana);
-  return found ? found.label : iana;
-}
-
-function getTimezoneTimeString(iana) {
-  try {
-    const now = new Date();
-    const timeStr = now.toLocaleString('en-US', { timeZone: iana, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    const sign = offsetHours >= 0 ? '+' : '-';
-    const absHours = Math.abs(Math.floor(offsetHours));
-    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
-    return `${timeStr} UTC${sign}${absHours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
-  } catch (_e) {
-    return '';
-  }
-}
 // City-based timezone labels mapped to IANA identifiers
 const CITY_TZ_MAP = {
   UTC: 'UTC',
@@ -155,45 +147,6 @@ const CITY_TZ_MAP = {
   Nairobi: 'Africa/Nairobi'
 };
 
-// Get UTC offset for a city label (returns hours, may be fractional)
-function getTimezoneOffset(cityLabel) {
-  try {
-    const now = new Date();
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    return offsetHours;
-  } catch (_e) {
-    return 0;
-  }
-}
-
-// Format timezone with UTC offset: "(+09:00) Tokyo"
-function formatTimezoneLabel(cityLabel) {
-  try {
-    const now = new Date();
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    const absHours = Math.abs(Math.floor(offsetHours));
-    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
-    const signedHours = offsetHours >= 0 ? absHours : -absHours;
-    const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
-    return `${offsetStr} ${cityLabel}`;
-  } catch (_e) {
-    return cityLabel;
-  }
-}
-
-// Sort timezones by UTC offset
-function sortTimezonesByOffset(timezones) {
-  return [...timezones].sort((a, b) => getTimezoneOffset(a) - getTimezoneOffset(b));
-}
-
 // Auto-detect user's timezone (returns city label present in CITY_TZ_MAP or 'UTC')
 function detectUserTimezone() {
   try {
@@ -213,16 +166,6 @@ function detectUserTimezone() {
   return 'UTC';
 }
 
-// Get current time string for a city label (wraps existing IANA helper)
-function _getTimezoneTimeStringCity(cityLabel) {
-  try {
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    return getTimezoneTimeString(iana);
-  } catch (_e) { return ''; }
-}
-
-// Build TIMEZONES array used by TimezoneSelect: array of objects { offset, label, name }
-const TIMEZONES = sortTimezonesByOffset(Object.keys(CITY_TZ_MAP)).map(name => ({ offset: getTimezoneOffset(name), label: formatTimezoneLabel(name), name: CITY_TZ_MAP[name] }));
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
@@ -252,40 +195,17 @@ function getCurrency(marketStr) {
   return MARKET_CURRENCIES[marketCode] || '$';
 }
 
-function cleanTickerInput(input) {
-  let cleaned = input.toUpperCase().trim();
-  for (const ext of TICKER_EXTENSIONS) {
-    if (cleaned.endsWith(ext)) {
-      cleaned = cleaned.slice(0, -ext.length);
-      break;
-    }
-  }
-  return cleaned;
-}
+// Removed cleanTickerInput/TICKER_EXTENSIONS (unused)
 
-// Market configurations with their extensions
-const MARKET_EXTENSIONS = [
-  { market: 'US', extensions: [''], label: 'US (NASDAQ/NYSE)' },
-  { market: 'Thailand', extensions: ['.BK'], label: 'Thailand (SET)' },
-  { market: 'Japan', extensions: ['.T'], label: 'Japan (TSE)' },
-  { market: 'UK', extensions: ['.L'], label: 'UK (LSE)' },
-  { market: 'Canada', extensions: ['.TO'], label: 'Canada (TSX)' },
-  { market: 'Hong Kong', extensions: ['.HK'], label: 'Hong Kong (HKEX)' },
-  { market: 'India', extensions: ['.NS', '.BO'], label: 'India (NSE/BSE)' },
-  { market: 'Taiwan', extensions: ['.TW'], label: 'Taiwan (TWSE)' },
-  { market: 'South Korea', extensions: ['.KS'], label: 'South Korea (KRX)' }
-];
+// Removed unused MARKET_EXTENSIONS configuration
 
 export default function LargeChart() {
   const { ticker: paramTicker } = useParams();
-  const _navigate = useNavigate();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
   const displayTicker = getDisplayFromRaw(ticker);
   const [companyName, setCompanyName] = useState('');
   const [market, setMarket] = useState('US');
-  const [searchInput, setSearchInput] = useState((paramTicker || 'AAPL').toUpperCase());
-  const [_searchResults, setSearchResults] = useState([]);
-  const [_showSearchDropdown, _setShowSearchDropdown] = useState(false);
+  // removed unused searchInput/search dropdown states
   const [period, setPeriod] = useState('1d');
   const [interval, setInterval] = useState('1m');
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -298,18 +218,14 @@ export default function LargeChart() {
   const [error, setError] = useState(null);
   const [chartType, setChartType] = useState('line');
   const [timezone, setTimezone] = useState('UTC');
-  const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const [financialTab, setFinancialTab] = useState('income');
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [lcNews, setLcNews] = useState([]);
-  const [lcNewsLoading, setLcNewsLoading] = useState(false);
-  const [lcNewsPageSize] = useState(3);
+  // removed unused More menu and lcNews states
   const [modalResults, setModalResults] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [finOverlayOpen, setFinOverlayOpen] = useState(false);
   const [finOverlayTitle, setFinOverlayTitle] = useState('');
   const [finOverlayData, setFinOverlayData] = useState(null);
-  const [showMarketModal, setShowMarketModal] = useState(false);
+  // removed market selection modal (unused and incomplete)
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
@@ -334,12 +250,8 @@ export default function LargeChart() {
       localStorage.setItem('lc_prefs', JSON.stringify(p));
     } catch (_e) { /* ignore */ }
   }, [showBB, showVWAP, showAnomaly, showMA5, showMA25, showMA75, showEMA, showMACD, showVolume]);
-  const [_showSAR, _setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
-  const [_bbSigma, _setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const indicatorsBtnRef = useRef(null);
-  const [_marketCandidates, _setMarketCandidates] = useState([]);
-  const [_isSearching, _setIsSearching] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
   const [tickerSearchQuery, setTickerSearchQuery] = useState('');
 
@@ -434,14 +346,7 @@ export default function LargeChart() {
     { ticker: 'BTS.BK', name: 'Bangkok Mass Transit', market: 'TH' }
   ], []);
 
-  const _filteredStocks = useMemo(() => {
-    if (!tickerSearchQuery.trim()) return INTERESTING_STOCKS;
-    const q = tickerSearchQuery.toLowerCase();
-    return INTERESTING_STOCKS.filter(s => 
-      s.ticker.toLowerCase().includes(q) || 
-      s.name.toLowerCase().includes(q)
-    ).slice(0, 20);
-  }, [tickerSearchQuery, INTERESTING_STOCKS]);
+  // removed unused filteredStocks memo
 
   // Modal server-side search (debounced)
   useEffect(() => {
@@ -514,7 +419,6 @@ export default function LargeChart() {
   useEffect(() => {
     if (!paramTicker) return;
     setTicker(paramTicker.toUpperCase());
-    setSearchInput(cleanTickerInput(paramTicker));
   }, [paramTicker]);
 
   // Map market code to default timezone city label
@@ -536,15 +440,14 @@ export default function LargeChart() {
 
   // Auto-set timezone when market changes unless user has overridden
   useEffect(() => {
-    if (!tzUserOverridden && market) {
+    if (market) {
       const tz = marketToTimezone(market);
       setTimezone(tz);
     }
-  }, [market, tzUserOverridden]);
+  }, [market]);
 
   // On mount, if user hasn't set timezone, prefer browser's timezone (IANA)
   useEffect(() => {
-    if (tzUserOverridden) return;
     try {
       const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (resolved) {
@@ -560,28 +463,9 @@ export default function LargeChart() {
       const iana = CITY_TZ_MAP[city] || city;
       setTimezone(iana);
     } catch (e) {}
-  }, [tzUserOverridden]);
+  }, []);
 
-  // Search for tickers by name or symbol
-  useEffect(() => {
-    if (!searchInput || searchInput.length === 0) {
-      setSearchResults([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(searchInput)}`);
-        if (!cancelled) setSearchResults(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if (!cancelled) setSearchResults([]);
-      }
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchInput]);
+  // removed unused searchInput effect
 
   // Fetch company metadata when ticker changes
   useEffect(() => {
@@ -852,21 +736,12 @@ export default function LargeChart() {
       return result;
     };
 
-    // Anomaly reason palette (used for scatter styling)
-    const reasonPriority = ['Price Spike', 'Vol+Price', 'VEI Break', 'High Vol', 'Price Warning'];
-    const colorMap = { 'Price Spike': '#e74c3c', 'Vol+Price': '#c0392b', 'VEI Break': '#d35400', 'High Vol': '#f39c12', 'Price Warning': '#7f8c8d' };
-
     const toCategoryValues = (arr) => categories.map((_, i) => {
       const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
       return (v !== null) ? v : '-';
     });
-    const toIndexValuePairs = (arr) => categories.map((_, i) => {
-      const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
-      return (v !== null) ? [i, v] : [i, '-'];
-    });
 
     // Calculate dynamic grid coordinates based on visible charts
-    const indicatorsShown = [showEMA, showMACD, showVolume].filter(Boolean).length;
     let volumeRow = 5;
     let macdRow = 4;
     let emaRow = 3;
@@ -1070,14 +945,83 @@ export default function LargeChart() {
       });
     } else {
       // single series flow (existing payload arrays)
-      if (chartType === 'candlestick' && open.length && high.length && low.length && close.length) {
-        const ohlc = categories.map((_, i) => {
-          const o = open[i], h = high[i], lo = low[i], c = close[i];
-          return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
+      // Build the base mark config for all chart types
+      const baseMarkPoint = { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', offset: [0, 12], formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', offset: [0, -12], formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', offset: [0, 12], color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', offset: [0, -12], color: colorGreen, formatter: '{b}' } } ] };
+      const baseMarkLine = { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } };
+
+      if ((chartType === 'candlestick' || chartType === 'heikin_ashi' || chartType === 'ohlc') && open.length && high.length && low.length && close.length) {
+        let ohlc;
+        if (chartType === 'heikin_ashi') {
+          // Calculate Heikin Ashi OHLC values
+          const haOpen = []; const haClose = []; const haHigh = []; const haLow = [];
+          let prevHaOpen = null, prevHaClose = null;
+          for (let i = 0; i < categories.length; i++) {
+            const o = open[i], h = high[i], lo = low[i], c = close[i];
+            if (o === undefined || h === undefined || lo === undefined || c === undefined) continue;
+            const currentHaClose = (o + h + lo + c) / 4;
+            const currentHaOpen = (prevHaOpen !== null && prevHaClose !== null) ? (prevHaOpen + prevHaClose) / 2 : (o + c) / 2;
+            const currentHaHigh = Math.max(h, currentHaOpen, currentHaClose);
+            const currentHaLow = Math.min(lo, currentHaOpen, currentHaClose);
+            haOpen.push(currentHaOpen); haClose.push(currentHaClose); haHigh.push(currentHaHigh); haLow.push(currentHaLow);
+            prevHaOpen = currentHaOpen; prevHaClose = currentHaClose;
+          }
+          ohlc = categories.map((_, i) => {
+            return (haOpen[i] !== undefined && haHigh[i] !== undefined && haLow[i] !== undefined && haClose[i] !== undefined) ? [haOpen[i], haClose[i], haLow[i], haHigh[i]] : ['-','-','-','-'];
+          });
+        } else {
+          // Regular candlestick or OHLC: use raw OHLC data
+          ohlc = categories.map((_, i) => {
+            const o = open[i], h = high[i], lo = low[i], c = close[i];
+            return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
+          });
+        }
+        const seriesName = chartType === 'heikin_ashi' ? 'Heikin Ashi' : (chartType === 'ohlc' ? 'OHLC' : 'Price');
+        option.series.push({ name: seriesName, type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: baseMarkPoint, markLine: baseMarkLine });
+      } else if (chartType === 'bar' && close.length) {
+        // Bar chart: show as vertical bars
+        option.series.push({ 
+          name: 'Price', 
+          type: 'bar', 
+          data: categories.map((_, idx) => {
+            let color = colorGray;
+            if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? colorRed : colorGreen;
+            return { value: [idx, close[idx]], itemStyle: { color } };
+          }),
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10, 
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
         });
-        option.series.push({ name: 'Price', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
+      } else if (chartType === 'area' && close.length) {
+        // Area chart: filled under the line
+        option.series.push({ 
+          name: 'Price', 
+          type: 'line', 
+          data: toCategoryValues(close), 
+          showSymbol: false, 
+          smooth: false, 
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10,
+          areaStyle: { color: 'rgba(47, 223, 145, 0.2)' },
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
+        });
       } else {
-        option.series.push({ name: 'Close', type: 'line', data: toCategoryValues(close), showSymbol: false, smooth: false, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
+        // Default: Line chart
+        option.series.push({ 
+          name: 'Close', 
+          type: 'line', 
+          data: toCategoryValues(close), 
+          showSymbol: false, 
+          smooth: false, 
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10, 
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
+        });
       }
 
       // moving averages on main chart
@@ -1353,7 +1297,7 @@ export default function LargeChart() {
   }, [financials.news, ticker]);
 
   // prefer lcNews (cached top news), otherwise mapped provider news limited to 2 items
-  const news = (lcNews && lcNews.length) ? lcNews : (mappedProviderNews.length ? mappedProviderNews.slice(0, 2) : []);
+  const news = mappedProviderNews.length ? mappedProviderNews.slice(0, 2) : [];
 
   // Format news time: prefer displayTime (but if it's an ISO timestamp, present as local string)
   function formatNewsTime(item) {
@@ -1620,7 +1564,7 @@ export default function LargeChart() {
                     aria-haspopup="listbox"
                     aria-expanded={intervalOpen}
                   >
-                    {interval}
+                    {getIntervalDisplayName(interval)}
                   </button>
 
                   {periodOpen && periodBtnRef.current && (
@@ -1644,7 +1588,7 @@ export default function LargeChart() {
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
                         >
-                          {p}
+                          {formatPresetLabel({ period: p, interval })}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1666,7 +1610,7 @@ export default function LargeChart() {
                           onClick={() => { setInterval(iv); setIntervalOpen(false); }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
                         >
-                          {iv}
+                          {getIntervalDisplayName(iv)}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1703,9 +1647,9 @@ export default function LargeChart() {
 
                 <button
                   type="button"
-                  className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`}
-                  onClick={() => setChartType('ohlc')}
-                  title="OHLC Chart"
+                  className={`lc-chart-type-btn ${chartType === 'heikin_ashi' ? 'active' : ''}`}
+                  onClick={() => setChartType('heikin_ashi')}
+                  title="Heikin Ashi Chart"
                   aria-pressed={chartType === 'ohlc'}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -1843,43 +1787,7 @@ export default function LargeChart() {
         </DialogActions>
       </Dialog>
 
-      {/* Market Selection Modal */}
-      {showMarketModal && marketCandidates.length > 0 && (
-        <div className="lc-modal-overlay" onClick={() => setShowMarketModal(false)}>
-          <div className="lc-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-modal-header">
-              <h2>Multiple Markets Found</h2>
-              <button 
-                className="lc-modal-close" 
-                onClick={() => setShowMarketModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lc-modal-body">
-              <p className="lc-modal-subtitle">We found "{cleanTickerInput(marketCandidates[0].ticker)}" in multiple markets. Which one would you like to view?</p>
-              <div className="lc-market-candidates">
-                {marketCandidates.map((candidate, idx) => (
-                  <button
-                    key={idx}
-                    className="lc-market-option"
-                    onClick={() => {
-                      setTicker(candidate.ticker);
-                      setCompanyName(candidate.name);
-                      setMarket(candidate.marketCode);
-                      setShowMarketModal(false);
-                    }}
-                  >
-                    <div className="lc-market-option-label">{candidate.market}</div>
-                    <div className="lc-market-option-name">{candidate.name}</div>
-                    <div className="lc-market-option-ticker">{candidate.ticker}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Market Selection Modal removed: unused feature */}
 
       {/* Ticker Search Modal */}
       {showTickerSearchModal && (

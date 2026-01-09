@@ -322,17 +322,6 @@ export default function CompanyProfile() {
             <span className="icon minus">−</span>
             <span className="label">{followed ? 'Following' : 'Follow'}</span>
           </button>
-
-          <button
-            className={`btn btn-fav ${favorited ? 'favorited' : ''}`}
-            onClick={toggleFavoriteProtected}
-            aria-pressed={favorited}
-            title={favorited ? 'Favorited' : 'Favorite'}
-          >
-            <span className="icon star">☆</span>
-            <span className="icon star-filled">★</span>
-            <span className="label">Favorite</span>
-          </button>
         </div>
       </div>
 
@@ -523,25 +512,25 @@ export default function CompanyProfile() {
           <div
             style={{
               display: "flex",
-              alignItems: "flex-start",
+              alignItems: "center",
               justifyContent: "space-between",
               gap: 12,
+              marginBottom: 12,
             }}
           >
-            <h3 style={{ margin: 0 }}>Chart</h3>
-            
-            {financials.fetched_at ? (
-              <div
-                style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}
-              >{`Updated: ${new Date(
-                financials.fetched_at
-              ).toLocaleDateString()}`}</div>
-            ) : null}
-            <div className="company-right">
-              <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
-                Open Chart
-              </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+              <h3 style={{ margin: 0 }}>Chart</h3>
+              {financials.fetched_at ? (
+                <div
+                  style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}
+                >{`Updated: ${new Date(
+                  financials.fetched_at
+                ).toLocaleDateString()}`}</div>
+              ) : null}
             </div>
+            <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
+              Open Chart
+            </Link>
           </div>
 
           {loading && !chartData && <div className="muted">Loading chart…</div>}

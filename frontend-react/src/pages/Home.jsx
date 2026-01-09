@@ -1,7 +1,8 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
+import { AuthContext } from '../context/contextBase';
 import '../css/Home.css';
 import logoSvg from '../assets/aino.svg';
 import Footer from '../components/Footer';
@@ -29,6 +30,7 @@ export default function Home() {
   const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
+  const { isLoggedIn } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${PY_URL}/py`;
@@ -467,7 +469,7 @@ export default function Home() {
           {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
           <div className="hero-buttons">
             <button className="btn btn-primary" onClick={handleChart}>Get Started</button>
-            <button className="btn btn-line" onClick={handleLogin}>LINE Login</button>
+            {!isLoggedIn && <button className="btn btn-line" onClick={handleLogin}>LINE Login</button>}
           </div>
         </div>
       </section>
