@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { Link } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import PortalDropdown from './DropdownSelect/PortalDropdown';

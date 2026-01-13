@@ -1,5 +1,6 @@
 // MarketItemCard.jsx
 import React, { useState, useEffect } from "react";
+import { Trans } from '@lingui/react/macro';
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import "../css/MarketItemCard.css";

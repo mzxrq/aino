@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Trans } from '@lingui/react/macro';
 import ReactECharts from 'echarts-for-react';
 import PropTypes from 'prop-types';
 

@@ -1,4 +1,5 @@
 ﻿import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { Trans } from '@lingui/react/macro';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
 
 export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {

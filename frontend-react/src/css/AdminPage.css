@@ -1,7 +1,7 @@
 @media (max-width: 768px) {
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   
-  /* AdminPage.css — cleaned and deduplicated */
+  /* AdminPage.css  Ecleaned and deduplicated */
   
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
@@ -125,7 +125,7 @@
   }
   
   .btn:active { transform: translateY(1px) scale(0.997); }
-  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(79,70,229,0.12); }
+  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(0, 195, 0, 0.15); }
   
   /* Icon spacing utility inside buttons */
   .btn .icon { display: inline-flex; margin-right: 8px; }
@@ -134,11 +134,11 @@
   .btn-primary {
     background: var(--primary);
     color: #fff;
-    box-shadow: 0 6px 18px rgba(79,70,229,0.12);
+    box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15);
     border-color: transparent;
   }
   .btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
-  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(79,70,229,0.12); }
+  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15); }
   
   
   /* Secondary/Ghost Button */
@@ -1091,7 +1091,7 @@
   body.dark .card-table .badge.status-new,
   html.dark .card-table .badge.status-new,
   [data-theme="dark"] .card-table .badge.status-new {
-    background: rgba(79,70,229,0.12) !important; /* subtle purple pill */
+    background: rgba(0, 195, 0, 0.15) !important; /* subtle purple pill */
     color: var(--primary) !important;
   }
   
@@ -1428,7 +1428,7 @@
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
     background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
-    border-bottom: 1px solid rgba(79,70,229,0.12) !important;
+    border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
   .dark .modal .modal-title,
@@ -1451,7 +1451,7 @@
   .badge.role-admin {
     background: linear-gradient(90deg,#7C3AED,#4F46E5);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(79,70,229,0.12);
+    box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
   .badge.role-user {
     background: linear-gradient(90deg,#06B6D4,#0EA5B7);
@@ -1505,7 +1505,7 @@
 @media (min-width: 769px) and (max-width: 1024px) {
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   
-  /* AdminPage.css — cleaned and deduplicated */
+  /* AdminPage.css  Ecleaned and deduplicated */
   
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
@@ -1629,7 +1629,7 @@
   }
   
   .btn:active { transform: translateY(1px) scale(0.997); }
-  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(79,70,229,0.12); }
+  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(0, 195, 0, 0.15); }
   
   /* Icon spacing utility inside buttons */
   .btn .icon { display: inline-flex; margin-right: 8px; }
@@ -1638,11 +1638,11 @@
   .btn-primary {
     background: var(--primary);
     color: #fff;
-    box-shadow: 0 6px 18px rgba(79,70,229,0.12);
+    box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15);
     border-color: transparent;
   }
   .btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
-  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(79,70,229,0.12); }
+  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15); }
   
   
   /* Secondary/Ghost Button */
@@ -2595,7 +2595,7 @@
   body.dark .card-table .badge.status-new,
   html.dark .card-table .badge.status-new,
   [data-theme="dark"] .card-table .badge.status-new {
-    background: rgba(79,70,229,0.12) !important; /* subtle purple pill */
+    background: rgba(0, 195, 0, 0.15) !important; /* subtle purple pill */
     color: var(--primary) !important;
   }
   
@@ -2932,7 +2932,7 @@
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
     background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
-    border-bottom: 1px solid rgba(79,70,229,0.12) !important;
+    border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
   .dark .modal .modal-title,
@@ -2955,7 +2955,7 @@
   .badge.role-admin {
     background: linear-gradient(90deg,#7C3AED,#4F46E5);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(79,70,229,0.12);
+    box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
   .badge.role-user {
     background: linear-gradient(90deg,#06B6D4,#0EA5B7);
@@ -3009,7 +3009,7 @@
 @media (min-width: 1025px) {
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   
-  /* AdminPage.css — cleaned and deduplicated */
+  /* AdminPage.css  Ecleaned and deduplicated */
   
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
@@ -3133,7 +3133,7 @@
   }
   
   .btn:active { transform: translateY(1px) scale(0.997); }
-  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(79,70,229,0.12); }
+  .btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(0, 195, 0, 0.15); }
   
   /* Icon spacing utility inside buttons */
   .btn .icon { display: inline-flex; margin-right: 8px; }
@@ -3142,11 +3142,11 @@
   .btn-primary {
     background: var(--primary);
     color: #fff;
-    box-shadow: 0 6px 18px rgba(79,70,229,0.12);
+    box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15);
     border-color: transparent;
   }
   .btn-primary:hover { transform: translateY(-1px); background: var(--primary-hover); }
-  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(79,70,229,0.12); }
+  .btn-primary:active { transform: translateY(0); box-shadow: 0 6px 18px rgba(0, 195, 0, 0.15); }
   
   
   /* Secondary/Ghost Button */
@@ -4099,7 +4099,7 @@
   body.dark .card-table .badge.status-new,
   html.dark .card-table .badge.status-new,
   [data-theme="dark"] .card-table .badge.status-new {
-    background: rgba(79,70,229,0.12) !important; /* subtle purple pill */
+    background: rgba(0, 195, 0, 0.15) !important; /* subtle purple pill */
     color: var(--primary) !important;
   }
   
@@ -4436,7 +4436,7 @@
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
     background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
-    border-bottom: 1px solid rgba(79,70,229,0.12) !important;
+    border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
   .dark .modal .modal-title,
@@ -4459,7 +4459,7 @@
   .badge.role-admin {
     background: linear-gradient(90deg,#7C3AED,#4F46E5);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(79,70,229,0.12);
+    box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
   .badge.role-user {
     background: linear-gradient(90deg,#06B6D4,#0EA5B7);

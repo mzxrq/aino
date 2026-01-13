@@ -1,0 +1,1496 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-01-13 09:10+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:58
+msgid "Please Login"
+msgstr "Please Login"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:59
+msgid "You need to be signed in to follow tickers."
+msgstr "You need to be signed in to follow tickers."
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:74
+msgid "1 Min"
+msgstr "1 Min"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:75
+msgid "2 Min"
+msgstr "2 Min"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:76
+msgid "5 Min"
+msgstr "5 Min"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:77
+msgid "15 Min"
+msgstr "15 Min"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:78
+msgid "30 Min"
+msgstr "30 Min"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:79
+msgid "1 Hour"
+msgstr "1 Hour"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:80
+msgid "1 Day"
+msgstr "1 Day"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:81
+#: src/pages/MainChart.jsx:96
+msgid "1 Week"
+msgstr "1 Week"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:82
+#: src/pages/MainChart.jsx:99
+msgid "1 Month"
+msgstr "1 Month"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:94
+msgid "Intraday"
+msgstr "Intraday"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:95
+msgid "5 Days"
+msgstr "5 Days"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:97
+msgid "1 Month (30m)"
+msgstr "1 Month (30m)"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:98
+msgid "1 Month (1d)"
+msgstr "1 Month (1d)"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:100
+msgid "3 Months"
+msgstr "3 Months"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:101
+msgid "6 Months"
+msgstr "6 Months"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:102
+msgid "1 Year"
+msgstr "1 Year"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:103
+msgid "2 Years"
+msgstr "2 Years"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:104
+msgid "5 Years"
+msgstr "5 Years"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:105
+msgid "Max"
+msgstr "Max"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:878
+msgid "Open"
+msgstr "Open"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:879
+msgid "High"
+msgstr "High"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:880
+msgid "Low"
+msgstr "Low"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:881
+msgid "Close"
+msgstr "Close"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:171
+msgid "Volume Spike"
+msgstr "Volume Spike"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:172
+msgid "Price Spike"
+msgstr "Price Spike"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:173
+msgid "Flash Crash"
+msgstr "Flash Crash"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:174
+msgid "Price Avg"
+msgstr "Price Avg"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:175
+msgid "Absorption"
+msgstr "Absorption"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:176
+msgid "Bullish"
+msgstr "Bullish"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:177
+msgid "Bearish"
+msgstr "Bearish"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:178
+msgid "Anomaly"
+msgstr "Anomaly"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:179
+msgid "System"
+msgstr "System"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:180
+msgid "Rule"
+msgstr "Rule"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:181
+msgid "Other"
+msgstr "Other"
+
+#. placeholder {0}: descExpanded ? "Show less" : "Show more"
+#. placeholder {0}: editMode ? 'Cancel' : 'Edit'
+#. placeholder {0}: followed ? 'Following' : 'Follow'
+#: src/pages/CompanyProfile.jsx:324
+#: src/pages/CompanyProfile.jsx:401
+#: src/pages/Profile.jsx:352
+#: src/pages/Profile.jsx:375
+#: src/pages/Profile.jsx:393
+msgid "{0}"
+msgstr "{0}"
+
+#: src/pages/MarketList.jsx:779
+msgid "% Change: High to Low"
+msgstr "% Change: High to Low"
+
+#: src/pages/MarketList.jsx:780
+msgid "% Change: Low to High"
+msgstr "% Change: Low to High"
+
+#: src/pages/MarketList.jsx:861
+msgid "○ Closed"
+msgstr "○ Closed"
+
+#: src/pages/MarketList.jsx:860
+msgid "● Open"
+msgstr "● Open"
+
+#: src/pages/MainChart.jsx:228
+msgid "1 Day"
+msgstr "1 Day"
+
+#: src/pages/MainChart.jsx:227
+msgid "1 Hour"
+msgstr "1 Hour"
+
+#: src/pages/MainChart.jsx:222
+msgid "1 Min"
+msgstr "1 Min"
+
+#: src/pages/MainChart.jsx:230
+msgid "1 Month"
+msgstr "1 Month"
+
+#: src/pages/MainChart.jsx:234
+msgid "1 Month (1d)"
+msgstr "1 Month (1d)"
+
+#: src/pages/MainChart.jsx:233
+msgid "1 Month (30m)"
+msgstr "1 Month (30m)"
+
+#: src/pages/MainChart.jsx:229
+msgid "1 Week"
+msgstr "1 Week"
+
+#: src/pages/MainChart.jsx:237
+msgid "1 Year"
+msgstr "1 Year"
+
+#: src/pages/Chart.jsx:1134
+msgid "1.5σ (Tight)"
+msgstr "1.5σ (Tight)"
+
+#: src/pages/MainChart.jsx:225
+msgid "15 Min"
+msgstr "15 Min"
+
+#: src/pages/MainChart.jsx:223
+msgid "2 Min"
+msgstr "2 Min"
+
+#: src/pages/MainChart.jsx:238
+msgid "2 Years"
+msgstr "2 Years"
+
+#: src/pages/Chart.jsx:1123
+msgid "2σ (Standard)"
+msgstr "2σ (Standard)"
+
+#: src/pages/MainChart.jsx:235
+msgid "3 Months"
+msgstr "3 Months"
+
+#: src/pages/MainChart.jsx:226
+msgid "30 Min"
+msgstr "30 Min"
+
+#: src/pages/MainChart.jsx:232
+msgid "5 Days"
+msgstr "5 Days"
+
+#: src/pages/MainChart.jsx:224
+msgid "5 Min"
+msgstr "5 Min"
+
+#: src/pages/MainChart.jsx:239
+msgid "5 Years"
+msgstr "5 Years"
+
+#: src/pages/MainChart.jsx:236
+msgid "6 Months"
+msgstr "6 Months"
+
+#: src/pages/MainChart.jsx:1109
+msgid "Absorption"
+msgstr "Absorption"
+
+#: src/components/FinancialsTable.jsx:439
+msgid "Accounts Payable"
+msgstr "Accounts Payable"
+
+#: src/components/FinancialsTable.jsx:438
+msgid "Accounts Receivable"
+msgstr "Accounts Receivable"
+
+#: src/components/FinancialsTable.jsx:437
+msgid "Accumulated Depreciation"
+msgstr "Accumulated Depreciation"
+
+#: src/components/FinancialsTable.jsx:406
+msgid "achinery Furniture Equipment"
+msgstr "achinery Furniture Equipment"
+
+#: src/pages/Compare.jsx:68
+msgid "Add"
+msgstr "Add"
+
+#: src/pages/Dashboard.jsx:147
+msgid "Add Stock"
+msgstr "Add Stock"
+
+#: src/pages/Compare.jsx:83
+msgid "Add tickers to start comparing."
+msgstr "Add tickers to start comparing."
+
+#: src/components/Navbar.jsx:213
+msgid "Admin Dashboard"
+msgstr "Admin Dashboard"
+
+#: src/pages/MarketList.jsx:792
+msgid "All"
+msgstr "All"
+
+#: src/pages/MarketList.jsx:761
+msgid "All Markets"
+msgstr "All Markets"
+
+#: src/pages/MarketList.jsx:781
+msgid "Alphabetical"
+msgstr "Alphabetical"
+
+#: src/pages/Register.jsx:239
+msgid "Already have an account?"
+msgstr "Already have an account?"
+
+#: src/components/Navbar.jsx:210
+#: src/pages/Chart.jsx:1068
+#: src/pages/MainChart.jsx:1174
+#: src/pages/MainChart.jsx:1774
+msgid "Anomalies"
+msgstr "Anomalies"
+
+#: src/pages/MainChart.jsx:1112
+msgid "Anomaly"
+msgstr "Anomaly"
+
+#: src/pages/MarketList.jsx:776
+msgid "Anomaly Count"
+msgstr "Anomaly Count"
+
+#: src/pages/Chart.jsx:1196
+msgid "Area"
+msgstr "Area"
+
+#: src/components/FinancialsTable.jsx:370
+msgid "asic Average Shares"
+msgstr "asic Average Shares"
+
+#: src/components/FinancialsTable.jsx:369
+msgid "asic EPS"
+msgstr "asic EPS"
+
+#: src/pages/Chart.jsx:1190
+msgid "Auto"
+msgstr "Auto"
+
+#: src/components/FinancialsTable.jsx:436
+msgid "Available For Sale Securities"
+msgstr "Available For Sale Securities"
+
+#: src/pages/Compare.jsx:69
+#: src/pages/ForgotPassword.jsx:291
+msgid "Back"
+msgstr "Back"
+
+#: src/pages/ForgotPassword.jsx:227
+msgid "Back to sign in"
+msgstr "Back to sign in"
+
+#: src/pages/CompanyProfile.jsx:529
+#: src/pages/MainChart.jsx:1483
+msgid "Balance"
+msgstr "Balance"
+
+#: src/components/FinancialsTable.jsx:328
+#: src/pages/CompanyProfile.jsx:367
+msgid "Balance Sheet"
+msgstr "Balance Sheet"
+
+#: src/pages/MainChart.jsx:1854
+msgid "Balance Sheet (most recent 2 periods)"
+msgstr "Balance Sheet (most recent 2 periods)"
+
+#: src/pages/Chart.jsx:1194
+msgid "Bar"
+msgstr "Bar"
+
+#: src/pages/Chart.jsx:1112
+msgid "BB Bands Width"
+msgstr "BB Bands Width"
+
+#: src/pages/MainChart.jsx:1111
+msgid "Bearish"
+msgstr "Bearish"
+
+#: src/pages/Chart.jsx:1048
+#: src/pages/MainChart.jsx:1766
+msgid "Bollinger Bands"
+msgstr "Bollinger Bands"
+
+#: src/pages/MainChart.jsx:1110
+msgid "Bullish"
+msgstr "Bullish"
+
+#: src/components/LoginConfirmDialog.jsx:50
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/pages/Chart.jsx:1191
+msgid "Candlestick"
+msgstr "Candlestick"
+
+#: src/components/FinancialsTable.jsx:435
+msgid "Capital Lease Obligations"
+msgstr "Capital Lease Obligations"
+
+#: src/components/FinancialsTable.jsx:434
+msgid "Capital Stock"
+msgstr "Capital Stock"
+
+#: src/components/FinancialsTable.jsx:433
+msgid "Cash And Cash Equivalents"
+msgstr "Cash And Cash Equivalents"
+
+#: src/components/FinancialsTable.jsx:432
+msgid "Cash Cash Equivalents And Short Term Investments"
+msgstr "Cash Cash Equivalents And Short Term Investments"
+
+#: src/components/FinancialsTable.jsx:431
+msgid "Cash Equivalents"
+msgstr "Cash Equivalents"
+
+#: src/components/FinancialsTable.jsx:430
+msgid "Cash Financial"
+msgstr "Cash Financial"
+
+#: src/pages/Admin/AdminUsersPage.jsx:177
+msgid "Change password"
+msgstr "Change password"
+
+#: src/components/Navbar.jsx:202
+#: src/pages/CompanyProfile.jsx:550
+msgid "Chart"
+msgstr "Chart"
+
+#: src/pages/CompanyProfile.jsx:377
+#: src/pages/MainChart.jsx:244
+#: src/pages/MainChart.jsx:1864
+msgid "Close"
+msgstr "Close"
+
+#: src/pages/MarketList.jsx:794
+msgid "Closed"
+msgstr "Closed"
+
+#: src/pages/MainChart.jsx:1435
+msgid "CLOSED"
+msgstr "CLOSED"
+
+#: src/pages/Chart.jsx:1195
+msgid "Column"
+msgstr "Column"
+
+#: src/components/FinancialsTable.jsx:429
+msgid "Commercial Paper"
+msgstr "Commercial Paper"
+
+#: src/components/FinancialsTable.jsx:428
+msgid "Common Stock"
+msgstr "Common Stock"
+
+#: src/components/FinancialsTable.jsx:427
+msgid "Common Stock Equity"
+msgstr "Common Stock Equity"
+
+#: src/pages/Compare.jsx:65
+msgid "Compare (up to 4)"
+msgstr "Compare (up to 4)"
+
+#: src/pages/Admin/AdminUsersPage.jsx:170
+msgid "Confirm"
+msgstr "Confirm"
+
+#: src/pages/Profile.jsx:427
+msgid "Connect LINE"
+msgstr "Connect LINE"
+
+#: src/pages/Profile.jsx:426
+msgid "Connect your LINE account for easier login"
+msgstr "Connect your LINE account for easier login"
+
+#: src/components/ProfileSidebar.jsx:14
+msgid "Connection"
+msgstr "Connection"
+
+#: src/pages/LineCallback.jsx:35
+msgid "Contacting backend..."
+msgstr "Contacting backend..."
+
+#: src/components/FinancialsTable.jsx:368
+msgid "Cost Of Revenue"
+msgstr "Cost Of Revenue"
+
+#: src/pages/Register.jsx:234
+msgid "Create account"
+msgstr "Create account"
+
+#: src/pages/Compare.jsx:109
+msgid "Currency:"
+msgstr "Currency:"
+
+#: src/components/FinancialsTable.jsx:426
+msgid "Current Accrued Expenses"
+msgstr "Current Accrued Expenses"
+
+#: src/components/FinancialsTable.jsx:425
+msgid "Current Assets"
+msgstr "Current Assets"
+
+#: src/components/FinancialsTable.jsx:424
+msgid "Current Capital Lease Obligation"
+msgstr "Current Capital Lease Obligation"
+
+#: src/components/FinancialsTable.jsx:423
+msgid "Current Debt"
+msgstr "Current Debt"
+
+#: src/components/FinancialsTable.jsx:422
+msgid "Current Debt And Capital Lease Obligation"
+msgstr "Current Debt And Capital Lease Obligation"
+
+#: src/components/FinancialsTable.jsx:421
+msgid "Current Deferred Liabilities"
+msgstr "Current Deferred Liabilities"
+
+#: src/components/FinancialsTable.jsx:420
+msgid "Current Deferred Revenue"
+msgstr "Current Deferred Revenue"
+
+#: src/components/FinancialsTable.jsx:419
+msgid "Current Liabilities"
+msgstr "Current Liabilities"
+
+#: src/components/Navbar.jsx:295
+#: src/components/Navbar.jsx:352
+msgid "Dark"
+msgstr "Dark"
+
+#: src/components/Navbar.jsx:206
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: src/pages/MainChart.jsx:1238
+msgid "DEA"
+msgstr "DEA"
+
+#: src/pages/Admin/AdminUsersPage.jsx:212
+msgid "Delete"
+msgstr "Delete"
+
+#: src/pages/MainChart.jsx:1235
+msgid "DIF"
+msgstr "DIF"
+
+#: src/components/FinancialsTable.jsx:367
+msgid "Diluted Average Shares"
+msgstr "Diluted Average Shares"
+
+#: src/components/FinancialsTable.jsx:366
+msgid "Diluted EPS"
+msgstr "Diluted EPS"
+
+#: src/components/FinancialsTable.jsx:365
+msgid "Diluted NI Availto Com Stockholders"
+msgstr "Diluted NI Availto Com Stockholders"
+
+#: src/pages/Login.jsx:261
+msgid "Don't have an account?"
+msgstr "Don't have an account?"
+
+#: src/pages/Admin/AdminUsersPage.jsx:211
+msgid "Edit"
+msgstr "Edit"
+
+#: src/components/FinancialsTable.jsx:364
+msgid "EIT"
+msgstr "EIT"
+
+#: src/components/FinancialsTable.jsx:363
+msgid "EITDA"
+msgstr "EITDA"
+
+#: src/pages/MainChart.jsx:1790
+msgid "EMA"
+msgstr "EMA"
+
+#: src/pages/Admin/AdminUsersPage.jsx:145
+#: src/pages/ForgotPassword.jsx:200
+#: src/pages/Login.jsx:181
+#: src/pages/Profile.jsx:357
+#: src/pages/Register.jsx:198
+msgid "Email"
+msgstr "Email"
+
+#: src/pages/Compare.jsx:108
+msgid "Employees:"
+msgstr "Employees:"
+
+#: src/pages/ForgotPassword.jsx:197
+msgid "Enter the email associated with your account to receive an OTP."
+msgstr "Enter the email associated with your account to receive an OTP."
+
+#: src/pages/ForgotPassword.jsx:233
+msgid "Enter the OTP and choose a new password."
+msgstr "Enter the OTP and choose a new password."
+
+#: src/pages/Compare.jsx:110
+msgid "Fetched:"
+msgstr "Fetched:"
+
+#: src/pages/CompanyProfile.jsx:517
+#: src/pages/MainChart.jsx:1462
+msgid "Financials"
+msgstr "Financials"
+
+#: src/pages/CompanyProfile.jsx:498
+msgid "Fiscal Year"
+msgstr "Fiscal Year"
+
+#: src/pages/MainChart.jsx:1107
+msgid "Flash Crash"
+msgstr "Flash Crash"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Follow"
+msgstr "Follow"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Following"
+msgstr "Following"
+
+#: src/pages/Profile.jsx:355
+#: src/pages/Register.jsx:164
+msgid "Full Name"
+msgstr "Full Name"
+
+#: src/components/Navbar.jsx:249
+msgid "Full Scan"
+msgstr "Full Scan"
+
+#: src/components/FinancialsTable.jsx:418
+msgid "Gains Losses Not Affecting Retained Earnings"
+msgstr "Gains Losses Not Affecting Retained Earnings"
+
+#: src/components/ProfileSidebar.jsx:11
+msgid "General"
+msgstr "General"
+
+#: src/pages/Home.jsx:472
+msgid "Get Started"
+msgstr "Get Started"
+
+#: src/components/FinancialsTable.jsx:417
+msgid "Gross PPE"
+msgstr "Gross PPE"
+
+#: src/components/FinancialsTable.jsx:362
+msgid "Gross Profit"
+msgstr "Gross Profit"
+
+#: src/pages/MainChart.jsx:242
+msgid "High"
+msgstr "High"
+
+#: src/pages/Chart.jsx:1197
+msgid "HLC"
+msgstr "HLC"
+
+#: src/pages/CompanyProfile.jsx:522
+#: src/pages/MainChart.jsx:1477
+msgid "Income"
+msgstr "Income"
+
+#: src/components/FinancialsTable.jsx:327
+#: src/pages/CompanyProfile.jsx:363
+msgid "Income Statement"
+msgstr "Income Statement"
+
+#: src/pages/MainChart.jsx:1850
+msgid "Income Statement (most recent 2 periods)"
+msgstr "Income Statement (most recent 2 periods)"
+
+#: src/components/FinancialsTable.jsx:416
+msgid "Income Tax Payable"
+msgstr "Income Tax Payable"
+
+#: src/pages/MainChart.jsx:1756
+msgid "Indicators"
+msgstr "Indicators"
+
+#: src/pages/CompanyProfile.jsx:451
+msgid "Industry"
+msgstr "Industry"
+
+#: src/components/FinancialsTable.jsx:361
+msgid "Interest Expense"
+msgstr "Interest Expense"
+
+#: src/components/FinancialsTable.jsx:360
+msgid "Interest Expense Non Operating"
+msgstr "Interest Expense Non Operating"
+
+#: src/components/FinancialsTable.jsx:359
+msgid "Interest Income"
+msgstr "Interest Income"
+
+#: src/components/FinancialsTable.jsx:358
+msgid "Interest Income Non Operating"
+msgstr "Interest Income Non Operating"
+
+#: src/pages/MainChart.jsx:231
+msgid "Intraday"
+msgstr "Intraday"
+
+#: src/components/FinancialsTable.jsx:415
+msgid "Inventory"
+msgstr "Inventory"
+
+#: src/components/FinancialsTable.jsx:414
+msgid "Invested Capital"
+msgstr "Invested Capital"
+
+#: src/components/FinancialsTable.jsx:413
+msgid "Investmentin Financial Assets"
+msgstr "Investmentin Financial Assets"
+
+#: src/components/FinancialsTable.jsx:412
+msgid "Investments And Advances"
+msgstr "Investments And Advances"
+
+#: src/pages/Compare.jsx:107
+msgid "Key"
+msgstr "Key"
+
+#: src/components/FinancialsTable.jsx:411
+msgid "Land And Improvements"
+msgstr "Land And Improvements"
+
+#: src/components/Navbar.jsx:303
+#: src/components/Navbar.jsx:360
+msgid "Language"
+msgstr "Language"
+
+#: src/components/FinancialsTable.jsx:410
+msgid "Leases"
+msgstr "Leases"
+
+#: src/components/Navbar.jsx:295
+#: src/components/Navbar.jsx:352
+msgid "Light"
+msgstr "Light"
+
+#: src/pages/Chart.jsx:1192
+msgid "Line"
+msgstr "Line"
+
+#: src/pages/Profile.jsx:426
+msgid "LINE"
+msgstr "LINE"
+
+#: src/pages/Profile.jsx:424
+msgid "LINE Integration"
+msgstr "LINE Integration"
+
+#: src/pages/Home.jsx:473
+msgid "LINE Login"
+msgstr "LINE Login"
+
+#: src/pages/LineCallback.jsx:67
+msgid "LINE login failed"
+msgstr "LINE login failed"
+
+#: src/pages/CompanyProfile.jsx:564
+msgid "Loading chart…"
+msgstr "Loading chart…"
+
+#: src/pages/MarketList.jsx:825
+msgid "Loading stocks..."
+msgstr "Loading stocks..."
+
+#: src/pages/Chart.jsx:1241
+msgid "Loading..."
+msgstr "Loading..."
+
+#: src/components/LoginConfirmDialog.jsx:51
+msgid "Log in"
+msgstr "Log in"
+
+#: src/components/Navbar.jsx:327
+#~ msgid "Login"
+#~ msgstr "Login"
+
+#: src/pages/LineCallback.jsx:63
+msgid "Login successful! Redirecting..."
+msgstr "Login successful! Redirecting..."
+
+#: src/components/Navbar.jsx:328
+msgid "Logout"
+msgstr "Logout"
+
+#: src/components/FinancialsTable.jsx:409
+msgid "Long Term Capital Lease Obligation"
+msgstr "Long Term Capital Lease Obligation"
+
+#: src/components/FinancialsTable.jsx:408
+msgid "Long Term Debt"
+msgstr "Long Term Debt"
+
+#: src/components/FinancialsTable.jsx:407
+msgid "Long Term Debt And Capital Lease Obligation"
+msgstr "Long Term Debt And Capital Lease Obligation"
+
+#: src/pages/MainChart.jsx:243
+msgid "Low"
+msgstr "Low"
+
+#: src/pages/MainChart.jsx:1782
+msgid "MA (25)"
+msgstr "MA (25)"
+
+#: src/pages/MainChart.jsx:1778
+msgid "MA (5)"
+msgstr "MA (5)"
+
+#: src/pages/MainChart.jsx:1786
+msgid "MA (75)"
+msgstr "MA (75)"
+
+#: src/pages/Chart.jsx:1088
+msgid "MA25 (Mid-term)"
+msgstr "MA25 (Mid-term)"
+
+#: src/pages/Chart.jsx:1078
+msgid "MA5 (Short-term)"
+msgstr "MA5 (Short-term)"
+
+#: src/pages/Chart.jsx:1098
+msgid "MA75 (Long-term)"
+msgstr "MA75 (Long-term)"
+
+#: src/pages/MainChart.jsx:1233
+#: src/pages/MainChart.jsx:1794
+msgid "MACD"
+msgstr "MACD"
+
+#: src/pages/Admin/AdminUsersPage.jsx:122
+msgid "Manage application users."
+msgstr "Manage application users."
+
+#: src/pages/MarketList.jsx:755
+msgid "Market"
+msgstr "Market"
+
+#: src/pages/CompanyProfile.jsx:408
+#: src/pages/Compare.jsx:98
+msgid "Market Cap:"
+msgstr "Market Cap:"
+
+#: src/components/Navbar.jsx:203
+msgid "Market List"
+msgstr "Market List"
+
+#: src/pages/MarketList.jsx:786
+msgid "Market Status"
+msgstr "Market Status"
+
+#: src/pages/MainChart.jsx:240
+msgid "Max"
+msgstr "Max"
+
+#: src/components/FinancialsTable.jsx:302
+#: src/components/FinancialsTable.jsx:329
+msgid "Metric"
+msgstr "Metric"
+
+#: src/pages/MainChart.jsx:1469
+#: src/pages/MainChart.jsx:1504
+msgid "More"
+msgstr "More"
+
+#: src/pages/Home.jsx:545
+msgid "Most anomaly found"
+msgstr "Most anomaly found"
+
+#: src/pages/Dashboard.jsx:144
+msgid "My Watchlist"
+msgstr "My Watchlist"
+
+#: src/pages/Admin/AdminUsersPage.jsx:147
+#: src/pages/CompanyProfile.jsx:497
+msgid "Name"
+msgstr "Name"
+
+#: src/components/FinancialsTable.jsx:405
+msgid "Net Debt"
+msgstr "Net Debt"
+
+#: src/components/FinancialsTable.jsx:357
+msgid "Net Income"
+msgstr "Net Income"
+
+#: src/components/FinancialsTable.jsx:356
+msgid "Net Income Common Stockholders"
+msgstr "Net Income Common Stockholders"
+
+#: src/components/FinancialsTable.jsx:355
+msgid "Net Income Continuous Operations"
+msgstr "Net Income Continuous Operations"
+
+#: src/components/FinancialsTable.jsx:354
+msgid "Net Income From Continuing And Discontinued Operation"
+msgstr "Net Income From Continuing And Discontinued Operation"
+
+#: src/components/FinancialsTable.jsx:353
+msgid "Net Income From Continuing Operation Net inority Interest"
+msgstr "Net Income From Continuing Operation Net inority Interest"
+
+#: src/components/FinancialsTable.jsx:352
+msgid "Net Income Including Noncontrolling Interests"
+msgstr "Net Income Including Noncontrolling Interests"
+
+#: src/components/FinancialsTable.jsx:351
+msgid "Net Interest Income"
+msgstr "Net Interest Income"
+
+#: src/components/FinancialsTable.jsx:350
+msgid "Net Non Operating Interest Income Expense"
+msgstr "Net Non Operating Interest Income Expense"
+
+#: src/components/FinancialsTable.jsx:404
+msgid "Net PPE"
+msgstr "Net PPE"
+
+#: src/components/FinancialsTable.jsx:403
+msgid "Net Tangible Assets"
+msgstr "Net Tangible Assets"
+
+#: src/pages/ForgotPassword.jsx:253
+msgid "New Password"
+msgstr "New Password"
+
+#: src/pages/CompanyProfile.jsx:585
+#: src/pages/Home.jsx:596
+#: src/pages/MainChart.jsx:1503
+msgid "News"
+msgstr "News"
+
+#: src/pages/CompanyProfile.jsx:692
+msgid "Next"
+msgstr "Next"
+
+#: src/pages/Compare.jsx:103
+msgid "no chart"
+msgstr "no chart"
+
+#: src/pages/LineCallback.jsx:24
+msgid "No code received from LINE."
+msgstr "No code received from LINE."
+
+#: src/pages/CompanyProfile.jsx:524
+#: src/pages/CompanyProfile.jsx:531
+msgid "No data"
+msgstr "No data"
+
+#: src/pages/CompanyProfile.jsx:632
+msgid "No news"
+msgstr "No news"
+
+#: src/pages/MainChart.jsx:1513
+msgid "No recent news"
+msgstr "No recent news"
+
+#: src/components/FinancialsTable.jsx:402
+msgid "Non Current Deferred Assets"
+msgstr "Non Current Deferred Assets"
+
+#: src/components/FinancialsTable.jsx:401
+msgid "Non Current Deferred Taxes Assets"
+msgstr "Non Current Deferred Taxes Assets"
+
+#: src/components/FinancialsTable.jsx:349
+msgid "Normalized EITDA"
+msgstr "Normalized EITDA"
+
+#: src/components/FinancialsTable.jsx:348
+msgid "Normalized Income"
+msgstr "Normalized Income"
+
+#: src/components/ProfileSidebar.jsx:13
+msgid "Notifications"
+msgstr "Notifications"
+
+#: src/pages/Chart.jsx:1193
+#~ msgid "OHLC (Heiken-Ashi)"
+#~ msgstr "OHLC (Heiken-Ashi)"
+
+#: src/pages/Chart.jsx:1193
+msgid "OHLC (Heikin-Ashi)"
+msgstr "OHLC (Heikin-Ashi)"
+
+#: src/pages/MainChart.jsx:241
+msgid "Open"
+msgstr "Open"
+
+#: src/pages/MainChart.jsx:1435
+msgid "OPEN"
+msgstr "OPEN"
+
+#: src/pages/CompanyProfile.jsx:560
+msgid "Open Chart"
+msgstr "Open Chart"
+
+#: src/pages/MainChart.jsx:1865
+msgid "Open Company Profile"
+msgstr "Open Company Profile"
+
+#: src/pages/MarketList.jsx:793
+msgid "Open Now"
+msgstr "Open Now"
+
+#: src/components/FinancialsTable.jsx:347
+msgid "Operating Expense"
+msgstr "Operating Expense"
+
+#: src/components/FinancialsTable.jsx:346
+msgid "Operating Income"
+msgstr "Operating Income"
+
+#: src/components/FinancialsTable.jsx:345
+msgid "Operating Revenue"
+msgstr "Operating Revenue"
+
+#: src/pages/Register.jsx:237
+msgid "or"
+msgstr "or"
+
+#: src/components/FinancialsTable.jsx:400
+msgid "Ordinary Shares Number"
+msgstr "Ordinary Shares Number"
+
+#: src/pages/MainChart.jsx:1115
+msgid "Other"
+msgstr "Other"
+
+#: src/components/FinancialsTable.jsx:399
+msgid "Other Current Assets"
+msgstr "Other Current Assets"
+
+#: src/components/FinancialsTable.jsx:397
+msgid "Other Current Liabilities"
+msgstr "Other Current Liabilities"
+
+#: src/components/FinancialsTable.jsx:398
+msgid "Other Current orrowings"
+msgstr "Other Current orrowings"
+
+#: src/components/FinancialsTable.jsx:396
+msgid "Other Equity Adjustments"
+msgstr "Other Equity Adjustments"
+
+#: src/components/FinancialsTable.jsx:344
+msgid "Other Income Expense"
+msgstr "Other Income Expense"
+
+#: src/components/FinancialsTable.jsx:395
+msgid "Other Investments"
+msgstr "Other Investments"
+
+#: src/components/FinancialsTable.jsx:394
+msgid "Other Non Current Assets"
+msgstr "Other Non Current Assets"
+
+#: src/components/FinancialsTable.jsx:393
+msgid "Other Non Current Liabilities"
+msgstr "Other Non Current Liabilities"
+
+#: src/components/FinancialsTable.jsx:343
+msgid "Other Non Operating Income Expenses"
+msgstr "Other Non Operating Income Expenses"
+
+#: src/components/FinancialsTable.jsx:392
+msgid "Other Properties"
+msgstr "Other Properties"
+
+#: src/components/FinancialsTable.jsx:391
+msgid "Other Receivables"
+msgstr "Other Receivables"
+
+#: src/components/FinancialsTable.jsx:390
+msgid "Other Short Term Investments"
+msgstr "Other Short Term Investments"
+
+#: src/pages/ForgotPassword.jsx:236
+msgid "OTP"
+msgstr "OTP"
+
+#: src/pages/Chart.jsx:1108
+msgid "Parabolic SAR"
+msgstr "Parabolic SAR"
+
+#: src/pages/Admin/AdminUsersPage.jsx:169
+#: src/pages/Login.jsx:200
+#: src/pages/Register.jsx:216
+msgid "Password"
+msgstr "Password"
+
+#: src/pages/Profile.jsx:391
+msgid "Password Management"
+msgstr "Password Management"
+
+#: src/components/FinancialsTable.jsx:389
+msgid "Payables"
+msgstr "Payables"
+
+#: src/components/FinancialsTable.jsx:388
+msgid "Payables And Accrued Expenses"
+msgstr "Payables And Accrued Expenses"
+
+#: src/components/FinancialsTable.jsx:273
+#: src/components/FinancialsTable.jsx:330
+msgid "Period"
+msgstr "Period"
+
+#: src/pages/CompanyProfile.jsx:473
+msgid "Phone"
+msgstr "Phone"
+
+#: src/components/LoginConfirmDialog.jsx:43
+msgid "Please log in"
+msgstr "Please log in"
+
+#: src/components/Navbar.jsx:340
+msgid "Please sign in to continue"
+msgstr "Please sign in to continue"
+
+#: src/components/FinancialsTable.jsx:342
+msgid "Pretax Income"
+msgstr "Pretax Income"
+
+#: src/pages/CompanyProfile.jsx:682
+msgid "Prev"
+msgstr "Prev"
+
+#: src/pages/MainChart.jsx:1108
+msgid "Price Average (20d)"
+msgstr "Price Average (20d)"
+
+#: src/pages/MainChart.jsx:1106
+msgid "Price Spike"
+msgstr "Price Spike"
+
+#: src/pages/MarketList.jsx:778
+msgid "Price: High to Low"
+msgstr "Price: High to Low"
+
+#: src/pages/MarketList.jsx:777
+msgid "Price: Low to High"
+msgstr "Price: Low to High"
+
+#: src/pages/LineCallback.jsx:14
+msgid "Processing LINE login..."
+msgstr "Processing LINE login..."
+
+#: src/components/Navbar.jsx:218
+#: src/pages/MainChart.jsx:1759
+msgid "Profile"
+msgstr "Profile"
+
+#: src/pages/Profile.jsx:351
+msgid "Profile Information"
+msgstr "Profile Information"
+
+#: src/components/FinancialsTable.jsx:387
+msgid "Properties"
+msgstr "Properties"
+
+#: src/components/Footer.jsx:55
+msgid "Real-time market monitoring with anomaly detection and LINE notifications."
+msgstr "Real-time market monitoring with anomaly detection and LINE notifications."
+
+#: src/components/FinancialsTable.jsx:386
+msgid "Receivables"
+msgstr "Receivables"
+
+#: src/pages/MarketList.jsx:775
+msgid "Recent Anomalies"
+msgstr "Recent Anomalies"
+
+#: src/pages/Home.jsx:483
+msgid "Recent anomaly found"
+msgstr "Recent anomaly found"
+
+#: src/components/FinancialsTable.jsx:341
+msgid "Reconciled Cost Of Revenue"
+msgstr "Reconciled Cost Of Revenue"
+
+#: src/components/FinancialsTable.jsx:340
+msgid "Reconciled Depreciation"
+msgstr "Reconciled Depreciation"
+
+#: src/pages/Login.jsx:217
+msgid "Remember me"
+msgstr "Remember me"
+
+#: src/components/FinancialsTable.jsx:339
+msgid "Research And Development"
+msgstr "Research And Development"
+
+#: src/pages/ForgotPassword.jsx:188
+msgid "Reset password"
+msgstr "Reset password"
+
+#: src/pages/ForgotPassword.jsx:276
+msgid "Reset Password"
+msgstr "Reset Password"
+
+#: src/pages/ForgotPassword.jsx:276
+msgid "Resetting..."
+msgstr "Resetting..."
+
+#: src/pages/Dashboard.jsx:159
+msgid "results"
+msgstr "results"
+
+#: src/components/FinancialsTable.jsx:385
+msgid "Retained Earnings"
+msgstr "Retained Earnings"
+
+#: src/pages/Admin/AdminUsersPage.jsx:148
+msgid "Role"
+msgstr "Role"
+
+#: src/pages/MainChart.jsx:1114
+msgid "Rule"
+msgstr "Rule"
+
+#: src/pages/CompanyProfile.jsx:455
+msgid "Sector"
+msgstr "Sector"
+
+#: src/components/ProfileSidebar.jsx:12
+msgid "Security"
+msgstr "Security"
+
+#: src/components/FinancialsTable.jsx:338
+msgid "Selling General And Administration"
+msgstr "Selling General And Administration"
+
+#: src/pages/ForgotPassword.jsx:224
+msgid "Send OTP"
+msgstr "Send OTP"
+
+#: src/pages/ForgotPassword.jsx:224
+msgid "Sending..."
+msgstr "Sending..."
+
+#: src/components/Navbar.jsx:319
+#: src/components/ProfileSidebar.jsx:26
+msgid "Settings"
+msgstr "Settings"
+
+#: src/components/FinancialsTable.jsx:384
+msgid "Share Issued"
+msgstr "Share Issued"
+
+#: src/pages/CompanyProfile.jsx:518
+msgid "Show more"
+msgstr "Show more"
+
+#: src/pages/Home.jsx:484
+msgid "Show more ›"
+msgstr "Show more ›"
+
+#: src/components/Search.jsx:99
+msgid "Show More →"
+msgstr "Show More →"
+
+#: src/components/Navbar.jsx:378
+#: src/pages/Login.jsx:174
+#: src/pages/Login.jsx:219
+#: src/pages/Register.jsx:241
+msgid "Sign in"
+msgstr "Sign in"
+
+#: src/pages/Login.jsx:258
+msgid "Sign in with LINE"
+msgstr "Sign in with LINE"
+
+#: src/pages/Login.jsx:263
+#: src/pages/Register.jsx:157
+msgid "Sign up"
+msgstr "Sign up"
+
+#: src/pages/MarketList.jsx:769
+msgid "Sort By"
+msgstr "Sort By"
+
+#: src/pages/Dashboard.jsx:145
+msgid "stock"
+msgstr "stock"
+
+#: src/pages/Home.jsx:469
+msgid "Stock Trading Anomaly Detector"
+msgstr "Stock Trading Anomaly Detector"
+
+#: src/components/FinancialsTable.jsx:383
+msgid "Stockholders Equity"
+msgstr "Stockholders Equity"
+
+#: src/pages/Dashboard.jsx:145
+msgid "stocks"
+msgstr "stocks"
+
+#: src/pages/Dashboard.jsx:145
+msgid "stocks followed"
+msgstr "stocks followed"
+
+#: src/pages/MainChart.jsx:1113
+msgid "System"
+msgstr "System"
+
+#: src/components/FinancialsTable.jsx:382
+msgid "Tangible ook Value"
+msgstr "Tangible ook Value"
+
+#: src/components/FinancialsTable.jsx:337
+msgid "Tax Effect Of Unusual Items"
+msgstr "Tax Effect Of Unusual Items"
+
+#: src/components/FinancialsTable.jsx:336
+msgid "Tax Provision"
+msgstr "Tax Provision"
+
+#: src/components/FinancialsTable.jsx:335
+msgid "Tax Rate For Calcs"
+msgstr "Tax Rate For Calcs"
+
+#: src/components/Navbar.jsx:294
+#: src/components/Navbar.jsx:351
+msgid "Theme"
+msgstr "Theme"
+
+#: src/pages/Profile.jsx:361
+#: src/pages/Profile.jsx:371
+msgid "Timezone"
+msgstr "Timezone"
+
+#: src/pages/CompanyProfile.jsx:496
+msgid "Title"
+msgstr "Title"
+
+#: src/components/FinancialsTable.jsx:381
+msgid "Total Assets"
+msgstr "Total Assets"
+
+#: src/components/FinancialsTable.jsx:380
+msgid "Total Capitalization"
+msgstr "Total Capitalization"
+
+#: src/components/FinancialsTable.jsx:379
+msgid "Total Debt"
+msgstr "Total Debt"
+
+#: src/components/FinancialsTable.jsx:378
+msgid "Total Equity Gross inority Interest"
+msgstr "Total Equity Gross inority Interest"
+
+#: src/components/FinancialsTable.jsx:334
+msgid "Total Expenses"
+msgstr "Total Expenses"
+
+#: src/components/FinancialsTable.jsx:377
+msgid "Total Liabilities Net inority Interest"
+msgstr "Total Liabilities Net inority Interest"
+
+#: src/components/FinancialsTable.jsx:376
+msgid "Total Non Current Assets"
+msgstr "Total Non Current Assets"
+
+#: src/components/FinancialsTable.jsx:375
+msgid "Total Non Current Liabilities Net inority Interest"
+msgstr "Total Non Current Liabilities Net inority Interest"
+
+#: src/components/FinancialsTable.jsx:333
+msgid "Total Operating Income As Reported"
+msgstr "Total Operating Income As Reported"
+
+#: src/components/FinancialsTable.jsx:332
+msgid "Total Revenue"
+msgstr "Total Revenue"
+
+#: src/components/FinancialsTable.jsx:374
+msgid "Total Tax Payable"
+msgstr "Total Tax Payable"
+
+#: src/components/FinancialsTable.jsx:373
+msgid "Tradeand Other Payables Non Current"
+msgstr "Tradeand Other Payables Non Current"
+
+#: src/components/FinancialsTable.jsx:372
+msgid "Treasury Shares Number"
+msgstr "Treasury Shares Number"
+
+#: src/pages/MainChart.jsx:553
+msgid "Unable to load chart data"
+msgstr "Unable to load chart data"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Unfollow"
+msgstr "Unfollow"
+
+#: src/pages/CompanyProfile.jsx:554
+msgid "Updated:"
+msgstr "Updated:"
+
+#: src/pages/Admin/AdminUsersPage.jsx:146
+#: src/pages/Profile.jsx:356
+#: src/pages/Register.jsx:181
+msgid "Username"
+msgstr "Username"
+
+#: src/pages/Admin/AdminUsersPage.jsx:121
+msgid "Users Management"
+msgstr "Users Management"
+
+#: src/pages/ForgotPassword.jsx:188
+msgid "Verify OTP"
+msgstr "Verify OTP"
+
+#: src/pages/Chart.jsx:1038
+#: src/pages/MainChart.jsx:1200
+#: src/pages/MainChart.jsx:1798
+msgid "Volume"
+msgstr "Volume"
+
+#: src/pages/MainChart.jsx:1105
+msgid "Volume Average (14d)"
+msgstr "Volume Average (14d)"
+
+#: src/pages/MainChart.jsx:1104
+msgid "Volume Spike"
+msgstr "Volume Spike"
+
+#: src/pages/MainChart.jsx:1187
+#: src/pages/MainChart.jsx:1770
+msgid "VWAP"
+msgstr "VWAP"
+
+#: src/pages/CompanyProfile.jsx:459
+msgid "Website"
+msgstr "Website"
+
+#: src/components/FinancialsTable.jsx:371
+msgid "Working Capital"
+msgstr "Working Capital"
+
+#: src/components/LoginConfirmDialog.jsx:46
+msgid "You must be logged in to continue."
+msgstr "You must be logged in to continue."

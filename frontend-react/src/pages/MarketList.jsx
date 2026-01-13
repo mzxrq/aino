@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Trans } from '@lingui/react/macro';
 import { useNavigate } from "react-router-dom";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
@@ -751,13 +752,13 @@ const toggleFollow = async (ticker) => {
       {/* FILTERS ROW */}
       <div className="filters-row">
         <div className="filter-group">
-          <label className="filter-label">Market</label>
+          <label className="filter-label"><Trans>Market</Trans></label>
           <select 
             value={marketFilter} 
             onChange={(e) => setMarketFilter(e.target.value)}
             className="filter-select"
           >
-            <option value="All">All Markets</option>
+            <option value="All"><Trans>All Markets</Trans></option>
             <option value="US">🇺🇸 US (NYSE/NASDAQ)</option>
             <option value="JP">🇯🇵 Japan (TSE)</option>
             <option value="TH">🇹🇭 Thailand (SET)</option>
@@ -765,32 +766,32 @@ const toggleFollow = async (ticker) => {
         </div>
 
         <div className="filter-group">
-          <label className="filter-label">Sort By</label>
+          <label className="filter-label"><Trans>Sort By</Trans></label>
           <select 
             value={sortBy} 
             onChange={(e) => setSortBy(e.target.value)}
             className="filter-select"
           >
-            <option value="recent_anomalies">Recent Anomalies</option>
-            <option value="anomaly_count">Anomaly Count</option>
-            <option value="price_low">Price: Low to High</option>
-            <option value="price_high">Price: High to Low</option>
-            <option value="percent_change_high">% Change: High to Low</option>
-            <option value="percent_change_low">% Change: Low to High</option>
-            <option value="alphabetical">Alphabetical</option>
+            <option value="recent_anomalies"><Trans>Recent Anomalies</Trans></option>
+            <option value="anomaly_count"><Trans>Anomaly Count</Trans></option>
+            <option value="price_low"><Trans>Price: Low to High</Trans></option>
+            <option value="price_high"><Trans>Price: High to Low</Trans></option>
+            <option value="percent_change_high"><Trans>% Change: High to Low</Trans></option>
+            <option value="percent_change_low"><Trans>% Change: Low to High</Trans></option>
+            <option value="alphabetical"><Trans>Alphabetical</Trans></option>
           </select>
         </div>
 
         <div className="filter-group">
-          <label className="filter-label">Market Status</label>
+          <label className="filter-label"><Trans>Market Status</Trans></label>
           <select 
             value={marketStatus} 
             onChange={(e) => setMarketStatus(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All</option>
-            <option value="open">Open Now</option>
-            <option value="closed">Closed</option>
+            <option value="all"><Trans>All</Trans></option>
+            <option value="open"><Trans>Open Now</Trans></option>
+            <option value="closed"><Trans>Closed</Trans></option>
           </select>
         </div>
 
@@ -821,7 +822,7 @@ const toggleFollow = async (ticker) => {
         {loading ? (
           <div className="loading-state">
             <div className="spinner"></div>
-            <p>Loading stocks...</p>
+            <p><Trans>Loading stocks...</Trans></p>
           </div>
         ) : visibleData.length > 0 ? (
           viewMode === 'detailed' ? (
@@ -856,8 +857,8 @@ const toggleFollow = async (ticker) => {
                       <div className="stock-info">
                         <div className="stock-ticker-row">
                           <h3 className="stock-ticker">{item.ticker} <span className="stock-exchange">({item.primaryExchange})</span></h3>
-                          {marketOpen && <span className="status-badge open">● Open</span>}
-                          {!marketOpen && <span className="status-badge closed">○ Closed</span>}
+                          {marketOpen && <span className="status-badge open"><Trans>● Open</Trans></span>}
+                          {!marketOpen && <span className="status-badge closed"><Trans>○ Closed</Trans></span>}
                         </div>
                         <p className="stock-name">{item.companyName}</p>
                       </div>

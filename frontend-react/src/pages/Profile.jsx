@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useAuth } from '../context/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
@@ -347,17 +348,17 @@ const GeneralSection = ({ user, formData, _setFormData, editMode, setEditMode, s
 
             <div className="profile-section">
                 <div className="section-header">
-                    <h2>Profile Information</h2>
-                    <button className="btn btn-toggle" onClick={() => setEditMode(!editMode)}>{editMode ? 'Cancel' : 'Edit'}</button>
+                    <h2><Trans>Profile Information</Trans></h2>
+                    <button className="btn btn-toggle" onClick={() => setEditMode(!editMode)}><Trans>{editMode ? 'Cancel' : 'Edit'}</Trans></button>
                 </div>
                 <form onSubmit={handleUpdateProfile} className={`profile-form ${editMode ? 'edit-mode' : ''}`}>
-                    <FormRow label="Full Name" name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
-                    <FormRow label="Username" name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
-                    <FormRow label="Email" name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={(user?.loginMethod || '').toLowerCase() === 'line' ? 'Add your email to enable password login' : 'your.email@example.com'} />
+                    <FormRow label={<Trans>Full Name</Trans>} name="name" disabled={!editMode} value={formData.name} onChange={handleInput} />
+                    <FormRow label={<Trans>Username</Trans>} name="username" disabled={!editMode} value={formData.username} onChange={handleInput} />
+                    <FormRow label={<Trans>Email</Trans>} name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={(user?.loginMethod || '').toLowerCase() === 'line' ? 'Add your email to enable password login' : 'your.email@example.com'} />
 
                     {editMode ? (
                         <FormRow
-                            label="Timezone"
+                            label={<Trans>Timezone</Trans>}
                             name="timeZone"
                             type="select"
                             disabled={!editMode}
@@ -367,11 +368,11 @@ const GeneralSection = ({ user, formData, _setFormData, editMode, setEditMode, s
                         />
                     ) : (
                         <div className="form-group">
-                            <label>Timezone</label>
+                            <label><Trans>Timezone</Trans></label>
                             <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
                         </div>
                     )}
-                    {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}>{loading.saving ? 'Saving…' : 'Save Changes'}</button>}
+                    {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}><Trans>{loading.saving ? 'Saving…' : 'Save Changes'}</Trans></button>}
                 </form>
             </div>
         </div>
@@ -387,9 +388,9 @@ const SecuritySection = ({ user, canChangePassword, canAddPassword, isLineUser, 
             {(canChangePassword || canAddPassword) && (
                 <div className="profile-section">
                     <div className="section-header">
-                        <h2>Password Management</h2>
+                        <h2><Trans>Password Management</Trans></h2>
                         <button className="btn btn-toggle" onClick={() => setShowPasswordForm(!showPasswordForm)}>
-                            {showPasswordForm ? 'Cancel' : (canAddPassword ? 'Add Password' : 'Change Password')}
+                            <Trans>{showPasswordForm ? 'Cancel' : (canAddPassword ? 'Add Password' : 'Change Password')}</Trans>
                         </button>
                     </div>
                     {showPasswordForm && (
@@ -420,10 +421,10 @@ const ConnectedServicesSection = ({ isLineUser, handleLineIntegration }) => (
         <div className="profile-content">
             {!isLineUser && (
                 <div className="profile-section">
-                    <h2>LINE Integration</h2>
+                    <h2><Trans>LINE Integration</Trans></h2>
                     <div className="service-card">
-                        <div className="service-info"><h3>LINE</h3><p>Connect your LINE account for easier login</p></div>
-                        <button className="btn btn-line" onClick={handleLineIntegration}>Connect LINE</button>
+                        <div className="service-info"><h3><Trans>LINE</Trans></h3><p><Trans>Connect your LINE account for easier login</Trans></p></div>
+                        <button className="btn btn-line" onClick={handleLineIntegration}><Trans>Connect LINE</Trans></button>
                     </div>
                 </div>
             )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../css/ProfileSidebar.css';
 
@@ -7,10 +8,10 @@ const ProfileSidebar = () => {
   const navigate = useNavigate();
 
   const sections = [
-    { id: 'general', label: 'General', icon: '⚙️', path: '/profile' },
-    { id: 'security', label: 'Security', icon: '🔒', path: '/profile?section=security' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔', path: '/profile?section=notifications' },
-    { id: 'connected', label: 'Connection', icon: '🔗', path: '/profile?section=connected' },
+    { id: 'general', label: <Trans>General</Trans>, icon: '⚙️', path: '/profile' },
+    { id: 'security', label: <Trans>Security</Trans>, icon: '🔒', path: '/profile?section=security' },
+    { id: 'notifications', label: <Trans>Notifications</Trans>, icon: '🔔', path: '/profile?section=notifications' },
+    { id: 'connected', label: <Trans>Connection</Trans>, icon: '🔗', path: '/profile?section=connected' },
   ];
 
   const currentSection = new URLSearchParams(location.search).get('section') || 'general';
@@ -22,7 +23,7 @@ const ProfileSidebar = () => {
   return (
     <aside className="profile-sidebar">
       <div className="sidebar-header">
-        <h3>Settings</h3>
+        <h3><Trans>Settings</Trans></h3>
       </div>
       <nav className="sidebar-nav">
         {sections.map((section) => (

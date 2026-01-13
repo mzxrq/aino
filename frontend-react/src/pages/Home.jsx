@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { AuthContext } from '../context/contextBase';
 import '../css/Home.css';
@@ -465,11 +466,11 @@ export default function Home() {
       <section className="hero-section-full">
         <div className="hero-content-centered">
           <img src={logoSvg} alt="Logo" className="hero-logo website-logo" />
-          <p className="hero-motto">Stock Trading Anomaly Detector</p>
+          <p className="hero-motto"><Trans>Stock Trading Anomaly Detector</Trans></p>
           {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={handleChart}>Get Started</button>
-            {!isLoggedIn && <button className="btn btn-line" onClick={handleLogin}>LINE Login</button>}
+            <button className="btn btn-primary" onClick={handleChart}><Trans>Get Started</Trans></button>
+            {!isLoggedIn && <button className="btn btn-line" onClick={handleLogin}><Trans>LINE Login</Trans></button>}
           </div>
         </div>
       </section>
@@ -479,8 +480,8 @@ export default function Home() {
         <div className="left-column">
           <div className="card anomaly-card">
             <div className="card-header">
-              <h3>Recent anomaly found</h3>
-              <Link to="/list" className="show-more">Show more ›</Link>
+              <h3><Trans>Recent anomaly found</Trans></h3>
+              <Link to="/list" className="show-more"><Trans>Show more ›</Trans></Link>
             </div>
             <div className="card-body">
               {(recentAnomalies.length ? recentAnomalies : fallbacka_loading).map(a => (
@@ -536,13 +537,15 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </div>
 
+        <div className="right-column">
           <div className="card anomaly-card">
             <div className="card-header">
-              <h3>Most anomaly found</h3>
+              <h3><Trans>Most anomaly found</Trans></h3>
             </div>
             <div className="card-body">
-              {(topAnomalies.length ? topAnomalies : fallbacka_loading).map(a => (
+              {(topAnomalies.length ? topAnomalies.slice(0, 3) : fallbacka_loading).map(a => (
                 <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{ cursor: 'pointer' }}>
                   <div className="logo-circle" title={a.company}>
                     {(() => {
@@ -587,12 +590,10 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
 
-        <div className="right-column">
           <div className="news-card card">
             <div className="card-header">
-              <h3>News</h3>
+              <h3><Trans>News</Trans></h3>
             </div>
             
             <ul className="news-list">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -27,6 +28,61 @@ const Card = styled(MuiCard)(({ theme }) => ({
     maxWidth: '450px',
   },
   boxShadow: 'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
+  color: 'var(--text-primary)',
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    color: 'inherit',
+    '& fieldset': {
+      borderColor: 'rgba(0, 195, 0, 0.15)',
+    },
+    '&:hover fieldset': {
+      borderColor: '#00c300',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#00c300',
+    },
+  },
+  '& .MuiInputBase-input::placeholder': {
+    color: 'rgba(0, 0, 0, 0.55)',
+  },
+  '& .MuiFormLabel-root': {
+    color: 'var(--text-primary)',
+  },
+  '& .MuiInputLabel-root': {
+    color: 'var(--text-primary)',
+  },
+  'body.dark &': {
+    boxShadow: 'hsla(0, 0%, 0%, 0.5) 0px 5px 15px 0px, hsla(0, 0%, 0%, 0.7) 0px 15px 35px -5px',
+    backgroundColor: 'hsl(218, 15%, 7%)',
+    color: '#e8f0f8',
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+      '& fieldset': {
+        borderColor: 'rgba(0, 195, 0, 0.25)',
+      },
+      '&:hover fieldset': {
+        borderColor: '#00c300',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#00c300',
+      },
+    },
+    '& .MuiInputBase-input::placeholder': {
+      color: 'rgba(232, 240, 248, 0.65)',
+    },
+    '& .MuiFormLabel-root': {
+      color: '#cfd8e3',
+      '&.Mui-focused': {
+        color: '#00c300',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#cfd8e3',
+      '&.Mui-focused': {
+        color: '#00c300',
+      },
+    },
+  },
 }));
 
 const ResetContainer = styled(Stack)(({ theme }) => ({
@@ -35,15 +91,6 @@ const ResetContainer = styled(Stack)(({ theme }) => ({
   padding: theme.spacing(2),
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
-  },
-  '&::before': {
-    content: '""',
-    display: 'block',
-    position: 'absolute',
-    zIndex: -1,
-    inset: 0,
-    backgroundImage: 'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
-    backgroundRepeat: 'no-repeat',
   },
 }));
 
@@ -138,7 +185,7 @@ export default function ForgotPassword() {
       <ResetContainer direction="column" justifyContent="space-between">
         <Card variant="outlined">
           <Typography component="h1" variant="h4" sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}>
-            {step === 0 ? 'Reset password' : 'Verify OTP'}
+            {step === 0 ? <Trans>Reset password</Trans> : <Trans>Verify OTP</Trans>}
           </Typography>
           
           {error && <Alert severity="error">{error}</Alert>}
@@ -147,10 +194,10 @@ export default function ForgotPassword() {
           {step === 0 ? (
             <Box component="form" noValidate sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Enter the email associated with your account to receive an OTP.
+                <Trans>Enter the email associated with your account to receive an OTP.</Trans>
               </Typography>
               <FormControl>
-                <FormLabel htmlFor="email">Email</FormLabel>
+                <FormLabel htmlFor="email"><Trans>Email</Trans></FormLabel>
                 <TextField
                   error={emailError}
                   helperText={emailError ? 'Please enter a valid email address.' : ''}
@@ -174,19 +221,19 @@ export default function ForgotPassword() {
                 onClick={sendOtp}
                 disabled={loading}
               >
-                {loading ? 'Sending...' : 'Send OTP'}
+                {loading ? <Trans>Sending...</Trans> : <Trans>Send OTP</Trans>}
               </Button>
               <Link component={RouterLink} to="/login" variant="body2" sx={{ alignSelf: 'center' }}>
-                Back to sign in
+                <Trans>Back to sign in</Trans>
               </Link>
             </Box>
           ) : (
             <Box component="form" noValidate sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Enter the OTP and choose a new password.
+                <Trans>Enter the OTP and choose a new password.</Trans>
               </Typography>
               <FormControl>
-                <FormLabel htmlFor="otp">OTP</FormLabel>
+                <FormLabel htmlFor="otp"><Trans>OTP</Trans></FormLabel>
                 <TextField
                   error={otpError}
                   helperText={otpError ? 'OTP is required.' : ''}
@@ -203,7 +250,7 @@ export default function ForgotPassword() {
                 />
               </FormControl>
               <FormControl>
-                <FormLabel htmlFor="newPassword">New Password</FormLabel>
+                <FormLabel htmlFor="newPassword"><Trans>New Password</Trans></FormLabel>
                 <TextField
                   error={passwordError}
                   helperText={passwordError ? 'Password must be at least 6 characters long.' : ''}
@@ -226,7 +273,7 @@ export default function ForgotPassword() {
                   onClick={resetPassword}
                   disabled={loading}
                 >
-                  {loading ? 'Resetting...' : 'Reset Password'}
+                  {loading ? <Trans>Resetting...</Trans> : <Trans>Reset Password</Trans>}
                 </Button>
                 <Button
                   fullWidth
@@ -241,7 +288,7 @@ export default function ForgotPassword() {
                   }}
                   disabled={loading}
                 >
-                  Back
+                  <Trans>Back</Trans>
                 </Button>
               </Box>
             </Box>

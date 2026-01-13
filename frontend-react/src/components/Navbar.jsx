@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { i18n } from '@lingui/core';
 import '../css/Navbar.css';
+import '../css/ProfileDropdown.css';
 import "@theme-toggles/react/css/Expand.css";
 import { Expand } from "@theme-toggles/react";
 import logoSvg from '../assets/aino.svg';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const profileMenuRef = useRef(null);
+  const profileAvatarRef = useRef(null);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('theme') || 'light';
@@ -18,10 +24,39 @@ export default function Navbar() {
     }
   });
 
+  const [locale, setLocale] = useState(() => {
+    try {
+      return localStorage.getItem('locale') || 'en';
+    } catch (e) {
+      return 'en';
+    }
+  });
+
   useEffect(() => {
     if (theme === 'dark') document.body.classList.add('dark');
     else document.body.classList.remove('dark');
   }, [theme]);
+
+  useEffect(() => {
+    const loadLocale = async () => {
+      try {
+        const { messages } = await import(`../locales/${locale}/messages.js`);
+        i18n.load(locale, messages);
+        i18n.activate(locale);
+      } catch (e) {
+        console.error('Failed to load locale:', locale, e);
+      }
+    };
+    loadLocale();
+  }, [locale]);
+
+  const switchLocale = (newLocale) => {
+    setLocale(newLocale);
+    try { localStorage.setItem('locale', newLocale); } catch (e) { void e; }
+    setProfileMenuOpen(false);
+    // Reload page to apply new locale
+    window.location.reload();
+  };
 
   const { isLoggedIn, isAdmin, token, user, logout } = useAuth() || {};
 
@@ -62,6 +97,22 @@ export default function Navbar() {
       resizeObserver.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    // Close profile menu when clicking outside
+    const handleClickOutside = (e) => {
+      if (profileMenuOpen && 
+          profileMenuRef.current && 
+          !profileMenuRef.current.contains(e.target) &&
+          profileAvatarRef.current &&
+          !profileAvatarRef.current.contains(e.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [profileMenuOpen]);
 
   // Close menu when navigating (for mobile UX)
   const handleNavClick = () => setMenuOpen(false);
@@ -148,23 +199,23 @@ export default function Navbar() {
         </svg>
       </button>
       <div className={`nav-links${menuOpen ? ' open' : ''}`}>
-        <Link to="/chart" className="nav-link" onClick={handleNavClick}>Chart</Link>
-        <Link to="/list" className="nav-link" onClick={handleNavClick}>Market List</Link>
+        <Link to="/chart" className="nav-link" onClick={handleNavClick}><Trans>Chart</Trans></Link>
+        <Link to="/list" className="nav-link" onClick={handleNavClick}><Trans>Market List</Trans></Link>
         {isLoggedIn ? (
           <>
-            <Link to="/dashboard" className="nav-link" onClick={handleNavClick}>Dashboard</Link>
+            <Link to="/dashboard" className="nav-link" onClick={handleNavClick}><Trans>Dashboard</Trans></Link>
             {isAdmin && (
             <>
               <Link to="/anomalies" className="nav-link admin-link" onClick={handleNavClick}>
-                Anomalies
+                <Trans>Anomalies</Trans>
               </Link>
               <Link to="/admin-dashboard" className="nav-link admin-link" onClick={handleNavClick}>
-                Admin Dashboard
+                <Trans>Admin Dashboard</Trans>
               </Link>
             </>
         )}
 
-            <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}>Profile</Link>
+            <Link to="/profile" className="nav-link profile-link" onClick={handleNavClick}><Trans>Profile</Trans></Link>
           </>
         ) : (
           <></>
@@ -195,31 +246,142 @@ export default function Navbar() {
               }
             }}
           >
-            Full Scan
+            <Trans>Full Scan</Trans>
           </button>
         )}
-        <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Expand
-            size={20}
-            duration={750}
-            toggled={theme === 'dark'}
-            onToggle={() => toggleTheme()}
-          />
-        </div>
-        {isLoggedIn ? (
-          <>
-            <Link to="/profile" className="profile-avatar-link" onClick={handleNavClick}>
-              {user && (user.pictureUrl || user.avatar) ? (
-                <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-avatar" />
+        <div style={{ position: 'relative' }}>
+          <button 
+            ref={profileAvatarRef}
+            className="profile-avatar-button" 
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            aria-label="Profile menu"
+          >
+            {isLoggedIn && user && (user.pictureUrl || user.avatar) ? (
+              <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-avatar" />
+            ) : isLoggedIn ? (
+              <span className="profile-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            )}
+          </button>
+          {profileMenuOpen && (
+            <div ref={profileMenuRef} className="profile-dropdown">
+              {isLoggedIn ? (
+                <>
+                  <div className="profile-dropdown-header">
+                    <div className="profile-dropdown-user">
+                      {user && (user.pictureUrl || user.avatar) ? (
+                        <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-dropdown-avatar" />
+                      ) : (
+                        <span className="profile-dropdown-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
+                      )}
+                      <div className="profile-dropdown-info">
+                        <div className="profile-dropdown-name">{user?.name || 'User'}</div>
+                        <div className="profile-dropdown-email">{user?.email || ''}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="profile-dropdown-divider"></div>
+                  <div className="profile-dropdown-item" onClick={() => toggleTheme()}>
+                    <Expand
+                      size={18}
+                      duration={750}
+                      toggled={theme === 'dark'}
+                    />
+                    <span><Trans>Theme</Trans></span>
+                    <span className="profile-dropdown-item-value">{theme === 'dark' ? <Trans>Dark</Trans> : <Trans>Light</Trans>}</span>
+                  </div>
+                  <div className="profile-dropdown-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="2" y1="12" x2="22" y2="12"/>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    <span><Trans>Language</Trans></span>
+                    <select 
+                      className="profile-dropdown-select" 
+                      value={locale} 
+                      onChange={(e) => switchLocale(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="en">English</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
+                  <Link to="/profile" className="profile-dropdown-item" onClick={() => setProfileMenuOpen(false)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span><Trans>Settings</Trans></span>
+                  </Link>
+                  <div className="profile-dropdown-divider"></div>
+                  <div className="profile-dropdown-item profile-dropdown-logout" onClick={() => { logout(); setProfileMenuOpen(false); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span><Trans>Logout</Trans></span>
+                  </div>
+                </>
               ) : (
-                <span className="profile-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
+                <>
+                  <div className="profile-dropdown-header">
+                    <div className="profile-dropdown-user">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      <div className="profile-dropdown-info">
+                        <div className="profile-dropdown-name"><Trans>Please sign in to continue</Trans></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="profile-dropdown-divider"></div>
+                  <div className="profile-dropdown-item" onClick={() => toggleTheme()}>
+                    <Expand
+                      size={18}
+                      duration={750}
+                      toggled={theme === 'dark'}
+                    />
+                    <span><Trans>Theme</Trans></span>
+                    <span className="profile-dropdown-item-value">{theme === 'dark' ? <Trans>Dark</Trans> : <Trans>Light</Trans>}</span>
+                  </div>
+                  <div className="profile-dropdown-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="2" y1="12" x2="22" y2="12"/>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    <span><Trans>Language</Trans></span>
+                    <select 
+                      className="profile-dropdown-select" 
+                      value={locale} 
+                      onChange={(e) => switchLocale(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="en">English</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
+                  <div className="profile-dropdown-divider"></div>
+                  <Link to="/login" className="profile-dropdown-item" onClick={() => setProfileMenuOpen(false)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                      <polyline points="10 17 15 12 10 7"/>
+                      <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    <span><Trans>Sign in</Trans></span>
+                  </Link>
+                </>
               )}
-            </Link>
-            <button onClick={logout} className="btn btn-outline">Logout</button>
-          </>
-        ) : (
-          <Link to="/login" className="btn btn-login" onClick={handleNavClick}>Login</Link>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </nav>
   );

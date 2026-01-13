@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from 'react';
+import { Trans } from '@lingui/react/macro';
 import Swal from '../../utils/muiSwal';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';

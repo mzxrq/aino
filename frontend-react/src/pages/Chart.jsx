@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DateTime } from 'luxon';
 import Swal from '../utils/muiSwal';
@@ -1034,7 +1035,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          Volume
+                          <Trans>Volume</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => !v); } }}>
                           <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>
@@ -1044,7 +1045,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          Bollinger Bands
+                          <Trans>Bollinger Bands</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => !v); } }}>
                           <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>
@@ -1064,7 +1065,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          Anomalies
+                          <Trans>Anomalies</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => !v); } }}>
                           <span className={`indicator-dot ${showMA5 ? 'checked' : ''}`} aria-hidden>
@@ -1074,7 +1075,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          MA5
+                          <Trans>MA5 (Short-term)</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => !v); } }}>
                           <span className={`indicator-dot ${showMA25 ? 'checked' : ''}`} aria-hidden>
@@ -1084,7 +1085,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          MA25
+                          <Trans>MA25 (Mid-term)</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => !v); } }}>
                           <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>
@@ -1094,7 +1095,7 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          MA75
+                          <Trans>MA75 (Long-term)</Trans>
                         </div>
                         <div className="mode-item" role="option" tabIndex={0} aria-checked={showSAR} onClick={() => setShowSAR(v => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSAR(v => !v); } }}>
                           <span className={`indicator-dot ${showSAR ? 'checked' : ''}`} aria-hidden>
@@ -1104,11 +1105,11 @@ export default function Chart() {
                               </svg>
                             )}
                           </span>
-                          Parabolic SAR
+                          <Trans>Parabolic SAR</Trans>
                         </div>
                         <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
                         <div style={{ padding: '8px 12px', fontSize: '12px', color: '#666' }}>
-                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500 }}>BB Bands Width</label>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500 }}><Trans>BB Bands Width</Trans></label>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
                               <input 
@@ -1119,7 +1120,7 @@ export default function Chart() {
                                 onChange={() => setBbSigma('2sigma')}
                                 style={{ cursor: 'pointer' }}
                               />
-                              2σ (Standard)
+                              <Trans>2σ (Standard)</Trans>
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px' }}>
                               <input 
@@ -1130,7 +1131,7 @@ export default function Chart() {
                                 onChange={() => setBbSigma('1_5sigma')}
                                 style={{ cursor: 'pointer' }}
                               />
-                              1.5σ (Tight)
+                              <Trans>1.5σ (Tight)</Trans>
                             </label>
                           </div>
                         </div>
@@ -1186,14 +1187,14 @@ export default function Chart() {
                 <PortalDropdown anchorRect={toolbarModeBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setToolbarModeOpen(false)} className="mode-dropdown">
                   <div role="listbox" aria-label="Chart Mode" onMouseLeave={() => setToolbarModeOpen(false)}>
                     {[
-                      { key: 'auto', label: 'Auto', color: '#9CA3AF' },
-                      { key: 'candlestick', label: 'Candlestick', color: '#F97316' },
-                      { key: 'line', label: 'Line', color: '#3B82F6' },
-                      { key: 'ohlc', label: 'OHLC (Heiken-Ashi)', color: '#B45309' },
-                      { key: 'bar', label: 'Bar', color: '#8B5CF6' },
-                      { key: 'column', label: 'Column', color: '#6366F1' },
-                      { key: 'area', label: 'Area', color: '#06B6D4' },
-                      { key: 'hlc', label: 'HLC', color: '#6B7280' }
+                      { key: 'auto', label: <Trans>Auto</Trans>, color: '#9CA3AF' },
+                      { key: 'candlestick', label: <Trans>Candlestick</Trans>, color: '#F97316' },
+                      { key: 'line', label: <Trans>Line</Trans>, color: '#3B82F6' },
+                      { key: 'ohlc', label: <Trans>OHLC (Heikin-Ashi)</Trans>, color: '#B45309' },
+                      { key: 'bar', label: <Trans>Bar</Trans>, color: '#8B5CF6' },
+                      { key: 'column', label: <Trans>Column</Trans>, color: '#6366F1' },
+                      { key: 'area', label: <Trans>Area</Trans>, color: '#06B6D4' },
+                      { key: 'hlc', label: <Trans>HLC</Trans>, color: '#6B7280' }
                     ].map(m => (
                       <div
                         key={m.key}
@@ -1237,7 +1238,7 @@ export default function Chart() {
         ))}
       </div>
 
-      {loading && <div className="status">Loading...</div>}
+      {loading && <div className="status"><Trans>Loading...</Trans></div>}
       {error && <div className="status error">{error}</div>}
 
       <div className="charts-grid">

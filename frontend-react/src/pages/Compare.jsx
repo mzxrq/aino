@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { Link, useSearchParams } from 'react-router-dom';
 import EchartsCard from '../components/EchartsCard';
 import '../css/Compare.css';
@@ -61,11 +62,11 @@ export default function Compare(){
   return (
     <div className="compare-shell">
       <div className="compare-header">
-        <h2>Compare (up to 4)</h2>
+        <h2><Trans>Compare (up to 4)</Trans></h2>
         <div className="compare-controls">
           <input placeholder="Add ticker (e.g. AAPL)" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==='Enter' && addTicker()} />
-          <button onClick={addTicker} className="btn">Add</button>
-          <Link to="/" className="btn-outline">Back</Link>
+          <button onClick={addTicker} className="btn"><Trans>Add</Trans></button>
+          <Link to="/" className="btn-outline"><Trans>Back</Trans></Link>
         </div>
       </div>
 
@@ -79,7 +80,7 @@ export default function Compare(){
       </div>
 
       <div className="compare-grid">
-        {tickers.length === 0 && <div className="muted">Add tickers to start comparing.</div>}
+        {tickers.length === 0 && <div className="muted"><Trans>Add tickers to start comparing.</Trans></div>}
         {tickers.map((t, _i)=>{
           const row = items.find(x=>x.ticker===t) || {};
           const meta = row.meta || {};
@@ -94,19 +95,19 @@ export default function Compare(){
                 <div className="col-sub">{meta?.yfinance?.industry || meta.industry || ''}</div>
               </div>
               <div className="col-price">{latest != null ? (meta?.yfinance?.currency ? new Intl.NumberFormat(undefined,{style:'currency',currency:meta.yfinance.currency}).format(latest) : String(latest)) : '-'}</div>
-              <div className="col-marketcap">Market Cap: {meta?.yfinance?.marketCap ? formatNumber(meta.yfinance.marketCap) : '-'}</div>
+              <div className="col-marketcap"><Trans>Market Cap:</Trans> {meta?.yfinance?.marketCap ? formatNumber(meta.yfinance.marketCap) : '-'}</div>
 
               <div className="col-chart">
                 {close && close.length ? (
                   <EchartsCard ticker={t} dates={chart?.dates||[]} open={chart?.open||[]} high={chart?.high||[]} low={chart?.low||[]} close={chart?.close||[]} volume={chart?.volume||[]} height={120} chartMode={'line'} showVolume={false} />
-                ) : <div className="muted small">no chart</div>}
+                ) : <div className="muted small"><Trans>no chart</Trans></div>}
               </div>
 
               <div className="col-financials">
-                <h5>Key</h5>
-                <div>Employees: {meta?.yfinance?.employees ? formatNumber(meta.yfinance.employees) : '-'}</div>
-                <div>Currency: {meta?.yfinance?.currency || '-'}</div>
-                <div>Fetched: {fin?.fetched_at ? new Date(fin.fetched_at).toLocaleDateString() : '-'}</div>
+                <h5><Trans>Key</Trans></h5>
+                <div><Trans>Employees:</Trans> {meta?.yfinance?.employees ? formatNumber(meta.yfinance.employees) : '-'}</div>
+                <div><Trans>Currency:</Trans> {meta?.yfinance?.currency || '-'}</div>
+                <div><Trans>Fetched:</Trans> {fin?.fetched_at ? new Date(fin.fetched_at).toLocaleDateString() : '-'}</div>
               </div>
             </div>
           );
