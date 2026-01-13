@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import Swal from '../utils/muiSwal';
 import { useAuth } from '../context/useAuth';
 import ChartCardButtons from './ChartCardButtons';
@@ -53,10 +54,13 @@ export default function FollowableChartCard({
 
   async function handleFollowToggle() {
     if (!user || !token) {
+      const { i18n } = useLingui();
+      const title = i18n._('Please Login');
+      const text = i18n._('You need to be signed in to follow tickers.');
       await Swal.fire({
         icon: 'info',
-        title: 'Please Login',
-        text: 'You need to be signed in to follow tickers.',
+        title,
+        text,
         confirmButtonColor: '#00aaff'
       });
       return;

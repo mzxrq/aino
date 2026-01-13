@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trans } from '@lingui/react/macro';
 import PropTypes from 'prop-types';
 
 export default function CategoryDropdown({ value = 'All', onChange = () => {}, items = ['All'], label = 'Category' }) {

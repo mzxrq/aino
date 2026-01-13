@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -27,24 +28,70 @@ const Card = styled(MuiCard)(({ theme }) => ({
         maxWidth: '450px',
     },
     boxShadow: 'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
+    color: 'var(--text-primary)',
+    '& .MuiOutlinedInput-root': {
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        color: 'inherit',
+        '& fieldset': {
+            borderColor: 'rgba(0, 195, 0, 0.15)',
+        },
+        '&:hover fieldset': {
+            borderColor: '#00c300',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#00c300',
+        },
+    },
+    '& .MuiInputBase-input::placeholder': {
+        color: 'rgba(0, 0, 0, 0.55)',
+    },
+    '& .MuiFormLabel-root': {
+        color: 'var(--text-primary)',
+    },
+    '& .MuiInputLabel-root': {
+        color: 'var(--text-primary)',
+    },
+    'body.dark &': {
+        boxShadow: 'hsla(0, 0%, 0%, 0.5) 0px 5px 15px 0px, hsla(0, 0%, 0, 0.7) 0px 15px 35px -5px',
+        backgroundColor: 'hsl(218, 15%, 7%)',
+        color: '#e8f0f8',
+        '& .MuiOutlinedInput-root': {
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            '& fieldset': {
+                borderColor: 'rgba(0, 195, 0, 0.25)',
+            },
+            '&:hover fieldset': {
+                borderColor: '#00c300',
+            },
+            '&.Mui-focused fieldset': {
+                borderColor: '#00c300',
+            },
+        },
+        '& .MuiInputBase-input::placeholder': {
+            color: 'rgba(232, 240, 248, 0.65)',
+        },
+        '& .MuiFormLabel-root': {
+            color: '#cfd8e3',
+            '&.Mui-focused': {
+                color: '#00c300',
+            },
+        },
+        '& .MuiInputLabel-root': {
+            color: '#cfd8e3',
+            '&.Mui-focused': {
+                color: '#00c300',
+            },
+        },
+    },
 }));
 
 const SignUpContainer = styled(Stack)(({ theme }) => ({
-    height: 'calc((1 - var(--template-frame-height, 0)) * 100dvh)',
-    minHeight: '100%',
-    padding: theme.spacing(2),
-    [theme.breakpoints.up('sm')]: {
-        padding: theme.spacing(4),
-    },
-    '&::before': {
-        content: '""',
-        display: 'block',
-        position: 'absolute',
-        zIndex: -1,
-        inset: 0,
-        backgroundImage: 'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
-        backgroundRepeat: 'no-repeat',
-    },
+  height: 'calc((1 - var(--template-frame-height, 0)) * 100dvh)',
+  minHeight: '100%',
+  padding: theme.spacing(2),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(4),
+  },
 }));
 
 export default function Register() {
@@ -107,14 +154,14 @@ export default function Register() {
             <SignUpContainer direction="column" justifyContent="space-between">
                 <Card variant="outlined">
                     <Typography component="h1" variant="h4" sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}>
-                        Sign up
+                        <Trans>Sign up</Trans>
                     </Typography>
           
                     {error && <Alert severity="error">{error}</Alert>}
           
                     <Box component="form" onSubmit={submit} noValidate sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
                         <FormControl>
-                            <FormLabel htmlFor="name">Full Name</FormLabel>
+                            <FormLabel htmlFor="name"><Trans>Full Name</Trans></FormLabel>
                             <TextField
                                 error={nameError}
                                 helperText={nameError ? 'Full name must be at least 2 characters.' : ''}
@@ -131,7 +178,7 @@ export default function Register() {
                             />
                         </FormControl>
                         <FormControl>
-                            <FormLabel htmlFor="username">Username</FormLabel>
+                            <FormLabel htmlFor="username"><Trans>Username</Trans></FormLabel>
                             <TextField
                                 error={usernameError}
                                 helperText={usernameError ? 'Username must be at least 3 characters.' : ''}
@@ -148,7 +195,7 @@ export default function Register() {
                             />
                         </FormControl>
                         <FormControl>
-                            <FormLabel htmlFor="email">Email</FormLabel>
+                            <FormLabel htmlFor="email"><Trans>Email</Trans></FormLabel>
                             <TextField
                                 error={emailError}
                                 helperText={emailError ? 'Please enter a valid email address.' : ''}
@@ -166,7 +213,7 @@ export default function Register() {
                             />
                         </FormControl>
                         <FormControl>
-                            <FormLabel htmlFor="password">Password</FormLabel>
+                            <FormLabel htmlFor="password"><Trans>Password</Trans></FormLabel>
                             <TextField
                                 error={passwordError}
                                 helperText={passwordError ? 'Password must be at least 6 characters long.' : ''}
@@ -184,14 +231,14 @@ export default function Register() {
                             />
                         </FormControl>
                         <Button type="submit" fullWidth variant="contained">
-                            Create account
+                            <Trans>Create account</Trans>
                         </Button>
                     </Box>
-                    <Divider>or</Divider>
+                    <Divider><Trans>or</Trans></Divider>
                     <Typography sx={{ textAlign: 'center' }}>
-                        Already have an account?{' '}
+                        <Trans>Already have an account?</Trans>{' '}
                         <Link component={RouterLink} to="/login" variant="body2">
-                            Sign in
+                            <Trans>Sign in</Trans>
                         </Link>
                     </Typography>
                 </Card>

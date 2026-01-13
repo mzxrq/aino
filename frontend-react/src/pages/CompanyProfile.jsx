@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import TimezoneSelect from '../components/TimezoneSelect';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
@@ -320,23 +321,50 @@ export default function CompanyProfile() {
             <span className="icon plus">+</span>
             <span className="icon check">✓</span>
             <span className="icon minus">−</span>
-            <span className="label">{followed ? 'Following' : 'Follow'}</span>
+            <span className="label"><Trans>{followed ? 'Following' : 'Follow'}</Trans></span>
           </button>
         </div>
       </div>
 
-      <Dialog open={finOverlayOpen} onClose={() => setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog 
+        open={finOverlayOpen} 
+        onClose={() => setFinOverlayOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogTitle-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#252525' : '#f5f5f5',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+            borderBottom: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiDialogContent-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogActions-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            borderTop: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiButton-root': {
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+        }}
+      >
         <DialogTitle>{finOverlayTitle}</DialogTitle>
         <DialogContent>
           <div style={{ paddingTop: 8 }}>
             {finOverlayTitle === 'All Financials' ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Income Statement</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Income Statement</Trans></h5>
                   <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} transpose={true} />
                 </div>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Balance Sheet</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Balance Sheet</Trans></h5>
                   <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
@@ -346,7 +374,7 @@ export default function CompanyProfile() {
           </div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFinOverlayOpen(false)}>Close</Button>
+          <Button onClick={() => setFinOverlayOpen(false)}><Trans>Close</Trans></Button>
         </DialogActions>
       </Dialog>
 
@@ -370,14 +398,14 @@ export default function CompanyProfile() {
                     className="meta-toggle"
                     onClick={() => setDescExpanded((v) => !v)}
                   >
-                    {descExpanded ? "Show less" : "Show more"}
+                    <Trans>{descExpanded ? "Show less" : "Show more"}</Trans>
                   </button>
                 )}
             </div>
             <div className="meta-right">
               <div className="meta-stats">
                 <div>
-                  Market Cap:{" "}
+                  <Trans>Market Cap:</Trans>{" "}
                   <strong>
                     {meta?.yfinance?.marketCap
                       ? formatNumber(meta.yfinance.marketCap)
@@ -420,15 +448,15 @@ export default function CompanyProfile() {
               <table className="">
                 <tbody>
                   <tr>
-                    <strong>Industry</strong>
+                    <strong><Trans>Industry</Trans></strong>
                   </tr>
                   {companyInfo?.industry || meta?.yfinance?.industry || "-"}
                   <tr>
-                    <strong>Sector</strong>
+                    <strong><Trans>Sector</Trans></strong>
                   </tr>
                   {companyInfo?.sector || meta?.yfinance?.sector || "-"}
                   <tr>
-                    <strong>Website</strong>
+                    <strong><Trans>Website</Trans></strong>
                   </tr>
                   {companyInfo?.website ? (
                     <a
@@ -442,7 +470,7 @@ export default function CompanyProfile() {
                     "-"
                   )}
                   <tr>
-                    <strong>Phone</strong>
+                    <strong><Trans>Phone</Trans></strong>
                   </tr>
                   {companyInfo?.phone || "-"}
                 </tbody>
@@ -465,9 +493,9 @@ export default function CompanyProfile() {
                   >
                     <thead>
                       <tr>
-                        <th>Title</th>
-                        <th>Name</th>
-                        <th>Fiscal Year</th>
+                        <th><Trans>Title</Trans></th>
+                        <th><Trans>Name</Trans></th>
+                        <th><Trans>Fiscal Year</Trans></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -486,21 +514,21 @@ export default function CompanyProfile() {
 
           <div className="card financials">
             <div className="card-header">
-              <h4>Financials</h4>
-              <Button size="small" onClick={() => { setFinOverlayTitle('All Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}>Show more</Button>
+              <h4><Trans>Financials</Trans></h4>
+              <Button size="small" onClick={() => { setFinOverlayTitle('All Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}><Trans>Show more</Trans></Button>
             </div>
             <div className="financial-tabs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="fin-section">
-                <h5>Income</h5>
+                <h5><Trans>Income</Trans></h5>
                 {Object.entries(financials.income_stmt || {}).length === 0 && (
-                  <div className="lc-table-empty">No data</div>
+                  <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
                 <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
               </div>
               <div className="fin-section">
-                <h5>Balance</h5>
+                <h5><Trans>Balance</Trans></h5>
                 {Object.entries(financials.balance_sheet || {}).length === 0 && (
-                  <div className="lc-table-empty">No data</div>
+                  <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
                 <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
               </div>
@@ -519,21 +547,21 @@ export default function CompanyProfile() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-              <h3 style={{ margin: 0 }}>Chart</h3>
+              <h3 style={{ margin: 0 }}><Trans>Chart</Trans></h3>
               {financials.fetched_at ? (
                 <div
                   style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}
-                >{`Updated: ${new Date(
+                >{<Trans>Updated:</Trans>} {new Date(
                   financials.fetched_at
-                ).toLocaleDateString()}`}</div>
+                ).toLocaleDateString()}</div>
               ) : null}
             </div>
             <Link to={`/chart/u/${encodeURIComponent(ticker)}`} className="btn-outline">
-              Open Chart
+              <Trans>Open Chart</Trans>
             </Link>
           </div>
 
-          {loading && !chartData && <div className="muted">Loading chart…</div>}
+          {loading && !chartData && <div className="muted"><Trans>Loading chart…</Trans></div>}
           {!loading && chartData && (
             <EchartsCard
               ticker={ticker}
@@ -554,7 +582,7 @@ export default function CompanyProfile() {
 
           <div className="card news" style={{ marginTop: 12 }}>
             <div className="card-header">
-              <h4>News</h4>
+              <h4><Trans>News</Trans></h4>
             </div>
             <div className="news-list">
               {newsLoading && (
@@ -601,7 +629,7 @@ export default function CompanyProfile() {
                 </div>
               )}
               {!newsLoading && news.length === 0 && (
-                <div className="lc-table-empty">No news</div>
+                <div className="lc-table-empty"><Trans>No news</Trans></div>
               )}
               {news.map((n, i) => (
                 <a
@@ -651,7 +679,7 @@ export default function CompanyProfile() {
                     disabled={newsPage <= 1 || newsLoading}
                     onClick={() => loadNews(newsPage - 1)}
                   >
-                    Prev
+                    <Trans>Prev</Trans>
                   </button>
                   <span style={{ padding: "0 8px" }}>
                     {newsPage} / {newsTotalPages}
@@ -661,7 +689,7 @@ export default function CompanyProfile() {
                     disabled={newsPage >= newsTotalPages || newsLoading}
                     onClick={() => loadNews(newsPage + 1)}
                   >
-                    Next
+                    <Trans>Next</Trans>
                   </button>
                 </div>
               )}

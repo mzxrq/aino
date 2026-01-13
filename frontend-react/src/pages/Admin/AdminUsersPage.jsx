@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Trans } from '@lingui/react/macro';
 import Swal from '../../utils/muiSwal';
 import API_BASE from '../../config/api';
 import { useAuth } from '../../context/useAuth';
@@ -117,8 +118,8 @@ export default function AdminUsersPage() {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2>Users Management</h2>
-          <p className="admin-subtitle">Manage application users.</p>
+          <h2><Trans>Users Management</Trans></h2>
+          <p className="admin-subtitle"><Trans>Manage application users.</Trans></p>
         </div>
         <div className="admin-actions">
           <button className="btn btn-danger" onClick={async () => {
@@ -141,10 +142,10 @@ export default function AdminUsersPage() {
 
       <FlexTable
         columns={[
-          { key: 'email', label: 'Email', sortable: true, width: '260px' },
-          { key: 'username', label: 'Username', sortable: true, width: '160px' },
-          { key: 'name', label: 'Name', sortable: true, width: '220px' },
-          { key: 'role', label: 'Role', sortable: true, width: '120px' },
+          { key: 'email', label: <Trans>Email</Trans>, sortable: true, width: '260px' },
+          { key: 'username', label: <Trans>Username</Trans>, sortable: true, width: '160px' },
+          { key: 'name', label: <Trans>Name</Trans>, sortable: true, width: '220px' },
+          { key: 'role', label: <Trans>Role</Trans>, sortable: true, width: '120px' },
         ]}
         keyField="_id"
         renderRow={renderRow}
@@ -165,15 +166,15 @@ export default function AdminUsersPage() {
           <label className="form-field"><span>Name</span><input name="name" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="John Doe" /></label>
           {!editing && (
             <>
-              <label className="form-field"><span>Password</span><input name="password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder="At least 6 characters" /></label>
-              <label className="form-field"><span>Confirm</span><input name="confirm" type="password" value={form.confirm} onChange={(e) => setForm((s) => ({ ...s, confirm: e.target.value }))} placeholder="Confirm password" /></label>
+              <label className="form-field"><span><Trans>Password</Trans></span><input name="password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder="At least 6 characters" /></label>
+              <label className="form-field"><span><Trans>Confirm</Trans></span><input name="confirm" type="password" value={form.confirm} onChange={(e) => setForm((s) => ({ ...s, confirm: e.target.value }))} placeholder="Confirm password" /></label>
             </>
           )}
           <label className="form-field"><span>Role</span><DropdownSelect className="select-input" value={form.role} onChange={(v) => setForm((s) => ({ ...s, role: v }))} options={ROLE_OPTIONS} /></label>
         </div>
         {editing && (
           <div style={{ padding: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-ghost" onClick={() => setChangePwdOpen(true)}>Change password</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setChangePwdOpen(true)}><Trans>Change password</Trans></button>
           </div>
         )}
       </GenericModal>
@@ -207,8 +208,8 @@ export default function AdminUsersPage() {
 
       <GenericModal isOpen={!!rowActions} title="Actions" onClose={closeRowActions}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button style={modalButtonStyles.primary} className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); closeRowActions(); }}>Edit</button>
-          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}>Delete</button>
+          <button style={modalButtonStyles.primary} className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); closeRowActions(); }}><Trans>Edit</Trans></button>
+          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}><Trans>Delete</Trans></button>
         </div>
       </GenericModal>
     </main>

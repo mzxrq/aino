@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
 import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
@@ -53,42 +54,58 @@ const PERIOD_PRESETS = [
   { label: 'Max', period: 'max', interval: '1wk' }
 ];
 
-// User-friendly display names for yfinance interval values
+// User-friendly display names for yfinance interval values (will be localized via helper)
 const INTERVAL_DISPLAY_NAMES = {
-  '1m': '1 Min',
-  '2m': '2 Min',
-  '5m': '5 Min',
-  '15m': '15 Min',
-  '30m': '30 Min',
-  '1h': '1 Hour',
-  '1d': '1 Day',
-  '1wk': '1 Week',
-  '1mo': '1 Month'
+  '1m': '1m',
+  '2m': '2m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '1d': '1d',
+  '1wk': '1wk',
+  '1mo': '1mo'
 };
 
-function getIntervalDisplayName(interval) {
-  return INTERVAL_DISPLAY_NAMES[interval] || interval.toUpperCase();
+function getIntervalDisplayName(interval, i18n) {
+  // Maps will be handled in component via localization
+  if (!i18n) return interval || '';
+  const localizedMap = {
+    '1m': i18n._('1 Min'),
+    '2m': i18n._('2 Min'),
+    '5m': i18n._('5 Min'),
+    '15m': i18n._('15 Min'),
+    '30m': i18n._('30 Min'),
+    '1h': i18n._('1 Hour'),
+    '1d': i18n._('1 Day'),
+    '1wk': i18n._('1 Week'),
+    '1mo': i18n._('1 Month')
+  };
+  return localizedMap[interval] || interval.toUpperCase();
 }
 
-function formatPresetLabel(p) {
+function formatPresetLabel(p, i18n) {
   if (!p) return '';
+  if (!i18n) return (p.label || '').split(' ')[0] || p.label;
   const per = (p.period || '').toLowerCase();
   const itv = (p.interval || '').toLowerCase();
-  if (per === '1d') return 'Intraday';
-  if (per === '5d') return '5 Days';
-  if (per === '1wk') return '1 Week';
-  if (per === '1mo') {
-    if (itv === '30m') return '1 Month (30m)';
-    if (itv === '1d') return '1 Month (1d)';
-    return '1 Month';
-  }
-  if (per === '3mo') return '3 Months';
-  if (per === '6mo') return '6 Months';
-  if (per === '1y') return '1 Year';
-  if (per === '2y') return '2 Years';
-  if (per === '5y') return '5 Years';
-  if (per === 'max') return 'Max';
-  return (p.label || '').split(' ')[0] || p.label;
+  // Labels will be handled via localization in component
+  const labelMap = {
+    '1d': i18n._('Intraday'),
+    '5d': i18n._('5 Days'),
+    '1wk': i18n._('1 Week'),
+    '1mo_30m': i18n._('1 Month (30m)'),
+    '1mo_1d': i18n._('1 Month (1d)'),
+    '1mo': i18n._('1 Month'),
+    '3mo': i18n._('3 Months'),
+    '6mo': i18n._('6 Months'),
+    '1y': i18n._('1 Year'),
+    '2y': i18n._('2 Years'),
+    '5y': i18n._('5 Years'),
+    'max': i18n._('Max')
+  };
+  const key = per === '1mo' ? `${per}_${itv}` : per;
+  return labelMap[key] || (p.label || '').split(' ')[0] || p.label;
 }
 
 // City-based timezone labels mapped to IANA identifiers
@@ -199,7 +216,37 @@ function getCurrency(marketStr) {
 
 // Removed unused MARKET_EXTENSIONS configuration
 
-export default function LargeChart() {
+// Hidden extraction container for i18n string extraction
+const _StringExtractor = () => (
+  <>
+    <Trans>1 Min</Trans>
+    <Trans>2 Min</Trans>
+    <Trans>5 Min</Trans>
+    <Trans>15 Min</Trans>
+    <Trans>30 Min</Trans>
+    <Trans>1 Hour</Trans>
+    <Trans>1 Day</Trans>
+    <Trans>1 Week</Trans>
+    <Trans>1 Month</Trans>
+    <Trans>Intraday</Trans>
+    <Trans>5 Days</Trans>
+    <Trans>1 Month (30m)</Trans>
+    <Trans>1 Month (1d)</Trans>
+    <Trans>3 Months</Trans>
+    <Trans>6 Months</Trans>
+    <Trans>1 Year</Trans>
+    <Trans>2 Years</Trans>
+    <Trans>5 Years</Trans>
+    <Trans>Max</Trans>
+    <Trans>Open</Trans>
+    <Trans>High</Trans>
+    <Trans>Low</Trans>
+    <Trans>Close</Trans>
+  </>
+);
+
+export default function MainChart() {
+  const { i18n } = useLingui();
   const { ticker: paramTicker } = useParams();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
   const displayTicker = getDisplayFromRaw(ticker);
@@ -503,7 +550,7 @@ export default function LargeChart() {
           if (finalPayload.market) setMarket(finalPayload.market);
         }
       } catch (e) {
-        if (!cancelled) setError('Unable to load chart data');
+        if (!cancelled) setError(<Trans>Unable to load chart data</Trans>);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -827,10 +874,15 @@ export default function LargeChart() {
         // Special handling for candlestick chart
         if (p.seriesType === 'candlestick' && Array.isArray(p.value) && p.value.length >= 4) {
           const [, open, close, low, high] = p.value;
-          html += `<br/><span style="color:${p.color}">Open: ${open?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">High: ${high?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">Low: ${low?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">Close: ${close?.toFixed(2)}</span>`;
+          // Get translated labels based on current language
+          const openLabel = i18n._('Open');
+          const highLabel = i18n._('High');
+          const lowLabel = i18n._('Low');
+          const closeLabel = i18n._('Close');
+          html += `<br/><span style="color:${p.color}">${openLabel}: ${open?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${highLabel}: ${high?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${lowLabel}: ${low?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${closeLabel}: ${close?.toFixed(2)}</span>`;
         } else {
           let raw = null;
           if (p && p.data && p.data.real !== undefined) {
@@ -1049,18 +1101,18 @@ export default function LargeChart() {
     if (showAnomaly && anomalies && anomalies.length) {
       // Reason mapping - MUST MATCH backend train_service.py identify_reason()
       const REASON_MAP = {
-        'Volume Spike': { color: '#ff8c00', label: 'Volume Spike' },
-        'Volume Average (14d)': { color: '#ff9500', label: 'Volume Average (14d)' },
-        'Price Spike': { color: '#ff3b30', label: 'Price Spike' },
-        'Flash Crash': { color: '#dc143c', label: 'Flash Crash' },
-        'Price Average (20d)': { color: '#f59e0b', label: 'Price Average (20d)' },
-        'Absorption': { color: '#0ea5a4', label: 'Absorption' },
-        'Bullish Crossover': { color: '#10b981', label: 'Bullish' },
-        'Bearish Crossunder': { color: '#ef4444', label: 'Bearish' },
-        'Anomaly Detected': { color: '#6b7280', label: 'Anomaly' },
-        'System anomaly detected': { color: '#6b7280', label: 'System' },
-        'Rule-based': { color: '#8b5cf6', label: 'Rule' },
-        other: { color: '#9ca3af', label: 'Other' }
+        'Volume Spike': { color: '#ff8c00', label: <Trans>Volume Spike</Trans> },
+        'Volume Average (14d)': { color: '#ff9500', label: <Trans>Volume Average (14d)</Trans> },
+        'Price Spike': { color: '#ff3b30', label: <Trans>Price Spike</Trans> },
+        'Flash Crash': { color: '#dc143c', label: <Trans>Flash Crash</Trans> },
+        'Price Average (20d)': { color: '#f59e0b', label: <Trans>Price Average (20d)</Trans> },
+        'Absorption': { color: '#0ea5a4', label: <Trans>Absorption</Trans> },
+        'Bullish Crossover': { color: '#10b981', label: <Trans>Bullish</Trans> },
+        'Bearish Crossunder': { color: '#ef4444', label: <Trans>Bearish</Trans> },
+        'Anomaly Detected': { color: '#6b7280', label: <Trans>Anomaly</Trans> },
+        'System anomaly detected': { color: '#6b7280', label: <Trans>System</Trans> },
+        'Rule-based': { color: '#8b5cf6', label: <Trans>Rule</Trans> },
+        other: { color: '#9ca3af', label: <Trans>Other</Trans> }
       };
 
       const normalizeReasonType = (r) => {
@@ -1119,7 +1171,7 @@ export default function LargeChart() {
       });
 
       option.series.push({
-        name: 'Anomalies',
+        name: <Trans>Anomalies</Trans>,
         type: 'scatter',
         data: scatterData,
         xAxisIndex: 0,
@@ -1132,7 +1184,7 @@ export default function LargeChart() {
 
     // VWAP overlay on main price chart
     if (showVWAP && vwapArr.length) {
-      option.series.push({ name: 'VWAP', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, data: toCategoryValues(vwapArr.map(v => v[1])), lineStyle: { color: '#FFC458', width: 1 } });
+      option.series.push({ name: <Trans>VWAP</Trans>, type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, data: toCategoryValues(vwapArr.map(v => v[1])), lineStyle: { color: '#FFC458', width: 1 } });
     }
 
     // Volume series in grid 1 (always show) with soft broken-axis compression
@@ -1145,7 +1197,7 @@ export default function LargeChart() {
       } : undefined;
 
       option.series.push({
-        name: 'Volume', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+        name: <Trans>Volume</Trans>, type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
         data: categories.map((_, idx) => {
           let color = colorGray;
           if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? colorRed : colorGreen;
@@ -1178,12 +1230,12 @@ export default function LargeChart() {
         return [idx, it[1]];
       }).filter(Boolean);
 
-      option.series.push({ name: 'MACD', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macdHistCat, barWidth: '70%' });
+      option.series.push({ name: <Trans>MACD</Trans>, type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macdHistCat, barWidth: '70%' });
       if (macdLineCat.length) {
-        option.series.push({ name: 'DIF', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: macdLineCat, lineStyle: { color: '#FFC458', width: 1 } });
+        option.series.push({ name: <Trans>DIF</Trans>, type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: macdLineCat, lineStyle: { color: '#FFC458', width: 1 } });
       }
       if (signalLineCat.length) {
-        option.series.push({ name: 'DEA', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: signalLineCat, lineStyle: { color: '#333', width: 1 } });
+        option.series.push({ name: <Trans>DEA</Trans>, type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: signalLineCat, lineStyle: { color: '#333', width: 1 } });
       }
     }
 
@@ -1380,7 +1432,7 @@ export default function LargeChart() {
               </div>
               <div className="lc-status">
                 <span className={`lc-dot ${isMarketOpen ? 'open' : 'closed'}`} />
-                <span>{isMarketOpen ? 'OPEN' : 'CLOSED'}</span>
+                <span>{isMarketOpen ? <Trans>OPEN</Trans> : <Trans>CLOSED</Trans>}</span>
               </div>
             </div>
             <div className="lc-price-row">
@@ -1401,20 +1453,20 @@ export default function LargeChart() {
               title={isLoadingFollow ? 'Updating...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
               disabled={isLoadingFollow}
             >
-              {isLoadingFollow ? '...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
+              {isLoadingFollow ? '...' : (followed ? (followHover ? <Trans>Unfollow</Trans> : <Trans>Following</Trans>) : <Trans>Follow</Trans>)}
             </button>
           </div>
 
           <div className="lc-card">
             <div className="lc-card-header">
-              <span>Financials</span>
+              <span><Trans>Financials</Trans></span>
               <button
                 type="button"
                 className="lc-btn-small"
                 onClick={() => { setFinOverlayTitle('Recent Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}
                 title="View recent financial data (2 periods)"
               >
-                More
+                <Trans>More</Trans>
               </button>
             </div>
             <div className="lc-financial-tabs">
@@ -1422,13 +1474,13 @@ export default function LargeChart() {
                 className={`lc-tab ${financialTab === 'income' ? 'active' : ''}`}
                 onClick={() => setFinancialTab('income')}
               >
-                Income
+                <Trans>Income</Trans>
               </button>
               <button
                 className={`lc-tab ${financialTab === 'balance' ? 'active' : ''}`}
                 onClick={() => setFinancialTab('balance')}
               >
-                Balance
+                <Trans>Balance</Trans>
               </button>
             </div>
             <div className="lc-financials-content">
@@ -1448,8 +1500,8 @@ export default function LargeChart() {
           {/* News Card */}
           <div className="lc-card">
             <div className="lc-card-header">
-              <span>News</span>
-              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}>More</Link>
+              <span><Trans>News</Trans></span>
+              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}><Trans>More</Trans></Link>
               {/* <button
                 type="button"
                 className="lc-btn-small"
@@ -1458,7 +1510,7 @@ export default function LargeChart() {
               </button> */}
             </div>
             <div className="lc-news-list">
-              {news.length === 0 && <div className="lc-muted">No recent news</div>}
+              {news.length === 0 && <div className="lc-muted"><Trans>No recent news</Trans></div>}
               {news.map((n, idx) => (
                 <a
                   className="news-item"
@@ -1554,7 +1606,7 @@ export default function LargeChart() {
                     aria-haspopup="listbox"
                     aria-expanded={periodOpen}
                   >
-                    {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
+                    {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period), i18n) || period}
                   </button>
                   <button
                     ref={intervalBtnRef}
@@ -1564,7 +1616,7 @@ export default function LargeChart() {
                     aria-haspopup="listbox"
                     aria-expanded={intervalOpen}
                   >
-                    {getIntervalDisplayName(interval)}
+                    {getIntervalDisplayName(interval, i18n)}
                   </button>
 
                   {periodOpen && periodBtnRef.current && (
@@ -1588,7 +1640,7 @@ export default function LargeChart() {
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
                         >
-                          {formatPresetLabel({ period: p, interval })}
+                          {formatPresetLabel({ period: p, interval }, i18n)}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1610,7 +1662,7 @@ export default function LargeChart() {
                           onClick={() => { setInterval(iv); setIntervalOpen(false); }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
                         >
-                          {getIntervalDisplayName(iv)}
+                          {getIntervalDisplayName(iv, i18n)}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1701,49 +1753,49 @@ export default function LargeChart() {
                 title="Indicators"
                 style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
               >
-                Indicators
+                <Trans>Indicators</Trans>
               </button>
               <button onClick={() => window.location.href = `/company/${ticker}`} className="lc-btn ghost" title="Open company profile" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                Profile
+                <Trans>Profile</Trans>
               </button>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>{showBB && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Bollinger Bands
+                      <Trans>Bollinger Bands</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>{showVWAP && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      VWAP
+                      <Trans>VWAP</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showAnomaly ? 'checked' : ''}`} aria-hidden>{showAnomaly && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Anomalies
+                      <Trans>Anomalies</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA5 ? 'checked' : ''}`} aria-hidden>{showMA5 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (5)
+                      <Trans>MA (5)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA25 ? 'checked' : ''}`} aria-hidden>{showMA25 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (25)
+                      <Trans>MA (25)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (75)
+                      <Trans>MA (75)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showEMA} onClick={() => setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showEMA ? 'checked' : ''}`} aria-hidden>{showEMA && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      EMA
+                      <Trans>EMA</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMACD} onClick={() => setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMACD ? 'checked' : ''}`} aria-hidden>{showMACD && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MACD
+                      <Trans>MACD</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Volume
+                      <Trans>Volume</Trans>
                     </div>
                   </div>
                 </PortalDropdown>
@@ -1761,18 +1813,45 @@ export default function LargeChart() {
         </main>
       </div>
 
-      <Dialog open={finOverlayOpen} onClose={() => setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog 
+        open={finOverlayOpen} 
+        onClose={() => setFinOverlayOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogTitle-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#252525' : '#f5f5f5',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+            borderBottom: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiDialogContent-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogActions-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            borderTop: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiButton-root': {
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+        }}
+      >
         <DialogTitle>{displayTicker} — {finOverlayTitle}</DialogTitle>
         <DialogContent>
           <div style={{ paddingTop: 8 }}>
             {finOverlayTitle === 'Recent Financials' ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Income Statement (most recent 2 periods)</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Income Statement (most recent 2 periods)</Trans></h5>
                   <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} transpose={true} />
                 </div>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Balance Sheet (most recent 2 periods)</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Balance Sheet (most recent 2 periods)</Trans></h5>
                   <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
@@ -1782,8 +1861,8 @@ export default function LargeChart() {
           </div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFinOverlayOpen(false)}>Close</Button>
-          <Button component={Link} to={`/company/${encodeURIComponent(ticker)}`} onClick={() => setFinOverlayOpen(false)}>Open Company Profile</Button>
+          <Button onClick={() => setFinOverlayOpen(false)}><Trans>Close</Trans></Button>
+          <Button component={Link} to={`/company/${encodeURIComponent(ticker)}`} onClick={() => setFinOverlayOpen(false)}><Trans>Open Company Profile</Trans></Button>
         </DialogActions>
       </Dialog>
 

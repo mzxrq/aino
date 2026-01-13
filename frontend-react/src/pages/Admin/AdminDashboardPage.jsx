@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useContext } from "react";
+import { Trans } from '@lingui/react/macro';
 import FlexTable from "../../components/FlexTable/FlexTable";
 import SummaryCard from "../../components/SummaryCard/SummaryCard";
 import MultiLineChart from "../../components/MultiLineChart";

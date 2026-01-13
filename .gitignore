@@ -1,14 +1,6 @@
-# .gitignore for the Stock Anomaly Detection project
-# Keep secrets and environment copies out of version control.
-
-# Environment files
-# - `.env.backend` contains sensitive secrets (JWT, LINE secrets, DB URIs)
-# - `.env` is often a local copy of the active environment and can contain secrets
-# - `.env.local` is used by many frameworks for local overrides
 .env.backend
 .env
 .env.local
-# Ignore all env files that are not examples; allow `.env.example`
 .env.*
 !.env.example
 
@@ -23,10 +15,11 @@ dist/
 build/
 coverage/
 
-# Local tests (smoke/integration) — keep out of git
-tests/
-
-# Python
+# Local tests
+example/
+docs/
+.github/
+testing/
 __pycache__/
 *.py[cod]
 *.pytest_cache/
@@ -34,8 +27,7 @@ venv/
 env/
 .venv/
 backend-python/archive
-
-# IDEs and OS files
+backend-python/__pycache__/
 .vscode/
 .idea/
 *.sublime-workspace
@@ -43,6 +35,3 @@ backend-python/archive
 .DS_Store
 Thumbs.db
 
-# Model artifacts (optional): if your models are large, keep them out of git.
-# Uncomment if you don't want to track serialized model files in `resource/models/`
-# resource/models/

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { Trans } from '@lingui/react/macro';
 import API_BASE from '../../config/api';
 import GenericModal from '../../components/GenericModal/GenericModal';
 import FlexTable from '../../components/FlexTable/FlexTable';

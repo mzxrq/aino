@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Trans } from '@lingui/react/macro';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';

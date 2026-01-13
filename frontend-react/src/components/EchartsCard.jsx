@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import ReactEcharts from 'echarts-for-react';
 import { DateTime } from 'luxon';
@@ -109,6 +110,21 @@ function formatWithCommas(num, decimals = 2) {
   }
 }
 
+// Anomaly reason translations mapping
+const ANOMALY_REASON_LABELS = {
+  'Volume Spike': 'Volume Spike',
+  'Price Spike': 'Price Spike',
+  'Flash Crash': 'Flash Crash',
+  'Price Average (20d)': 'Price Avg',
+  'Absorption': 'Absorption',
+  'Bullish Crossover': 'Bullish',
+  'Bearish Crossunder': 'Bearish',
+  'Anomaly Detected': 'Anomaly',
+  'System anomaly detected': 'System',
+  'Rule-based': 'Rule',
+  'other': 'Other'
+};
+
 export default function EchartsCard({
   ticker,
   dates,
@@ -142,9 +158,31 @@ export default function EchartsCard({
   showSAR = false,
   bbSigma = '2sigma'
 }) {
+  const { i18n } = useLingui();
   const displayTicker = getDisplayFromRaw(ticker);
   // Normalize chartMode to accept both 'lines' and 'line' (some callers use plural)
   const mode = chartMode === 'lines' ? 'line' : chartMode;
+  
+  // Helper to translate anomaly reason labels based on current locale
+  const getAnomalyLabel = (reason) => {
+    const enLabel = ANOMALY_REASON_LABELS[reason] || ANOMALY_REASON_LABELS['other'];
+    // Map labels to Lingui message keys for translation
+    const labelMap = {
+      'Volume Spike': i18n._('Volume Spike'),
+      'Price Spike': i18n._('Price Spike'),
+      'Flash Crash': i18n._('Flash Crash'),
+      'Price Avg': i18n._('Price Avg'),
+      'Absorption': i18n._('Absorption'),
+      'Bullish': i18n._('Bullish'),
+      'Bearish': i18n._('Bearish'),
+      'Anomaly': i18n._('Anomaly'),
+      'System': i18n._('System'),
+      'Rule': i18n._('Rule'),
+      'Other': i18n._('Other')
+    };
+    return labelMap[enLabel] || enLabel;
+  };
+  
   // Build candlestick data: each item is [open, close, low, high]
   const candleData = useMemo(() => {
     if (!open || !close || !low || !high) return [];

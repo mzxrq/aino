@@ -350,7 +350,21 @@
 .fin-row > .fin-period { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
 
 /* Financials table styling: sleek header and subtle borders */
-.financial-table-wrapper .financials-table { border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden; background: var(--card-bg, #ffffff); }
+.financial-table-wrapper .financials-table { 
+  border: 1px solid rgba(0,0,0,0.06); 
+  border-radius: 8px; 
+  overflow: hidden; 
+  background: var(--card-bg, #ffffff);
+  color: inherit;
+}
+
+/* Dark theme support for table */
+body.dark .financial-table-wrapper .financials-table {
+  background: #1a1a1a;
+  border-color: rgba(255,255,255,0.1);
+  color: #e0e0e0;
+}
+
 .financial-table-wrapper .financials-table thead th {
   background: linear-gradient(180deg, rgba(248,250,252,1), rgba(243,245,248,1));
   color: #0b1220;
@@ -361,14 +375,42 @@
   top: 0;
   z-index: 3;
 }
-.financial-table-wrapper .financials-table tbody td { padding:10px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
+
+/* Dark theme header */
+body.dark .financial-table-wrapper .financials-table thead th {
+  background: linear-gradient(180deg, rgba(37,37,37,1), rgba(26,26,26,1));
+  color: #e0e0e0;
+  border-bottom-color: rgba(255,255,255,0.1);
+}
+
+.financial-table-wrapper .financials-table tbody td { 
+  padding: 10px 12px; 
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  color: inherit;
+}
+
+/* Dark theme row borders */
+body.dark .financial-table-wrapper .financials-table tbody td {
+  border-bottom-color: rgba(255,255,255,0.05);
+}
+
 .financial-table-wrapper.compact .financials-table { background: transparent; border: none; }
 .financial-table-wrapper.compact .financials-table thead th { color: #0b1220; }
+
+body.dark .financial-table-wrapper.compact .financials-table thead th { 
+  color: #e0e0e0;
+  background: transparent;
+}
+
 .financial-table-wrapper.transposed .financials-table thead th { text-align: right; }
 
-/* ensure header text remains dark even inside dialogs/cards with different themes */
+/* ensure header text remains visible in all themes */
 .financial-table-wrapper .financials-table thead th, .financial-table-wrapper .financials-table thead th * {
-  color: #0b1220 !important;
+  color: inherit !important;
+}
+
+body.dark .financial-table-wrapper .financials-table tbody tr {
+  border-color: rgba(255,255,255,0.05);
 }
 
 /* Ensure cards don't shrink too much */
@@ -653,11 +695,32 @@ body:not(.dark) .news-badge {
 
 /* Officers table */
 .company-officers { margin-top: 10px; overflow: auto; }
-.officers-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.officers-table thead th { text-align: left; padding: 8px; font-weight: 700; color: #000000; font-size: 12px; }
-.officers-table tbody td { padding: 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.267); vertical-align: top; }
+.officers-table { width: 100%; border-collapse: collapse; font-size: 13px; color: inherit; background: transparent; }
+.officers-table thead th { text-align: left; padding: 8px; font-weight: 700; color: #000000; font-size: 12px; background: #f5f5f5; }
+.officers-table tbody td { padding: 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.267); vertical-align: top; color: #000000; background: #ffffff; }
 .officers-table tbody tr:last-child td { border-bottom: none; }
 .officers-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1px; }
+
+/* Dark theme support for officers table */
+body.dark .officers-table thead th { 
+  color: #ffffff !important;
+  background: #2a2a2a !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark .officers-table tbody td { 
+  color: #e0e0e0 !important;
+  background: #1f1f1f !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark .officers-table tbody tr:nth-child(even) td {
+  background: #252525 !important;
+}
+
+body.dark .officers-table tbody tr:last-child td { 
+  border-bottom: none !important;
+}
 
 @media (max-width: 900px) {
   .company-card .company-info { font-size: 13px; }
