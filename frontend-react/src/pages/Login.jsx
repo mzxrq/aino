@@ -27,6 +27,7 @@ const Card = styled(MuiCard)(({ theme }) => ({
   padding: theme.spacing(4),
   gap: theme.spacing(2),
   margin: 'auto',
+  borderRadius: 12,
   [theme.breakpoints.up('sm')]: {
     maxWidth: '450px',
   },
@@ -36,6 +37,7 @@ const Card = styled(MuiCard)(({ theme }) => ({
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     color: 'inherit',
     '& fieldset': {
+      borderRadius: 8,
       borderColor: 'rgba(0, 195, 0, 0.15)',
     },
     '&:hover fieldset': {
@@ -61,6 +63,7 @@ const Card = styled(MuiCard)(({ theme }) => ({
     '& .MuiOutlinedInput-root': {
       backgroundColor: 'rgba(255, 255, 255, 0.06)',
       '& fieldset': {
+        borderRadius: 8,
         borderColor: 'rgba(0, 195, 0, 0.25)',
       },
       '&:hover fieldset': {
@@ -107,7 +110,7 @@ const LineBadge = () => (
       justifyContent: 'center',
       width: 22,
       height: 22,
-      borderRadius: 0.75,
+      borderRadius: 16,
       bgcolor: '#ffffff',
       color: '#00C300',
       fontWeight: 800,
@@ -215,7 +218,7 @@ export default function Login() {
               />
             </FormControl>
             <FormControlLabel control={<Checkbox value="remember" color="primary" />} label={<Trans>Remember me</Trans>} />
-            <Button type="submit" fullWidth variant="contained">
+            <Button type="submit" fullWidth variant="contained" sx={{ borderRadius: 2 }}>
               <Trans>Sign in</Trans>
             </Button>
             <Link component={RouterLink} to="/forgot-password" variant="body2" sx={{ alignSelf: 'center' }}>
@@ -236,18 +239,31 @@ export default function Login() {
                     justifyContent: 'center',
                     width: 22,
                     height: 22,
-                    borderRadius: 0.75,
-                    bgcolor: '#ffffff',
+                    borderRadius: '8px',
+                    bgcolor: (theme) => (theme.palette?.mode === 'light' ? '#ffffff' : 'transparent'),
                     overflow: 'hidden',
                   }}
                 >
-                  <Box component="img" src={lineLogo} alt="LINE" sx={{ width: 18, height: 18 }} />
+                  <Box
+                    component="img"
+                    src={lineLogo}
+                    alt="LINE"
+                    sx={{
+                      width: 18,
+                      height: 18,
+                      display: 'block',
+                      bgcolor: 'transparent',
+                      objectFit: 'contain',
+                      borderRadius: '6px',
+                    }}
+                  />
                 </Box>
               }
               onClick={handleLineLogin}
               sx={{
                 borderColor: '#00C300',
                 color: '#00C300',
+                borderRadius: 2,
                 '&:hover': {
                   bgcolor: 'rgba(0, 195, 0, 0.08)',
                   borderColor: '#00a600',

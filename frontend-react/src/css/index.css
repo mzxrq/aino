@@ -101,4 +101,20 @@ body,
   transition: background-color 180ms ease, color 180ms ease;
 }
 
+/* Dark-mode button parity: prefer primary green gradient for .btn-primary */
+body.dark .btn-primary,
+html.dark .btn-primary,
+.dark .btn-primary {
+  background: linear-gradient(135deg, var(--primary, #2cc17f), var(--primary-hover, #009000)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 28px rgba(44, 193, 127, 0.28) !important;
+  border: none !important;
+}
+
+body.dark .btn-primary:hover,
+html.dark .btn-primary:hover,
+.dark .btn-primary:hover {
+  box-shadow: 0 10px 36px rgba(44, 193, 127, 0.34) !important;
+}
+
 

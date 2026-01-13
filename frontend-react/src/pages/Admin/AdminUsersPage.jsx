@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import Swal from '../../utils/muiSwal';
 import API_BASE from '../../config/api';
 import { useAuth } from '../../context/useAuth';
@@ -19,6 +20,7 @@ const modalButtonStyles = {
 };
 
 export default function AdminUsersPage() {
+  const { i18n } = useLingui();
   const [form, setForm] = useState({ _id: null, email: '', username: '', name: '', role: 'user', password: '', confirm: '' });
   const [editing, setEditing] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,56 +47,56 @@ export default function AdminUsersPage() {
 
   async function handleAdd(e) {
     e?.preventDefault();
-    if (!form.email || !form.email.trim()) { await Swal.fire({ icon: 'warning', title: 'Required', text: 'Email is required' }); return; }
-    if (!form.password || form.password.length < 6) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Password must be at least 6 characters' }); return; }
-    if (form.password !== form.confirm) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Passwords do not match' }); return; }
+    if (!form.email || !form.email.trim()) { await Swal.fire({ icon: 'warning', title: i18n._('Required'), text: i18n._('Email is required') }); return; }
+    if (!form.password || form.password.length < 6) { await Swal.fire({ icon: 'warning', title: i18n._('Validation'), text: i18n._('Password must be at least 6 characters') }); return; }
+    if (form.password !== form.confirm) { await Swal.fire({ icon: 'warning', title: i18n._('Validation'), text: i18n._('Passwords do not match') }); return; }
     try {
       setLoading(true);
       const payload = { email: form.email, username: form.username || '', name: form.name || '', role: form.role || 'user', password: form.password };
       const res = await fetch(`${API_BASE}/node/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Create failed');
+      if (!res.ok) throw new Error(data.error || i18n._('Create failed'));
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Created', timer: 1200 });
+      await Swal.fire({ icon: 'success', title: i18n._('Created'), timer: 1200 });
       setModalOpen(false);
     } catch (err) {
       console.error('Create user error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Create failed: ' + err.message });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Create failed: ') + err.message });
     } finally { setLoading(false); }
   }
 
   async function saveEdit(e) {
     e?.preventDefault();
-    if (!editing || !(editing._id || editing.id)) { await Swal.fire({ icon: 'warning', title: 'Error', text: 'Invalid edit target' }); return; }
+    if (!editing || !(editing._id || editing.id)) { await Swal.fire({ icon: 'warning', title: i18n._('Error'), text: i18n._('Invalid edit target') }); return; }
     try {
       setLoading(true);
       const id = editing._id || editing.id;
       const payload = { email: form.email, username: form.username || '', name: form.name || '', role: form.role || 'user' };
       const res = await fetch(`${API_BASE}/node/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Update failed');
+      if (!res.ok) throw new Error(data.error || i18n._('Update failed'));
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Updated', timer: 1200 });
+      await Swal.fire({ icon: 'success', title: i18n._('Updated'), timer: 1200 });
       setModalOpen(false);
       setEditing(null);
     } catch (err) {
       console.error('Update user error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Update failed: ' + err.message });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Update failed: ') + err.message });
     } finally { setLoading(false); }
   }
 
   async function handleDelete(id) {
-    const result = await Swal.fire({ icon: 'warning', title: 'Delete', text: `Delete user ${id}?`, showCancelButton: true, confirmButtonText: 'Delete' });
+    const result = await Swal.fire({ icon: 'warning', title: i18n._('Delete'), text: i18n._('Delete user {id}?', { id }), showCancelButton: true, confirmButtonText: i18n._('Delete') });
     if (!result.isConfirmed) return;
     try {
       const res = await fetch(`${API_BASE}/node/users/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Deleted', timer: 1200 });
+      await Swal.fire({ icon: 'success', title: i18n._('Deleted'), timer: 1200 });
     } catch (err) {
       console.error('Delete user error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete failed: ' + err.message });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete failed: ') + err.message });
     }
   }
 
@@ -116,27 +118,35 @@ export default function AdminUsersPage() {
 
   return (
     <main className="main-container">
-      <div className="admin-header">
+        <div className="admin-header">
         <div>
           <h2><Trans>Users Management</Trans></h2>
           <p className="admin-subtitle"><Trans>Manage application users.</Trans></p>
         </div>
         <div className="admin-actions">
           <button className="btn btn-danger" onClick={async () => {
-            const r = await Swal.fire({ icon: 'warning', title: 'Delete All Users', html: '<strong>This will permanently delete ALL users.</strong><br/>This action cannot be undone. Are you sure?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete all' });
+            const r = await Swal.fire({
+              icon: 'warning',
+              title: i18n._('Delete All Users'),
+              html: i18n._('<strong>This will permanently delete ALL users.</strong><br/>This action cannot be undone. Are you sure?'),
+              showCancelButton: true,
+              confirmButtonColor: '#dc2626',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: i18n._('Yes, delete all'),
+            });
             if (!r.isConfirmed) return;
             try {
               setLoading(true);
               const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=users`, { method: 'DELETE' });
               const body = await res.json();
-              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              if (!res.ok) throw new Error(body.error || i18n._('Delete all failed'));
               setRefreshSignal((s) => s + 1);
-              await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All users deleted.', timer: 1500 });
+              await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All users deleted.'), timer: 1500 });
             } catch (err) {
               console.error('Delete all users error', err);
-              await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message });
+              await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete all failed: ') + err.message });
             } finally { setLoading(false); }
-          }}>Delete All</button>
+          }}><Trans>Delete All</Trans></button>
         </div>
       </div>
 
@@ -149,7 +159,7 @@ export default function AdminUsersPage() {
         ]}
         keyField="_id"
         renderRow={renderRow}
-        emptyText="No users found."
+        emptyText={i18n._('No users found.')}
         fetchUrl={`${API_BASE}/node/users`}
         refreshSignal={refreshSignal}
         enablePagination={true}
@@ -159,7 +169,7 @@ export default function AdminUsersPage() {
         createLabel="+ Create"
       />
 
-      <GenericModal isOpen={modalOpen} title={editing ? 'Edit User' : 'Create User'} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? 'Save' : 'Create'}>
+      <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit User') : i18n._('Create User')} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? i18n._('Save') : i18n._('Create')}>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <label className="form-field"><span>Email</span><input name="email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder="user@example.com" /></label>
           <label className="form-field"><span>Username</span><input name="username" value={form.username} onChange={(e) => setForm((s) => ({ ...s, username: e.target.value }))} placeholder="jdoe" /></label>
