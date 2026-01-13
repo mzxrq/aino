@@ -1,6 +1,15 @@
 const express = require('express');
 const axios = require('axios');
+const http = require('http');
+const https = require('https');
 const router = express.Router();
+
+// Shared axios instance with keep-alive to speed up repeated Python service calls
+const axiosInstance = axios.create({
+  httpAgent: new http.Agent({ keepAlive: true }),
+  httpsAgent: new https.Agent({ keepAlive: true }),
+  timeout: 30000,
+});
 
 router.post('/bulk', async (req, res) => {
   try {
@@ -78,13 +87,73 @@ router.post('/bulk', async (req, res) => {
     // Only call Python for missing tickers to reduce load and avoid long requests
     if (missing.length > 0) {
       try {
-        const tickerStr = missing.join(',');
-        const pyUrl = `https://didactic-chainsaw-qrvv7p7vpxqf45wr-5000.app.github.dev/py/chart?ticker=${encodeURIComponent(tickerStr)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`;
-        const { data } = await axios.get(pyUrl, { timeout: 10000 }); // shorter timeout for bulk
-        pyData = data || {};
+        // Chunk missing tickers into smaller groups to avoid long Python processing per-request.
+        const PY_BASE = process.env.PY_API_URL || process.env.PYTHON_API_URL || process.env.LINE_PY_URL || 'http://localhost:5000';
+        const pyBaseClean = PY_BASE.replace(/\/$/, '');
+
+        const chunkSize = 5; // number of tickers per python request (reduced to lower python work)
+        const concurrency = 3; // how many parallel python requests
+        const timeoutPerReq = 30000; // 30s per python request
+        const maxRetries = 2;
+
+        // helper to run async tasks with limited concurrency (worker pool)
+        const runWithConcurrency = async (tasks, limit) => {
+          const results = [];
+          let idx = 0;
+          const workers = Array.from({ length: Math.min(limit, tasks.length) }).map(async () => {
+            while (true) {
+              const i = idx++;
+              if (i >= tasks.length) break;
+              try {
+                const data = await tasks[i]();
+                results.push({ ok: true, data });
+              } catch (err) {
+                results.push({ ok: false, error: err });
+              }
+            }
+          });
+          await Promise.all(workers);
+          return results;
+        };
+
+        // Create chunked tasks
+        const chunks = [];
+        for (let i = 0; i < missing.length; i += chunkSize) chunks.push(missing.slice(i, i + chunkSize));
+
+        const tasks = chunks.map(chunk => async () => {
+          const tickerStr = chunk.join(',');
+          const pyUrl = `${pyBaseClean}/py/chart?ticker=${encodeURIComponent(tickerStr)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`;
+
+          let attempt = 0;
+          while (attempt <= maxRetries) {
+            try {
+              const { data } = await axiosInstance.get(pyUrl, { timeout: timeoutPerReq });
+              return data || {};
+            } catch (err) {
+              attempt += 1;
+              if (attempt > maxRetries) {
+                console.error('Bulk Python fetch error:', err && err.message ? err.message : err);
+                return {};
+              }
+              // small backoff
+              await new Promise(r => setTimeout(r, 500 * attempt));
+            }
+          }
+          return {};
+        });
+
+        // Run tasks with limited concurrency and aggregate results
+        const settled = await runWithConcurrency(tasks, concurrency);
+        // settled contains array of { ok, data | error }
+        for (const s of settled) {
+          if (s.ok && s.data && typeof s.data === 'object') {
+            pyData = { ...pyData, ...s.data };
+          }
+        }
+        // Merge cached payloads so cache entries are respected (cachedMap keys are uppercased)
+        pyData = { ...pyData, ...cachedMap };
       } catch (e) {
-        console.error('Bulk Python fetch error:', e.message);
-        // Continue: we'll return nulls for tickers not in cache or pyData
+        console.error('Bulk Python fetch error (aggregate):', e && e.message ? e.message : e);
       }
     }
 
@@ -178,7 +247,7 @@ router.get('/:ticker', async (req, res) => {
     let payload = null;
     try {
       const url = `http://localhost:5050/node/cache/ticker/${encodeURIComponent(ticker)}/${encodeURIComponent(interval)}/${encodeURIComponent(period)}`;
-      const { data } = await axios.get(url, { timeout: 8000 });
+      const { data } = await axiosInstance.get(url, { timeout: 8000 });
       const maybePayload = data?.data?.payload;
       if (maybePayload && typeof maybePayload === 'object') {
         payload = maybePayload;
@@ -191,7 +260,7 @@ router.get('/:ticker', async (req, res) => {
     if (!payload) {
       try {
         const pyUrl = `http://localhost:5000/py/chart?ticker=${encodeURIComponent(ticker)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`;
-        const { data: pyData } = await axios.get(pyUrl, { timeout: 15000 });
+        const { data: pyData } = await axiosInstance.get(pyUrl, { timeout: 15000 });
         const fromPy = pyData?.[ticker.toUpperCase()];
         if (fromPy && typeof fromPy === 'object') {
           payload = fromPy;
