@@ -71,7 +71,8 @@ const getUserFavorites = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
     if (!userId) {
-      return res.status(401).json({ success: false, error: "Not authenticated" });
+      // Unauthenticated: return an empty favorites list instead of 401 to simplify client handling
+      return res.status(200).json({ success: true, data: [] });
     }
 
     const result = await favoritesService.getUserFavorites(userId);
@@ -90,11 +91,12 @@ const getUserFavorites = async (req, res) => {
 const checkFavorite = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
+    const { ticker } = req.params;
     if (!userId) {
-      return res.status(401).json({ success: false, error: "Not authenticated" });
+      // Unauthenticated: treat as not favorited
+      return res.status(200).json({ success: true, data: { favorited: false } });
     }
 
-    const { ticker } = req.params;
     const result = await favoritesService.isFavorited(userId, ticker);
     res.status(200).json(result);
   } catch (err) {

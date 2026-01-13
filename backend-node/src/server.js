@@ -86,6 +86,10 @@ app.use('/node/subscribers', subscribersRoutes);
 const marketlistsRoutes = require('./modules/marketlist/marketlist.route');
 app.use('/node/marketlists', marketlistsRoutes);
 
+// Search route (simple fuzzy search over marketlists)
+const searchRoutes = require('./modules/search/search.route');
+app.use('/node/search', searchRoutes);
+
 // Stock info routes (proxy to Python)
 const stockInfoRoutes = require('./modules/stock-info/stock-info.route');
 app.use('/node/stock', stockInfoRoutes);
@@ -142,15 +146,21 @@ app.get("/health", (req, res) => {
 /* =======================
    Start Server & Connect to DB
    ======================= */
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+// Attempt to connect to the database, but do NOT exit the process if DB is unavailable.
+// This allows the service to continue in file-cache fallback mode for development.
+(async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT} with DB connected`);
+    });
+  } catch (err) {
+    console.error('Failed to connect to MongoDB, starting server without DB (using file fallback):', err && err.message ? err.message : err);
+    app.listen(PORT, () => {
+      console.log(`Server running in fallback mode on port ${PORT} (no DB)`);
+    });
   }
-  );
-}).catch((err) => {
-  console.error("Failed to connect to MongoDB:", err);
-  process.exit(1); // Exit with failure
-});
+})();
 
 
 /**

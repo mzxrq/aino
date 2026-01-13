@@ -1,7 +1,7 @@
 ﻿import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
 
-export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '' }) {
+export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '', twoLine = true }) {
   const btnRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
@@ -66,18 +66,32 @@ export default function TimezoneSelect({ value, onChange, options = [], currentT
       {open && anchorRect && (
         <PortalDropdown anchorRect={anchorRect} align="right" offsetY={8} onClose={() => setOpen(false)} className="timezone-portal-dropdown">
           <ul className="timezone-options" role="listbox" aria-activedescendant={value}>
-            {sortedOptions.map(opt => (
-              <li
-                key={opt}
-                id={opt}
-                role="option"
-                aria-selected={opt === value}
-                className={`timezone-option ${opt === value ? 'selected' : ''}`}
-                onClick={() => { onChange && onChange(opt); setOpen(false); }}
-              >
-                {formatLabel ? formatLabel(opt) : opt}
-              </li>
-            ))}
+            {sortedOptions.map(opt => {
+              const raw = formatLabel ? formatLabel(opt) : opt;
+              // try to split into offset and label: "(±HH:MM) Label"
+              const m = String(raw).match(/^\(([^)]+)\)\s*(.+)$/);
+              const offset = m ? m[1] : null;
+              const label = m ? m[2] : raw;
+              return (
+                <li
+                  key={opt}
+                  id={opt}
+                  role="option"
+                  aria-selected={opt === value}
+                  className={`timezone-option ${opt === value ? 'selected' : ''}`}
+                  onClick={() => { onChange && onChange(opt); setOpen(false); }}
+                >
+                  {twoLine ? (
+                    <div className="tz-2line">
+                      <div className="tz-main">{label}</div>
+                      {offset ? <div className="tz-sub">{offset}</div> : null}
+                    </div>
+                  ) : (
+                    <div className="tz-oneline">{raw}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </PortalDropdown>
       )}

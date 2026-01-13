@@ -28,15 +28,24 @@ const bulkCreate = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         // Support server-side pagination/sorting/search from query params
-        const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
-        const skip = req.query.skip ? parseInt(req.query.skip, 10) : null;
+        // Accept both legacy `limit/skip` and friendly `page/pageSize` params
+        let limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+        let skip = req.query.skip ? parseInt(req.query.skip, 10) : null;
+        const page = req.query.page ? parseInt(req.query.page, 10) : null;
+        const pageSize = req.query.pageSize ? parseInt(req.query.pageSize, 10) : null;
+        if ((!limit || limit <= 0) && pageSize && pageSize > 0) limit = pageSize;
+        if ((skip === null || skip === undefined) && page && page > 0 && limit && limit > 0) skip = (page - 1) * limit;
         const sortBy = req.query.sortBy || req.query.sortKey || null;
         const sortOrder = (req.query.sortOrder || req.query.sortDir || 'asc').toLowerCase();
         const query = req.query.query || null;
 
         const opts = { limit, skip, sortBy, sortOrder, query };
         const result = await MarketListModel.getAll(opts);
-        return res.status(200).json({ success: true, data: result.items, total: result.total });
+        const total = result.total || 0;
+        const pageNum = page || 1;
+        const computedPageSize = limit && Number(limit) > 0 ? Number(limit) : null;
+        const totalPages = computedPageSize ? Math.max(1, Math.ceil(total / computedPageSize)) : 1;
+        return res.status(200).json({ success: true, data: result.items, total, page: pageNum, pageSize: computedPageSize, totalPages });
     } catch (err) {
         console.error('Get All Error:', err);
         return res.status(500).json({ success: false, error: 'Failed to retrieve market lists.' });

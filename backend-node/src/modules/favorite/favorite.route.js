@@ -6,25 +6,24 @@
 
 const express = require("express");
 const router = express.Router();
-const { requireAuth } = require("../../middleware/authMiddleware");
+const { requireAuth, optionalAuth } = require("../../middleware/authMiddleware");
 const favoritesController = require("./favorite.controller");
 
-// All favorites routes require authentication
-router.use(requireAuth);
 
-// POST /node/favorites - Add favorite
-router.post("/", favoritesController.addFavorite);
 
-// GET /node/favorites - Get user's favorites
-router.get("/", favoritesController.getUserFavorites);
+// POST /node/favorites - Add favorite (requires auth)
+router.post("/", requireAuth, favoritesController.addFavorite);
 
-// GET /node/favorites/check/:ticker - Check if favorited
-router.get("/check/:ticker", favoritesController.checkFavorite);
+// GET /node/favorites - Get user's favorites (optional auth; unauthenticated returns empty list)
+router.get("/", optionalAuth, favoritesController.getUserFavorites);
 
-// PATCH /node/favorites/:ticker - Update favorite (note, pinned)
-router.patch("/:ticker", favoritesController.updateFavorite);
+// GET /node/favorites/check/:ticker - Check if favorited (optional auth)
+router.get("/check/:ticker", optionalAuth, favoritesController.checkFavorite);
 
-// DELETE /node/favorites/:ticker - Remove favorite
-router.delete("/:ticker", favoritesController.removeFavorite);
+// PATCH /node/favorites/:ticker - Update favorite (note, pinned) (requires auth)
+router.patch("/:ticker", requireAuth, favoritesController.updateFavorite);
+
+// DELETE /node/favorites/:ticker - Remove favorite (requires auth)
+router.delete("/:ticker", requireAuth, favoritesController.removeFavorite);
 
 module.exports = router;

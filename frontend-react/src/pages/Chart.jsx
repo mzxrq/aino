@@ -890,13 +890,22 @@ export default function Chart() {
       const p = { tickers, period, interval, timezone, showBB, showVWAP, showVolume, showAnomaly, showLegend, globalChartMode, showMA5, showMA25, showMA75, showMA: showMA5 || showMA25 || showMA75, showSAR, bbSigma };
       localStorage.setItem(PREF_KEY, JSON.stringify(p));
       // also persist to server for authenticated users (debounced)
-      if (token && user) {
+      const hasValidUser = user && (user.id || user._id || user.userId);
+      // Require a JWT-like token (three dot-separated parts) to avoid malformed/placeholder tokens
+      const hasValidToken = token && typeof token === 'string' && token.split('.').length === 3;
+      if (hasValidToken && hasValidUser) {
         if (savePrefsTimer.current) clearTimeout(savePrefsTimer.current);
         savePrefsTimer.current = setTimeout(async () => {
           try {
+            // Re-check token/user at execution time to avoid stale timers making requests
+            const curToken = token;
+            const curUser = user;
+            const curHasUser = curUser && (curUser.id || curUser._id || curUser.userId);
+            const curHasToken = curToken && typeof curToken === 'string' && curToken.split && curToken.split('.').length === 3;
+            if (!curHasToken || !curHasUser) return; // abort if no valid auth present now
             const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
             await fetch(`${front}/node/users/preferences`, {
-              method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${curToken}` },
               body: JSON.stringify(p)
             });
           } catch { /* ignore */ }
@@ -1005,6 +1014,7 @@ export default function Chart() {
               formatLabel={formatTimezoneLabel}
               displayTime={timezoneTime}
               sortFn={sortTimezonesByOffset}
+              twoLine={true}
             />
           </div>
 

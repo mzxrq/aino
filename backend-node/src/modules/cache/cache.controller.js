@@ -120,7 +120,20 @@ const checkCacheStale = async (req, res) => {
 const getAllSparklines = async (req, res) => {
   try {
     const list = await CacheService.getAllSparklines();
-    return res.status(200).json({ success: true, data: list });
+    // Build compact map for frontend: { TICKER: [values] }
+    const map = {};
+    if (Array.isArray(list)) {
+      list.forEach(item => {
+        const values = item.close || item.sparkline || item.values || item.data || [];
+        if (item.ticker && Array.isArray(values) && values.length) {
+          // normalize ticker and keep only last 10 numeric values
+          const key = String(item.ticker).toUpperCase();
+          const numeric = values.filter(v => typeof v === 'number' && Number.isFinite(v)).slice(-10);
+          if (numeric.length) map[key] = numeric;
+        }
+      });
+    }
+    return res.status(200).json({ success: true, data: list, map });
   } catch (err) {
     console.error('Sparklines Error:', err);
     return res.status(500).json({ success: false, error: 'Failed to retrieve sparklines.' });

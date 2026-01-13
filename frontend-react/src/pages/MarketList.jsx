@@ -10,8 +10,11 @@ import "../css/MarketList.css";
 
 echarts.use([LineChart, GridComponent, SVGRenderer]);
 
-const API_URL =  "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5050.app.github.dev";
-const PY_API_URL = "https://didactic-chainsaw-qrvv7p7vpxqf45wr-5000.app.github.dev";
+// Read API endpoints from Vite environment variables with sensible defaults.
+// Common env names supported: VITE_NODE_API_URL, VITE_API_URL for node gateway;
+// VITE_LINE_PY_URL or VITE_PY_API_URL for the Python service.
+const API_URL = import.meta.env.VITE_NODE_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const PY_API_URL = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_PY_API_URL || 'http://localhost:5000';
 let bulkSparklineUnsupported = false; // remember if bulk endpoint 404s
 
 export default function MarketListScreen() {
@@ -27,15 +30,14 @@ export default function MarketListScreen() {
   const [pricesMap, setPricesMap] = useState({});
   const [favoritesSet, setFavoritesSet] = useState(new Set()); // Track favorited tickers
   const [loading, setLoading] = useState(false);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 5;
   // Server-driven pagination state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const loadMoreRef = useRef(null);
+  
   const navigate = useNavigate();
 
   // ---------------------------------------------------
@@ -81,55 +83,31 @@ export default function MarketListScreen() {
   }, [search]);
 
 const generateSparklineSVG = (closes) => {
+  // Lightweight SVG polyline generator — avoids initializing ECharts for every small sparkline
   if (!closes || closes.length < 2) return "";
-
   try {
-    const chart = echarts.init(null, null, {
-      renderer: "svg",
-      ssr: true,
-      width: 120,
-      height: 36,
-    });
+    const values = closes.map(Number).filter(v => Number.isFinite(v));
+    if (values.length < 2) return "";
 
-    chart.setOption({
-      animation: false,
-      grid: { left: 0, right: 0, top: 0, bottom: 0 },
-      xAxis: {
-        type: "category",
-        boundaryGap: false,
-        data: closes.map((_, idx) => idx),
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { show: false },
-        splitLine: { show: false },
-      },
-      yAxis: {
-        type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { show: false },
-        splitLine: { show: false },
-      },
-      series: [
-        {
-          type: "line",
-          data: closes,
-          smooth: true,
-          showSymbol: false,
-          lineStyle: { width: 1.5, color: "#2cc17f" },
-          areaStyle: { opacity: 0 },
-          emphasis: { disabled: true },
-        },
-      ],
-      tooltip: { show: false },
-    });
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const width = 100;
+    const height = 40;
 
-    const svg = chart.renderToSVGString();
-    chart.dispose();
-    return svg;
+    const points = values.map((val, i) => {
+      const x = (i / (values.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${x},${y}`;
+    }).join(' ');
+
+    const isPositive = values[values.length - 1] >= values[0];
+    const color = isPositive ? '#2cc17f' : '#e05654';
+
+    return `<svg width="${width}" height="${height}" class="sparkline-svg"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   } catch (err) {
-    console.error("Sparkline render error:", err);
-    return "";
+    console.error('Sparkline svg generation error:', err);
+    return '';
   }
 };
 
@@ -166,12 +144,20 @@ const executeWithConcurrency = async (tasks, maxConcurrent = 5) => {
 const fetchChartDataForSparkline = async (ticker, country) => {
   try {
     const yfTicker = resolveYfTicker(ticker, country);
-    const res = await fetch(`${API_URL}/node/cache?ticker=${encodeURIComponent(yfTicker)}&period=1mo&interval=1d`);
+    // Call the cache route that accepts path params: /node/cache/ticker/:ticker/:interval/:period
+    const interval = '1d';
+    const period = '1mo';
+    const res = await fetch(`${API_URL}/node/cache/ticker/${encodeURIComponent(yfTicker)}/${encodeURIComponent(interval)}/${encodeURIComponent(period)}`);
     if (!res.ok) return "";
-    const data = await res.json();
-    
-    if (data.data && data.data.close && Array.isArray(data.data.close)) {
-      return generateSparklineSVG(data.data.close);
+    const json = await res.json();
+    const list = json && json.data ? json.data : [];
+    if (Array.isArray(list) && list.length > 0) {
+      // pick the most recent cache entry (last updated)
+      const entry = list.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0];
+      const values = entry.values || entry.sparkline || entry.close || entry.data || [];
+      if (Array.isArray(values) && values.length >= 2) {
+        return generateSparklineSVG(values);
+      }
     }
   } catch (err) {
     console.error(`Error fetching sparkline for ${ticker}:`, err);
@@ -218,6 +204,20 @@ const fetchBulkPriceData = async (items) => {
   return {};
 };
 
+// Fetch price for a single ticker (fallback to per-ticker endpoint)
+const fetchSinglePrice = async (item) => {
+  try {
+    const resolvedTicker = resolveYfTicker(item.ticker, item.country);
+    const res = await fetch(`${API_URL}/node/price/${encodeURIComponent(resolvedTicker)}?period=1mo&interval=1d`);
+    if (!res.ok) return { ticker: item.ticker, data: null };
+    const json = await res.json();
+    if (json && json.success) return { ticker: item.ticker, data: json };
+    return { ticker: item.ticker, data: null };
+  } catch (err) {
+    return { ticker: item.ticker, data: null };
+  }
+};
+
 const fetchSearchResults = async (q) => {
   try {
     const res = await fetch(`${API_URL}/node/search?q=${encodeURIComponent(q)}&limit=50`);
@@ -244,10 +244,58 @@ const fetchSearchResults = async (q) => {
     const filtered = settled.filter(s => s.status === 'ok' && s.data).map(s => s.data);
     // Fallback: if none resolved, map basic search results
     const final = filtered.length > 0 ? filtered : results.map(r => ({ ticker: r.symbol, companyName: r.name, country: r.exchange, primaryExchange: r.exchange }));
-    setMarketData(final.map(it => ({ ...it, sparklineSvg: '' })));
+
+    // PRIORITY: show basic search results immediately, then enrich with prices and sparklines
+    // Build minimal items
+    const items = final.map(it => ({
+      _id: it._id || it.ticker,
+      ticker: it.ticker,
+      companyName: it.companyName || it.name || it.ticker,
+      country: it.country || 'US',
+      primaryExchange: it.primaryExchange || it.exchange || '',
+      sectorGroup: it.sectorGroup || it.sector || '',
+      logo: '',
+      hideLogo: false,
+      sparklineSvg: ''
+    }));
+    // Show basic items immediately so user sees results
+    setMarketData(items);
     setTotalPages(1);
-    setTotalCount(final.length);
+    setTotalCount(items.length);
     setPage(1);
+
+    // Enrich in background: try bulk prices, per-ticker fallback, then sparklines
+    (async () => {
+      try {
+        let priceMap = {};
+        try { priceMap = await fetchBulkPriceData(items); } catch (e) { priceMap = {}; }
+        const missingPrices = items.filter(it => !priceMap[it.ticker]);
+        if (missingPrices.length > 0) {
+          const priceTasks = missingPrices.map(it => async () => await fetchSinglePrice(it));
+          const priceResults = await executeWithConcurrency(priceTasks, 10);
+          priceResults.forEach(r => {
+            if (r.status === 'ok' && r.data && r.data.data) {
+              priceMap[r.data.ticker] = r.data.data;
+            }
+          });
+        }
+        setPricesMap(priceMap);
+
+        const sparkTasks = items.map(it => async () => {
+          const svg = await fetchChartDataForSparkline(it.ticker, it.country);
+          return { ticker: it.ticker, svg };
+        });
+        const sparkResults = await executeWithConcurrency(sparkTasks, 10);
+        const sparklineMap = {};
+        sparkResults.forEach(r => {
+          if (r.status === 'ok' && r.data && r.data.svg) sparklineMap[r.data.ticker] = r.data.svg;
+        });
+
+        setMarketData(prev => prev.map(it => ({ ...it, sparklineSvg: sparklineMap[it.ticker] || it.sparklineSvg || '' })));
+      } catch (e) {
+        console.warn('Search enrichment failed:', e);
+      }
+    })();
   } catch (err) {
     console.error('Search error:', err);
     setMarketData([]);
@@ -256,8 +304,8 @@ const fetchSearchResults = async (q) => {
 
 const fetchMarketData = async (pageToLoad = 1, append = false) => {
   if (!pageToLoad || pageToLoad < 1) pageToLoad = 1;
-  if (append) setIsLoadingMore(true);
-  else setLoading(true);
+  // unify loading state for both replace and append operations
+  setLoading(true);
 
   try {
     const countryParam = marketFilter && marketFilter !== 'All' ? `&country=${encodeURIComponent(marketFilter)}` : '';
@@ -353,8 +401,9 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
               return `<svg width="${width}" height="${height}" class="sparkline-svg"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
             };
             sparklineData.data.forEach(item => {
-              if (item.ticker && item.close) {
-                sparklineMap[item.ticker] = generateSvg(item.close);
+              const values = item.close || item.sparkline || item.values || item.data || [];
+              if (item.ticker && Array.isArray(values) && values.length >= 2) {
+                sparklineMap[item.ticker] = generateSvg(values);
               }
             });
           }
@@ -368,22 +417,32 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
 
     // On-demand fetch for uncached sparklines is now lazy (see effect below)
     
-    // Fetch prices in batches with concurrency control (max 3 batch fetches in parallel)
-    const BATCH_SIZE = 30;
+    // Fetch prices ticker-by-ticker with limited concurrency to avoid large bulk requests
     let allPriceData = {};
-    const priceBatches = [];
-    
-    for (let i = 0; i < list.length; i += BATCH_SIZE) {
-      const batch = list.slice(i, i + BATCH_SIZE);
-      priceBatches.push(() => fetchBulkPriceData(batch));
-    }
-    
-    const priceResults = await executeWithConcurrency(priceBatches, 3);
-    priceResults.forEach(r => {
-      if (r.status === 'ok' && typeof r.data === 'object') {
-        allPriceData = { ...allPriceData, ...r.data };
+    try {
+      const priceTasks = list.map(item => async () => await fetchSinglePrice(item));
+      // Increase concurrency for per-ticker price fetch to reduce wall-clock time for each page
+      const priceResults = await executeWithConcurrency(priceTasks, 10); // max 10 parallel
+      priceResults.forEach(r => {
+        if (r.status === 'ok' && r.data && r.data.data) {
+          // `fetchSinglePrice` returns { ticker, data }
+          const ticker = r.data.ticker;
+          const pdata = r.data.data;
+          if (pdata && pdata.success) allPriceData[ticker] = pdata;
+        }
+      });
+    } catch (e) {
+      console.warn('Per-ticker price fetch failed, falling back to bulk:', e);
+      // fallback to previous bulk behavior in case of unexpected failure
+      const BATCH_SIZE = 30;
+      for (let i = 0; i < list.length; i += BATCH_SIZE) {
+        const batch = list.slice(i, i + BATCH_SIZE);
+        try {
+          const bulk = await fetchBulkPriceData(batch);
+          allPriceData = { ...allPriceData, ...bulk };
+        } catch (err) { /* ignore */ }
       }
-    });
+    }
     
     list = list.map(item => ({
       ...item,
@@ -396,7 +455,7 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
   } catch (err) {
     console.error("Error fetching market list:", err);
   }
-  if (isLoadingMore) setIsLoadingMore(false); else setLoading(false);
+  setLoading(false);
 };
 
 const fetchRecentAnomalies = async () => {
@@ -538,6 +597,11 @@ const toggleFollow = async (ticker) => {
     console.error("Error following stock:", err);
   }
 };
+
+  const handleLogoError = (ticker) => {
+    // When a remote logo 404s, mark the item to hide logo so we don't request it again
+    setMarketData(prev => prev.map(it => (it.ticker === ticker ? { ...it, hideLogo: true, logo: '' } : it)));
+  };
 
 
   // Market status helper with real-time detection
@@ -716,25 +780,25 @@ const toggleFollow = async (ticker) => {
     loadVisibleSparklines();
   }, [marketData.length, sortedData]);
 
-  const loadMore = () => {
-    if (isSearching) return; // do not paginate when showing search results
-    if (page < totalPages && !isLoadingMore) {
-      fetchMarketData(page + 1, true);
+  // loadMore removed — pagination via Prev/Next buttons only
+
+  const goPrev = () => {
+    if (isSearching) return;
+    if (page > 1 && !loading) {
+      fetchMarketData(page - 1, false);
     }
   };
 
-  // IntersectionObserver to auto-load more when scrolled near bottom
-  useEffect(() => {
-    if (!loadMoreRef.current) return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) loadMore();
-      });
-    }, { root: null, rootMargin: '400px', threshold: 0 });
+  const goNext = () => {
+    if (isSearching) return;
+    if (page < totalPages && !loading) {
+      fetchMarketData(page + 1, false);
+    }
+  };
 
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [loadMoreRef.current, page, totalPages, marketData.length]);
+  // Infinite scroll / load-more sentinel removed — pagination now via Prev/Next
+
+  // Pagination is handled via "Load more" / infinite scroll
 
   return (
     <div className="market-list-page">
@@ -795,7 +859,7 @@ const toggleFollow = async (ticker) => {
         </div>
 
         <div className="results-count">
-          {sortedData.length} stocks
+          {`Showing ${visibleData.length} of ${totalCount || sortedData.length} stocks`}
         </div>
 
         <div className="view-mode-toggle">
@@ -979,11 +1043,13 @@ const toggleFollow = async (ticker) => {
       </div>
       {/* Sentinel for infinite scroll + load more fallback */}
       <div className="marketlist-load-more">
-        {!isSearching && page < totalPages && (
-          <>
-            <button className="load-more-btn" onClick={loadMore} disabled={isLoadingMore}>{isLoadingMore ? 'Loading...' : 'Load more'}</button>
-            <div ref={loadMoreRef} style={{height: 1}} aria-hidden="true" />
-          </>
+        {!isSearching && (
+          <div className="pagination-controls">
+            <button className="pagination-btn prev-btn" onClick={goPrev} disabled={page <= 1 || loading}>&laquo; Prev</button>
+            {/* Load more removed — use Prev/Next for pagination */}
+            <button className="pagination-btn next-btn" onClick={goNext} disabled={page >= totalPages || loading}>Next &raquo;</button>
+            {/* sentinel removed */}
+          </div>
         )}
       </div>
     </div>

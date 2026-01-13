@@ -56,7 +56,11 @@ const getAllCache = async () => {
   const db = (() => { try { return getDb(); } catch { return null; } })();
   if (db) {
     const docs = await db.collection(COLLECTION_NAME).find({}).toArray();
-    return docs.map(d => ({ id: d._id, ...d }));
+    if (Array.isArray(docs) && docs.length) return docs.map(d => ({ id: d._id, ...d }));
+    // if DB has no documents, fall back to file cache for development
+    const file = readCache();
+    if (Array.isArray(file) && file.length) return file;
+    return [];
   }
   return readCache();
 };
@@ -152,14 +156,44 @@ const checkCacheStale = async (id, thresholdMinutes = 60) => {
 
 const getAllSparklines = async () => {
   const all = await getAllCache();
-  // Group by ticker and return small series (last 10 values)
+  // Group cache entries by ticker and collect numeric close-like values.
   const map = {};
+
   all.forEach(c => {
-    const key = c.ticker || c.symbol || 'unknown';
-    map[key] = map[key] || [];
-    if (Array.isArray(c.values)) map[key].push(...c.values.slice(-10));
+    const key = (c.ticker || c.symbol || c.Ticker || c.Symbol ||
+      (c.payload && (c.payload.ticker || c.payload.symbol || c.payload.Ticker || c.payload.Symbol)) ||
+      (c.meta && (c.meta.ticker || c.meta.Ticker)));
+    if (!key) return;
+
+    // possible fields containing price series
+    const candidates = [];
+    if (c.payload && typeof c.payload === 'object') {
+      if (Array.isArray(c.payload.close)) candidates.push(...c.payload.close);
+      if (Array.isArray(c.payload.Close)) candidates.push(...c.payload.Close);
+      if (Array.isArray(c.payload.values)) candidates.push(...c.payload.values);
+      if (Array.isArray(c.payload.Values)) candidates.push(...c.payload.Values);
+      if (Array.isArray(c.payload.data)) candidates.push(...c.payload.data);
+      if (Array.isArray(c.payload.dataValues)) candidates.push(...c.payload.dataValues);
+      if (Array.isArray(c.payload.sparkline)) candidates.push(...c.payload.sparkline);
+      if (Array.isArray(c.payload.Sparkline)) candidates.push(...c.payload.Sparkline);
+    }
+    if (Array.isArray(c.close)) candidates.push(...c.close);
+    if (Array.isArray(c.values)) candidates.push(...c.values);
+    if (Array.isArray(c.sparkline)) candidates.push(...c.sparkline);
+
+    // filter numeric values
+    const numeric = candidates.filter(v => typeof v === 'number' && Number.isFinite(v));
+    if (!numeric.length) return;
+
+    const ticker = String(key).toUpperCase();
+    map[ticker] = map[ticker] || [];
+    map[ticker].push(...numeric);
+    // keep only last 10
+    if (map[ticker].length > 10) map[ticker] = map[ticker].slice(-10);
   });
-  return Object.keys(map).map(k => ({ ticker: k, sparkline: map[k].slice(-10) }));
+
+  // build array result: { ticker, close }
+  return Object.keys(map).map(t => ({ ticker: t, close: map[t] }));
 };
 
 const getRecentCache = async (limit = 20) => {
@@ -193,4 +227,5 @@ module.exports = {
   deleteStaleCache,
   checkCacheStale,
   getAllSparklines,
+  getRecentCache,
 };

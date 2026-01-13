@@ -19,7 +19,7 @@ const { requireAuth, authorize } = require('../../middleware/authMiddleware');
 router.post('/', authorize(['admin']), marketscontroller.create);
 router.post('/bulk', authorize(['admin']), marketscontroller.bulkCreate);
 router.get('/', marketscontroller.getAll);
-router.get('/ticker/:ticker', authorize(['admin']), marketscontroller.getByTicker);
+router.get('/ticker/:ticker', marketscontroller.getByTicker);
 router.get('/:id', authorize(['admin']), marketscontroller.getById);
 router.put('/:id', authorize(['admin']), marketscontroller.update);
 router.delete('/:id', authorize(['admin']), marketscontroller.remove);

@@ -55,16 +55,37 @@ async function getAll(options = {}) {
 
     const { limit, skip, sortBy, sortOrder, query } = options;
     const filter = {};
-    if (query && typeof query === 'string' && query.trim().length > 0) {
-        const q = query.trim();
-        // simple text search on ticker and companyName (case-insensitive)
-        filter.$or = [
-            { ticker: { $regex: q, $options: 'i' } },
-            { companyName: { $regex: q, $options: 'i' } },
-        ];
+    // Ensure indexes for faster searches (idempotent)
+    if (!global.__marketlist_indexes_ensured) {
+        try {
+            db.collection(COLLECTION_NAME).createIndex({ ticker: 1 });
+            db.collection(COLLECTION_NAME).createIndex({ companyName: 1 });
+        } catch (e) {
+            // ignore index creation errors in limited environments
+        }
+        global.__marketlist_indexes_ensured = true;
     }
 
-    const cursor = db.collection(COLLECTION_NAME).find(filter);
+    if (query && typeof query === 'string' && query.trim().length > 0) {
+        const q = query.trim();
+        // If query looks like a ticker or short prefix (alphanumeric and dot, <= 8 chars),
+        // prefer an anchored prefix regex which can use the ticker index.
+        const isTickerLike = /^[A-Za-z0-9\.\-]{1,8}$/.test(q);
+        if (isTickerLike) {
+            filter.ticker = { $regex: `^${escapeRegex(q)}`, $options: 'i' };
+        } else {
+            // fallback to broader OR search across ticker and companyName
+            filter.$or = [
+                { ticker: { $regex: escapeRegex(q), $options: 'i' } },
+                { companyName: { $regex: escapeRegex(q), $options: 'i' } },
+            ];
+        }
+    }
+
+    // Only project necessary fields to reduce payload size and network transfer
+    // Exclude large/unnecessary metadata such as createdAt/updatedAt to minimize response size
+    const projection = { ticker: 1, companyName: 1, name: 1, primaryExchange: 1, country: 1, sectorGroup: 1 };
+    const cursor = db.collection(COLLECTION_NAME).find(filter, { projection });
 
     // apply sort if provided
     if (sortBy) {
@@ -76,7 +97,7 @@ async function getAll(options = {}) {
     }
 
     // compute total before applying limit/skip
-    const total = await cursor.count();
+    const total = await db.collection(COLLECTION_NAME).countDocuments(filter);
 
     if (typeof skip === 'number' && skip > 0) cursor.skip(skip);
     if (typeof limit === 'number' && limit > 0) cursor.limit(limit);
@@ -86,9 +107,10 @@ async function getAll(options = {}) {
         _id: d._id,
         id: d._id,
         companyName: d.companyName || d.name || d.company || d.company_name || '',
-        createdAt: d.createdAt || d.addedAt || null,
-        updatedAt: d.updatedAt || null,
-        ...d
+        ticker: d.ticker,
+        primaryExchange: d.primaryExchange,
+        country: d.country,
+        sectorGroup: d.sectorGroup,
     }));
     return { items, total };
 }
@@ -134,3 +156,8 @@ module.exports = {
     update,
     remove,
 };
+
+// helper: escape regex characters in user-provided query
+function escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
