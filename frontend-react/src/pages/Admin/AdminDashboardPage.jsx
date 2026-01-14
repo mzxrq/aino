@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useContext } from "react";
 import { Trans } from '@lingui/react/macro';
+import { i18n } from '@lingui/core';
 import FlexTable from "../../components/FlexTable/FlexTable";
 import SummaryCard from "../../components/SummaryCard/SummaryCard";
 import MultiLineChart from "../../components/MultiLineChart";
@@ -548,11 +549,11 @@ export default function AdminDashboardPage() {
 
   const summaryItems = useMemo(
     () => [
-      { key: "users", label: "Users" },
-      { key: "subscribers", label: "Subscribers" },
-      { key: "marketlists", label: "Marketlists" },
-      { key: "anomalies", label: "Anomalies" },
-      { key: "cache", label: "Cache" },
+      { key: "users", label: i18n._("Users") },
+      { key: "subscribers", label: i18n._("Subscribers") },
+      { key: "marketlists", label: i18n._("Marketlists") },
+      { key: "anomalies", label: i18n._("Anomalies") },
+      { key: "cache", label: i18n._("Cache") },
     ],
     []
   );

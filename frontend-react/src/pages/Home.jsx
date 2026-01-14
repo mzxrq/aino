@@ -1,8 +1,9 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
+import { getLocalizedCompanyName } from '../utils/companyNameUtils';
 import { AuthContext } from '../context/contextBase';
 import '../css/Home.css';
 import logoSvg from '../assets/aino.svg';
@@ -23,6 +24,7 @@ const fallbackn_loading = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const { i18n: lingui } = useLingui();
   const [anomalies, setAnomalies] = useState([]);
   const [recentAnomalies, setRecentAnomalies] = useState([]);
   const [topAnomalies, setTopAnomalies] = useState([]);
@@ -41,6 +43,27 @@ export default function Home() {
     const r = await fetch(url, init);
     if (!r.ok) throw new Error(`status ${r.status}`);
     return await r.json();
+  }
+
+  // Deduplicating fetch helper for Node API calls (GET + identical POSTs)
+  const _inFlightRequests = new Map();
+  async function fetchWithDedup(url, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    let key = `${method} ${url}`;
+    if (method !== 'GET' && options.body) {
+      try { key += ' ' + (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)); } catch (_e) {}
+    }
+    if (_inFlightRequests.has(key)) return _inFlightRequests.get(key);
+    const p = (async () => {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) return await res.json();
+      return await res.text();
+    })();
+    _inFlightRequests.set(key, p);
+    p.finally(() => { try { _inFlightRequests.delete(key); } catch (_) {} });
+    return p;
   }
 
   // Helpers: normalize ticker variants and lookup company name from master map
@@ -136,35 +159,30 @@ export default function Home() {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 6);
-        // Use the server-side recent endpoint to avoid accidental equality filters
-        const res = await fetch(`${API_URL}/node/anomalies/recent?limit=200`);
+
+        // Try server-side recent anomalies first
         let list = [];
-        if (res.ok) {
-          const json = await res.json();
+        try {
+          const json = await fetchWithDedup(`${API_URL}/node/anomalies/recent?limit=200`);
           list = json?.data || json || [];
+        } catch (_e) {
+          list = [];
         }
 
-        // If anomalies API returned nothing usable, try cache fallback
+        // Fallback: extract anomalies from cache entries
         if (!list || list.length === 0) {
           try {
-            const cres = await fetch(`${API_URL}/node/cache?limit=200`);
-            if (cres.ok) {
-              const cjson = await cres.json();
-              const items = cjson?.data || cjson || [];
-              // Extract anomalies from cache payloads (look for anomaly_markers or anomaly list)
-              for (const c of items) {
-                const payload = c.payload || c;
-                if (!payload) continue;
-                // payload may contain an 'anomalies' array or 'anomaly_markers'
-                const candidates = payload.anomalies || payload.anomaly_markers || (payload.payload && (payload.payload.anomalies || payload.payload.anomaly_markers)) || null;
-                if (Array.isArray(candidates) && candidates.length) {
-                  for (const a of candidates) {
-                    // try to shape a similar anomaly document
-                    const ticker = (a.ticker || payload.ticker || payload.Ticker || payload.tickerSymbol || '').toString().toUpperCase();
-                    if (!ticker) continue;
-                    list.push({ ticker, datetime: a.date || a.datetime || a.Datetime || payload.fetched_at, close: a.y || a.close || payload.close || 0, volume: a.volume || payload.volume || 0, companyName: payload.companyName || payload.company || payload.name });
-                  }
-                }
+            const cjson = await fetchWithDedup(`${API_URL}/node/cache?limit=200`);
+            const items = cjson?.data || cjson || [];
+            for (const c of items) {
+              const payload = c.payload || c;
+              if (!payload) continue;
+              const candidates = payload.anomalies || payload.anomaly_markers || (payload.payload && (payload.payload.anomalies || payload.payload.anomaly_markers)) || null;
+              if (!Array.isArray(candidates) || candidates.length === 0) continue;
+              for (const a of candidates) {
+                const ticker = (a.ticker || payload.ticker || payload.Ticker || payload.tickerSymbol || '').toString().toUpperCase();
+                if (!ticker) continue;
+                list.push({ ticker, datetime: a.date || a.datetime || a.Datetime || payload.fetched_at, close: a.y || a.close || payload.close || 0, volume: a.volume || payload.volume || 0, companyName: payload.companyName || payload.company || payload.name, companyNameLocal: payload.companyNameLocal || null });
               }
             }
           } catch (_e) {
@@ -177,9 +195,8 @@ export default function Home() {
         for (const a of list) {
           const t = (a.ticker || '').toUpperCase();
           if (!t) continue;
-          const existing = map.get(t) || { ticker: t, company: a.companyName || a.name || t, price: a.close || a.price || 0, change: 0, anomalies: 0, latestDatetime: null };
+          const existing = map.get(t) || { ticker: t, company: a.companyName || a.name || t, companyNameLocal: a.companyNameLocal || null, price: a.close || a.price || 0, change: 0, anomalies: 0, latestDatetime: null };
           existing.anomalies = (existing.anomalies || 0) + 1;
-          // track latest datetime for display
           const dt = a.datetime || a.Datetime || a.createdAt || null;
           if (dt && (!existing.latestDatetime || new Date(dt) > new Date(existing.latestDatetime))) {
             existing.latestDatetime = dt;
@@ -188,14 +205,12 @@ export default function Home() {
           map.set(t, existing);
         }
 
-        // recent anomalies: sort raw list by datetime desc and take latest 6
         const sortedList = (list || []).slice().sort((a, b) => {
           const da = new Date(a.datetime || a.Datetime || a.createdAt || a.fetched_at || 0).getTime();
           const db = new Date(b.datetime || b.Datetime || b.createdAt || b.fetched_at || 0).getTime();
           return db - da;
         });
 
-        // recent per-ticker: take latest instance per unique ticker (preview only)
         const recent = [];
         const seen = new Set();
         for (const d of sortedList) {
@@ -207,6 +222,7 @@ export default function Home() {
             id: `${ticker}-${String(d.datetime || d.date || d.Datetime || d.fetched_at || Math.random())}`,
             ticker,
             company: findCompanyName(ticker) || d.companyName || d.company || ticker,
+            companyNameLocal: d.companyNameLocal || null,
             price: d.close || d.price || 0,
             change: d.change || 0,
             anomalies: 1,
@@ -216,13 +232,13 @@ export default function Home() {
           if (recent.length >= 6) break;
         }
 
-        // Build full per-instance anomalies list (limit to 200 for display)
         const allInstances = sortedList.slice(0, 200).map((d, idx) => {
           const ticker = (d.ticker || d.Ticker || d.tickerSymbol || '').toUpperCase();
           return {
             id: `${ticker}-${idx}-${String(d.datetime || d.date || d.Datetime || d.fetched_at || idx)}`,
             ticker,
             company: findCompanyName(ticker) || d.companyName || d.company || ticker,
+            companyNameLocal: d.companyNameLocal || null,
             price: d.close || d.price || 0,
             change: d.change || 0,
             datetime: d.datetime || d.Datetime || d.createdAt || d.fetched_at,
@@ -230,11 +246,11 @@ export default function Home() {
           };
         });
 
-        // top anomalies: aggregate counts and keep latest metadata per ticker
         const mapped = Array.from(map.values()).sort((x, y) => y.anomalies - x.anomalies).slice(0, 6).map((d, idx) => ({
           id: `${d.ticker}-${idx}`,
           ticker: d.ticker,
           company: findCompanyName(d.ticker) || d.company,
+          companyNameLocal: d.companyNameLocal || null,
           price: typeof d.price === 'number' ? d.price : 0,
           change: typeof d.change === 'number' ? d.change : 0,
           anomalies: d.anomalies || 1,
@@ -247,7 +263,6 @@ export default function Home() {
           setTopAnomalies(finalTop);
           setAllAnomalies(allInstances);
           setAnomalies(finalTop);
-          // Fetch logo/price info for displayed tickers (include recent + some from full list)
           try {
             const tickersToFetch = Array.from(new Set([...(finalRecent || []).map(r => r.ticker), ...(finalTop || []).map(r => r.ticker)])).filter(Boolean).slice(0, 48);
             if (tickersToFetch.length) fetchTickerInfos(tickersToFetch);
@@ -290,90 +305,61 @@ export default function Home() {
     let isMounted = true;
     const fetchNews = async () => {
       try {
-        console.debug('fetchNews: starting', { anomaliesLength: anomalies?.length, topAnomaliesLength: topAnomalies?.length });
         const topTicker = anomalies?.[0]?.ticker || topAnomalies?.[0]?.ticker || 'AAPL';
-        // Prefer top-viewed news from our backend if available
-        try {
-          const topRes = await fetch(`${API_URL}/node/news/views/top?limit=6`);
-          if (topRes.ok) {
-            const payload = await topRes.json();
-            console.debug('fetchNews: top-viewed response', payload && (payload.items || payload.length));
-            const items = (payload.items || []).slice(0, 6).map((it, idx) => ({
-              id: it.articleKey || idx,
-              articleKey: it.articleKey || null,
-              title: it.title || it.cachedTitle || it.urlTitle || 'Market Update',
-              source: it.source || it.sourceTicker || 'News',
-              link: it.url || null,
-              thumbnail: it.thumbnail || null,
-              pubDate: it.pubDate || null,
-              views: it.views || 0
-            }));
-            if (isMounted && items.length) return setNews(items);
-          }
-        } catch (e) {
-          console.debug('top-viewed news fetch failed, falling back', e && e.message);
-        }
 
-        // Try Node backend news proxy and attach stored view counts
+        // 1) Try top-viewed cached articles
         try {
-          const res = await fetch(`${API_URL}/node/news?q=${encodeURIComponent(topTicker)}&pageSize=6`);
-          console.debug('fetchNews: node proxy response status', res.status);
-          if (res.ok) {
-            const j = await res.json();
-            let articles = (j.articles || []).slice(0, 6).map((n, idx) => ({
-              id: idx,
-              // attempt to capture any provider-side canonical id or guid
-              articleKey: n.articleKey || n.id || n.guid || null,
-              title: n.title || n.headline || n.description || n.summary || n.subtitle || 'Market Update',
-              source: (n.source && n.source.name) || n.source || n.author || 'News',
-              // try multiple possible url fields providers may use
-              link: n.url || n.link || n.articleUrl || n.canonical_url || n.guid || null,
-              thumbnail: n.urlToImage || n.image || n.thumbnail || n.thumbnailUrl || null,
-              pubDate: n.publishedAt || n.pubDate || null,
-              views: 0
-            }));
+          const payload = await fetchWithDedup(`${API_URL}/node/news/views/top?limit=6`);
+          const items = (payload.items || []).slice(0, 6).map((it, idx) => ({
+            id: it.articleKey || it.id || idx,
+            articleKey: it.articleKey || null,
+            title: it.title || it.cachedTitle || it.urlTitle || 'Market Update',
+            source: it.source || it.sourceTicker || 'News',
+            link: it.url || null,
+            thumbnail: it.thumbnail || null,
+            pubDate: it.pubDate || null,
+            views: it.views || 0
+          }));
+          if (isMounted && items.length) { setNews(items); return; }
+        } catch (e) { console.debug('top-viewed news fetch failed, falling back', e && e.message); }
 
-            // cache provider metadata so backend can serve thumbnails / pubDate for top endpoint
+        // 2) Try Node news proxy
+        try {
+          const j = await fetchWithDedup(`${API_URL}/node/news?q=${encodeURIComponent(topTicker)}&pageSize=6`);
+          let articles = (j.articles || []).slice(0, 6).map((n, idx) => ({
+            id: idx,
+            articleKey: n.articleKey || n.id || n.guid || null,
+            title: n.title || n.headline || n.description || n.summary || n.subtitle || 'Market Update',
+            source: (n.source && n.source.name) || n.source || n.author || 'News',
+            link: n.url || n.link || n.articleUrl || n.canonical_url || n.guid || null,
+            thumbnail: n.urlToImage || n.image || n.thumbnail || n.thumbnailUrl || null,
+            pubDate: n.publishedAt || n.pubDate || null,
+            views: 0
+          }));
+
+          // cache provider metadata
+          try {
+            const toCache = articles.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: topTicker || null })).filter(x => x.url && x.url !== '#');
+            if (toCache.length) await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+          } catch (err) { console.debug('cache post failed', err); }
+
+          // lookup stored view counts
+          try {
+            const keys = articles.map(a => a.articleKey || a.link).filter(Boolean);
+            if (keys.length) {
               try {
-              const toCache = articles.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: topTicker || null })).filter(x => x.url && x.url !== '#');
-              if (toCache.length) {
-                try {
-                  const cacheResp = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-                  if (cacheResp.ok) {
-                    const cacheJson = await cacheResp.json();
-                    const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
-                    articles = articles.map(a => {
-                      const key = a.articleKey || a.link;
-                      const cached = map[key];
-                      return { ...a, cacheId: cached && cached.id || null, thumbnail: a.thumbnail || (cached && cached.thumbnail) || null, pubDate: a.pubDate || (cached && cached.pubDate) || null };
-                    });
-                  }
-                } catch (err) { console.debug('cache post failed', err); }
-              }
-            } catch (err) { console.debug('cache post failed', err); }
+                const pl = await fetchWithDedup(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
+                const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
+                articles = articles.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
+              } catch (err) { console.debug('views lookup failed', err); }
+            }
+          } catch (err) { console.debug('views lookup failed', err); }
 
-            // lookup stored view counts for these article urls
-            try {
-              const keys = articles.map(a => a.articleKey || a.link).filter(Boolean);
-              if (keys.length) {
-                const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-                if (lookup.ok) {
-                  const pl = await lookup.json();
-                  const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
-                  articles = articles.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
-                }
-              }
-            } catch (err) { console.debug('views lookup failed', err); }
+          if (isMounted && articles.length) { setNews(articles); return; }
+        } catch (e) { console.debug('Node news proxy failed, will fall back to Python news', e && e.message); }
 
-            if (isMounted && articles.length) return setNews(articles);
-          }
-        } catch (e) {
-          console.debug('Node news proxy failed, will fall back to Python news', e && e.message);
-        }
-
-        // Fallback: Python financials news
+        // 3) Fallback to Python financials
         try {
-          console.debug('fetchNews: falling back to Python financials for', topTicker);
           const data = await fetchPyJson(`/financials?ticker=${topTicker}`);
           let newsData = (data?.news || []).slice(0, 6).map((n, idx) => ({
             id: idx,
@@ -384,34 +370,34 @@ export default function Home() {
             thumbnail: n.urlToImage || n.image || n.thumbnail || null,
             pubDate: n.publishedAt || n.pubDate || null,
             views: 0
-          }
-        ));
+          }));
+
           try {
             const keys = newsData.map(a => a.articleKey || a.link).filter(Boolean);
             if (keys.length) {
-              const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-              if (lookup.ok) {
-                const pl = await lookup.json();
+              try {
+                const pl = await fetchWithDedup(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
                 const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
                 newsData = newsData.map(a => ({ ...a, views: (map[a.articleKey || a.link] && map[a.articleKey || a.link].views) ? map[a.articleKey || a.link].views : 0, thumbnail: a.thumbnail || (map[a.articleKey || a.link] && map[a.articleKey || a.link].thumbnail) || null }));
-              }
+              } catch (err) { console.debug('views lookup failed', err); }
             }
           } catch (err) { console.debug('views lookup failed', err); }
-          if (isMounted && newsData.length > 0) return setNews(newsData);
 
+          if (isMounted && newsData.length > 0) { setNews(newsData); return; }
         } catch (e) {
           console.debug('Python news fetch failed', e && e.message);
+          if (isMounted) setNews(fallbackn_loading);
         }
-
-        if (isMounted) setNews(fallbackn_loading);
-      } catch (e) {
-        console.debug('News overall fetch error, using sample:', e && e.message);
+      } catch (_e) {
+        console.debug('News fetch error, using sample:', _e);
         if (isMounted) setNews(fallbackn_loading);
       }
     };
+
     if ((anomalies && anomalies.length > 0) || (topAnomalies && topAnomalies.length > 0)) {
       fetchNews();
     }
+
     return () => { isMounted = false; };
   }, [anomalies, topAnomalies, PY_URL, API_URL]);
 
@@ -443,11 +429,10 @@ export default function Home() {
       // If cache not present, create cache entry first so thumbnail/pubDate are stored
       let articleId = item.cacheId || item.articleKey || item.link;
       if (!item.cacheId) {
-        try {
+          try {
           const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: (anomalies && anomalies[0] && anomalies[0].ticker) || null }];
-          const cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-          if (cr.ok) {
-            const cj = await cr.json();
+          try {
+            const cj = await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
             const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
             if (found) {
               articleId = found.id || found.articleKey || articleId;
@@ -455,13 +440,13 @@ export default function Home() {
               item.cacheId = found.id || null;
               if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
             }
-          }
+          } catch (_e) { /* ignore cache errors */ }
         } catch (_e) { /* ignore cache errors */ }
       }
 
       const payload = { articleId, url: item.link || null, title: item.title || null, ticker: (anomalies && anomalies[0] && anomalies[0].ticker) || null, source: item.source || null, thumbnail: item.thumbnail || null, pubDate: item.pubDate || null };
       // fire-and-forget view post
-      fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
+      fetchWithDedup(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
     } catch (_e) { /* ignore */ }
     try { if (item.link) window.open(item.link, '_blank'); } catch (_e) { if (item.link) window.location.href = item.link; }
   };
@@ -513,7 +498,7 @@ export default function Home() {
                   </div>
                   <div className="anomaly-meta">
                     <div className="ticker">{getDisplayFromRaw(a.ticker)}</div>
-                    <div className="company">{a.company}</div>
+                    <div className="company">{getLocalizedCompanyName({ ticker: a.ticker, companyName: a.company, companyNameLocal: a.companyNameLocal }, lingui?.locale || 'en')}</div>
                   </div>
                   <div className="anomaly-stats">
                     {(() => {

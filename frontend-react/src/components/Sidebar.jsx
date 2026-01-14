@@ -3,16 +3,16 @@ import { Trans } from '@lingui/react/macro';
 
 const defaultMenu = [
   // Admin management links
-  { key: "admin-dashboard", label: "Dashboard", href: "/admin-dashboard" },
-  { key: "admin-anomalies", label: "Anomalies", href: "/anomalies" },
-  { key: "admin-users", label: "Users", href: "/users" },
-  { key: "admin-subscribers", label: "Subscribers", href: "/subscribers" },
-  { key: "admin-marketlists", label: "Stock List", href: "/marketlists" },
-  { key: "admin-cache", label: "Cache", href: "/cache" },
-    { key: "admin-activitylogs", label: "Activity Logs", href: "/activity-logs" },
-    { key: "admin-notificationlogs", label: "Notification Logs", href: "/notification-logs" },
-    { key: "admin-nodemailerlogs", label: "Nodemailer Logs", href: "/nodemailer-logs" },
-    { key: "admin-jobs", label: "Jobs", href: "/jobs" },
+  { key: "admin-dashboard", label: <Trans>Dashboard</Trans>, href: "/admin-dashboard" },
+  { key: "admin-anomalies", label: <Trans>Anomalies</Trans>, href: "/anomalies" },
+  { key: "admin-users", label: <Trans>Users</Trans>, href: "/users" },
+  { key: "admin-subscribers", label: <Trans>Subscribers</Trans>, href: "/subscribers" },
+  { key: "admin-marketlists", label: <Trans>Stock List</Trans>, href: "/marketlists" },
+  { key: "admin-cache", label: <Trans>Cache</Trans>, href: "/cache" },
+    { key: "admin-activitylogs", label: <Trans>Activity Logs</Trans>, href: "/activity-logs" },
+    { key: "admin-notificationlogs", label: <Trans>Notification Logs</Trans>, href: "/notification-logs" },
+    { key: "admin-nodemailerlogs", label: <Trans>Nodemailer Logs</Trans>, href: "/nodemailer-logs" },
+    { key: "admin-jobs", label: <Trans>Jobs</Trans>, href: "/jobs" },
 ];
 
 export default function Sidebar({

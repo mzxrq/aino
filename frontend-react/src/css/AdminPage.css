@@ -682,10 +682,10 @@
   
   /* Edit: Solid Blue (Primary) */
   .anomalies-page .modal .btn-primary {
-    background: #2563EB !important; /* Solid Blue */
+    background: #009000 !important; /* Solid Blue */
     border: 1px solid transparent !important;
     color: #fff !important;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+    box-shadow: 0 4px 12px rgba(0,195,0,0.2) !important;
   }
   .anomalies-page .modal .btn-primary:hover { filter: brightness(0.95) !important; }
   
@@ -1370,8 +1370,8 @@
   [data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   :root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   .dark .anomalies-page .modal .btn.btn-small.btn-primary {
-    background-color: #2563EB !important; /* Solid Blue */
-    background: #2563EB !important;
+    background-color: #009000 !important; /* Solid Blue */
+    background: #009000 !important;
     color: #fff !important;
   }
   
@@ -1427,7 +1427,7 @@
   body.dark .modal .modal-header,
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
-    background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
+    background: linear-gradient(90deg, rgba(0,195,0,0.12), rgba(124,58,237,0.10)) !important;
     border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
@@ -1441,15 +1441,15 @@
   body.dark .btn-primary,
   html.dark .btn-primary,
   [data-theme="dark"] .btn-primary {
-    background: linear-gradient(180deg,#7C3AED 0%,#4F46E5 100%) !important;
+    background: linear-gradient(180deg,#00c300 0%,#009000 100%) !important;
     color: #fff !important;
-    box-shadow: 0 10px 30px rgba(79,70,229,0.22) !important;
+    box-shadow: 0 10px 30px rgba(0,195,0,0.22) !important;
     border: none !important;
   }
   
   /* Role badges (class-based) so JS can toggle look easily) */
   .badge.role-admin {
-    background: linear-gradient(90deg,#7C3AED,#4F46E5);
+    background: linear-gradient(90deg,#00c300,#009000);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
@@ -1462,9 +1462,9 @@
   body.dark .badge.role-admin,
   html.dark .badge.role-admin,
   [data-theme="dark"] .badge.role-admin {
-    background: linear-gradient(90deg,#553CFF,#2563EB) !important;
+    background: linear-gradient(90deg,#00c300,#009000) !important;
     color: #fff !important;
-    box-shadow: 0 6px 18px rgba(37,99,235,0.18) !important;
+    box-shadow: 0 6px 18px rgba(0,195,0,0.18) !important;
   }
   
   body.dark .badge.role-user,
@@ -1485,7 +1485,7 @@
   /* Ensure modal small buttons follow the same color rules in light theme */
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-secondary { background: #10B981 !important; color:#fff !important; }
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-danger { background: #DC2626 !important; color:#fff !important; }
-  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #2563EB !important; color:#fff !important; }
+  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #009000 !important; color:#fff !important; }
   
   /* Compact desktop variant: slightly reduce spacing and font sizes on large screens */
   @media (min-width: 1200px) {
@@ -2186,10 +2186,10 @@
   
   /* Edit: Solid Blue (Primary) */
   .anomalies-page .modal .btn-primary {
-    background: #2563EB !important; /* Solid Blue */
+    background: #009000 !important; /* Solid Blue */
     border: 1px solid transparent !important;
     color: #fff !important;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+    box-shadow: 0 4px 12px rgba(0,195,0,0.2) !important;
   }
   .anomalies-page .modal .btn-primary:hover { filter: brightness(0.95) !important; }
   
@@ -2874,8 +2874,8 @@
   [data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   :root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   .dark .anomalies-page .modal .btn.btn-small.btn-primary {
-    background-color: #2563EB !important; /* Solid Blue */
-    background: #2563EB !important;
+    background-color: #009000 !important; /* Solid Blue */
+    background: #009000 !important;
     color: #fff !important;
   }
   
@@ -2931,7 +2931,7 @@
   body.dark .modal .modal-header,
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
-    background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
+    background: linear-gradient(90deg, rgba(0,195,0,0.12), rgba(124,58,237,0.10)) !important;
     border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
@@ -2945,15 +2945,15 @@
   body.dark .btn-primary,
   html.dark .btn-primary,
   [data-theme="dark"] .btn-primary {
-    background: linear-gradient(180deg,#7C3AED 0%,#4F46E5 100%) !important;
+    background: linear-gradient(180deg,#00c300 0%,#009000 100%) !important;
     color: #fff !important;
-    box-shadow: 0 10px 30px rgba(79,70,229,0.22) !important;
+    box-shadow: 0 10px 30px rgba(0,195,0,0.22) !important;
     border: none !important;
   }
   
   /* Role badges (class-based) so JS can toggle look easily) */
   .badge.role-admin {
-    background: linear-gradient(90deg,#7C3AED,#4F46E5);
+    background: linear-gradient(90deg,#00c300,#009000);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
@@ -2966,9 +2966,9 @@
   body.dark .badge.role-admin,
   html.dark .badge.role-admin,
   [data-theme="dark"] .badge.role-admin {
-    background: linear-gradient(90deg,#553CFF,#2563EB) !important;
+    background: linear-gradient(90deg,#00c300,#009000) !important;
     color: #fff !important;
-    box-shadow: 0 6px 18px rgba(37,99,235,0.18) !important;
+    box-shadow: 0 6px 18px rgba(0,195,0,0.18) !important;
   }
   
   body.dark .badge.role-user,
@@ -2989,7 +2989,7 @@
   /* Ensure modal small buttons follow the same color rules in light theme */
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-secondary { background: #10B981 !important; color:#fff !important; }
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-danger { background: #DC2626 !important; color:#fff !important; }
-  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #2563EB !important; color:#fff !important; }
+  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #009000 !important; color:#fff !important; }
   
   /* Compact desktop variant: slightly reduce spacing and font sizes on large screens */
   @media (min-width: 1200px) {
@@ -3690,10 +3690,10 @@
   
   /* Edit: Solid Blue (Primary) */
   .anomalies-page .modal .btn-primary {
-    background: #2563EB !important; /* Solid Blue */
+    background: #009000 !important; /* Solid Blue */
     border: 1px solid transparent !important;
     color: #fff !important;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;
+    box-shadow: 0 4px 12px rgba(0,195,0,0.2) !important;
   }
   .anomalies-page .modal .btn-primary:hover { filter: brightness(0.95) !important; }
   
@@ -4378,8 +4378,8 @@
   [data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   :root[data-theme="dark"] .anomalies-page .modal .btn.btn-small.btn-primary,
   .dark .anomalies-page .modal .btn.btn-small.btn-primary {
-    background-color: #2563EB !important; /* Solid Blue */
-    background: #2563EB !important;
+    background-color: #009000 !important; /* Solid Blue */
+    background: #009000 !important;
     color: #fff !important;
   }
   
@@ -4435,7 +4435,7 @@
   body.dark .modal .modal-header,
   html.dark .modal .modal-header,
   [data-theme="dark"] .modal .modal-header {
-    background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(124,58,237,0.10)) !important;
+    background: linear-gradient(90deg, rgba(0,195,0,0.12), rgba(124,58,237,0.10)) !important;
     border-bottom: 1px solid rgba(0, 195, 0, 0.15) !important;
   }
   
@@ -4449,15 +4449,15 @@
   body.dark .btn-primary,
   html.dark .btn-primary,
   [data-theme="dark"] .btn-primary {
-    background: linear-gradient(180deg,#7C3AED 0%,#4F46E5 100%) !important;
+    background: linear-gradient(180deg,#00c300 0%,#009000 100%) !important;
     color: #fff !important;
-    box-shadow: 0 10px 30px rgba(79,70,229,0.22) !important;
+    box-shadow: 0 10px 30px rgba(0,195,0,0.22) !important;
     border: none !important;
   }
   
   /* Role badges (class-based) so JS can toggle look easily) */
   .badge.role-admin {
-    background: linear-gradient(90deg,#7C3AED,#4F46E5);
+    background: linear-gradient(90deg,#00c300,#009000);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 195, 0, 0.15);
   }
@@ -4470,9 +4470,9 @@
   body.dark .badge.role-admin,
   html.dark .badge.role-admin,
   [data-theme="dark"] .badge.role-admin {
-    background: linear-gradient(90deg,#553CFF,#2563EB) !important;
+    background: linear-gradient(90deg,#00c300,#009000) !important;
     color: #fff !important;
-    box-shadow: 0 6px 18px rgba(37,99,235,0.18) !important;
+    box-shadow: 0 6px 18px rgba(0,195,0,0.18) !important;
   }
   
   body.dark .badge.role-user,
@@ -4493,7 +4493,7 @@
   /* Ensure modal small buttons follow the same color rules in light theme */
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-secondary { background: #10B981 !important; color:#fff !important; }
   body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-danger { background: #DC2626 !important; color:#fff !important; }
-  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #2563EB !important; color:#fff !important; }
+  body:not(.dark) .anomalies-page .modal .btn.btn-small.btn-primary { background: #009000 !important; color:#fff !important; }
   
   /* Compact desktop variant: slightly reduce spacing and font sizes on large screens */
   @media (min-width: 1200px) {

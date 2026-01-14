@@ -19,36 +19,43 @@ export default function LoginConfirmDialog({ open, onClose, onConfirm, title, te
       aria-labelledby="login-confirm-title"
       sx={{
         '& .MuiDialog-paper': {
-          backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-          color: isDark ? '#e0e0e0' : '#333',
+          backgroundColor: isDark ? '#141414' : '#ffffff',
+          color: isDark ? '#e6e6e6' : '#111',
+          borderRadius: 4,
+          boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.6)' : '0 8px 20px rgba(16,24,40,0.08)',
+          overflow: 'hidden',
         },
         '& .MuiDialogTitle-root': {
-          backgroundColor: isDark ? '#252525' : '#f5f5f5',
-          color: isDark ? '#e0e0e0' : '#333',
-          borderBottom: isDark ? '1px solid #333' : '1px solid #e0e0e0',
+          backgroundColor: 'transparent',
+          color: isDark ? '#ffffff' : '#111',
+          borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid #f0f0f0',
+          padding: '16px 24px',
+          fontWeight: 600,
         },
         '& .MuiDialogContent-root': {
-          backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-          color: isDark ? '#e0e0e0' : '#333',
+          backgroundColor: 'transparent',
+          color: isDark ? '#d6d6d6' : '#333',
+          padding: '12px 24px 16px 24px',
         },
         '& .MuiDialogActions-root': {
-          backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-          borderTop: isDark ? '1px solid #333' : '1px solid #e0e0e0',
+          backgroundColor: 'transparent',
+          borderTop: isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid #f0f0f0',
+          padding: '12px 16px',
         },
         '& .MuiButton-root': {
-          color: isDark ? '#e0e0e0' : '#333',
+          color: isDark ? '#e6e6e6' : '#111',
         },
       }}
     >
-      <DialogTitle id="login-confirm-title">{title || <Trans>Please log in</Trans>}</DialogTitle>
+      <DialogTitle id="login-confirm-title">{title || <Trans>Sign in required</Trans>}</DialogTitle>
       <DialogContent>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {text || <Trans>You must be logged in to continue.</Trans>}
+        <Typography variant="body2" sx={{ color: isDark ? '#d6d6d6' : 'text.secondary' }}>
+          {text || <Trans>You must be signed in to continue.</Trans>}
         </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="inherit">{cancelLabel || <Trans>Cancel</Trans>}</Button>
-        <Button onClick={onConfirm} variant="contained">{confirmLabel || <Trans>Log in</Trans>}</Button>
+        <Button onClick={onClose} variant="outlined" sx={{ borderRadius: 8, px: 2.5, py: 1, borderColor: isDark ? 'rgba(255,255,255,0.06)' : undefined, color: isDark ? '#e6e6e6' : undefined }}>{cancelLabel || <Trans>Cancel</Trans>}</Button>
+        <Button onClick={onConfirm} variant="contained" sx={{ borderRadius: 8, px: 2.5, py: 1, textTransform: 'none', backgroundColor: isDark ? '#1976d2' : undefined }}>{confirmLabel || <Trans>Login</Trans>}</Button>
       </DialogActions>
     </Dialog>
   );

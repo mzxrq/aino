@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState, useContext } from 'react';
-import { Trans } from '@lingui/react/macro';
+import { useEffect, useMemo, useState, useContext } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import TimezoneSelect from '../components/TimezoneSelect';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
+import { getLocalizedCompanyName } from '../utils/companyNameUtils';
 import EchartsCard from '../components/EchartsCard';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
@@ -13,17 +13,55 @@ import Button from '@mui/material/Button';
 import '../css/CompanyProfile.css';
 import { AuthContext } from '../context/contextBase';
 import { useLoginPrompt } from '../context/LoginPromptContext';
+import { i18n } from '@lingui/core';
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-const PY_API = `${API_URL}/py`;
+
+// Global in-flight request map to deduplicate identical concurrent requests.
+// Keeps the promise so multiple mounts/strict-mode remounts reuse the same network call.
+const _inFlightRequests = new Map();
 
 async function fetchJsonWithFallback(path) {
   // Call Python service directly (default port 5000)
   const url = `${PY_DIRECT}/py${path}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`status ${res.status}`);
-  return await res.json();
+  // Deduplicate concurrent requests for the same URL
+  if (_inFlightRequests.has(url)) {
+    return _inFlightRequests.get(url);
+  }
+  const p = (async () => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    return await res.json();
+  })();
+  _inFlightRequests.set(url, p);
+  // Ensure entry is removed when settled so future fresh requests can occur
+  p.finally(() => { try { _inFlightRequests.delete(url); } catch (_) {} });
+  return p;
+}
+
+// Generic fetch helper that deduplicates requests (GET and identical POSTs)
+async function fetchWithDedup(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  let key = `${method} ${url}`;
+  if (method !== 'GET' && options.body) {
+    try {
+      key += ' ' + (typeof options.body === 'string' ? options.body : JSON.stringify(options.body));
+    } catch (_e) {
+      // ignore serialization errors
+    }
+  }
+  if (_inFlightRequests.has(key)) return _inFlightRequests.get(key);
+  const p = (async () => {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return await res.json();
+    return await res.text();
+  })();
+  _inFlightRequests.set(key, p);
+  p.finally(() => { try { _inFlightRequests.delete(key); } catch (_) {} });
+  return p;
 }
 export default function CompanyProfile() {
   const { ticker: param } = useParams();
@@ -47,28 +85,14 @@ export default function CompanyProfile() {
   const [timezone, _setTimezone] = useState('UTC');
   const [descExpanded, setDescExpanded] = useState(false);
   const [followed, setFollowed] = useState(false);
-  const [favorited, setFavorited] = useState(false);
-  const { _user, isLoggedIn } = useContext(AuthContext);
+  const { isLoggedIn } = useContext(AuthContext);
   const navigate = useNavigate();
   const promptLogin = useLoginPrompt();
+  const { i18n: lingui } = useLingui();
   const [finOverlayOpen, setFinOverlayOpen] = useState(false);
   const [finOverlayTitle, setFinOverlayTitle] = useState('');
   const [finOverlayData, setFinOverlayData] = useState(null);
 
-  function _limitedObject(obj, max) {
-    if (!obj || typeof obj !== 'object') return {};
-    const keys = Object.keys(obj || {});
-    const pick = keys.slice(0, max);
-    const out = {};
-    pick.forEach(k => out[k] = obj[k]);
-    return out;
-  }
-
-  function _openFinancialsOverlay(title, data) {
-    setFinOverlayTitle(title);
-    setFinOverlayData(data);
-    setFinOverlayOpen(true);
-  }
 
   useEffect(() => {
     if (!ticker) return;
@@ -80,7 +104,7 @@ export default function CompanyProfile() {
         try { m = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(ticker)}`); } catch (_e) { /* ignore */ }
         let chosen = Array.isArray(m) && m.length ? (m.find(x => x.ticker === ticker) || m[0]) : (m || {});
         if (!(chosen && (chosen.companyName || (chosen.yfinance && chosen.yfinance.description)))) {
-          try { const r = await fetch(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(ticker)}`); if (r.ok) { const body = await r.json(); if (body && body.success && body.data) chosen = body.data; } } catch (_e) { /* ignore */ }
+          try { const body = await fetchWithDedup(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(ticker)}`); if (body && body.success && body.data) chosen = body.data; } catch (_e) { /* ignore */ }
         }
         if (!cancelled) setMeta(chosen || {});
 
@@ -113,12 +137,9 @@ export default function CompanyProfile() {
                   const toCache = mapped.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: ticker || null })).filter(x => x.url && x.url !== '#');
                   if (toCache.length) {
                     try {
-                      const cacheResp = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-                      if (cacheResp.ok) {
-                        const cacheJson = await cacheResp.json();
-                        const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
-                        mapped.forEach(m => { const key = m.articleKey || m.link; const cached = map[key]; if (cached) { m.cacheId = cached.id; m.thumbnail = m.thumbnail || cached.thumbnail || null; m.pubDate = m.pubDate || cached.pubDate || null; } });
-                      }
+                      const cacheJson = await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+                      const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
+                      mapped.forEach(m => { const key = m.articleKey || m.link; const cached = map[key]; if (cached) { m.cacheId = cached.id; m.thumbnail = m.thumbnail || cached.thumbnail || null; m.pubDate = m.pubDate || cached.pubDate || null; } });
                     } catch (err) { console.debug('CompanyProfile cache post failed', err); }
                   }
                 } catch (err) { console.debug('CompanyProfile cache post failed', err); }
@@ -199,12 +220,11 @@ export default function CompanyProfile() {
       try {
         const keys = items.map(a => a.link).filter(Boolean);
         if (keys.length) {
-          const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-          if (lookup.ok) {
-            const pl = await lookup.json();
+          try {
+            const pl = await fetchWithDedup(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
             const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
             for (let i = 0; i < items.length; i++) { const k = items[i].link; items[i].views = (map[k] && map[k].views) ? map[k].views : 0; }
-          }
+          } catch (err) { console.debug('views lookup failed', err); }
         }
       } catch (err) { console.debug('views lookup failed', err); }
 
@@ -225,21 +245,20 @@ export default function CompanyProfile() {
         if (!item.cacheId) {
           try {
             const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: ticker }];
-            const cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-            if (cr.ok) {
-              const cj = await cr.json();
-              const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
-              if (found) {
-                articleId = found.id || found.articleKey || articleId;
-                item.cacheId = found.id || null;
-                if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
-              }
-            }
-          } catch (e) { }
+              try {
+                const cj = await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+                const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
+                if (found) {
+                  articleId = found.id || found.articleKey || articleId;
+                  item.cacheId = found.id || null;
+                  if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
+                }
+              } catch (e) { }
+            } catch (e) { }
         }
       // fire-and-forget POST to backend
         const payload = { url: link, articleId, title: item.title, ticker, thumbnail: item.thumbnail || null, pubDate: item.pubDate || null };
-        fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
+        fetchWithDedup(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
       // open the article
       window.open(link, '_blank', 'noopener');
     } catch (err) {
@@ -256,13 +275,6 @@ export default function CompanyProfile() {
   const volume = chartData?.volume || [];
 
   function formatNumber(v) { if (v == null) return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); const abs = Math.abs(n); if (abs >= 1e12) return `${(n / 1e12).toFixed(2)}T`; if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`; if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`; return n.toLocaleString(); }
-  function _isEmptyObj(x) { if (!x) return true; try { if (Array.isArray(x)) return x.length === 0; if (typeof x === 'object') return Object.keys(x).length === 0; } catch (_e) { return true } return false; }
-  function _formatPre(x) { try { return JSON.stringify(x, null, 2); } catch (_e) { return String(x); } }
-  function _parseMajorHolders(obj) { if (!obj) return {}; if (obj.Value && typeof obj.Value === 'object') return obj.Value; return obj; }
-  function _parseColumnTable(colObj) { if (!colObj || typeof colObj !== 'object') return []; const cols = Object.keys(colObj || {}); if (cols.length === 0) return []; const idxs = new Set(); cols.forEach(c => { const col = colObj[c] || {}; Object.keys(col).forEach(k => idxs.add(k)); }); const rows = Array.from(idxs).sort((a, b) => Number(a) - Number(b)).map(i => { const row = {}; cols.forEach(c => { const col = colObj[c] || {}; row[c] = col[i] != null ? col[i] : ''; }); return row; }); return rows; }
-  function formatPercent(v) { if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); if (Math.abs(n) <= 1) return `${(n * 100).toFixed(2)}%`; return `${n.toFixed(2)}%`; }
-  function formatCurrency(v) { if (v == null || v === '') return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); try { if (meta && meta.yfinance && meta.yfinance.currency) return new Intl.NumberFormat(undefined, { style: 'currency', currency: meta.yfinance.currency }).format(n); } catch (e) { } return formatNumber(n); }
-  function _formatCell(header, value) { if (value == null || value === '') return '-'; const h = (header || '').toLowerCase(); if (typeof value === 'string' && value.trim().endsWith('%')) return value; if (h.includes('pct') || h.includes('percent') || h.includes('%') || h.includes('pctheld')) return formatPercent(value); if (h.includes('value') || h.includes('market') || h.includes('amt') || h.includes('price') || h.includes('amount')) return formatCurrency(value); if (h.includes('share')) return formatNumber(value); if (!Number.isNaN(Number(value))) return formatNumber(value); return String(value); }
 
   const latestPrice = (close && close.length) ? Number(close[close.length - 1]) : null;
   const prevPrice = (close && close.length > 1) ? Number(close[close.length - 2]) : null;
@@ -271,24 +283,14 @@ export default function CompanyProfile() {
 
   function toggleFollow() {
     if (!isLoggedIn) {
-      promptLogin({ title: 'Please log in', text: 'You must be logged in to follow tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel' }).then(ok => {
+      promptLogin({ title: i18n._('Please log in'), text: i18n._('You must be logged in to follow tickers.'), confirmLabel: i18n._('Log in'), cancelLabel: i18n._('Cancel') }).then(ok => {
         if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
       });
       return;
     }
     setFollowed(f => !f);
   }
-  function _toggleFavorite() { setFavorited(f => !f); }
 
-  function toggleFavoriteProtected() {
-    if (!isLoggedIn) {
-      promptLogin({ title: 'Please log in', text: 'You must be logged in to favorite tickers.', confirmLabel: 'Log in', cancelLabel: 'Cancel' }).then(ok => {
-        if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
-      });
-      return;
-    }
-    setFavorited(f => !f);
-  }
 
   const logoUrl = (companyInfo && companyInfo.logo) || (meta && meta.yfinance && meta.yfinance.logo) || meta.logo || null;
 
@@ -303,7 +305,7 @@ export default function CompanyProfile() {
           )}
           <div className="company-text">
             <h1 className="company-ticker">{meta?.displayTicker || getDisplayFromRaw(ticker)}</h1>
-            <div className="company-name">{meta?.companyName || ""}</div>
+            <div className="company-name">{getLocalizedCompanyName(meta, lingui?.locale || 'en')}</div>
             <div className="company-meta">
               {meta?.primaryExchange || ""}
               {meta?.yfinance?.currency ? ` · ${meta.yfinance.currency}` : ""}
@@ -382,7 +384,7 @@ export default function CompanyProfile() {
         <div className="card meta-card">
           <div className="meta-grid">
             <div className="meta-left">
-              <h2 className="meta-name">{meta?.companyName || ""}</h2>
+              <h2 className="meta-name">{getLocalizedCompanyName(meta, lingui?.locale || 'en')}</h2>
               <div className="meta-sub">
                 {meta?.displayTicker || ticker} · {meta?.primaryExchange || ""}
               </div>
@@ -523,14 +525,14 @@ export default function CompanyProfile() {
                 {Object.entries(financials.income_stmt || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
+                <FinancialsTable title={i18n._('Income Statement')} data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
               </div>
               <div className="fin-section">
                 <h5><Trans>Balance</Trans></h5>
                 {Object.entries(financials.balance_sheet || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
+                <FinancialsTable title={i18n._('Balance Sheet')} data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
               </div>
             </div>
           </div>
