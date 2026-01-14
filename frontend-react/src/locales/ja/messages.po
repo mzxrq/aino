@@ -455,15 +455,15 @@ msgstr "現金及び現金同等物"
 
 #: src/components/FinancialsTable.jsx:432
 msgid "Cash Cash Equivalents And Short Term Investments"
-msgstr ""
+msgstr "現金、現金同等物及び短期投資"
 
 #: src/components/FinancialsTable.jsx:431
 msgid "Cash Equivalents"
-msgstr ""
+msgstr "現金同等物"
 
 #: src/components/FinancialsTable.jsx:430
 msgid "Cash Financial"
-msgstr ""
+msgstr "キャッシュ"
 
 #: src/pages/Admin/AdminUsersPage.jsx:177
 msgid "Change password"
@@ -494,15 +494,15 @@ msgstr "コラム"
 
 #: src/components/FinancialsTable.jsx:429
 msgid "Commercial Paper"
-msgstr ""
+msgstr "コマーシャルペーパー"
 
 #: src/components/FinancialsTable.jsx:428
 msgid "Common Stock"
-msgstr ""
+msgstr "普通株式"
 
 #: src/components/FinancialsTable.jsx:427
 msgid "Common Stock Equity"
-msgstr ""
+msgstr "普通株式資本"
 
 #: src/pages/Compare.jsx:65
 msgid "Compare (up to 4)"
@@ -530,7 +530,7 @@ msgstr "少々お待ちください。"
 
 #: src/components/FinancialsTable.jsx:368
 msgid "Cost Of Revenue"
-msgstr ""
+msgstr "売上原価"
 
 #: src/pages/Register.jsx:234
 msgid "Create account"
@@ -542,35 +542,35 @@ msgstr "通貨:"
 
 #: src/components/FinancialsTable.jsx:426
 msgid "Current Accrued Expenses"
-msgstr ""
+msgstr "当期未払費用"
 
 #: src/components/FinancialsTable.jsx:425
 msgid "Current Assets"
-msgstr ""
+msgstr "流動資産"
 
 #: src/components/FinancialsTable.jsx:424
 msgid "Current Capital Lease Obligation"
-msgstr ""
+msgstr "流動リース債務"
 
 #: src/components/FinancialsTable.jsx:423
 msgid "Current Debt"
-msgstr ""
+msgstr "流動債務"
 
 #: src/components/FinancialsTable.jsx:422
 msgid "Current Debt And Capital Lease Obligation"
-msgstr ""
+msgstr "流動債務及びリース債務"
 
 #: src/components/FinancialsTable.jsx:421
 msgid "Current Deferred Liabilities"
-msgstr ""
+msgstr "当期繰延負債"
 
 #: src/components/FinancialsTable.jsx:420
 msgid "Current Deferred Revenue"
-msgstr ""
+msgstr "当期繰延収益"
 
 #: src/components/FinancialsTable.jsx:419
 msgid "Current Liabilities"
-msgstr ""
+msgstr "流動負債"
 
 #: src/components/Navbar.jsx:295
 #: src/components/Navbar.jsx:352
@@ -595,15 +595,15 @@ msgstr "DIF"
 
 #: src/components/FinancialsTable.jsx:367
 msgid "Diluted Average Shares"
-msgstr ""
+msgstr "希薄化後平均株数"
 
 #: src/components/FinancialsTable.jsx:366
 msgid "Diluted EPS"
-msgstr ""
+msgstr "希薄化後EPS"
 
 #: src/components/FinancialsTable.jsx:365
 msgid "Diluted NI Availto Com Stockholders"
-msgstr ""
+msgstr "希薄化後普通株主帰属純利益"
 
 #: src/pages/Login.jsx:261
 msgid "Don't have an account?"
@@ -615,11 +615,11 @@ msgstr "編集"
 
 #: src/components/FinancialsTable.jsx:364
 msgid "EIT"
-msgstr ""
+msgstr "EBIT"
 
 #: src/components/FinancialsTable.jsx:363
 msgid "EITDA"
-msgstr ""
+msgstr "EBITDA"
 
 #: src/pages/MainChart.jsx:1790
 msgid "EMA"
@@ -681,7 +681,7 @@ msgstr "全スキャン"
 
 #: src/components/FinancialsTable.jsx:418
 msgid "Gains Losses Not Affecting Retained Earnings"
-msgstr ""
+msgstr "利益剰余金に影響しない利益損失"
 
 #: src/components/ProfileSidebar.jsx:11
 msgid "General"
@@ -693,11 +693,11 @@ msgstr "始めよう"
 
 #: src/components/FinancialsTable.jsx:417
 msgid "Gross PPE"
-msgstr ""
+msgstr "総PPE"
 
 #: src/components/FinancialsTable.jsx:362
 msgid "Gross Profit"
-msgstr ""
+msgstr "売上総利益"
 
 #: src/pages/MainChart.jsx:242
 msgid "High"

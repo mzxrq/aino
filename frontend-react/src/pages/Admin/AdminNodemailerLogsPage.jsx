@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
 import FlexTable from '../../components/FlexTable/FlexTable';
@@ -7,6 +8,7 @@ import { formatToUserTZSlash } from '../../utils/dateUtils';
 import { useAuth } from '../../context/useAuth';
 
 export default function AdminNodemailerLogsPage() {
+  const { i18n } = useLingui();
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const { user } = useAuth();
@@ -31,24 +33,24 @@ export default function AdminNodemailerLogsPage() {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2>Nodemailer Logs</h2>
-          <p className="admin-subtitle">Local nodemailer cache logs.</p>
+          <h2><Trans>Nodemailer Logs</Trans></h2>
+          <p className="admin-subtitle"><Trans>Local nodemailer cache logs.</Trans></p>
         </div>
         <div className="admin-actions">
           <button className="btn btn-danger" onClick={async () => {
-            const ok = window.confirm('Delete ALL nodemailer logs? This cannot be undone.');
+            const ok = window.confirm(i18n._('Delete ALL nodemailer logs? This cannot be undone.'));
             if (!ok) return;
             try {
               const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=nodemailer_logs`, { method: 'DELETE' });
               const body = await res.json();
-              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              if (!res.ok) throw new Error(body.error || i18n._('Delete all failed'));
               setRefreshSignal((s) => s + 1);
-              alert('All nodemailer logs deleted');
+              alert(i18n._('All nodemailer logs deleted'));
             } catch (err) {
               console.error('Delete all nodemailer logs error', err);
-              alert('Delete failed: ' + err.message);
+              alert(i18n._('Delete failed: ') + err.message);
             }
-          }}>Delete All</button>
+          }}>{/* Delete All */}<Trans>Delete All</Trans></button>
         </div>
       </div>
 
@@ -60,7 +62,7 @@ export default function AdminNodemailerLogsPage() {
         ]}
         keyField="_id"
         renderRow={renderRow}
-        emptyText="No nodemailer logs found."
+        emptyText={i18n._('No nodemailer logs found.')}
         fetchUrl={`${API_BASE}/node/mail/logs`}
         refreshSignal={refreshSignal}
         enablePagination={true}
