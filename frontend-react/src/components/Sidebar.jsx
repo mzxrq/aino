@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Trans } from '@lingui/react/macro';
 
 const defaultMenu = [
   // Admin management links

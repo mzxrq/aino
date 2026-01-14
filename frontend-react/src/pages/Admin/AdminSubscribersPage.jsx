@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useContext } from 'react';
+import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import Swal from '../../utils/muiSwal';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
@@ -14,6 +16,7 @@ const modalButtonStyles = {
 };
 
 export default function AdminSubscribersPage() {
+  const { i18n } = useLingui();
   const [form, setForm] = useState({ _id: null, id: '', tickers: '' });
   const [editing, setEditing] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -155,25 +158,33 @@ export default function AdminSubscribersPage() {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2>Subscribers Management</h2>
-          <p className="admin-subtitle">Manage subscribers and their ticker lists.</p>
+          <h2><Trans>Subscribers Management</Trans></h2>
+          <p className="admin-subtitle"><Trans>Manage subscribers and their ticker lists.</Trans></p>
         </div>
         <div className="admin-actions">
           <button className="btn btn-danger" onClick={async () => {
-            const r = await Swal.fire({ icon: 'warning', title: 'Delete All Subscribers', html: '<strong>This will permanently delete ALL subscribers.</strong><br/>This action cannot be undone. Are you sure?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete all' });
+            const r = await Swal.fire({
+              icon: 'warning',
+              title: i18n._('Delete All Subscribers'),
+              html: i18n._('<strong>This will permanently delete ALL subscribers.</strong><br/>This action cannot be undone. Are you sure?'),
+              showCancelButton: true,
+              confirmButtonColor: '#dc2626',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: i18n._('Yes, delete all'),
+            });
             if (!r.isConfirmed) return;
             try {
               setLoading(true);
               const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=subscribers`, { method: 'DELETE' });
               const body = await res.json();
-              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              if (!res.ok) throw new Error(body.error || i18n._('Delete all failed'));
               setRefreshSignal((s) => s + 1);
-              await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All subscribers deleted.', timer: 1500 });
+              await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All subscribers deleted.'), timer: 1500 });
             } catch (err) {
               console.error('Delete all subscribers error', err);
-              await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message });
+              await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete all failed: ') + err.message });
             } finally { setLoading(false); }
-          }}>Delete All</button>
+          }}><Trans>Delete All</Trans></button>
         </div>
       </div>
 
@@ -197,7 +208,7 @@ export default function AdminSubscribersPage() {
         }}
         keyField="_id"
         renderRow={renderRow}
-        emptyText="No subscribers found."
+        emptyText={i18n._('No subscribers found.')}
         fetchUrl={`${API_BASE}/node/subscribers`}
         refreshSignal={refreshSignal}
         enablePagination={true}
@@ -207,19 +218,19 @@ export default function AdminSubscribersPage() {
         createLabel="+ Create"
       />
 
-      <GenericModal isOpen={modalOpen} title={editing ? 'Edit Subscriber' : 'Create Subscriber'} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? 'Save' : 'Create'}>
+      <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit Subscriber') : i18n._('Create Subscriber')} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? i18n._('Save') : i18n._('Create')}>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <label className="form-field"><span>Subscriber</span>
             <DropdownSelect
               value={form.id}
               onChange={(v) => setForm((s) => ({ ...s, id: v }))}
               options={userOptions}
-              placeholder="Select subscriber"
+              placeholder={i18n._('Select subscriber')}
               searchable={true}
-              searchPlaceholder="Search users..."
+              searchPlaceholder={i18n._('Search users...')}
             />
           </label>
-          <label className="form-field"><span>Tickers (comma separated)</span><input name="tickers" value={form.tickers} onChange={(e) => setForm((s) => ({ ...s, tickers: e.target.value }))} placeholder="AAPL, MSFT, GOOGL" /></label>
+          <label className="form-field"><span><Trans>Tickers (comma separated)</Trans></span><input name="tickers" value={form.tickers} onChange={(e) => setForm((s) => ({ ...s, tickers: e.target.value }))} placeholder={i18n._('AAPL, MSFT, GOOGL')} /></label>
         </div>
       </GenericModal>
 

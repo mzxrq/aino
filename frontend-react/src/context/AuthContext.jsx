@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
         const lastLogin = fmtDate(lastRaw);
         const tokenVal = src.token || src.accessToken || src.access_token || src.jwt || src.authToken || null;
 
-        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword, token: tokenVal ? String(tokenVal) : undefined , hasLineid : src.hasLineid ? true : false};
+        return { ...src, id: id ? String(id) : undefined, createdAt, lastLogin, timeZone: src.timeZone, role: src.role , hasPassword: src.setPassword, token: tokenVal ? String(tokenVal) : undefined , hasLineid : src.hasLineid ? true : false, sentOption: src.sentOption || 'undefined' };
     };
 
     // Helpers to unwrap backend response shapes like { success, data: <user> } or { user, token }

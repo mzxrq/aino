@@ -16,4 +16,18 @@ router.get("/", authorize(['admin']), getAllLogs);
 router.delete("/all", authorize(['admin']), deleteAllLogs);
 router.delete("/:id", authorize(['admin']), deleteLog);
 
+// Dev helper: seed a test log when running in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+	router.post('/seed', async (req, res) => {
+		try {
+			const { createTestLog } = require('./activity-log.controller');
+			const result = await createTestLog(req, res);
+			return result;
+		} catch (e) {
+			console.error('Seed test log failed', e);
+			return res.status(500).json({ success: false, error: 'Seed failed' });
+		}
+	});
+}
+
 module.exports = router;

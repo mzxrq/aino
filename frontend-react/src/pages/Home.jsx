@@ -1,7 +1,9 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
+import { AuthContext } from '../context/contextBase';
 import '../css/Home.css';
 import logoSvg from '../assets/aino.svg';
 import Footer from '../components/Footer';
@@ -25,10 +27,11 @@ export default function Home() {
   const [recentAnomalies, setRecentAnomalies] = useState([]);
   const [topAnomalies, setTopAnomalies] = useState([]);
   const [_allAnomalies, setAllAnomalies] = useState([]);
-  const [news, setNews] = useState([]);
+  const [news, setNews] = useState(null);
   const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
+  const { isLoggedIn } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${PY_URL}/py`;
@@ -133,7 +136,8 @@ export default function Home() {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 6);
-        const res = await fetch(`${API_URL}/node/anomalies?limit=200&startDate=${encodeURIComponent(startDate.toISOString())}&endDate=${encodeURIComponent(endDate.toISOString())}`);
+        // Use the server-side recent endpoint to avoid accidental equality filters
+        const res = await fetch(`${API_URL}/node/anomalies/recent?limit=200`);
         let list = [];
         if (res.ok) {
           const json = await res.json();
@@ -286,12 +290,14 @@ export default function Home() {
     let isMounted = true;
     const fetchNews = async () => {
       try {
-        const topTicker = anomalies?.[0]?.ticker || 'AAPL';
+        console.debug('fetchNews: starting', { anomaliesLength: anomalies?.length, topAnomaliesLength: topAnomalies?.length });
+        const topTicker = anomalies?.[0]?.ticker || topAnomalies?.[0]?.ticker || 'AAPL';
         // Prefer top-viewed news from our backend if available
         try {
           const topRes = await fetch(`${API_URL}/node/news/views/top?limit=6`);
           if (topRes.ok) {
             const payload = await topRes.json();
+            console.debug('fetchNews: top-viewed response', payload && (payload.items || payload.length));
             const items = (payload.items || []).slice(0, 6).map((it, idx) => ({
               id: it.articleKey || idx,
               articleKey: it.articleKey || null,
@@ -305,12 +311,13 @@ export default function Home() {
             if (isMounted && items.length) return setNews(items);
           }
         } catch (e) {
-          console.debug('top-viewed news fetch failed, falling back', e);
+          console.debug('top-viewed news fetch failed, falling back', e && e.message);
         }
 
         // Try Node backend news proxy and attach stored view counts
         try {
           const res = await fetch(`${API_URL}/node/news?q=${encodeURIComponent(topTicker)}&pageSize=6`);
+          console.debug('fetchNews: node proxy response status', res.status);
           if (res.ok) {
             const j = await res.json();
             let articles = (j.articles || []).slice(0, 6).map((n, idx) => ({
@@ -361,11 +368,12 @@ export default function Home() {
             if (isMounted && articles.length) return setNews(articles);
           }
         } catch (e) {
-          console.debug('Node news proxy failed, will fall back to Python news', e);
+          console.debug('Node news proxy failed, will fall back to Python news', e && e.message);
         }
 
         // Fallback: Python financials news
         try {
+          console.debug('fetchNews: falling back to Python financials for', topTicker);
           const data = await fetchPyJson(`/financials?ticker=${topTicker}`);
           let newsData = (data?.news || []).slice(0, 6).map((n, idx) => ({
             id: idx,
@@ -376,7 +384,8 @@ export default function Home() {
             thumbnail: n.urlToImage || n.image || n.thumbnail || null,
             pubDate: n.publishedAt || n.pubDate || null,
             views: 0
-          }));
+          }
+        ));
           try {
             const keys = newsData.map(a => a.articleKey || a.link).filter(Boolean);
             if (keys.length) {
@@ -391,20 +400,20 @@ export default function Home() {
           if (isMounted && newsData.length > 0) return setNews(newsData);
 
         } catch (e) {
-          console.debug('Python news fetch failed', e);
+          console.debug('Python news fetch failed', e && e.message);
         }
 
         if (isMounted) setNews(fallbackn_loading);
       } catch (e) {
-        console.debug('News overall fetch error, using sample:', e);
+        console.debug('News overall fetch error, using sample:', e && e.message);
         if (isMounted) setNews(fallbackn_loading);
       }
     };
-    if (topAnomalies.length > 0) {
+    if ((anomalies && anomalies.length > 0) || (topAnomalies && topAnomalies.length > 0)) {
       fetchNews();
     }
     return () => { isMounted = false; };
-  }, [anomalies, PY_URL, API_URL]);
+  }, [anomalies, topAnomalies, PY_URL, API_URL]);
 
   const handleChart = () => {
     const first = (anomalies && anomalies.length > 0) ? anomalies[0] : null;
@@ -463,22 +472,22 @@ export default function Home() {
       <section className="hero-section-full">
         <div className="hero-content-centered">
           <img src={logoSvg} alt="Logo" className="hero-logo website-logo" />
-          <p className="hero-motto">Stock Trading Anomaly Detector</p>
+          <p className="hero-motto"><Trans>Stock Trading Anomaly Detector</Trans></p>
           {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={handleChart}>Get Started</button>
-            <button className="btn btn-line" onClick={handleLogin}>LINE Login</button>
+            <button className="btn btn-primary" onClick={handleChart}><Trans>Get Started</Trans></button>
+            {!isLoggedIn && <button className="btn btn-line" onClick={handleLogin}><Trans>LINE Login</Trans></button>}
           </div>
         </div>
       </section>
 
       {/* Anomalies and News Grid */}
-      <div className="homepage-grid">
+      <div className="homepage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
         <div className="left-column">
           <div className="card anomaly-card">
             <div className="card-header">
-              <h3>Recent anomaly found</h3>
-              <Link to="/list" className="show-more">Show more ›</Link>
+              <h3><Trans>Recent anomaly found</Trans></h3>
+              <Link to="/list" className="show-more"><Trans>Show more ›</Trans></Link>
             </div>
             <div className="card-body">
               {(recentAnomalies.length ? recentAnomalies : fallbacka_loading).map(a => (
@@ -534,13 +543,15 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </div>
 
+        <div className="right-column">
           <div className="card anomaly-card">
             <div className="card-header">
-              <h3>Most anomaly found</h3>
+              <h3><Trans>Most anomaly found</Trans></h3>
             </div>
             <div className="card-body">
-              {(topAnomalies.length ? topAnomalies : fallbacka_loading).map(a => (
+              {(topAnomalies.length ? topAnomalies.slice(0, 3) : fallbacka_loading).map(a => (
                 <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{ cursor: 'pointer' }}>
                   <div className="logo-circle" title={a.company}>
                     {(() => {
@@ -585,16 +596,15 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
 
-        <div className="right-column">
           <div className="news-card card">
             <div className="card-header">
-              <h3>News</h3>
+              <h3><Trans>News</Trans></h3>
             </div>
             
             <ul className="news-list">
-              {(news.length ? news : fallbackn_loading).map(n => (
+              {((news === null) ? fallbackn_loading : (news.length ? news : [{ id: 'none', title: "Doesn't have new right now", source: '' }]))
+                .map(n => (
                 <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)} onMouseDown={(e) => { if (e.button === 1 || e.button === 2) handleNewsClick(n); }} onAuxClick={(e) => { if (e.button === 1) handleNewsClick(n); }}>
                   {n.thumbnail ? (
                     <img src={n.thumbnail} alt={n.title} className="news-thumb" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none' }} />

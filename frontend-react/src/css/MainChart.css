@@ -778,22 +778,44 @@
       z-index: 30;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 6px;
       height: auto;
       background: transparent;
       pointer-events: auto;
       padding: 0 4px;
+      overflow-x: auto;
+      flex-wrap: nowrap;
     }
 
     .lc-main-controls > div {
       display: flex;
       gap: 6px;
       align-items: center;
+      flex-wrap: nowrap;
+      min-width: fit-content;
+    }
+
+    .lc-selector-row {
+      display: flex !important;
+      gap: 6px !important;
+      align-items: center !important;
+      flex-wrap: nowrap !important;
+      white-space: nowrap;
+    }
+
+    .lc-tz-select.period-select,
+    .lc-tz-select.interval-select {
+      min-width: 72px !important;
+      max-width: 100px !important;
+      padding: 6px 8px !important;
+      font-size: 0.85rem !important;
+      height: 36px !important;
     }
 
     .lc-chart-type-group {
       gap: 6px;
+      flex-wrap: nowrap;
     }
 
     .lc-chart-type-btn {
@@ -803,6 +825,7 @@
       min-width: 36px;
       border-radius: 8px;
       font-size: 0.95rem;
+      flex-shrink: 0;
     }
 
     .lc-btn.ghost {
@@ -2887,6 +2910,11 @@ html, body, #root {
 .lc-main .main-chart-container {
   width: 100% !important;
   height: 100% !important;
+}
+
+.lc-main .main-chart-container {
+  border-right: 1px solid var(--border-color);
+}
   min-height: 0 !important;
 }
 

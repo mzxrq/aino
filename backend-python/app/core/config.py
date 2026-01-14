@@ -19,6 +19,7 @@ MONGO_URI = os.getenv("MONGO_URI") or os.getenv("MONGO_CONNECTION_STRING") or "m
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME") or os.getenv("DB_NAME") or "stock_anomaly_db"
 
 ENABLE_LINE_NOTIFICATIONS = os.getenv("ENABLE_LINE_NOTIFICATIONS", "true").lower() == "true"
+ENABLE_EMAIL_NOTIFICATIONS = os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "false").lower() == "true"
 
 # --- Smart Connection Logic ---
 is_atlas = MONGO_URI.startswith("mongodb+srv")

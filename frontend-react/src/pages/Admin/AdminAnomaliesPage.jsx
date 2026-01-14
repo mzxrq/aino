@@ -1,5 +1,7 @@
 import Swal from '../../utils/muiSwal';
 import React, { useState, useCallback } from 'react';
+import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import { formatToUserTZSlash } from '../../utils/dateUtils';
 import API_BASE from '../../config/api';
 import '../../css/AdminPage.css';
@@ -25,6 +27,7 @@ const modalButtonStyles = {
 
 const AnomaliesManagementPage = () => {
   const { user } = useAuth();
+  const { i18n } = useLingui();
 
   const [form, setForm] = useState({ id: null, ticker: '', date: '', time: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
   const [editing, setEditing] = useState(null);
@@ -52,7 +55,7 @@ const AnomaliesManagementPage = () => {
   async function handleAdd(e) {
     e?.preventDefault();
     if (!form.ticker || !form.ticker.trim()) {
-      await Swal.fire({ icon: 'warning', title: 'Required', text: 'Ticker is required', confirmButtonColor: '#00aaff' });
+      await Swal.fire({ icon: 'warning', title: i18n._('Required'), text: i18n._('Ticker is required'), confirmButtonColor: '#00aaff' });
       return;
     }
     try {
@@ -76,13 +79,13 @@ const AnomaliesManagementPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Create failed');
+      if (!res.ok) throw new Error(data.error || i18n._('Create failed'));
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Created', text: 'Anomaly created successfully.', timer: 1500, confirmButtonColor: '#00aaff' });
+      await Swal.fire({ icon: 'success', title: i18n._('Created'), text: i18n._('Anomaly created successfully.'), timer: 1500, confirmButtonColor: '#00aaff' });
       cancelEdit();
     } catch (err) {
       console.error('Create error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Create failed: ' + err.message, confirmButtonColor: '#dc2626' });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Create failed: ') + err.message, confirmButtonColor: '#dc2626' });
     } finally {
       setLoading(false);
     }
@@ -91,7 +94,7 @@ const AnomaliesManagementPage = () => {
   async function saveEdit(e) {
     e?.preventDefault();
     if (!editing || !(editing._id || editing.id)) {
-      await Swal.fire({ icon: 'warning', title: 'Error', text: 'Invalid edit target', confirmButtonColor: '#dc2626' });
+      await Swal.fire({ icon: 'warning', title: i18n._('Error'), text: i18n._('Invalid edit target'), confirmButtonColor: '#dc2626' });
       return;
     }
     try {
@@ -116,13 +119,13 @@ const AnomaliesManagementPage = () => {
       }
       const res = await fetch(`${API_BASE}/node/anomalies/${targetId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Update failed');
+      if (!res.ok) throw new Error(data.error || i18n._('Update failed'));
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Updated', text: 'Anomaly updated successfully.', timer: 1500, confirmButtonColor: '#00aaff' });
+      await Swal.fire({ icon: 'success', title: i18n._('Updated'), text: i18n._('Anomaly updated successfully.'), timer: 1500, confirmButtonColor: '#00aaff' });
       cancelEdit();
     } catch (err) {
       console.error('Update error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Update failed: ' + err.message, confirmButtonColor: '#dc2626' });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Update failed: ') + err.message, confirmButtonColor: '#dc2626' });
     } finally { setLoading(false); }
   }
 
@@ -165,17 +168,17 @@ const AnomaliesManagementPage = () => {
   const openRowActions = (r) => setRowActions(r);
 
   async function handleDelete(id) {
-    const result = await Swal.fire({ icon: 'warning', title: 'Delete', text: 'Are you sure you want to delete this anomaly?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete' });
+    const result = await Swal.fire({ icon: 'warning', title: i18n._('Delete'), text: i18n._('Are you sure you want to delete this anomaly?'), showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: i18n._('Yes, delete') });
     if (!result.isConfirmed) return;
     try {
       const res = await fetch(`${API_BASE}/node/anomalies/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Deleted', text: 'Anomaly deleted successfully.', timer: 1500, confirmButtonColor: '#00aaff' });
+      await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('Anomaly deleted successfully.'), timer: 1500, confirmButtonColor: '#00aaff' });
     } catch (err) {
       console.error('Delete error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete failed: ' + err.message, confirmButtonColor: '#dc2626' });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete failed: ') + err.message, confirmButtonColor: '#dc2626' });
     }
   }
 
@@ -183,24 +186,24 @@ const AnomaliesManagementPage = () => {
   async function handleDeleteAll() {
     const result = await Swal.fire({
       icon: 'warning',
-      title: 'Delete All Anomalies',
-      html: '<strong>This will permanently delete ALL anomalies.</strong><br/>This action cannot be undone. Are you sure?',
+      title: i18n._('Delete All Anomalies'),
+      html: i18n._('<strong>This will permanently delete ALL anomalies.</strong><br/>This action cannot be undone. Are you sure?'),
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete all'
+      confirmButtonText: i18n._('Yes, delete all')
     });
     if (!result.isConfirmed) return;
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=anomalies`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Delete all failed');
+      if (!res.ok) throw new Error(data.error || i18n._('Delete all failed'));
       setRefreshSignal((s) => s + 1);
-      await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All anomalies have been deleted.', timer: 1500, confirmButtonColor: '#00aaff' });
+      await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All anomalies have been deleted.'), timer: 1500, confirmButtonColor: '#00aaff' });
     } catch (err) {
       console.error('Delete all error', err);
-      await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message, confirmButtonColor: '#dc2626' });
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete all failed: ') + err.message, confirmButtonColor: '#dc2626' });
     } finally {
       setLoading(false);
     }
@@ -266,23 +269,23 @@ const AnomaliesManagementPage = () => {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2>Anomalies Management</h2>
-          <p className="admin-subtitle">Monitor and manage market irregularities.</p>
+          <h2><Trans>Anomalies Management</Trans></h2>
+          <p className="admin-subtitle"><Trans>Monitor and manage market irregularities.</Trans></p>
         </div>
         <div className="admin-actions">
-          <button className="btn btn-danger" onClick={handleDeleteAll}>Delete All</button>
+          <button className="btn btn-danger" onClick={handleDeleteAll}><Trans>Delete All</Trans></button>
         </div>
       </div>
 
       {!loading && !error && (
         <FlexTable
           columns={[
-            { key: 'ticker', label: 'Ticker', sortable: true, width: '120px' },
-            { key: 'companyName', label: 'Company', sortable: true, width: '240px' },
-            { key: 'date', label: 'Date', sortable: true, width: '120px' },
-            { key: 'value', label: 'Close', sortable: true, width: '120px', className: 'center-right' },
-            { key: 'volume', label: 'Volume', sortable: true, width: '120px', className: 'center-right' },
-            { key: 'status', label: 'Status', sortable: true, width: '120px' },
+            { key: 'ticker', label: i18n._('Ticker'), sortable: true, width: '120px' },
+              { key: 'companyName', label: i18n._('Company'), sortable: true, width: '240px' },
+              { key: 'date', label: i18n._('Date'), sortable: true, width: '120px' },
+              { key: 'value', label: i18n._('Close'), sortable: true, width: '120px', className: 'center-right' },
+              { key: 'volume', label: i18n._('Volume'), sortable: true, width: '120px', className: 'center-right' },
+              { key: 'status', label: i18n._('Status'), sortable: true, width: '120px' },
           ]}
           keyField="_id"
           renderRow={({ row }) => (
@@ -295,25 +298,25 @@ const AnomaliesManagementPage = () => {
               <td className="col-status">{row.status ? <span className={`badge status-${String(row.status).toLowerCase()}`}>{row.status}</span> : '-'}</td>
             </tr>
           )}
-          emptyText="No anomalies found."
+          emptyText={i18n._('No anomalies found.')}
           fetchUrl={`${API_BASE}/node/anomalies`}
           refreshSignal={refreshSignal}
           enablePagination={true}
           showHeader={true}
           showSearch={true}
           onCreate={openCreate}
-          createLabel="+ Create New"
+          createLabel={i18n._('+ Create New')}
         />
       )}
 
       {/* Create / Edit modal */}
-      <GenericModal isOpen={modalOpen} title={editing ? 'Edit Anomaly' : 'Create Anomaly'} onClose={cancelEdit} onSave={save} saveLabel={editing ? 'Save Changes' : 'Create'}>
+      <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit Anomaly') : i18n._('Create Anomaly')} onClose={cancelEdit} onSave={save} saveLabel={editing ? i18n._('Save Changes') : i18n._('Create')}>
         <div className="form-grid">
           {editing ? (
             <>
               <label className="form-field" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" checked={allowEditReadonly} onChange={(e) => setAllowEditReadonly(e.target.checked)} />
-                <span style={{ marginLeft: 6 }}>Allow editing readonly fields</span>
+                <span style={{ marginLeft: 6 }}><Trans>Allow editing readonly fields</Trans></span>
               </label>
               <label className="form-field"><span>Ticker</span><input className="input-readonly" value={form.ticker} readOnly /></label>
               <label className="form-field"><span>Company</span>{allowEditReadonly ? <input name="companyName" value={form.companyName || ''} onChange={handleChange} /> : <input className="input-readonly" value={form.companyName || '-'} readOnly />}</label>
@@ -321,20 +324,20 @@ const AnomaliesManagementPage = () => {
               <label className="form-field"><span>Volume</span>{allowEditReadonly ? <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} /> : <input className="input-readonly" value={fmtVolume(form.volume)} readOnly />}</label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span>{allowEditReadonly ? (<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input name="date" type="date" value={form.date} onChange={handleChange} /><input name="time" type="time" value={form.time || ''} onChange={handleChange} /></div>) : <input className="input-readonly" value={fmtDate(form.date)} readOnly />}</label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
-              <label className="form-field"><span>Status</span><DropdownSelect value={form.status || ''} onChange={(v) => setForm((s) => ({ ...s, status: v }))} placeholder="Select status" options={SELECT_OPTIONS_STATUS} /></label>
-              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Analyst Note</span><textarea className="textarea" value={form.note || ''} onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))} placeholder="Add comments about this anomaly..." /></label>
+              <label className="form-field"><span><Trans>Status</Trans></span><DropdownSelect value={form.status || ''} onChange={(v) => setForm((s) => ({ ...s, status: v }))} placeholder={i18n._('Select status')} options={SELECT_OPTIONS_STATUS} /></label>
+              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Analyst Note</Trans></span><textarea className="textarea" value={form.note || ''} onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))} placeholder={i18n._('Add comments about this anomaly...')} /></label>
             </>
           ) : (
             <>
-              <label className="form-field"><span>Ticker</span><input name="ticker" value={form.ticker} onChange={handleChange} placeholder="E.g. AAPL" /></label>
+              <label className="form-field"><span><Trans>Ticker</Trans></span><input name="ticker" value={form.ticker} onChange={handleChange} placeholder={i18n._('E.g. AAPL')} /></label>
               <label className="form-field"></label>
-              <label className="form-field"><span>Close Price</span><input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder="Close price" /></label>
-              <label className="form-field"><span>Volume</span><input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder="Volume" /></label>
+              <label className="form-field"><span><Trans>Close Price</Trans></span><input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder={i18n._('Close price')} /></label>
+              <label className="form-field"><span><Trans>Volume</Trans></span><input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder={i18n._('Volume')} /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span><input name="date" type="date" value={form.date} onChange={handleChange} /></label>
               <label className="form-field"><span>Time</span><input name="time" type="time" value={form.time} onChange={handleChange} /></label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
-              <label className="form-field"><span>Status</span><DropdownSelect value={form.status || 'new'} onChange={(v) => setForm((s) => ({ ...s, status: v }))} options={SELECT_OPTIONS_STATUS} /></label>
-              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Analyst Note</span><textarea name="note" className="textarea" value={form.note || ''} onChange={handleChange} placeholder="Add comments about this anomaly..." /></label>
+              <label className="form-field"><span><Trans>Status</Trans></span><DropdownSelect value={form.status || 'new'} onChange={(v) => setForm((s) => ({ ...s, status: v }))} options={SELECT_OPTIONS_STATUS} /></label>
+              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Analyst Note</Trans></span><textarea name="note" className="textarea" value={form.note || ''} onChange={handleChange} placeholder={i18n._('Add comments about this anomaly...')} /></label>
             </>
           )}
         </div>

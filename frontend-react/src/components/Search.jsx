@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Trans } from '@lingui/react/macro';
 import { useNavigate } from "react-router-dom";
 import "../css/Search.css";
 
@@ -95,7 +96,7 @@ export default function Search() {
           </ul>
           {results.length > 0 && (
             <button className="search-show-more" onClick={handleShowMore}>
-              Show More →
+              <Trans>Show More →</Trans>
             </button>
           )}
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useAuth } from '../context/useAuth';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { useNavigate } from 'react-router-dom';
@@ -140,10 +141,10 @@ export default function Dashboard() {
       {/* Header Section */}
       <div className="dashboard-header">
         <div>
-          <h1>My Watchlist</h1>
-          <p className="text-secondary">{subscriptions.length} {subscriptions.length === 1 ? 'stock' : 'stocks'} followed</p>
+          <h1><Trans>My Watchlist</Trans></h1>
+          <p className="text-secondary"><Trans>stocks followed</Trans>: {subscriptions.length} {subscriptions.length === 1 ? <Trans>stock</Trans> : <Trans>stocks</Trans>}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/chart')}>+ Add Stock</button>
+        <button className="btn btn-primary" onClick={() => navigate('/chart')}>+ <Trans>Add Stock</Trans></button>
       </div>
 
       {/* Search/Filter */}
@@ -155,7 +156,7 @@ export default function Dashboard() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-box"
         />
-        <span className="results-count">{filteredSubscriptions.length} results</span>
+        <span className="results-count">{filteredSubscriptions.length} <Trans>results</Trans></span>
       </div>
 
       {/* Content */}

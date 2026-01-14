@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react'; // 👈 Import useRef
+
+import React, { useEffect, useState, useRef } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
@@ -9,7 +11,7 @@ const LineCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { setToken, login } = useAuth();
-  const [status, setStatus] = useState('Processing LINE login...');
+  const [status, setStatus] = useState(<Trans>Processing LINE login...</Trans>);
 
   // 🛑 FIX 1: Use a ref flag to track if the exchange has already run
   const hasExecuted = useRef(false);
@@ -19,7 +21,7 @@ const LineCallback = () => {
     const state = searchParams.get('state');
 
     if (!code) {
-      setStatus('No code received from LINE.');
+      setStatus(<Trans>No code received from LINE.</Trans>);
       return;
     }
     
@@ -30,7 +32,7 @@ const LineCallback = () => {
     hasExecuted.current = true; // Set flag immediately to prevent re-execution
 
     const postCode = async () => {
-      setStatus('Contacting backend...');
+      setStatus(<Trans>Contacting backend...</Trans>);
       try {
         const res = await fetch(`${PY_BACKEND}/py/auth/line/callback`, {
           method: 'POST',
@@ -58,11 +60,11 @@ const LineCallback = () => {
           login(data.user);
         }
 
-        setStatus('Login successful! Redirecting...');
+        setStatus(<Trans>Login successful! Redirecting...</Trans>);
         setTimeout(() => navigate('/profile'), 500);
       } catch (err) {
         console.error(err);
-        setStatus('LINE login failed: ' + (err.message || err));
+        setStatus(<Trans>LINE login failed</Trans> + ': ' + (err.message || err));
       }
     };
 

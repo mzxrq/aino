@@ -687,38 +687,15 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
             "text": f"{total} anomalies detected. Please view HTML version for details."
         }
         
-        # Diagnostic: persist an attempt record to MongoDB so we can inspect delivery issues
-        try:
-            log_doc = {
-                "type": "email_attempt",
-                "to": user_email,
-                "subject": payload.get("subject"),
-                "attempted_at": datetime.utcnow(),
-                "payload": payload,
-                "result": None,
-                "range": {
-                    "start": start_dt.isoformat() if start_dt else None,
-                    "end": end_dt.isoformat() if end_dt else None
-                }
-            }
-            try:
-                db.notification_logs.insert_one(log_doc)
-            except Exception:
-                # best-effort logging
-                logger.debug("Failed to write notification log to DB")
-
-        except Exception:
-            pass
+        # NOTE: Email attempts are logged by the mail sending service (MAIL_API_URL)
+        # (backend-node nodemailer.service logs to its own `nodemailer_logs` collection).
+        # Avoid duplicating email logs in `notification_logs` which is reserved for LINE logs.
 
         response = requests.post(MAIL_API_URL, json=payload, timeout=10)
         response.raise_for_status()
         logger.info(f"Email notification sent to {user_email}")
 
-        # update log with success
-        try:
-            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "sent", "sent_at": datetime.utcnow()}}, upsert=False)
-        except Exception:
-            logger.debug("Failed to update notification log after send")
+        # mail service will handle logging; nothing to update here
 
         return True
         
@@ -730,23 +707,17 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         except:
             error_detail = str(e)
         logger.error(f"Failed to send email notification (HTTP {e.response.status_code if hasattr(e, 'response') else 'error'}): {error_detail[:200]}")
-        try:
-            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "http_error", "error": error_detail, "sent_at": datetime.utcnow()}}, upsert=False)
-        except Exception:
-            pass
+        # mail service will handle logging; nothing to update here
         return False
     except Exception as e:
         logger.error(f"Failed to send email notification: {type(e).__name__}: {str(e)[:200]}")
-        try:
-            db.notification_logs.update_one({"type": "email_attempt", "to": user_email, "subject": payload.get("subject")}, {"$set": {"result": "error", "error": str(e)[:200], "sent_at": datetime.utcnow()}}, upsert=False)
-        except Exception:
-            pass
+        # mail service will handle logging; nothing to update here
         return False
 
 # -------------------------
 # Main Notification Handler
 # -------------------------
-def notify_users_of_anomalies(anomalies: List[Dict]):
+def notify_users_of_anomalies(anomalies: List[Dict], is_summary: bool = False, summary_start_dt=None, summary_end_dt=None):
     """
     Notify users of new anomalies based on their subscriptions.
     
@@ -762,6 +733,34 @@ def notify_users_of_anomalies(anomalies: List[Dict]):
     
     logger.info(f"Processing notifications for {len(anomalies)} anomalies")
     
+    # If not sending a summary, restrict sends to anomalies that occurred on the
+    # same date(s) as the anomalies list. Summary sends are allowed to include
+    # past data ranges (caller may pass start/end via summary_start_dt/end_dt).
+    allowed_dates = None
+    if not is_summary:
+        allowed_dates = set()
+        for a in anomalies:
+            dt = a.get('Datetime') or a.get('datetime')
+            try:
+                if dt is None:
+                    continue
+                dt_parsed = pd.to_datetime(dt)
+                # Ensure timezone-aware in UTC for consistent date comparison
+                if getattr(dt_parsed, 'tzinfo', None) is None:
+                    try:
+                        dt_parsed = dt_parsed.tz_localize('UTC')
+                    except Exception:
+                        # fallback: treat as naive UTC
+                        pass
+                else:
+                    try:
+                        dt_parsed = dt_parsed.tz_convert('UTC')
+                    except Exception:
+                        pass
+                allowed_dates.add(dt_parsed.date())
+            except Exception:
+                continue
+
     # Get all users and their subscriptions
     try:
         users = list(db.users.find({}, {
@@ -801,6 +800,33 @@ def notify_users_of_anomalies(anomalies: List[Dict]):
             a for a in anomalies
             if (a.get('Ticker') or a.get('ticker')) in user_tickers
         ]
+
+        # If not a summary send, further restrict to anomalies that occurred
+        # on the same date(s) captured in the anomalies list.
+        if allowed_dates is not None:
+            filtered = []
+            for a in user_anomalies:
+                dt = a.get('Datetime') or a.get('datetime')
+                try:
+                    if dt is None:
+                        continue
+                    dt_parsed = pd.to_datetime(dt)
+                    if getattr(dt_parsed, 'tzinfo', None) is None:
+                        try:
+                            dt_parsed = dt_parsed.tz_localize('UTC')
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            dt_parsed = dt_parsed.tz_convert('UTC')
+                        except Exception:
+                            pass
+                    if dt_parsed.date() in allowed_dates:
+                        filtered.append(a)
+                except Exception:
+                    # If parsing fails, skip that anomaly for safety
+                    continue
+            user_anomalies = filtered
         
         if not user_anomalies:
             stats["skipped_no_match"] += 1
@@ -816,12 +842,12 @@ def notify_users_of_anomalies(anomalies: List[Dict]):
         
         # Send LINE notification
         if sent_option in ["line", "both"] and user_line_id:
-            if send_line_notification(user_line_id, user_anomalies, user_timezone):
+            if send_line_notification(user_line_id, user_anomalies, user_timezone, allow_empty=False, is_summary=is_summary):
                 stats["line_sent"] += 1
         
         # Send email notification
         if sent_option in ["mail", "both"] and user_email:
-            if send_email_notification(user_email, user_anomalies, user_timezone):
+            if send_email_notification(user_email, user_anomalies, user_timezone, start_dt=summary_start_dt, end_dt=summary_end_dt):
                 stats["email_sent"] += 1
         
         stats["notified_users"] += 1

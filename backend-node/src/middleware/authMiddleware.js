@@ -84,3 +84,21 @@ module.exports = {
   requireAuth,
   authorize
 };
+
+// Optional authentication: if Authorization header present and valid, attach user info; otherwise continue.
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return next();
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    req.userId = decoded.userId || decoded.sub;
+    req.userName = decoded.userName || decoded.username;
+    req.userRole = decoded.role || 'user';
+  } catch (err) {
+    // Do not block request; just skip attaching user
+  }
+  return next();
+};
+
+module.exports.optionalAuth = optionalAuth;

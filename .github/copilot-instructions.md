@@ -205,19 +205,6 @@ Invoke-RestMethod "http://localhost:8000/py/chart?ticker=AAPL&period=1d&interval
 3. Add navigation link in `Navbar.jsx`
 4. Create CSS file in `src/css/` if needed
 
-FEATURE DOCUMENTATION:
-- Check `docs/specs/` for technical specifications
-- All documentation includes timestamps in JST (UTC+9 Osaka time)
-
-BEFORE implementing features:
-- Read related docs in `docs/specs/` for context
-- Check `docs/features/` for similar implementations
-- Verify API contracts in `docs/specs/API.md`
-- Check database schema in `docs/specs/database-schema.md`
-
-AFTER implementing features:
-- Document API changes in `docs/specs/API.md`
-
 ---
 
 **For clarification or examples on specific patterns, reference the file paths and line numbers provided above.**

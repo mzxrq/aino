@@ -1,0 +1,1543 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-01-13 09:10+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ja\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:58
+msgid "Please Login"
+msgstr "ログインしてください"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:59
+msgid "You need to be signed in to follow tickers."
+msgstr "銘柄をフォローする前に、ログインしてください。"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:74
+msgid "1 Min"
+msgstr "1分"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:75
+msgid "2 Min"
+msgstr "2分"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:76
+msgid "5 Min"
+msgstr "5分"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:77
+msgid "15 Min"
+msgstr "15分"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:78
+msgid "30 Min"
+msgstr "30分"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:79
+msgid "1 Hour"
+msgstr "1時間"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:80
+msgid "1 Day"
+msgstr "1日"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:81
+#: src/pages/MainChart.jsx:96
+msgid "1 Week"
+msgstr "1週"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:82
+#: src/pages/MainChart.jsx:99
+msgid "1 Month"
+msgstr "1ヶ月"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:94
+msgid "Intraday"
+msgstr "日中"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:95
+msgid "5 Days"
+msgstr "5日"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:97
+msgid "1 Month (30m)"
+msgstr "1ヶ月 (30分)"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:98
+msgid "1 Month (1d)"
+msgstr "1ヶ月 (1日)"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:100
+msgid "3 Months"
+msgstr "3ヶ月"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:101
+msgid "6 Months"
+msgstr "6ヶ月"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:102
+msgid "1 Year"
+msgstr "1年"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:103
+msgid "2 Years"
+msgstr "2年"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:104
+msgid "5 Years"
+msgstr "5年"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:105
+msgid "Max"
+msgstr "最大"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:878
+msgid "Open"
+msgstr "始値"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:879
+msgid "High"
+msgstr "高値"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:880
+msgid "Low"
+msgstr "安値"
+
+#. js-lingui-explicit-id
+#: src/pages/MainChart.jsx:881
+msgid "Close"
+msgstr "終値"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:171
+msgid "Volume Spike"
+msgstr "出来高急増"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:172
+msgid "Price Spike"
+msgstr "価格急騰"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:173
+msgid "Flash Crash"
+msgstr "フラッシュクラッシュ"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:174
+msgid "Price Avg"
+msgstr "価格平均"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:175
+msgid "Absorption"
+msgstr "吸収"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:176
+msgid "Bullish"
+msgstr "強気"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:177
+msgid "Bearish"
+msgstr "弱気"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:178
+msgid "Anomaly"
+msgstr "異常"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:179
+msgid "System"
+msgstr "システム"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:180
+msgid "Rule"
+msgstr "ルール"
+
+#. js-lingui-explicit-id
+#: src/components/EchartsCard.jsx:181
+msgid "Other"
+msgstr "その他"
+
+#. placeholder {0}: descExpanded ? "Show less" : "Show more"
+#. placeholder {0}: editMode ? 'Cancel' : 'Edit'
+#. placeholder {0}: followed ? 'Following' : 'Follow'
+#: src/pages/CompanyProfile.jsx:324
+#: src/pages/CompanyProfile.jsx:401
+#: src/pages/Profile.jsx:352
+#: src/pages/Profile.jsx:375
+#: src/pages/Profile.jsx:393
+msgid "{0}"
+msgstr "{0}"
+
+#: src/pages/MarketList.jsx:779
+msgid "% Change: High to Low"
+msgstr "変化率（最高・最低）"
+
+#: src/pages/MarketList.jsx:780
+msgid "% Change: Low to High"
+msgstr "変化率（最低・最高）"
+
+#: src/pages/MarketList.jsx:861
+msgid "○ Closed"
+msgstr "○ 市場終了"
+
+#: src/pages/MarketList.jsx:860
+msgid "● Open"
+msgstr "● 市場開始"
+
+#: src/pages/MainChart.jsx:228
+msgid "1 Day"
+msgstr "日中"
+
+#: src/pages/MainChart.jsx:227
+msgid "1 Hour"
+msgstr "1時間"
+
+#: src/pages/MainChart.jsx:222
+msgid "1 Min"
+msgstr "1分"
+
+#: src/pages/MainChart.jsx:230
+msgid "1 Month"
+msgstr "1カ月"
+
+#: src/pages/MainChart.jsx:234
+msgid "1 Month (1d)"
+msgstr "1カ月 (1日)"
+
+#: src/pages/MainChart.jsx:233
+msgid "1 Month (30m)"
+msgstr "1カ月 (30分)"
+
+#: src/pages/MainChart.jsx:229
+msgid "1 Week"
+msgstr "1週"
+
+#: src/pages/MainChart.jsx:237
+msgid "1 Year"
+msgstr "1年"
+
+#: src/pages/Chart.jsx:1134
+msgid "1.5σ (Tight)"
+msgstr "1.5σ"
+
+#: src/pages/MainChart.jsx:225
+msgid "15 Min"
+msgstr "15分"
+
+#: src/pages/MainChart.jsx:223
+msgid "2 Min"
+msgstr "2分"
+
+#: src/pages/MainChart.jsx:238
+msgid "2 Years"
+msgstr "2年"
+
+#: src/pages/Chart.jsx:1123
+msgid "2σ (Standard)"
+msgstr "2σ"
+
+#: src/pages/MainChart.jsx:235
+msgid "3 Months"
+msgstr "3カ月"
+
+#: src/pages/MainChart.jsx:226
+msgid "30 Min"
+msgstr "30分"
+
+#: src/pages/MainChart.jsx:232
+msgid "5 Days"
+msgstr "5日"
+
+#: src/pages/MainChart.jsx:224
+msgid "5 Min"
+msgstr "5分"
+
+#: src/pages/MainChart.jsx:239
+msgid "5 Years"
+msgstr "5年"
+
+#: src/pages/MainChart.jsx:236
+msgid "6 Months"
+msgstr "6カ月"
+
+#: src/pages/MainChart.jsx:1109
+msgid "Absorption"
+msgstr "吸収"
+
+#: src/components/FinancialsTable.jsx:439
+msgid "Accounts Payable"
+msgstr "買掛金"
+
+#: src/components/FinancialsTable.jsx:438
+msgid "Accounts Receivable"
+msgstr "売掛金"
+
+#: src/components/FinancialsTable.jsx:437
+msgid "Accumulated Depreciation"
+msgstr "減価償却累計額"
+
+#: src/components/FinancialsTable.jsx:406
+msgid "achinery Furniture Equipment"
+msgstr "機械装置及び家具"
+
+#: src/pages/Compare.jsx:68
+msgid "Add"
+msgstr "追加"
+
+#: src/pages/Dashboard.jsx:147
+msgid "Add Stock"
+msgstr "株式追加"
+
+#: src/pages/Compare.jsx:83
+msgid "Add tickers to start comparing."
+msgstr "比較を開始するためティッカーを追加してください。"
+
+#: src/components/Navbar.jsx:213
+msgid "Admin Dashboard"
+msgstr "アドミン・ダッシュボード"
+
+#: src/pages/MarketList.jsx:792
+msgid "All"
+msgstr "全部"
+
+#: src/pages/MarketList.jsx:761
+msgid "All Markets"
+msgstr "全市場"
+
+#: src/pages/MarketList.jsx:781
+msgid "Alphabetical"
+msgstr "アルファベット順"
+
+#: src/pages/Register.jsx:239
+msgid "Already have an account?"
+msgstr "すでにアカウントをお持ちですか？"
+
+#: src/components/Navbar.jsx:210
+#: src/pages/Chart.jsx:1068
+#: src/pages/MainChart.jsx:1174
+#: src/pages/MainChart.jsx:1774
+msgid "Anomalies"
+msgstr "異常データ"
+
+#: src/pages/MainChart.jsx:1112
+msgid "Anomaly"
+msgstr "異常"
+
+#: src/pages/MarketList.jsx:776
+msgid "Anomaly Count"
+msgstr "異常数"
+
+#: src/pages/Chart.jsx:1196
+msgid "Area"
+msgstr "エリア"
+
+#: src/components/FinancialsTable.jsx:370
+msgid "asic Average Shares"
+msgstr "基本平均株数"
+
+#: src/components/FinancialsTable.jsx:369
+msgid "asic EPS"
+msgstr "基本EPS"
+
+#: src/pages/Chart.jsx:1190
+msgid "Auto"
+msgstr "自動"
+
+#: src/components/FinancialsTable.jsx:436
+msgid "Available For Sale Securities"
+msgstr "売却可能証券"
+
+#: src/pages/Compare.jsx:69
+#: src/pages/ForgotPassword.jsx:291
+msgid "Back"
+msgstr "戻る"
+
+#: src/pages/ForgotPassword.jsx:227
+msgid "Back to sign in"
+msgstr "ログインページに戻る"
+
+#: src/pages/CompanyProfile.jsx:529
+#: src/pages/MainChart.jsx:1483
+msgid "Balance"
+msgstr "残高"
+
+#: src/components/FinancialsTable.jsx:328
+#: src/pages/CompanyProfile.jsx:367
+msgid "Balance Sheet"
+msgstr "貸借対照表"
+
+#: src/pages/MainChart.jsx:1854
+msgid "Balance Sheet (most recent 2 periods)"
+msgstr "貸借対照表（直近2期間）"
+
+#: src/pages/MainChart.jsx:NaN
+#~ msgid "Bangkok"
+#~ msgstr "バンコク"
+
+#: src/pages/Chart.jsx:1194
+msgid "Bar"
+msgstr "バー"
+
+#: src/pages/Chart.jsx:1112
+msgid "BB Bands Width"
+msgstr "ボリンジャーバンド幅"
+
+#: src/pages/MainChart.jsx:1111
+msgid "Bearish"
+msgstr "弱気"
+
+#: src/pages/Chart.jsx:1048
+#: src/pages/MainChart.jsx:1766
+msgid "Bollinger Bands"
+msgstr "ボリンジャーバンド"
+
+#: src/pages/MainChart.jsx:1110
+msgid "Bullish"
+msgstr "強気"
+
+#: src/components/LoginConfirmDialog.jsx:50
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: src/pages/Chart.jsx:1191
+msgid "Candlestick"
+msgstr "ローソク足"
+
+#: src/components/FinancialsTable.jsx:435
+msgid "Capital Lease Obligations"
+msgstr "リース債務"
+
+#: src/components/FinancialsTable.jsx:434
+msgid "Capital Stock"
+msgstr "資本金"
+
+#: src/components/FinancialsTable.jsx:433
+msgid "Cash And Cash Equivalents"
+msgstr "現金及び現金同等物"
+
+#: src/components/FinancialsTable.jsx:432
+msgid "Cash Cash Equivalents And Short Term Investments"
+msgstr "現金、現金同等物及び短期投資"
+
+#: src/components/FinancialsTable.jsx:431
+msgid "Cash Equivalents"
+msgstr "現金同等物"
+
+#: src/components/FinancialsTable.jsx:430
+msgid "Cash Financial"
+msgstr "キャッシュ"
+
+#: src/pages/Admin/AdminUsersPage.jsx:177
+msgid "Change password"
+msgstr "パスワード変更"
+
+#: src/components/Navbar.jsx:202
+#: src/pages/CompanyProfile.jsx:550
+msgid "Chart"
+msgstr "チャート"
+
+#: src/pages/CompanyProfile.jsx:377
+#: src/pages/MainChart.jsx:244
+#: src/pages/MainChart.jsx:1864
+msgid "Close"
+msgstr "閉じる"
+
+#: src/pages/MarketList.jsx:794
+msgid "Closed"
+msgstr "終了"
+
+#: src/pages/MainChart.jsx:1435
+msgid "CLOSED"
+msgstr "終了"
+
+#: src/pages/Chart.jsx:1195
+msgid "Column"
+msgstr "コラム"
+
+#: src/components/FinancialsTable.jsx:429
+msgid "Commercial Paper"
+msgstr "コマーシャルペーパー"
+
+#: src/components/FinancialsTable.jsx:428
+msgid "Common Stock"
+msgstr "普通株式"
+
+#: src/components/FinancialsTable.jsx:427
+msgid "Common Stock Equity"
+msgstr "普通株式資本"
+
+#: src/pages/Compare.jsx:65
+msgid "Compare (up to 4)"
+msgstr "比較 (最大4個)"
+
+#: src/pages/Admin/AdminUsersPage.jsx:170
+msgid "Confirm"
+msgstr "確認"
+
+#: src/pages/Profile.jsx:427
+msgid "Connect LINE"
+msgstr "LINEで接続"
+
+#: src/pages/Profile.jsx:426
+msgid "Connect your LINE account for easier login"
+msgstr "LINEアカウントで簡単にログインできる！"
+
+#: src/components/ProfileSidebar.jsx:14
+msgid "Connection"
+msgstr "関連"
+
+#: src/pages/LineCallback.jsx:35
+msgid "Contacting backend..."
+msgstr "少々お待ちください。"
+
+#: src/components/FinancialsTable.jsx:368
+msgid "Cost Of Revenue"
+msgstr "売上原価"
+
+#: src/pages/Register.jsx:234
+msgid "Create account"
+msgstr "会員登録"
+
+#: src/pages/Compare.jsx:109
+msgid "Currency:"
+msgstr "通貨:"
+
+#: src/components/FinancialsTable.jsx:426
+msgid "Current Accrued Expenses"
+msgstr "当期未払費用"
+
+#: src/components/FinancialsTable.jsx:425
+msgid "Current Assets"
+msgstr "流動資産"
+
+#: src/components/FinancialsTable.jsx:424
+msgid "Current Capital Lease Obligation"
+msgstr "流動リース債務"
+
+#: src/components/FinancialsTable.jsx:423
+msgid "Current Debt"
+msgstr "流動債務"
+
+#: src/components/FinancialsTable.jsx:422
+msgid "Current Debt And Capital Lease Obligation"
+msgstr "流動債務及びリース債務"
+
+#: src/components/FinancialsTable.jsx:421
+msgid "Current Deferred Liabilities"
+msgstr "当期繰延負債"
+
+#: src/components/FinancialsTable.jsx:420
+msgid "Current Deferred Revenue"
+msgstr "当期繰延収益"
+
+#: src/components/FinancialsTable.jsx:419
+msgid "Current Liabilities"
+msgstr "流動負債"
+
+#: src/components/Navbar.jsx:295
+#: src/components/Navbar.jsx:352
+msgid "Dark"
+msgstr "ダーク"
+
+#: src/components/Navbar.jsx:206
+msgid "Dashboard"
+msgstr "ダッシュボード"
+
+#: src/pages/MainChart.jsx:1238
+msgid "DEA"
+msgstr "DEA"
+
+#: src/pages/Admin/AdminUsersPage.jsx:212
+msgid "Delete"
+msgstr "削除"
+
+#: src/pages/MainChart.jsx:1235
+msgid "DIF"
+msgstr "DIF"
+
+#: src/components/FinancialsTable.jsx:367
+msgid "Diluted Average Shares"
+msgstr "希薄化後平均株数"
+
+#: src/components/FinancialsTable.jsx:366
+msgid "Diluted EPS"
+msgstr "希薄化後EPS"
+
+#: src/components/FinancialsTable.jsx:365
+msgid "Diluted NI Availto Com Stockholders"
+msgstr "希薄化後普通株主帰属純利益"
+
+#: src/pages/Login.jsx:261
+msgid "Don't have an account?"
+msgstr "アカウントをお持ちではありませんか？"
+
+#: src/pages/Admin/AdminUsersPage.jsx:211
+msgid "Edit"
+msgstr "編集"
+
+#: src/components/FinancialsTable.jsx:364
+msgid "EIT"
+msgstr "EBIT"
+
+#: src/components/FinancialsTable.jsx:363
+msgid "EITDA"
+msgstr "EBITDA"
+
+#: src/pages/MainChart.jsx:1790
+msgid "EMA"
+msgstr "EMA"
+
+#: src/pages/Admin/AdminUsersPage.jsx:145
+#: src/pages/ForgotPassword.jsx:200
+#: src/pages/Login.jsx:181
+#: src/pages/Profile.jsx:357
+#: src/pages/Register.jsx:198
+msgid "Email"
+msgstr "メールアドレス"
+
+#: src/pages/Compare.jsx:108
+msgid "Employees:"
+msgstr "従業員数:"
+
+#: src/pages/ForgotPassword.jsx:197
+msgid "Enter the email associated with your account to receive an OTP."
+msgstr "アカウントに関連付けられているメールアドレスを入力してください。"
+
+#: src/pages/ForgotPassword.jsx:233
+msgid "Enter the OTP and choose a new password."
+msgstr "OTP（ワンタイムパスワード）を入力して、新しいパスワードに入力してください。"
+
+#: src/pages/Compare.jsx:110
+msgid "Fetched:"
+msgstr "取得日:"
+
+#: src/pages/CompanyProfile.jsx:517
+#: src/pages/MainChart.jsx:1462
+msgid "Financials"
+msgstr "資金面"
+
+#: src/pages/CompanyProfile.jsx:498
+msgid "Fiscal Year"
+msgstr "会計年度"
+
+#: src/pages/MainChart.jsx:1107
+msgid "Flash Crash"
+msgstr "フラッシュクラッシュ"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Follow"
+msgstr "フォロー"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Following"
+msgstr "フォロー中"
+
+#: src/pages/Profile.jsx:355
+#: src/pages/Register.jsx:164
+msgid "Full Name"
+msgstr "姓名"
+
+#: src/components/Navbar.jsx:249
+msgid "Full Scan"
+msgstr "全スキャン"
+
+#: src/components/FinancialsTable.jsx:418
+msgid "Gains Losses Not Affecting Retained Earnings"
+msgstr "利益剰余金に影響しない利益損失"
+
+#: src/components/ProfileSidebar.jsx:11
+msgid "General"
+msgstr "一般"
+
+#: src/pages/Home.jsx:472
+msgid "Get Started"
+msgstr "始めよう"
+
+#: src/components/FinancialsTable.jsx:417
+msgid "Gross PPE"
+msgstr "総PPE"
+
+#: src/components/FinancialsTable.jsx:362
+msgid "Gross Profit"
+msgstr "売上総利益"
+
+#: src/pages/MainChart.jsx:242
+msgid "High"
+msgstr "高値"
+
+#: src/pages/Chart.jsx:1197
+msgid "HLC"
+msgstr "HLC"
+
+#: src/pages/CompanyProfile.jsx:522
+#: src/pages/MainChart.jsx:1477
+msgid "Income"
+msgstr "所得"
+
+#: src/components/FinancialsTable.jsx:327
+#: src/pages/CompanyProfile.jsx:363
+msgid "Income Statement"
+msgstr "損益計算書"
+
+#: src/pages/MainChart.jsx:1850
+msgid "Income Statement (most recent 2 periods)"
+msgstr "損益計算書（直近2期間）"
+
+#: src/components/FinancialsTable.jsx:416
+msgid "Income Tax Payable"
+msgstr ""
+
+#: src/pages/MainChart.jsx:1756
+msgid "Indicators"
+msgstr "インジケーター"
+
+#: src/pages/CompanyProfile.jsx:451
+msgid "Industry"
+msgstr "事業"
+
+#: src/components/FinancialsTable.jsx:361
+msgid "Interest Expense"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:360
+msgid "Interest Expense Non Operating"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:359
+msgid "Interest Income"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:358
+msgid "Interest Income Non Operating"
+msgstr ""
+
+#: src/pages/MainChart.jsx:231
+msgid "Intraday"
+msgstr "日中"
+
+#: src/components/FinancialsTable.jsx:415
+msgid "Inventory"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:414
+msgid "Invested Capital"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:413
+msgid "Investmentin Financial Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:412
+msgid "Investments And Advances"
+msgstr ""
+
+#: src/pages/Compare.jsx:107
+msgid "Key"
+msgstr "キー"
+
+#: src/components/FinancialsTable.jsx:411
+msgid "Land And Improvements"
+msgstr ""
+
+#: src/components/Navbar.jsx:303
+#: src/components/Navbar.jsx:360
+msgid "Language"
+msgstr "言語"
+
+#: src/components/FinancialsTable.jsx:410
+msgid "Leases"
+msgstr ""
+
+#: src/components/Navbar.jsx:295
+#: src/components/Navbar.jsx:352
+msgid "Light"
+msgstr "ライト"
+
+#: src/pages/Chart.jsx:1192
+msgid "Line"
+msgstr "ライン"
+
+#: src/pages/Profile.jsx:426
+msgid "LINE"
+msgstr "LINE"
+
+#. ============ CHART TYPES & MODES ============
+#: src/pages/MainChart.jsx:
+#~ msgid "Line Chart"
+#~ msgstr "ラインチャート"
+
+#: src/pages/Profile.jsx:424
+msgid "LINE Integration"
+msgstr "LINE統合"
+
+#: src/pages/Home.jsx:473
+msgid "LINE Login"
+msgstr "LINEでログイン"
+
+#: src/pages/LineCallback.jsx:67
+msgid "LINE login failed"
+msgstr "LINEログインを失敗しました。"
+
+#: src/pages/CompanyProfile.jsx:564
+msgid "Loading chart…"
+msgstr "チャートを読み込み中…"
+
+#: src/pages/MarketList.jsx:825
+msgid "Loading stocks..."
+msgstr "。。。"
+
+#: src/pages/Chart.jsx:1241
+msgid "Loading..."
+msgstr "。。。"
+
+#: src/components/LoginConfirmDialog.jsx:51
+msgid "Log in"
+msgstr "ログイン"
+
+#: src/components/Navbar.jsx:327
+#~ msgid "Login"
+#~ msgstr "ログイン"
+
+#: src/pages/LineCallback.jsx:63
+msgid "Login successful! Redirecting..."
+msgstr "ログイン完成！"
+
+#: src/components/Navbar.jsx:328
+msgid "Logout"
+msgstr "ログアウト"
+
+#: src/pages/MainChart.jsx:NaN
+#~ msgid "London"
+#~ msgstr "ロンドン"
+
+#: src/components/FinancialsTable.jsx:409
+msgid "Long Term Capital Lease Obligation"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:408
+msgid "Long Term Debt"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:407
+msgid "Long Term Debt And Capital Lease Obligation"
+msgstr ""
+
+#: src/pages/MainChart.jsx:243
+msgid "Low"
+msgstr "安値"
+
+#: src/pages/MainChart.jsx:1782
+msgid "MA (25)"
+msgstr "移動平均 中期"
+
+#: src/pages/MainChart.jsx:1778
+msgid "MA (5)"
+msgstr "移動平均 短期"
+
+#: src/pages/MainChart.jsx:1786
+msgid "MA (75)"
+msgstr "移動平均 長期"
+
+#: src/pages/Chart.jsx:1088
+msgid "MA25 (Mid-term)"
+msgstr "移動平均 中期"
+
+#: src/pages/Chart.jsx:1078
+msgid "MA5 (Short-term)"
+msgstr "移動平均 短期"
+
+#: src/pages/Chart.jsx:1098
+msgid "MA75 (Long-term)"
+msgstr "移動平均 長期"
+
+#: src/pages/MainChart.jsx:1233
+#: src/pages/MainChart.jsx:1794
+msgid "MACD"
+msgstr "MACD"
+
+#: src/pages/Admin/AdminUsersPage.jsx:122
+msgid "Manage application users."
+msgstr "アプリユーザーを管理"
+
+#: src/pages/MarketList.jsx:755
+msgid "Market"
+msgstr "市場"
+
+#: src/pages/CompanyProfile.jsx:408
+#: src/pages/Compare.jsx:98
+msgid "Market Cap:"
+msgstr "時価総額:"
+
+#: src/components/Navbar.jsx:203
+msgid "Market List"
+msgstr "市場欄"
+
+#: src/pages/MarketList.jsx:786
+msgid "Market Status"
+msgstr "市場状況"
+
+#: src/pages/MainChart.jsx:240
+msgid "Max"
+msgstr "マックス"
+
+#: src/components/FinancialsTable.jsx:302
+#: src/components/FinancialsTable.jsx:329
+msgid "Metric"
+msgstr "指標"
+
+#: src/pages/MainChart.jsx:1469
+#: src/pages/MainChart.jsx:1504
+msgid "More"
+msgstr "もっと見る"
+
+#: src/pages/Home.jsx:545
+msgid "Most anomaly found"
+msgstr "一番多い異常検知したアノマリー"
+
+#: src/pages/MainChart.jsx:
+#~ msgid "Moving Average (25)"
+#~ msgstr "移動平均 (25)"
+
+#: src/pages/MainChart.jsx:
+#~ msgid "Moving Average (5)"
+#~ msgstr "移動平均 (5)"
+
+#: src/pages/MainChart.jsx:
+#~ msgid "Moving Average (75)"
+#~ msgstr "移動平均 (75)"
+
+#: src/pages/Dashboard.jsx:144
+msgid "My Watchlist"
+msgstr "ウォッチリスト"
+
+#: src/pages/Admin/AdminUsersPage.jsx:147
+#: src/pages/CompanyProfile.jsx:497
+msgid "Name"
+msgstr "名"
+
+#: src/components/FinancialsTable.jsx:405
+msgid "Net Debt"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:357
+msgid "Net Income"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:356
+msgid "Net Income Common Stockholders"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:355
+msgid "Net Income Continuous Operations"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:354
+msgid "Net Income From Continuing And Discontinued Operation"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:353
+msgid "Net Income From Continuing Operation Net inority Interest"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:352
+msgid "Net Income Including Noncontrolling Interests"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:351
+msgid "Net Interest Income"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:350
+msgid "Net Non Operating Interest Income Expense"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:404
+msgid "Net PPE"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:403
+msgid "Net Tangible Assets"
+msgstr ""
+
+#: src/pages/ForgotPassword.jsx:253
+msgid "New Password"
+msgstr "新しいパスワード"
+
+#: src/pages/CompanyProfile.jsx:585
+#: src/pages/Home.jsx:596
+#: src/pages/MainChart.jsx:1503
+msgid "News"
+msgstr "ニュース"
+
+#: src/pages/CompanyProfile.jsx:692
+msgid "Next"
+msgstr "次へ"
+
+#: src/pages/Compare.jsx:103
+msgid "no chart"
+msgstr "チャートなし"
+
+#: src/pages/LineCallback.jsx:24
+msgid "No code received from LINE."
+msgstr "エラー発生: LINEからコードが届きません。"
+
+#: src/pages/CompanyProfile.jsx:524
+#: src/pages/CompanyProfile.jsx:531
+msgid "No data"
+msgstr "データなし"
+
+#: src/pages/CompanyProfile.jsx:632
+msgid "No news"
+msgstr "ニュースなし"
+
+#: src/pages/MainChart.jsx:1513
+msgid "No recent news"
+msgstr "最近のニュースなし"
+
+#: src/components/FinancialsTable.jsx:402
+msgid "Non Current Deferred Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:401
+msgid "Non Current Deferred Taxes Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:349
+msgid "Normalized EITDA"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:348
+msgid "Normalized Income"
+msgstr ""
+
+#: src/components/ProfileSidebar.jsx:13
+msgid "Notifications"
+msgstr "通知"
+
+#: src/pages/Chart.jsx:1193
+msgid "OHLC (Heikin-Ashi)"
+msgstr "平均足"
+
+#: src/pages/MainChart.jsx:241
+msgid "Open"
+msgstr "始値"
+
+#: src/pages/MainChart.jsx:1435
+msgid "OPEN"
+msgstr "開始"
+
+#: src/pages/CompanyProfile.jsx:560
+msgid "Open Chart"
+msgstr "チャートを開く"
+
+#: src/pages/MainChart.jsx:1865
+msgid "Open Company Profile"
+msgstr "企業プロフィールを開く"
+
+#: src/pages/MarketList.jsx:793
+msgid "Open Now"
+msgstr "開始"
+
+#: src/components/FinancialsTable.jsx:347
+msgid "Operating Expense"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:346
+msgid "Operating Income"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:345
+msgid "Operating Revenue"
+msgstr ""
+
+#: src/pages/Register.jsx:237
+msgid "or"
+msgstr "または"
+
+#: src/components/FinancialsTable.jsx:400
+msgid "Ordinary Shares Number"
+msgstr ""
+
+#: src/pages/MainChart.jsx:1115
+msgid "Other"
+msgstr "その他"
+
+#: src/components/FinancialsTable.jsx:399
+msgid "Other Current Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:397
+msgid "Other Current Liabilities"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:398
+msgid "Other Current orrowings"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:396
+msgid "Other Equity Adjustments"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:344
+msgid "Other Income Expense"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:395
+msgid "Other Investments"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:394
+msgid "Other Non Current Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:393
+msgid "Other Non Current Liabilities"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:343
+msgid "Other Non Operating Income Expenses"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:392
+msgid "Other Properties"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:391
+msgid "Other Receivables"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:390
+msgid "Other Short Term Investments"
+msgstr ""
+
+#: src/pages/ForgotPassword.jsx:236
+msgid "OTP"
+msgstr "OTP"
+
+#: src/pages/Chart.jsx:1108
+msgid "Parabolic SAR"
+msgstr "パラボリック"
+
+#: src/pages/Admin/AdminUsersPage.jsx:169
+#: src/pages/Login.jsx:200
+#: src/pages/Register.jsx:216
+msgid "Password"
+msgstr "パスワード"
+
+#: src/pages/Profile.jsx:391
+msgid "Password Management"
+msgstr "パスワード管理"
+
+#: src/components/FinancialsTable.jsx:389
+msgid "Payables"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:388
+msgid "Payables And Accrued Expenses"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:273
+#: src/components/FinancialsTable.jsx:330
+msgid "Period"
+msgstr "期間"
+
+#: src/pages/CompanyProfile.jsx:473
+msgid "Phone"
+msgstr "電話番号"
+
+#: src/components/LoginConfirmDialog.jsx:43
+msgid "Please log in"
+msgstr "ログインしてください。"
+
+#: src/components/FollowableChartCard.jsx:62
+#~ msgid "Please Login"
+#~ msgstr "ログインしてください。"
+
+#: src/components/Navbar.jsx:340
+msgid "Please sign in to continue"
+msgstr "サインインして続行してください。"
+
+#: src/components/FinancialsTable.jsx:342
+msgid "Pretax Income"
+msgstr ""
+
+#: src/pages/CompanyProfile.jsx:682
+msgid "Prev"
+msgstr "前へ"
+
+#: src/pages/MainChart.jsx:1108
+msgid "Price Average (20d)"
+msgstr "価格平均 (20日)"
+
+#: src/components/EchartsCard.jsx:147
+#~ msgid "Price Avg"
+#~ msgstr "価格平均"
+
+#: src/pages/MainChart.jsx:1106
+msgid "Price Spike"
+msgstr "価格急騰"
+
+#: src/pages/MarketList.jsx:778
+msgid "Price: High to Low"
+msgstr "価値 (最高・最低)"
+
+#: src/pages/MarketList.jsx:777
+msgid "Price: Low to High"
+msgstr "価値 (最低・最高)"
+
+#: src/pages/LineCallback.jsx:14
+msgid "Processing LINE login..."
+msgstr "・・・"
+
+#: src/components/Navbar.jsx:218
+#: src/pages/MainChart.jsx:1759
+msgid "Profile"
+msgstr "プロフィール"
+
+#: src/pages/Profile.jsx:351
+msgid "Profile Information"
+msgstr "プロフィール情報"
+
+#: src/components/FinancialsTable.jsx:387
+msgid "Properties"
+msgstr ""
+
+#: src/components/Footer.jsx:55
+msgid "Real-time market monitoring with anomaly detection and LINE notifications."
+msgstr "異常検出とLINE通知を備えたリアルタイム市場監視。"
+
+#: src/components/FinancialsTable.jsx:386
+msgid "Receivables"
+msgstr ""
+
+#: src/pages/MarketList.jsx:775
+msgid "Recent Anomalies"
+msgstr "最近の異常"
+
+#: src/pages/Home.jsx:483
+msgid "Recent anomaly found"
+msgstr "最近の異常"
+
+#. ============ FINANCIAL MODAL & DIALOG (MainChart.jsx) ============
+#: src/pages/MainChart.jsx:1779
+#~ msgid "Recent Financials"
+#~ msgstr "最近の財務情報"
+
+#: src/components/FinancialsTable.jsx:341
+msgid "Reconciled Cost Of Revenue"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:340
+msgid "Reconciled Depreciation"
+msgstr ""
+
+#: src/pages/Login.jsx:217
+msgid "Remember me"
+msgstr "ログイン状態を記憶"
+
+#: src/components/FinancialsTable.jsx:339
+msgid "Research And Development"
+msgstr ""
+
+#: src/pages/ForgotPassword.jsx:188
+msgid "Reset password"
+msgstr "パスワードリセット"
+
+#: src/pages/ForgotPassword.jsx:276
+msgid "Reset Password"
+msgstr "パスワードリセット"
+
+#: src/pages/ForgotPassword.jsx:276
+msgid "Resetting..."
+msgstr "リセット中"
+
+#: src/pages/Dashboard.jsx:159
+msgid "results"
+msgstr "結果"
+
+#: src/components/FinancialsTable.jsx:385
+msgid "Retained Earnings"
+msgstr ""
+
+#: src/pages/Admin/AdminUsersPage.jsx:148
+msgid "Role"
+msgstr "ロール"
+
+#: src/pages/MainChart.jsx:
+#~ msgid "RSI"
+#~ msgstr "RSI"
+
+#: src/pages/MainChart.jsx:1114
+msgid "Rule"
+msgstr "ルール"
+
+#: src/pages/CompanyProfile.jsx:455
+msgid "Sector"
+msgstr "セクター"
+
+#: src/components/ProfileSidebar.jsx:12
+msgid "Security"
+msgstr "セキュリティ"
+
+#: src/components/FinancialsTable.jsx:338
+msgid "Selling General And Administration"
+msgstr ""
+
+#: src/pages/ForgotPassword.jsx:224
+msgid "Send OTP"
+msgstr "OTP送信"
+
+#: src/pages/ForgotPassword.jsx:224
+msgid "Sending..."
+msgstr "送信中"
+
+#: src/components/Navbar.jsx:319
+#: src/components/ProfileSidebar.jsx:26
+msgid "Settings"
+msgstr "設定"
+
+#: src/components/FinancialsTable.jsx:384
+msgid "Share Issued"
+msgstr ""
+
+#: src/pages/CompanyProfile.jsx:518
+msgid "Show more"
+msgstr "もっと見る"
+
+#: src/pages/Home.jsx:484
+msgid "Show more ›"
+msgstr "もっと見る"
+
+#: src/components/Search.jsx:99
+msgid "Show More →"
+msgstr "もっと見る"
+
+#: src/components/Navbar.jsx:378
+#: src/pages/Login.jsx:174
+#: src/pages/Login.jsx:219
+#: src/pages/Register.jsx:241
+msgid "Sign in"
+msgstr "ログイン"
+
+#: src/pages/Login.jsx:258
+msgid "Sign in with LINE"
+msgstr "LINEでログイン"
+
+#: src/pages/Login.jsx:263
+#: src/pages/Register.jsx:157
+msgid "Sign up"
+msgstr "会員登録"
+
+#: src/pages/MarketList.jsx:769
+msgid "Sort By"
+msgstr "並べ替え"
+
+#: src/pages/Dashboard.jsx:145
+msgid "stock"
+msgstr "株"
+
+#: src/pages/Home.jsx:469
+msgid "Stock Trading Anomaly Detector"
+msgstr "証券取引異常検知システム"
+
+#: src/components/FinancialsTable.jsx:383
+msgid "Stockholders Equity"
+msgstr ""
+
+#: src/pages/Dashboard.jsx:145
+msgid "stocks"
+msgstr "株"
+
+#: src/pages/Dashboard.jsx:145
+msgid "stocks followed"
+msgstr "フォローしている株"
+
+#: src/pages/MainChart.jsx:1113
+msgid "System"
+msgstr "システム"
+
+#: src/components/FinancialsTable.jsx:382
+msgid "Tangible ook Value"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:337
+msgid "Tax Effect Of Unusual Items"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:336
+msgid "Tax Provision"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:335
+msgid "Tax Rate For Calcs"
+msgstr ""
+
+#: src/components/Navbar.jsx:294
+#: src/components/Navbar.jsx:351
+msgid "Theme"
+msgstr "テーマ"
+
+#: src/pages/Profile.jsx:361
+#: src/pages/Profile.jsx:371
+msgid "Timezone"
+msgstr "時間帯"
+
+#: src/pages/CompanyProfile.jsx:496
+msgid "Title"
+msgstr "タイトル"
+
+#. ============ TIMEZONE & MARKET LABELS ============
+#: src/pages/MainChart.jsx:NaN
+#~ msgid "Tokyo"
+#~ msgstr "東京"
+
+#: src/components/FinancialsTable.jsx:381
+msgid "Total Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:380
+msgid "Total Capitalization"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:379
+msgid "Total Debt"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:378
+msgid "Total Equity Gross inority Interest"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:334
+msgid "Total Expenses"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:377
+msgid "Total Liabilities Net inority Interest"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:376
+msgid "Total Non Current Assets"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:375
+msgid "Total Non Current Liabilities Net inority Interest"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:333
+msgid "Total Operating Income As Reported"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:332
+msgid "Total Revenue"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:374
+msgid "Total Tax Payable"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:373
+msgid "Tradeand Other Payables Non Current"
+msgstr ""
+
+#: src/components/FinancialsTable.jsx:372
+msgid "Treasury Shares Number"
+msgstr ""
+
+#: src/pages/MainChart.jsx:553
+msgid "Unable to load chart data"
+msgstr "チャートデータを読み込むことができません"
+
+#: src/pages/MainChart.jsx:1456
+msgid "Unfollow"
+msgstr "フォロー解除"
+
+#: src/pages/CompanyProfile.jsx:554
+msgid "Updated:"
+msgstr "更新日:"
+
+#: src/pages/Admin/AdminUsersPage.jsx:146
+#: src/pages/Profile.jsx:356
+#: src/pages/Register.jsx:181
+msgid "Username"
+msgstr "ユーザー名"
+
+#: src/pages/Admin/AdminUsersPage.jsx:121
+msgid "Users Management"
+msgstr "全ユーザー管理"
+
+#: src/pages/ForgotPassword.jsx:188
+msgid "Verify OTP"
+msgstr "OTP確認"
+
+#: src/pages/Chart.jsx:1038
+#: src/pages/MainChart.jsx:1200
+#: src/pages/MainChart.jsx:1798
+msgid "Volume"
+msgstr "出来高"
+
+#: src/pages/MainChart.jsx:1105
+msgid "Volume Average (14d)"
+msgstr "出来高平均 (14日)"
+
+#: src/pages/MainChart.jsx:1104
+msgid "Volume Spike"
+msgstr "出来高急増"
+
+#: src/pages/MainChart.jsx:1187
+#: src/pages/MainChart.jsx:1770
+msgid "VWAP"
+msgstr "VWAP"
+
+#: src/pages/CompanyProfile.jsx:459
+msgid "Website"
+msgstr "ウェブサイト"
+
+#: src/components/FinancialsTable.jsx:371
+msgid "Working Capital"
+msgstr ""
+
+#: src/components/LoginConfirmDialog.jsx:46
+msgid "You must be logged in to continue."
+msgstr "続行するにはログインする必要があります。"
+
+#: src/components/FollowableChartCard.jsx:63
+#~ msgid "You need to be signed in to follow tickers."
+#~ msgstr "ティッカーをフォローするにはサインインする必要があります。"

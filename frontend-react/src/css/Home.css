@@ -301,11 +301,17 @@ body.dark .anomaly-count .count-text { color: #b9ffee; }
     background: linear-gradient(135deg, var(--cute-green-700), var(--cute-green-500));
     color: #fff;
     box-shadow: 0 6px 20px rgba(44, 193, 127, 0.28);
+    border-radius: 8px;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 30px rgba(44, 193, 127, 0.36);
+}
+
+body.dark .btn-primary {
+    background: linear-gradient(135deg, #00c300, #009000);
+    box-shadow: 0 6px 20px rgba(0, 195, 0, 0.28);
 }
 
 .btn-primary,
@@ -593,12 +599,12 @@ button.btn-primary,
 .btn-primary:focus,
 button.btn-primary:hover,
 button.btn-primary:focus {
-    background: var(--cute-green-700, var(--primary)) !important;
+    background: linear-gradient(135deg, #00c300, #009000) !important;
     background-image: none !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    box-shadow: 0 6px 18px rgba(44,193,127,0.12) !important;
-    transform: none !important;
+    box-shadow: 0 6px 20px rgba(0,195,0,0.28) !important;
+    border-radius: 8px !important;
     outline: none !important;
 }
 
@@ -606,6 +612,34 @@ button.btn-primary:focus {
 .btn-primary:focus-visible,
 button.btn-primary:focus-visible {
     box-shadow: 0 0 0 4px rgba(44,193,127,0.12) !important;
+    outline: none !important;
+}
+
+.btn-primary:hover,
+button.btn-primary:hover {
+    background: linear-gradient(135deg, #00c300, #009000) !important;
+    box-shadow: 0 10px 30px rgba(0,195,0,0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Hero buttons: over-override any bootstrap/default styles */
+.hero-buttons .btn.btn-primary {
+    background: linear-gradient(135deg, #00c300, #009000) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 6px 20px rgba(0,195,0,0.28) !important;
+    border-radius: 8px !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hero-buttons .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #00c300, #009000) !important;
+    box-shadow: 0 10px 30px rgba(0,195,0,0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+.hero-buttons .btn.btn-primary:focus-visible {
+    box-shadow: 0 0 0 4px rgba(0,195,0,0.14) !important;
     outline: none !important;
 }
 

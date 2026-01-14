@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trans } from '@lingui/react/macro';
 import '../css/Footer.css';
 
 export default function Footer() {
@@ -51,7 +52,7 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <div className="footer-bottom-content">
-          <p>&copy; {currentYear} Aino. Real-time market monitoring with anomaly detection and LINE notifications.</p>
+          <p>&copy; {currentYear} Aino. <Trans>Real-time market monitoring with anomaly detection and LINE notifications.</Trans></p>
           <p className="footer-note">yfinance, Apache ECharts.</p>
         </div>
       </div>

@@ -1,0 +1,18 @@
+[
+  {
+    "key": "https://newsapi.org/v2/top-headlines|{\"q\":\"stock market\",\"limit\":6,\"language\":\"en\"}",
+    "ts": 1768358917887,
+    "data": {
+      "articles": []
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"KTB.BK\",\"pageSize\":6}",
+    "ts": 1768358918112,
+    "data": {
+      "status": "ok",
+      "totalResults": 0,
+      "articles": []
+    }
+  }
+]

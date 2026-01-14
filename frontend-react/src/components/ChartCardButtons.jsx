@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 import { Link } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
@@ -49,7 +50,7 @@ export default function ChartCardButtons({
         </span>
         {/* Text label: only show when loading or already followed (keep icon-only for the default follow state) */}
         {(isLoadingFollow || followed) && (
-          <span className="chart-btn-label">{isLoadingFollow ? '...' : (followed ? (followHoverLocal ? 'Unfollow' : 'Following') : 'Follow')}</span>
+          <span className="chart-btn-label">{isLoadingFollow ? '...' : (followed ? (followHoverLocal ? '' : '') : 'Follow')}</span>
         )}
       </button>
 

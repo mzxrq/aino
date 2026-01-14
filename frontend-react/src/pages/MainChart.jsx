@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
-import TimezoneSelect from '../components/TimezoneSelect';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -17,7 +17,6 @@ import { DateTime } from 'luxon';
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-const PY_API = `${API_URL}/py`;
 
 // Currency mapping by market
 const MARKET_CURRENCIES = {
@@ -31,10 +30,8 @@ const MARKET_CURRENCIES = {
   'HK': 'HK$',
 };
 
-// Common ticker extensions (to be removed from user input, handled by backend)
-const TICKER_EXTENSIONS = ['.BK', '.T', '.L', '.TO', '.HK', '.NS', '.BO', '.TW', '.KS'];
 
-// Helper: try Node gateway first, then fall back to Python 5000
+// Helper: try Python direct endpoint (5000). Node gateway not used here.
 async function fetchJsonWithFallback(path, init) {
   // path should start with '/'
   const fallback = `${PY_DIRECT}/py${path}`;
@@ -57,48 +54,60 @@ const PERIOD_PRESETS = [
   { label: 'Max', period: 'max', interval: '1wk' }
 ];
 
-function formatPresetLabel(p) {
+// User-friendly display names for yfinance interval values (will be localized via helper)
+const INTERVAL_DISPLAY_NAMES = {
+  '1m': '1m',
+  '2m': '2m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '1d': '1d',
+  '1wk': '1wk',
+  '1mo': '1mo'
+};
+
+function getIntervalDisplayName(interval, i18n) {
+  // Maps will be handled in component via localization
+  if (!i18n) return interval || '';
+  const localizedMap = {
+    '1m': i18n._('1 Min'),
+    '2m': i18n._('2 Min'),
+    '5m': i18n._('5 Min'),
+    '15m': i18n._('15 Min'),
+    '30m': i18n._('30 Min'),
+    '1h': i18n._('1 Hour'),
+    '1d': i18n._('1 Day'),
+    '1wk': i18n._('1 Week'),
+    '1mo': i18n._('1 Month')
+  };
+  return localizedMap[interval] || interval.toUpperCase();
+}
+
+function formatPresetLabel(p, i18n) {
   if (!p) return '';
+  if (!i18n) return (p.label || '').split(' ')[0] || p.label;
   const per = (p.period || '').toLowerCase();
   const itv = (p.interval || '').toLowerCase();
-  if (per === '1d') return '1D';
-  if (per === '5d') return '5D';
-  if (per === '1wk') return '1W';
-  if (per === '1mo') {
-    if (itv === '30m') return '1M(30)';
-    if (itv === '1d') return '1M(1)';
-    return '1M';
-  }
-  if (per === '3mo') return '3M';
-  if (per === '6mo') return '6M';
-  if (per === '1y') return '1Y';
-  if (per === '2y') return '2Y';
-  if (per === '5y') return '5Y';
-  if (per === 'max') return 'Max';
-  return (p.label || '').split(' ')[0] || p.label;
+  // Labels will be handled via localization in component
+  const labelMap = {
+    '1d': i18n._('Intraday'),
+    '5d': i18n._('5 Days'),
+    '1wk': i18n._('1 Week'),
+    '1mo_30m': i18n._('1 Month (30m)'),
+    '1mo_1d': i18n._('1 Month (1d)'),
+    '1mo': i18n._('1 Month'),
+    '3mo': i18n._('3 Months'),
+    '6mo': i18n._('6 Months'),
+    '1y': i18n._('1 Year'),
+    '2y': i18n._('2 Years'),
+    '5y': i18n._('5 Years'),
+    'max': i18n._('Max')
+  };
+  const key = per === '1mo' ? `${per}_${itv}` : per;
+  return labelMap[key] || (p.label || '').split(' ')[0] || p.label;
 }
 
-function _formatTZLabel(iana) {
-  const found = TIMEZONES.find(t => t.name === iana);
-  return found ? found.label : iana;
-}
-
-function getTimezoneTimeString(iana) {
-  try {
-    const now = new Date();
-    const timeStr = now.toLocaleString('en-US', { timeZone: iana, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    const sign = offsetHours >= 0 ? '+' : '-';
-    const absHours = Math.abs(Math.floor(offsetHours));
-    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
-    return `${timeStr} UTC${sign}${absHours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
-  } catch (_e) {
-    return '';
-  }
-}
 // City-based timezone labels mapped to IANA identifiers
 const CITY_TZ_MAP = {
   UTC: 'UTC',
@@ -155,45 +164,6 @@ const CITY_TZ_MAP = {
   Nairobi: 'Africa/Nairobi'
 };
 
-// Get UTC offset for a city label (returns hours, may be fractional)
-function getTimezoneOffset(cityLabel) {
-  try {
-    const now = new Date();
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    return offsetHours;
-  } catch (_e) {
-    return 0;
-  }
-}
-
-// Format timezone with UTC offset: "(+09:00) Tokyo"
-function formatTimezoneLabel(cityLabel) {
-  try {
-    const now = new Date();
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: iana }));
-    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const offsetMs = tzDate - utcDate;
-    const offsetHours = offsetMs / (1000 * 60 * 60);
-    const absHours = Math.abs(Math.floor(offsetHours));
-    const mins = Math.abs(Math.floor((Math.abs(offsetHours) - absHours) * 60));
-    const signedHours = offsetHours >= 0 ? absHours : -absHours;
-    const offsetStr = `(${signedHours >= 0 ? '+' : ''}${signedHours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')})`;
-    return `${offsetStr} ${cityLabel}`;
-  } catch (_e) {
-    return cityLabel;
-  }
-}
-
-// Sort timezones by UTC offset
-function sortTimezonesByOffset(timezones) {
-  return [...timezones].sort((a, b) => getTimezoneOffset(a) - getTimezoneOffset(b));
-}
-
 // Auto-detect user's timezone (returns city label present in CITY_TZ_MAP or 'UTC')
 function detectUserTimezone() {
   try {
@@ -213,16 +183,6 @@ function detectUserTimezone() {
   return 'UTC';
 }
 
-// Get current time string for a city label (wraps existing IANA helper)
-function _getTimezoneTimeStringCity(cityLabel) {
-  try {
-    const iana = CITY_TZ_MAP[cityLabel] || cityLabel;
-    return getTimezoneTimeString(iana);
-  } catch (_e) { return ''; }
-}
-
-// Build TIMEZONES array used by TimezoneSelect: array of objects { offset, label, name }
-const TIMEZONES = sortTimezonesByOffset(Object.keys(CITY_TZ_MAP)).map(name => ({ offset: getTimezoneOffset(name), label: formatTimezoneLabel(name), name: CITY_TZ_MAP[name] }));
 
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
@@ -252,40 +212,47 @@ function getCurrency(marketStr) {
   return MARKET_CURRENCIES[marketCode] || '$';
 }
 
-function cleanTickerInput(input) {
-  let cleaned = input.toUpperCase().trim();
-  for (const ext of TICKER_EXTENSIONS) {
-    if (cleaned.endsWith(ext)) {
-      cleaned = cleaned.slice(0, -ext.length);
-      break;
-    }
-  }
-  return cleaned;
-}
+// Removed cleanTickerInput/TICKER_EXTENSIONS (unused)
 
-// Market configurations with their extensions
-const MARKET_EXTENSIONS = [
-  { market: 'US', extensions: [''], label: 'US (NASDAQ/NYSE)' },
-  { market: 'Thailand', extensions: ['.BK'], label: 'Thailand (SET)' },
-  { market: 'Japan', extensions: ['.T'], label: 'Japan (TSE)' },
-  { market: 'UK', extensions: ['.L'], label: 'UK (LSE)' },
-  { market: 'Canada', extensions: ['.TO'], label: 'Canada (TSX)' },
-  { market: 'Hong Kong', extensions: ['.HK'], label: 'Hong Kong (HKEX)' },
-  { market: 'India', extensions: ['.NS', '.BO'], label: 'India (NSE/BSE)' },
-  { market: 'Taiwan', extensions: ['.TW'], label: 'Taiwan (TWSE)' },
-  { market: 'South Korea', extensions: ['.KS'], label: 'South Korea (KRX)' }
-];
+// Removed unused MARKET_EXTENSIONS configuration
 
-export default function LargeChart() {
+// Hidden extraction container for i18n string extraction
+const _StringExtractor = () => (
+  <>
+    <Trans>1 Min</Trans>
+    <Trans>2 Min</Trans>
+    <Trans>5 Min</Trans>
+    <Trans>15 Min</Trans>
+    <Trans>30 Min</Trans>
+    <Trans>1 Hour</Trans>
+    <Trans>1 Day</Trans>
+    <Trans>1 Week</Trans>
+    <Trans>1 Month</Trans>
+    <Trans>Intraday</Trans>
+    <Trans>5 Days</Trans>
+    <Trans>1 Month (30m)</Trans>
+    <Trans>1 Month (1d)</Trans>
+    <Trans>3 Months</Trans>
+    <Trans>6 Months</Trans>
+    <Trans>1 Year</Trans>
+    <Trans>2 Years</Trans>
+    <Trans>5 Years</Trans>
+    <Trans>Max</Trans>
+    <Trans>Open</Trans>
+    <Trans>High</Trans>
+    <Trans>Low</Trans>
+    <Trans>Close</Trans>
+  </>
+);
+
+export default function MainChart() {
+  const { i18n } = useLingui();
   const { ticker: paramTicker } = useParams();
-  const _navigate = useNavigate();
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
   const displayTicker = getDisplayFromRaw(ticker);
   const [companyName, setCompanyName] = useState('');
   const [market, setMarket] = useState('US');
-  const [searchInput, setSearchInput] = useState((paramTicker || 'AAPL').toUpperCase());
-  const [_searchResults, setSearchResults] = useState([]);
-  const [_showSearchDropdown, _setShowSearchDropdown] = useState(false);
+  // removed unused searchInput/search dropdown states
   const [period, setPeriod] = useState('1d');
   const [interval, setInterval] = useState('1m');
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -298,18 +265,14 @@ export default function LargeChart() {
   const [error, setError] = useState(null);
   const [chartType, setChartType] = useState('line');
   const [timezone, setTimezone] = useState('UTC');
-  const [tzUserOverridden, setTzUserOverridden] = useState(false);
   const [financialTab, setFinancialTab] = useState('income');
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [lcNews, setLcNews] = useState([]);
-  const [lcNewsLoading, setLcNewsLoading] = useState(false);
-  const [lcNewsPageSize] = useState(3);
+  // removed unused More menu and lcNews states
   const [modalResults, setModalResults] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [finOverlayOpen, setFinOverlayOpen] = useState(false);
   const [finOverlayTitle, setFinOverlayTitle] = useState('');
   const [finOverlayData, setFinOverlayData] = useState(null);
-  const [showMarketModal, setShowMarketModal] = useState(false);
+  // removed market selection modal (unused and incomplete)
   const [showBB, setShowBB] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showBB !== undefined) ? p.showBB : false; } catch { return false; } });
   const [showVWAP, setShowVWAP] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showVWAP !== undefined) ? p.showVWAP : false; } catch { return false; } });
   const [showAnomaly, setShowAnomaly] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showAnomaly !== undefined) ? p.showAnomaly : true; } catch { return true; } });
@@ -334,12 +297,8 @@ export default function LargeChart() {
       localStorage.setItem('lc_prefs', JSON.stringify(p));
     } catch (_e) { /* ignore */ }
   }, [showBB, showVWAP, showAnomaly, showMA5, showMA25, showMA75, showEMA, showMACD, showVolume]);
-  const [_showSAR, _setShowSAR] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return (p.showSAR !== undefined) ? p.showSAR : false; } catch { return false; } });
-  const [_bbSigma, _setBbSigma] = useState(() => { try { const p = JSON.parse(localStorage.getItem('lc_prefs') || '{}'); return p.bbSigma || '2sigma'; } catch { return '2sigma'; } });
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const indicatorsBtnRef = useRef(null);
-  const [_marketCandidates, _setMarketCandidates] = useState([]);
-  const [_isSearching, _setIsSearching] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
   const [tickerSearchQuery, setTickerSearchQuery] = useState('');
 
@@ -434,14 +393,7 @@ export default function LargeChart() {
     { ticker: 'BTS.BK', name: 'Bangkok Mass Transit', market: 'TH' }
   ], []);
 
-  const _filteredStocks = useMemo(() => {
-    if (!tickerSearchQuery.trim()) return INTERESTING_STOCKS;
-    const q = tickerSearchQuery.toLowerCase();
-    return INTERESTING_STOCKS.filter(s => 
-      s.ticker.toLowerCase().includes(q) || 
-      s.name.toLowerCase().includes(q)
-    ).slice(0, 20);
-  }, [tickerSearchQuery, INTERESTING_STOCKS]);
+  // removed unused filteredStocks memo
 
   // Modal server-side search (debounced)
   useEffect(() => {
@@ -514,7 +466,6 @@ export default function LargeChart() {
   useEffect(() => {
     if (!paramTicker) return;
     setTicker(paramTicker.toUpperCase());
-    setSearchInput(cleanTickerInput(paramTicker));
   }, [paramTicker]);
 
   // Map market code to default timezone city label
@@ -536,15 +487,14 @@ export default function LargeChart() {
 
   // Auto-set timezone when market changes unless user has overridden
   useEffect(() => {
-    if (!tzUserOverridden && market) {
+    if (market) {
       const tz = marketToTimezone(market);
       setTimezone(tz);
     }
-  }, [market, tzUserOverridden]);
+  }, [market]);
 
   // On mount, if user hasn't set timezone, prefer browser's timezone (IANA)
   useEffect(() => {
-    if (tzUserOverridden) return;
     try {
       const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (resolved) {
@@ -560,28 +510,9 @@ export default function LargeChart() {
       const iana = CITY_TZ_MAP[city] || city;
       setTimezone(iana);
     } catch (e) {}
-  }, [tzUserOverridden]);
+  }, []);
 
-  // Search for tickers by name or symbol
-  useEffect(() => {
-    if (!searchInput || searchInput.length === 0) {
-      setSearchResults([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(searchInput)}`);
-        if (!cancelled) setSearchResults(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if (!cancelled) setSearchResults([]);
-      }
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchInput]);
+  // removed unused searchInput effect
 
   // Fetch company metadata when ticker changes
   useEffect(() => {
@@ -619,7 +550,7 @@ export default function LargeChart() {
           if (finalPayload.market) setMarket(finalPayload.market);
         }
       } catch (e) {
-        if (!cancelled) setError('Unable to load chart data');
+        if (!cancelled) setError(<Trans>Unable to load chart data</Trans>);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -852,21 +783,12 @@ export default function LargeChart() {
       return result;
     };
 
-    // Anomaly reason palette (used for scatter styling)
-    const reasonPriority = ['Price Spike', 'Vol+Price', 'VEI Break', 'High Vol', 'Price Warning'];
-    const colorMap = { 'Price Spike': '#e74c3c', 'Vol+Price': '#c0392b', 'VEI Break': '#d35400', 'High Vol': '#f39c12', 'Price Warning': '#7f8c8d' };
-
     const toCategoryValues = (arr) => categories.map((_, i) => {
       const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
       return (v !== null) ? v : '-';
     });
-    const toIndexValuePairs = (arr) => categories.map((_, i) => {
-      const v = (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : null;
-      return (v !== null) ? [i, v] : [i, '-'];
-    });
 
     // Calculate dynamic grid coordinates based on visible charts
-    const indicatorsShown = [showEMA, showMACD, showVolume].filter(Boolean).length;
     let volumeRow = 5;
     let macdRow = 4;
     let emaRow = 3;
@@ -952,10 +874,15 @@ export default function LargeChart() {
         // Special handling for candlestick chart
         if (p.seriesType === 'candlestick' && Array.isArray(p.value) && p.value.length >= 4) {
           const [, open, close, low, high] = p.value;
-          html += `<br/><span style="color:${p.color}">Open: ${open?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">High: ${high?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">Low: ${low?.toFixed(2)}</span>`;
-          html += `<br/><span style="color:${p.color}">Close: ${close?.toFixed(2)}</span>`;
+          // Get translated labels based on current language
+          const openLabel = i18n._('Open');
+          const highLabel = i18n._('High');
+          const lowLabel = i18n._('Low');
+          const closeLabel = i18n._('Close');
+          html += `<br/><span style="color:${p.color}">${openLabel}: ${open?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${highLabel}: ${high?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${lowLabel}: ${low?.toFixed(2)}</span>`;
+          html += `<br/><span style="color:${p.color}">${closeLabel}: ${close?.toFixed(2)}</span>`;
         } else {
           let raw = null;
           if (p && p.data && p.data.real !== undefined) {
@@ -1070,14 +997,83 @@ export default function LargeChart() {
       });
     } else {
       // single series flow (existing payload arrays)
-      if (chartType === 'candlestick' && open.length && high.length && low.length && close.length) {
-        const ohlc = categories.map((_, i) => {
-          const o = open[i], h = high[i], lo = low[i], c = close[i];
-          return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
+      // Build the base mark config for all chart types
+      const baseMarkPoint = { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', offset: [0, 12], formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', offset: [0, -12], formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', offset: [0, 12], color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', offset: [0, -12], color: colorGreen, formatter: '{b}' } } ] };
+      const baseMarkLine = { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } };
+
+      if ((chartType === 'candlestick' || chartType === 'heikin_ashi' || chartType === 'ohlc') && open.length && high.length && low.length && close.length) {
+        let ohlc;
+        if (chartType === 'heikin_ashi') {
+          // Calculate Heikin Ashi OHLC values
+          const haOpen = []; const haClose = []; const haHigh = []; const haLow = [];
+          let prevHaOpen = null, prevHaClose = null;
+          for (let i = 0; i < categories.length; i++) {
+            const o = open[i], h = high[i], lo = low[i], c = close[i];
+            if (o === undefined || h === undefined || lo === undefined || c === undefined) continue;
+            const currentHaClose = (o + h + lo + c) / 4;
+            const currentHaOpen = (prevHaOpen !== null && prevHaClose !== null) ? (prevHaOpen + prevHaClose) / 2 : (o + c) / 2;
+            const currentHaHigh = Math.max(h, currentHaOpen, currentHaClose);
+            const currentHaLow = Math.min(lo, currentHaOpen, currentHaClose);
+            haOpen.push(currentHaOpen); haClose.push(currentHaClose); haHigh.push(currentHaHigh); haLow.push(currentHaLow);
+            prevHaOpen = currentHaOpen; prevHaClose = currentHaClose;
+          }
+          ohlc = categories.map((_, i) => {
+            return (haOpen[i] !== undefined && haHigh[i] !== undefined && haLow[i] !== undefined && haClose[i] !== undefined) ? [haOpen[i], haClose[i], haLow[i], haHigh[i]] : ['-','-','-','-'];
+          });
+        } else {
+          // Regular candlestick or OHLC: use raw OHLC data
+          ohlc = categories.map((_, i) => {
+            const o = open[i], h = high[i], lo = low[i], c = close[i];
+            return (o !== undefined && h !== undefined && lo !== undefined && c !== undefined) ? [o, c, lo, h] : ['-','-','-','-'];
+          });
+        }
+        const seriesName = chartType === 'heikin_ashi' ? 'Heikin Ashi' : (chartType === 'ohlc' ? 'OHLC' : 'Price');
+        option.series.push({ name: seriesName, type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: baseMarkPoint, markLine: baseMarkLine });
+      } else if (chartType === 'bar' && close.length) {
+        // Bar chart: show as vertical bars
+        option.series.push({ 
+          name: 'Price', 
+          type: 'bar', 
+          data: categories.map((_, idx) => {
+            let color = colorGray;
+            if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? colorRed : colorGreen;
+            return { value: [idx, close[idx]], itemStyle: { color } };
+          }),
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10, 
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
         });
-        option.series.push({ name: 'Price', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
+      } else if (chartType === 'area' && close.length) {
+        // Area chart: filled under the line
+        option.series.push({ 
+          name: 'Price', 
+          type: 'line', 
+          data: toCategoryValues(close), 
+          showSymbol: false, 
+          smooth: false, 
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10,
+          areaStyle: { color: 'rgba(47, 223, 145, 0.2)' },
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
+        });
       } else {
-        option.series.push({ name: 'Close', type: 'line', data: toCategoryValues(close), showSymbol: false, smooth: false, xAxisIndex: 0, yAxisIndex: 0, zlevel: 10, markPoint: { symbolSize: 0, symbol: 'circle', data: [ { relativeTo: 'coordinate', x: 0, y: 0, name: 'max', type: 'max', label: { align: 'left', verticalAlign: 'top', formatter: priceFormatter(lastClose + maxAbs), color: getPriceColor(lastClose + maxAbs) } }, { relativeTo: 'coordinate', x: 0, y: '100%', name: 'min', type: 'min', label: { align: 'left', verticalAlign: 'bottom', formatter: priceFormatter(lastClose - maxAbs), color: getPriceColor(lastClose - maxAbs) } }, { relativeTo: 'coordinate', x: '100%', y: 0, name: priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'top', color: colorRed, formatter: '{b}' } }, { relativeTo: 'coordinate', x: '100%', y: '100%', name: '-' + priceFormatter((maxAbs / lastClose) * 100) + '%', label: { align: 'right', verticalAlign: 'bottom', color: colorGreen, formatter: '{b}' } } ] }, markLine: { data: [ { name: 'Current Price', yAxis: lastClose, lineStyle: { color: colorGray, type: 'dashed', width: 1, opacity: 0.6 }, label: { position: 'end', formatter: priceFormatter(lastClose), color: colorGray } } ], symbol: 'none', tooltip: { show: false } } });
+        // Default: Line chart
+        option.series.push({ 
+          name: 'Close', 
+          type: 'line', 
+          data: toCategoryValues(close), 
+          showSymbol: false, 
+          smooth: false, 
+          xAxisIndex: 0, 
+          yAxisIndex: 0, 
+          zlevel: 10, 
+          markPoint: baseMarkPoint, 
+          markLine: baseMarkLine 
+        });
       }
 
       // moving averages on main chart
@@ -1105,18 +1101,18 @@ export default function LargeChart() {
     if (showAnomaly && anomalies && anomalies.length) {
       // Reason mapping - MUST MATCH backend train_service.py identify_reason()
       const REASON_MAP = {
-        'Volume Spike': { color: '#ff8c00', label: 'Volume Spike' },
-        'Volume Average (14d)': { color: '#ff9500', label: 'Volume Average (14d)' },
-        'Price Spike': { color: '#ff3b30', label: 'Price Spike' },
-        'Flash Crash': { color: '#dc143c', label: 'Flash Crash' },
-        'Price Average (20d)': { color: '#f59e0b', label: 'Price Average (20d)' },
-        'Absorption': { color: '#0ea5a4', label: 'Absorption' },
-        'Bullish Crossover': { color: '#10b981', label: 'Bullish' },
-        'Bearish Crossunder': { color: '#ef4444', label: 'Bearish' },
-        'Anomaly Detected': { color: '#6b7280', label: 'Anomaly' },
-        'System anomaly detected': { color: '#6b7280', label: 'System' },
-        'Rule-based': { color: '#8b5cf6', label: 'Rule' },
-        other: { color: '#9ca3af', label: 'Other' }
+        'Volume Spike': { color: '#ff8c00', label: <Trans>Volume Spike</Trans> },
+        'Volume Average (14d)': { color: '#ff9500', label: <Trans>Volume Average (14d)</Trans> },
+        'Price Spike': { color: '#ff3b30', label: <Trans>Price Spike</Trans> },
+        'Flash Crash': { color: '#dc143c', label: <Trans>Flash Crash</Trans> },
+        'Price Average (20d)': { color: '#f59e0b', label: <Trans>Price Average (20d)</Trans> },
+        'Absorption': { color: '#0ea5a4', label: <Trans>Absorption</Trans> },
+        'Bullish Crossover': { color: '#10b981', label: <Trans>Bullish</Trans> },
+        'Bearish Crossunder': { color: '#ef4444', label: <Trans>Bearish</Trans> },
+        'Anomaly Detected': { color: '#6b7280', label: <Trans>Anomaly</Trans> },
+        'System anomaly detected': { color: '#6b7280', label: <Trans>System</Trans> },
+        'Rule-based': { color: '#8b5cf6', label: <Trans>Rule</Trans> },
+        other: { color: '#9ca3af', label: <Trans>Other</Trans> }
       };
 
       const normalizeReasonType = (r) => {
@@ -1175,7 +1171,7 @@ export default function LargeChart() {
       });
 
       option.series.push({
-        name: 'Anomalies',
+        name: <Trans>Anomalies</Trans>,
         type: 'scatter',
         data: scatterData,
         xAxisIndex: 0,
@@ -1188,7 +1184,7 @@ export default function LargeChart() {
 
     // VWAP overlay on main price chart
     if (showVWAP && vwapArr.length) {
-      option.series.push({ name: 'VWAP', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, data: toCategoryValues(vwapArr.map(v => v[1])), lineStyle: { color: '#FFC458', width: 1 } });
+      option.series.push({ name: <Trans>VWAP</Trans>, type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, zlevel: 5, data: toCategoryValues(vwapArr.map(v => v[1])), lineStyle: { color: '#FFC458', width: 1 } });
     }
 
     // Volume series in grid 1 (always show) with soft broken-axis compression
@@ -1201,7 +1197,7 @@ export default function LargeChart() {
       } : undefined;
 
       option.series.push({
-        name: 'Volume', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+        name: <Trans>Volume</Trans>, type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
         data: categories.map((_, idx) => {
           let color = colorGray;
           if (idx > 0 && close[idx] !== undefined && close[idx-1] !== undefined) color = close[idx] > close[idx-1] ? colorRed : colorGreen;
@@ -1234,12 +1230,12 @@ export default function LargeChart() {
         return [idx, it[1]];
       }).filter(Boolean);
 
-      option.series.push({ name: 'MACD', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macdHistCat, barWidth: '70%' });
+      option.series.push({ name: <Trans>MACD</Trans>, type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macdHistCat, barWidth: '70%' });
       if (macdLineCat.length) {
-        option.series.push({ name: 'DIF', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: macdLineCat, lineStyle: { color: '#FFC458', width: 1 } });
+        option.series.push({ name: <Trans>DIF</Trans>, type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: macdLineCat, lineStyle: { color: '#FFC458', width: 1 } });
       }
       if (signalLineCat.length) {
-        option.series.push({ name: 'DEA', type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: signalLineCat, lineStyle: { color: '#333', width: 1 } });
+        option.series.push({ name: <Trans>DEA</Trans>, type: 'line', xAxisIndex: 2, yAxisIndex: macdLineAxisIndex, showSymbol: false, data: signalLineCat, lineStyle: { color: '#333', width: 1 } });
       }
     }
 
@@ -1353,7 +1349,7 @@ export default function LargeChart() {
   }, [financials.news, ticker]);
 
   // prefer lcNews (cached top news), otherwise mapped provider news limited to 2 items
-  const news = (lcNews && lcNews.length) ? lcNews : (mappedProviderNews.length ? mappedProviderNews.slice(0, 2) : []);
+  const news = mappedProviderNews.length ? mappedProviderNews.slice(0, 2) : [];
 
   // Format news time: prefer displayTime (but if it's an ISO timestamp, present as local string)
   function formatNewsTime(item) {
@@ -1436,7 +1432,7 @@ export default function LargeChart() {
               </div>
               <div className="lc-status">
                 <span className={`lc-dot ${isMarketOpen ? 'open' : 'closed'}`} />
-                <span>{isMarketOpen ? 'OPEN' : 'CLOSED'}</span>
+                <span>{isMarketOpen ? <Trans>OPEN</Trans> : <Trans>CLOSED</Trans>}</span>
               </div>
             </div>
             <div className="lc-price-row">
@@ -1457,20 +1453,20 @@ export default function LargeChart() {
               title={isLoadingFollow ? 'Updating...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
               disabled={isLoadingFollow}
             >
-              {isLoadingFollow ? '...' : (followed ? (followHover ? 'Unfollow' : 'Following') : 'Follow')}
+              {isLoadingFollow ? '...' : (followed ? (followHover ? <Trans>Unfollow</Trans> : <Trans>Following</Trans>) : <Trans>Follow</Trans>)}
             </button>
           </div>
 
           <div className="lc-card">
             <div className="lc-card-header">
-              <span>Financials</span>
+              <span><Trans>Financials</Trans></span>
               <button
                 type="button"
                 className="lc-btn-small"
                 onClick={() => { setFinOverlayTitle('Recent Financials'); setFinOverlayData(null); setFinOverlayOpen(true); }}
                 title="View recent financial data (2 periods)"
               >
-                More
+                <Trans>More</Trans>
               </button>
             </div>
             <div className="lc-financial-tabs">
@@ -1478,13 +1474,13 @@ export default function LargeChart() {
                 className={`lc-tab ${financialTab === 'income' ? 'active' : ''}`}
                 onClick={() => setFinancialTab('income')}
               >
-                Income
+                <Trans>Income</Trans>
               </button>
               <button
                 className={`lc-tab ${financialTab === 'balance' ? 'active' : ''}`}
                 onClick={() => setFinancialTab('balance')}
               >
-                Balance
+                <Trans>Balance</Trans>
               </button>
             </div>
             <div className="lc-financials-content">
@@ -1504,8 +1500,8 @@ export default function LargeChart() {
           {/* News Card */}
           <div className="lc-card">
             <div className="lc-card-header">
-              <span>News</span>
-              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}>More</Link>
+              <span><Trans>News</Trans></span>
+              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}><Trans>More</Trans></Link>
               {/* <button
                 type="button"
                 className="lc-btn-small"
@@ -1514,7 +1510,7 @@ export default function LargeChart() {
               </button> */}
             </div>
             <div className="lc-news-list">
-              {news.length === 0 && <div className="lc-muted">No recent news</div>}
+              {news.length === 0 && <div className="lc-muted"><Trans>No recent news</Trans></div>}
               {news.map((n, idx) => (
                 <a
                   className="news-item"
@@ -1610,7 +1606,7 @@ export default function LargeChart() {
                     aria-haspopup="listbox"
                     aria-expanded={periodOpen}
                   >
-                    {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period)) || period}
+                    {formatPresetLabel(PERIOD_PRESETS.find(pp => pp.period === period), i18n) || period}
                   </button>
                   <button
                     ref={intervalBtnRef}
@@ -1620,7 +1616,7 @@ export default function LargeChart() {
                     aria-haspopup="listbox"
                     aria-expanded={intervalOpen}
                   >
-                    {interval}
+                    {getIntervalDisplayName(interval, i18n)}
                   </button>
 
                   {periodOpen && periodBtnRef.current && (
@@ -1644,7 +1640,7 @@ export default function LargeChart() {
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const enforced = enforceIntervalRules(p, interval); setPeriod(p); setInterval(enforced); setPeriodOpen(false); } }}
                         >
-                          {p}
+                          {formatPresetLabel({ period: p, interval }, i18n)}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1666,7 +1662,7 @@ export default function LargeChart() {
                           onClick={() => { setInterval(iv); setIntervalOpen(false); }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInterval(iv); setIntervalOpen(false); } }}
                         >
-                          {iv}
+                          {getIntervalDisplayName(iv, i18n)}
                         </div>
                       ))}
                     </PortalDropdown>
@@ -1703,9 +1699,9 @@ export default function LargeChart() {
 
                 <button
                   type="button"
-                  className={`lc-chart-type-btn ${chartType === 'ohlc' ? 'active' : ''}`}
-                  onClick={() => setChartType('ohlc')}
-                  title="OHLC Chart"
+                  className={`lc-chart-type-btn ${chartType === 'heikin_ashi' ? 'active' : ''}`}
+                  onClick={() => setChartType('heikin_ashi')}
+                  title="Heikin Ashi Chart"
                   aria-pressed={chartType === 'ohlc'}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -1757,49 +1753,49 @@ export default function LargeChart() {
                 title="Indicators"
                 style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
               >
-                Indicators
+                <Trans>Indicators</Trans>
               </button>
               <button onClick={() => window.location.href = `/company/${ticker}`} className="lc-btn ghost" title="Open company profile" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                Profile
+                <Trans>Profile</Trans>
               </button>
               {indicatorsOpen && indicatorsBtnRef.current && (
                 <PortalDropdown anchorRect={indicatorsBtnRef.current.getBoundingClientRect()} align="right" onClose={() => setIndicatorsOpen(false)} className="mode-dropdown indicators-dropdown">
                   <div role="listbox" aria-label="Indicators" onMouseLeave={() => setIndicatorsOpen(false)}>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showBB} onClick={() => setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBB(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showBB: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showBB ? 'checked' : ''}`} aria-hidden>{showBB && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Bollinger Bands
+                      <Trans>Bollinger Bands</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showVWAP} onClick={() => setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVWAP(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVWAP: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVWAP ? 'checked' : ''}`} aria-hidden>{showVWAP && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      VWAP
+                      <Trans>VWAP</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showAnomaly} onClick={() => setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAnomaly(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showAnomaly: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showAnomaly ? 'checked' : ''}`} aria-hidden>{showAnomaly && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Anomalies
+                      <Trans>Anomalies</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA5} onClick={() => setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA5(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA5: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA5 ? 'checked' : ''}`} aria-hidden>{showMA5 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (5)
+                      <Trans>MA (5)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA25} onClick={() => setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA25(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA25: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA25 ? 'checked' : ''}`} aria-hidden>{showMA25 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (25)
+                      <Trans>MA (25)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMA75} onClick={() => setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMA75(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMA75: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMA75 ? 'checked' : ''}`} aria-hidden>{showMA75 && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MA (75)
+                      <Trans>MA (75)</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showEMA} onClick={() => setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowEMA(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showEMA: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showEMA ? 'checked' : ''}`} aria-hidden>{showEMA && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      EMA
+                      <Trans>EMA</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showMACD} onClick={() => setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMACD(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showMACD: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showMACD ? 'checked' : ''}`} aria-hidden>{showMACD && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      MACD
+                      <Trans>MACD</Trans>
                     </div>
                     <div className="mode-item" role="option" tabIndex={0} aria-checked={showVolume} onClick={() => setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowVolume(v => { const nv = !v; localStorage.setItem('lc_prefs', JSON.stringify({ ...(JSON.parse(localStorage.getItem('lc_prefs')||'{}')), showVolume: nv })); return nv; }); } }}>
                       <span className={`indicator-dot ${showVolume ? 'checked' : ''}`} aria-hidden>{showVolume && (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>)}</span>
-                      Volume
+                      <Trans>Volume</Trans>
                     </div>
                   </div>
                 </PortalDropdown>
@@ -1817,18 +1813,45 @@ export default function LargeChart() {
         </main>
       </div>
 
-      <Dialog open={finOverlayOpen} onClose={() => setFinOverlayOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog 
+        open={finOverlayOpen} 
+        onClose={() => setFinOverlayOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogTitle-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#252525' : '#f5f5f5',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+            borderBottom: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiDialogContent-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+          '& .MuiDialogActions-root': {
+            backgroundColor: document.body.classList.contains('dark') ? '#1a1a1a' : '#ffffff',
+            borderTop: document.body.classList.contains('dark') ? '1px solid #333' : '1px solid #e0e0e0',
+          },
+          '& .MuiButton-root': {
+            color: document.body.classList.contains('dark') ? '#e0e0e0' : '#333',
+          },
+        }}
+      >
         <DialogTitle>{displayTicker} — {finOverlayTitle}</DialogTitle>
         <DialogContent>
           <div style={{ paddingTop: 8 }}>
             {finOverlayTitle === 'Recent Financials' ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Income Statement (most recent 2 periods)</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Income Statement (most recent 2 periods)</Trans></h5>
                   <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} transpose={true} />
                 </div>
                 <div>
-                  <h5 style={{ marginTop: 0 }}>Balance Sheet (most recent 2 periods)</h5>
+                  <h5 style={{ marginTop: 0 }}><Trans>Balance Sheet (most recent 2 periods)</Trans></h5>
                   <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} transpose={true} />
                 </div>
               </div>
@@ -1838,48 +1861,12 @@ export default function LargeChart() {
           </div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFinOverlayOpen(false)}>Close</Button>
-          <Button component={Link} to={`/company/${encodeURIComponent(ticker)}`} onClick={() => setFinOverlayOpen(false)}>Open Company Profile</Button>
+          <Button onClick={() => setFinOverlayOpen(false)}><Trans>Close</Trans></Button>
+          <Button component={Link} to={`/company/${encodeURIComponent(ticker)}`} onClick={() => setFinOverlayOpen(false)}><Trans>Open Company Profile</Trans></Button>
         </DialogActions>
       </Dialog>
 
-      {/* Market Selection Modal */}
-      {showMarketModal && marketCandidates.length > 0 && (
-        <div className="lc-modal-overlay" onClick={() => setShowMarketModal(false)}>
-          <div className="lc-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-modal-header">
-              <h2>Multiple Markets Found</h2>
-              <button 
-                className="lc-modal-close" 
-                onClick={() => setShowMarketModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lc-modal-body">
-              <p className="lc-modal-subtitle">We found "{cleanTickerInput(marketCandidates[0].ticker)}" in multiple markets. Which one would you like to view?</p>
-              <div className="lc-market-candidates">
-                {marketCandidates.map((candidate, idx) => (
-                  <button
-                    key={idx}
-                    className="lc-market-option"
-                    onClick={() => {
-                      setTicker(candidate.ticker);
-                      setCompanyName(candidate.name);
-                      setMarket(candidate.marketCode);
-                      setShowMarketModal(false);
-                    }}
-                  >
-                    <div className="lc-market-option-label">{candidate.market}</div>
-                    <div className="lc-market-option-name">{candidate.name}</div>
-                    <div className="lc-market-option-ticker">{candidate.ticker}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Market Selection Modal removed: unused feature */}
 
       {/* Ticker Search Modal */}
       {showTickerSearchModal && (

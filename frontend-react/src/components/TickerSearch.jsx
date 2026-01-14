@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { Trans } from '@lingui/react/macro';
 import '../css/TickerSearch.css';
 
 /**
