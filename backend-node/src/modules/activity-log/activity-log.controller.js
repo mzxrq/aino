@@ -122,9 +122,22 @@ const deleteAllLogs = async (req, res) => {
   }
 };
 
+// Dev helper to create a test log; returns the created log JSON.
+const createTestLog = async (req, res) => {
+  try {
+    const body = req.body && Object.keys(req.body).length ? req.body : { actionType: 'test', collectionName: 'dev', meta: { fields: [] } };
+    const log = await LogsService.createLog({ body, userId: 'dev', userName: 'dev', role: 'admin' });
+    return res.status(201).json({ success: true, data: log });
+  } catch (err) {
+    console.error('Create Test Log Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to create test log.' });
+  }
+};
+
 module.exports = {
   createLog,
   getAllLogs,
   deleteLog,
   deleteAllLogs,
+  createTestLog,
 };

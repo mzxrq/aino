@@ -13,6 +13,9 @@ from config.monitored_stocks import get_stocks_by_market, get_all_stocks, get_ma
 load_dotenv()
 
 scheduler_stop_event = threading.Event()
+# Global toggle used by the app to enable/disable the scheduler loop
+# Default to True so scheduler runs after startup unless explicitly disabled
+scheduler_enabled = True
 
 DEFAULT_MARKET_TZ = {
     "US": os.getenv("MARKET_TZ_US", "America/New_York"),
@@ -241,18 +244,90 @@ def _run_user_summaries_minute():
             logger.exception(f"Error processing user for summaries: {e}")
 
 
+def register_with_apscheduler(sched):
+    """Register scheduler jobs with an APScheduler BackgroundScheduler instance.
+
+    This allows the app to use the centralized APScheduler (configured in
+    `api.cron`) instead of the bespoke thread loop. The jobs are added with
+    deterministic IDs so they can be paused/resumed or replaced later.
+    """
+    if sched is None:
+        logger.info("APScheduler instance not available; nothing to register")
+        return
+
+    try:
+        # Register a per-minute job to run user summaries
+        sched.add_job(
+            _run_user_summaries_minute,
+            trigger='interval',
+            minutes=1,
+            id='user_summaries_minute',
+            replace_existing=True
+        )
+
+        # Register a 5-minute market runner that will evaluate open markets
+        sched.add_job(
+            combined_market_runner,
+            trigger='interval',
+            minutes=5,
+            id='market_runner_5min',
+            replace_existing=True
+        )
+
+        logger.info('Registered APScheduler jobs: user_summaries_minute, market_runner_5min')
+    except Exception as e:
+        logger.exception(f'Failed registering APScheduler jobs: {e}')
+
+
+def pause_registered_jobs(sched):
+    """Remove the registered APScheduler jobs (if present).
+
+    Removing is used to fully disable market scheduler behavior so jobs
+    will not run until explicitly re-registered (e.g., on resume or start).
+    """
+    if sched is None:
+        logger.debug('pause_registered_jobs called but scheduler instance is None')
+        return
+
+    for jid in ('user_summaries_minute', 'market_runner_5min'):
+        try:
+            if sched.get_job(jid):
+                sched.remove_job(jid)
+                logger.info(f'Removed APScheduler job: {jid}')
+        except Exception:
+            logger.exception(f'Failed removing APScheduler job {jid}')
+
+
+def resume_registered_jobs(sched):
+    """Ensure the periodic jobs are registered with the given scheduler.
+
+    This will add the per-minute and 5-minute jobs if they are missing.
+    """
+    if sched is None:
+        logger.debug('resume_registered_jobs called but scheduler instance is None')
+        return
+
+    try:
+        register_with_apscheduler(sched)
+    except Exception:
+        logger.exception('Failed to resume/register APScheduler jobs')
+
+
 def scheduler_loop():
     logger.info("Scheduler started")
     try:
         tick = 0
         while not scheduler_stop_event.is_set():
             try:
-                # Run per-minute user summary checks
-                _run_user_summaries_minute()
+                if scheduler_enabled:
+                    # Run per-minute user summary checks
+                    _run_user_summaries_minute()
 
-                # Run market runner every 5 minutes
-                if tick % 5 == 0:
-                    combined_market_runner()
+                    # Run market runner every 5 minutes
+                    if tick % 5 == 0:
+                        combined_market_runner()
+                else:
+                    logger.info("[scheduler] disabled - skipping run")
 
                 tick += 1
             except Exception as e:

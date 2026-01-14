@@ -170,6 +170,21 @@ router.post('/bulk', async (req, res) => {
         results[upperTicker] = null;
       }
     }
+    // Persist lightweight stats to DB for fast server-side sorting
+    try {
+      const priceStatsService = require('../price_stats/priceStats.service');
+      const statsToUpsert = {};
+      for (const [k, v] of Object.entries(results)) {
+        if (v && typeof v === 'object') {
+          statsToUpsert[k] = { currentPrice: v.currentPrice, percentChange: v.percentChange, updatedAt: new Date() };
+        }
+      }
+      if (Object.keys(statsToUpsert).length > 0) {
+        priceStatsService.upsertStats(statsToUpsert).catch(() => null);
+      }
+    } catch (e) {
+      // ignore; non-critical
+    }
 
     res.json({
       success: true,

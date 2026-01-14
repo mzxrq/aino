@@ -138,7 +138,9 @@ def parse_jp_market():
                 "primaryExchange": "TSE",
                 "sectorGroup": sector.strip(),
                 "assetType": asset_type,
-                "status": "active"
+                "status": "active",
+                "createdAt": datetime.utcnow().isoformat(),
+                "updatedAt": datetime.utcnow().isoformat()
             })
         
         print(f"✅ Parsed {len(results)} JP items ({stock_count} stocks + {etf_count} ETFs)")
@@ -219,7 +221,9 @@ def parse_th_market():
                 "primaryExchange": "SET",
                 "sectorGroup": sector.strip(),
                 "assetType": asset_type,
-                "status": "active"
+                "status": "active",
+                "createdAt": datetime.utcnow().isoformat(),
+                "updatedAt": datetime.utcnow().isoformat()
             })
         
         print(f"✅ Parsed {len(results)} TH stocks")
@@ -258,7 +262,9 @@ def parse_th_etfs():
             "primaryExchange": "SET",
             "sectorGroup": "ETF",
             "assetType": "etf",
-            "status": "active"
+            "status": "active",
+            "createdAt": datetime.utcnow().isoformat(),
+            "updatedAt": datetime.utcnow().isoformat()
         })
     
     print(f"✅ Parsed {len(results)} TH ETFs")
@@ -316,7 +322,9 @@ def parse_us_market():
                     "primaryExchange": exchange_name,
                     "sectorGroup": sector_group.strip(),
                     "assetType": asset_type,
-                    "status": "active"
+                    "status": "active",
+                    "createdAt": datetime.utcnow().isoformat(),
+                    "updatedAt": datetime.utcnow().isoformat()
                 })
             
             print(f"✅ {len(data)} entries")
@@ -366,7 +374,9 @@ def parse_us_etfs():
                 "primaryExchange": "ETF",
                 "sectorGroup": sector.strip() if sector else "ETF",
                 "assetType": asset_type,
-                "status": "active"
+                "status": "active",
+                "createdAt": datetime.utcnow().isoformat(),
+                "updatedAt": datetime.utcnow().isoformat()
             })
         
         print(f"✅ {len(results)} ETFs")

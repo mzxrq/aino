@@ -19,6 +19,7 @@ function MarketListSchema(data = {}) {
         status: data.status ? data.status.toString() : (data.state || 'inactive'),
         sector: data.sector ? data.sector.toString() : '',
         industry: data.industry ? data.industry.toString() : '',
+        assetType: data.assetType ? data.assetType.toString() : (data.type ? data.type.toString() : ''),
         createdAt: data.createdAt ? new Date(data.createdAt) : (data.addedAt ? new Date(data.addedAt) : new Date()),
         updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
     };
@@ -60,6 +61,7 @@ async function getAll(options = {}) {
         try {
             db.collection(COLLECTION_NAME).createIndex({ ticker: 1 });
             db.collection(COLLECTION_NAME).createIndex({ companyName: 1 });
+            db.collection(COLLECTION_NAME).createIndex({ assetType: 1 });
         } catch (e) {
             // ignore index creation errors in limited environments
         }
@@ -71,28 +73,55 @@ async function getAll(options = {}) {
         // If query looks like a ticker or short prefix (alphanumeric and dot, <= 8 chars),
         // prefer an anchored prefix regex which can use the ticker index.
         const isTickerLike = /^[A-Za-z0-9\.\-]{1,8}$/.test(q);
-        if (isTickerLike) {
+        // Determine if query looks like a ticker symbol. However, short alphabetic queries
+        // such as 'ETF' are often asset types rather than tickers. Recognize common
+        // asset-type keywords and fall back to broad search when matched.
+        const isAssetKeyword = /^(etf|equity|crypto|bond|fund|etn|reit|option|future)$/i.test(q);
+        if (isTickerLike && !isAssetKeyword) {
             filter.ticker = { $regex: `^${escapeRegex(q)}`, $options: 'i' };
         } else {
-            // fallback to broader OR search across ticker and companyName
+            // fallback to broader OR search across ticker, companyName and assetType
             filter.$or = [
                 { ticker: { $regex: escapeRegex(q), $options: 'i' } },
                 { companyName: { $regex: escapeRegex(q), $options: 'i' } },
+                { assetType: { $regex: escapeRegex(q), $options: 'i' } },
             ];
         }
     }
 
     // Only project necessary fields to reduce payload size and network transfer
-    // Exclude large/unnecessary metadata such as createdAt/updatedAt to minimize response size
-    const projection = { ticker: 1, companyName: 1, name: 1, primaryExchange: 1, country: 1, sectorGroup: 1 };
+    // Include status, assetType and timestamps so admin UI can display and sort/search them
+    const projection = { ticker: 1, companyName: 1, name: 1, primaryExchange: 1, country: 1, sectorGroup: 1, status: 1, assetType: 1, createdAt: 1, updatedAt: 1 };
     const cursor = db.collection(COLLECTION_NAME).find(filter, { projection });
 
-    // apply sort if provided
+    // apply sort if provided — map common UI keys to DB fields to be robust
     if (sortBy) {
+        const allowedSorts = {
+            ticker: 'ticker',
+            symbol: 'ticker',
+            displayTicker: 'ticker',
+            alphabetical: 'companyName',
+            alphabetic: 'companyName',
+            company: 'companyName',
+            companyName: 'companyName',
+            name: 'companyName',
+            exchange: 'primaryExchange',
+            primaryExchange: 'primaryExchange',
+            market: 'market',
+            country: 'country',
+            status: 'status',
+            sector: 'sectorGroup',
+            assetType: 'assetType',
+            type: 'assetType',
+        };
+
+        const key = String(sortBy).trim();
+        const mapped = allowedSorts[key] || allowedSorts[key.toLowerCase()] || null;
+        const fieldToSort = mapped || key; // fall back to provided key if not in whitelist
+
         const order = (String(sortOrder || 'asc').toLowerCase() === 'desc') ? -1 : 1;
-        // support sortBy on nested fields; use provided field name directly
         const sortObj = {};
-        sortObj[sortBy] = order;
+        sortObj[fieldToSort] = order;
         cursor.sort(sortObj);
     }
 
@@ -111,6 +140,10 @@ async function getAll(options = {}) {
         primaryExchange: d.primaryExchange,
         country: d.country,
         sectorGroup: d.sectorGroup,
+        status: d.status || 'inactive',
+        assetType: d.assetType || d.type || '',
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
     }));
     return { items, total };
 }

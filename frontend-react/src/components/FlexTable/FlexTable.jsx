@@ -40,7 +40,8 @@ export default function FlexTable({
 
   const lastSignal = useRef(refreshSignal);
 
-  const { user } = useContext(AuthContext) || {};
+  const auth = useContext(AuthContext) || {};
+  const { user, token } = auth;
   const tz = (user && user.timeZone) || undefined;
 
   const formatCellValue = (v) => {
@@ -181,11 +182,24 @@ export default function FlexTable({
         if (sortDir) params.set('sortDir', sortDir);
       }
       const url = params.toString() ? `${fetchUrl}?${params.toString()}` : fetchUrl;
-      const res = await fetch(url);
+      const fetchOpts = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+      const res = await fetch(url, fetchOpts);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Fetch failed');
       // Support multiple server response shapes: { data: [...] }, { jobs: [...] }, { items: [...] }, or raw array
       let list = data.data || data.jobs || data.items || data.results || data || [];
+      // Support grouped activity logs response shape: { success: true, groups: [ { items: [...] } ] }
+      if (!Array.isArray(list) && data && Array.isArray(data.groups)) {
+        // flatten groups -> items
+        try {
+          list = data.groups.reduce((acc, g) => {
+            if (g && Array.isArray(g.items)) return acc.concat(g.items);
+            return acc;
+          }, []);
+        } catch (e) {
+          list = [];
+        }
+      }
       // apply optional transformRow to shape data for client-side filtering
       if (typeof transformRow === 'function' && Array.isArray(list)) {
         list = list.map((r) => transformRow(r) || r);

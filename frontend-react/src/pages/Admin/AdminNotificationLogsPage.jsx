@@ -19,10 +19,11 @@ export default function AdminNotificationLogsPage() {
     if (ts) {
       try { timeStr = formatToUserTZSlash(ts, tz); } catch { timeStr = String(ts); }
     }
+    const subject = (row && row.payload && (row.payload.subject || row.payload.title)) || row.subject || row.type || '-';
     return (
       <tr key={row._id || row.id}>
         <td className="col-date">{row._id || '-'}</td>
-        <td className="company">{(row && row.payload && row.payload.subject) || row.type || '-'}</td>
+        <td className="company">{subject}</td>
         <td className="col-date">{timeStr}</td>
       </tr>
     );

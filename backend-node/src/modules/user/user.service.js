@@ -205,7 +205,9 @@ const getProfile = async (userId) => {
           timeZone: user.timeZone,
           role: user.role,
           setPassword: user.password ? true : false,
-          hasLineid : user.lineid ? true : false
+          hasLineid : user.lineid ? true : false,
+          // support either DB field name: prefer `sentOption`, fall back to `sendOption`
+          sentOption : (user.sentOption !== undefined ? user.sentOption : (user.sendOption !== undefined ? user.sendOption : 'mail'))
         }};
     } else {
         // 1. Read users from file
@@ -233,13 +235,20 @@ const updateProfile = async (userId, updateData) => {
     const db = getDb();
 
     if (db) {
-        // 1. Update user by ID
-        await db
-            .collection(COLLECTION_NAME)
-            .updateOne(
-                { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
-                { $set: { ...updateData, updatedAt: new Date() } }
-            );
+    // Normalize sendOption -> sentOption so DB field is consistent
+    const toUpdate = { ...updateData };
+    if (toUpdate.sendOption !== undefined) {
+      toUpdate.sentOption = toUpdate.sendOption;
+      delete toUpdate.sendOption;
+    }
+
+    // 1. Update user by ID
+    await db
+      .collection(COLLECTION_NAME)
+      .updateOne(
+        { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
+        { $set: { ...toUpdate, updatedAt: new Date() } }
+      );
       // Return the updated user document so controllers can return the current user state
       return getUserById(userId);
     } else {

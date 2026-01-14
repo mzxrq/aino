@@ -16,7 +16,7 @@ const modalButtonStyles = {
 };
 
 export default function AdminMarketlistsPage() {
-  const [form, setForm] = useState({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '', status: 'inactive' });
+  const [form, setForm] = useState({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '', status: 'inactive', assetType: '' });
   const [editing, setEditing] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -40,7 +40,8 @@ export default function AdminMarketlistsPage() {
       companyName: item.companyName || '',
       primaryExchange: item.primaryExchange || '',
       sectorGroup: item.sectorGroup || '',
-      status: item.status || 'inactive'
+      status: item.status || 'inactive',
+      assetType: item.assetType || ''
     });
     setModalOpen(true);
     setTimeout(() => { const input = document.querySelector('.modal input[name="ticker"]'); if (input) input.focus(); }, 120);
@@ -54,7 +55,7 @@ export default function AdminMarketlistsPage() {
     if (!form.ticker || !form.ticker.trim()) { await Swal.fire({ icon: 'warning', title: 'Required', text: 'Ticker is required' }); return; }
     try {
       setLoading(true);
-      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive' };
+      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive', assetType: form.assetType || '' };
       const res = await fetch(`${API_BASE}/node/marketlists`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Create failed');
@@ -73,7 +74,7 @@ export default function AdminMarketlistsPage() {
     try {
       setLoading(true);
       const id = editing._id || editing.id;
-      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive' };
+      const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive', assetType: form.assetType || '' };
       const res = await fetch(`${API_BASE}/node/marketlists/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
@@ -120,6 +121,7 @@ export default function AdminMarketlistsPage() {
     <tr key={row._id || row.id} onClick={() => openRowActions(row)} style={{ cursor: 'pointer' }}>
       <td className="col-ticker">{row.ticker || '-'}</td>
       <td className="company">{row.companyName || '-'}</td>
+      <td className="col-asset">{row.assetType || '-'}</td>
       <td className="col-date">{row.primaryExchange || '-'}</td>
       <td className="col-date">{row.sectorGroup || '-'}</td>
       <td className="col-status">{row.country || '-'}</td>
@@ -159,6 +161,7 @@ export default function AdminMarketlistsPage() {
         columns={[
           { key: 'ticker', label: 'Ticker', sortable: true, width: '120px' },
           { key: 'companyName', label: 'Company', sortable: true, width: '240px' },
+          { key: 'assetType', label: 'Asset Type', sortable: true, width: '140px' },
           { key: 'primaryExchange', label: 'Primary Exchange', sortable: true, width: '160px' },
           { key: 'sectorGroup', label: 'Sector', sortable: true, width: '220px' },
           { key: 'country', label: 'Country', sortable: true, width: '120px' },
@@ -170,6 +173,7 @@ export default function AdminMarketlistsPage() {
         renderRow={renderRow}
         emptyText="No marketlists found."
         fetchUrl={`${API_BASE}/node/marketlists`}
+        searchFields={['ticker','companyName','assetType']}
         refreshSignal={refreshSignal}
         enablePagination={true}
         showHeader={true}
@@ -191,6 +195,7 @@ export default function AdminMarketlistsPage() {
               <option value="inactive">Inactive</option>
             </select>
           </label>
+          <label className="form-field"><span>Asset Type</span><input name="assetType" value={form.assetType} onChange={(e) => setForm((s) => ({ ...s, assetType: e.target.value }))} placeholder="Equity / ETF / Crypto" /></label>
         </div>
       </GenericModal>
 
