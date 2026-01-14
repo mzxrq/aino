@@ -101,7 +101,8 @@ const Profile = () => {
         name: user?.name || '',
         username: user?.username || '',
         email: user?.email || '',
-        timeZone: user?.timeZone || user?.timezone || user?.time_zone || ''
+        timeZone: user?.timeZone || user?.timezone || user?.time_zone || '',
+        sendOption: user?.sentOption || (user?.hasLineid ? 'both' : 'mail')
     });
     const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
@@ -357,6 +358,7 @@ const GeneralSection = ({ user, formData, _setFormData, editMode, setEditMode, s
                     <FormRow label={<Trans>Email</Trans>} name="email" type="email" disabled={!editMode} value={formData.email} onChange={handleInput} placeholder={(user?.loginMethod || '').toLowerCase() === 'line' ? 'Add your email to enable password login' : 'your.email@example.com'} />
 
                     {editMode ? (
+                        <>
                         <FormRow
                             label={<Trans>Timezone</Trans>}
                             name="timeZone"
@@ -366,10 +368,21 @@ const GeneralSection = ({ user, formData, _setFormData, editMode, setEditMode, s
                             onChange={handleInput}
                             options={TIMEZONES}
                         />
+                        <div className="form-group">
+                            <label>Send Option</label>
+                            <select className="form-input" name="sendOption" value={formData.sendOption || ''} onChange={handleInput}>
+                                <option value="mail">Email only</option>
+                                <option value="line" disabled={!(user?.hasLineid || user?.lineid)}>LINE only{!(user?.hasLineid || user?.lineid) ? ' (connect LINE to enable)' : ''}</option>
+                                <option value="both" disabled={!((user?.hasLineid || user?.lineid) && !!user?.email)}>{(user?.hasLineid || user?.lineid) && user?.email ? 'Both (Email + LINE)' : 'Both (requires Email + LINE)'}</option>
+                            </select>
+                        </div>
+                        </>
                     ) : (
                         <div className="form-group">
                             <label><Trans>Timezone</Trans></label>
                             <div className="form-input readonly">{user?.timeZone || user?.timezone || formData.timeZone || 'Not set'}</div>
+                            <label style={{ marginTop: 8 }}><Trans>Send Option</Trans></label>
+                            <div className="form-input readonly">{(user && (user.sentOption || formData.sendOption)) || (user?.hasLineid ? 'both' : 'mail')}</div>
                         </div>
                     )}
                     {editMode && <button type="submit" className="btn btn-primary btn-submit" disabled={loading.saving}><Trans>{loading.saving ? 'Saving…' : 'Save Changes'}</Trans></button>}
@@ -444,6 +457,7 @@ const NotificationsSection = () => {
     const [repeat, setRepeat] = useState('daily');
     const [customDays, setCustomDays] = useState([]);
     const [rangeDays, setRangeDays] = useState('');
+    
     const [statusMsg, setStatusMsg] = useState('');
     const [loadingCron, setLoadingCron] = useState(false);
     const [jobs, setJobs] = useState([]);
@@ -485,6 +499,8 @@ const NotificationsSection = () => {
                 job_id: jobId || `cron-${user.id}-${Date.now()}`,
                 cron_expression: cronExpression
             };
+            // include send option (mail | line | both) sourced from profile
+            payload.send_option = (formData && formData.sendOption) ? formData.sendOption : (user && (user.sentOption || (user.hasLineid ? 'both' : 'mail')));
             // include range_days when provided and valid
             const rd = parseInt(rangeDays, 10);
             if (!Number.isNaN(rd) && rd > 0) payload.range_days = rd;
@@ -530,6 +546,8 @@ const NotificationsSection = () => {
             setLoadingJobs(false);
         }
     };
+
+    // No-op: send option is stored in `formData.sendOption` and persisted via Profile update
 
     // Fetch jobs on mount or when user/token changes so existing jobs are shown immediately
     useEffect(() => {
@@ -613,6 +631,8 @@ const NotificationsSection = () => {
                             <input className="form-input" type="number" min={1} value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} placeholder="e.g. 7" />
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 6 }}>If set, this overrides default period and controls how many days of data are included in the summary.</div>
                         </div>
+
+                        {/* Send option moved to Profile Information section */}
 
                         {/* Cron preview intentionally hidden in schedule UI */}
 

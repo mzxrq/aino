@@ -62,6 +62,26 @@ export default function MarketListScreen() {
     fetchMarketData(1, false);
   }, [marketFilter, marketStatus]);
 
+  // Reload when sort changes: request server-sorted page when not searching,
+  // otherwise re-run the search to apply client-side sort/enrichment.
+  useEffect(() => {
+    const q = (search || '').trim();
+    if (isSearching) {
+      if (q.length > 0) {
+        // re-run search to refresh results and enrichment
+        fetchSearchResults(q);
+      } else {
+        // fallback to paged list
+        setIsSearching(false);
+        setPage(1);
+        fetchMarketData(1, false);
+      }
+    } else {
+      setPage(1);
+      fetchMarketData(1, false);
+    }
+  }, [sortBy]);
+
   // ---------------------------------------------------
   // Debounced search
   // ---------------------------------------------------
@@ -119,6 +139,9 @@ const resolveYfTicker = (ticker, country) => {
   if (country === 'JP') return `${ticker}.T`;
   return ticker;
 };
+
+  // Which sort keys should be performed server-side (map UI key -> DB field)
+  const serverSortable = { alphabetical: 'companyName', company: 'companyName', exchange: 'primaryExchange' };
 
 // Concurrency control helper: execute async tasks with max N parallel
 const executeWithConcurrency = async (tasks, maxConcurrent = 5) => {
@@ -311,7 +334,13 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
   try {
     const countryParam = marketFilter && marketFilter !== 'All' ? `&country=${encodeURIComponent(marketFilter)}` : '';
     const statusParam = marketStatus && marketStatus !== 'all' ? `&status=${encodeURIComponent(marketStatus)}` : '';
-    const res = await fetch(`${API_URL}/node/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}`);
+    // Ask server to sort for certain UI selections so pagination reflects global order
+    let serverSortParam = '';
+    if (serverSortable[sortBy]) {
+      const field = serverSortable[sortBy];
+      serverSortParam = `&sortBy=${encodeURIComponent(field)}&sortOrder=asc`;
+    }
+    const res = await fetch(`${API_URL}/node/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}${serverSortParam}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
@@ -690,8 +719,10 @@ const toggleFollow = async (ticker) => {
     return matchSearch && matchMarket;
   });
 
-  // Sorting
-  const sortedData = [...filteredData].sort((a, b) => {
+  // Sorting: skip client-side resort when server provided a global sort
+  const sortedData = serverSortable[sortBy]
+    ? [...filteredData]
+    : [...filteredData].sort((a, b) => {
     const aAnomalies = anomaliesMap[a.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
     const bAnomalies = anomaliesMap[b.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
     const aPriceData = pricesMap[a.ticker] || {};

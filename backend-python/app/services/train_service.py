@@ -991,7 +991,9 @@ def compute_rule_flags(df: pd.DataFrame) -> pd.DataFrame:
 
         # Detect the cross
         curr_bullish = df['MACD'] > df['Signal']
-        prev_bullish = curr_bullish.shift(1).fillna(curr_bullish)
+        # Fill the first-row NaN from the shifted series with the current
+        # value and ensure boolean dtype to avoid pandas downcasting warnings.
+        prev_bullish = curr_bullish.shift(1).fillna(curr_bullish).astype(bool)
 
         # These are our "Force" flags
         df['is_bullish_start'] = curr_bullish & (~prev_bullish)

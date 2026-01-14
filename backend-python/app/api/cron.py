@@ -10,6 +10,7 @@ from bson import ObjectId
 from core.config import MONGO_URI, db, logger
 from services.user_notifications import send_line_notification, send_email_notification
 from apscheduler.schedulers.base import STATE_RUNNING, STATE_STOPPED
+import scheduler as scheduler_mod
 
 router = APIRouter()
 
@@ -99,6 +100,8 @@ class ScheduleRequest(BaseModel):
     period: str = 'day'
     # optional: number of days to include in the summary window (overrides period when provided)
     range_days: int = None
+    # notification delivery option: 'mail', 'line', or 'both'
+    send_option: str = 'both'
     # job type: 'summary' (default) or 'test_email' to send a simple test email
     job_type: str = 'summary'
 
@@ -312,6 +315,36 @@ async def schedule_job(req: ScheduleRequest):
             user_oid = _safe_object_id(req.user_id)
             if db is not None and user_oid:
                 db.users.update_one({"_id": user_oid}, {"$addToSet": {"cronJobs": job_id}})
+                # Persist an effective send option on the user's profile based on
+                # the user's available channels. If the requested option isn't
+                # available (e.g. requested 'both' but no LINE connected), choose
+                # an available fallback so the job will actually deliver.
+                try:
+                    requested = (req.send_option or 'both').lower()
+                    # reload user document to inspect available contact methods
+                    u = db.users.find_one({"_id": user_oid}) if db is not None else None
+                    has_line = bool(u and u.get('lineid'))
+                    has_email = bool(u and u.get('email'))
+
+                    effective = requested
+                    if requested == 'both':
+                        if has_line and has_email:
+                            effective = 'both'
+                        elif has_line:
+                            effective = 'line'
+                        elif has_email:
+                            effective = 'mail'
+                        else:
+                            effective = 'mail'
+                    elif requested == 'line' and not has_line:
+                        effective = 'mail' if has_email else 'mail'
+                    elif requested == 'mail' and not has_email:
+                        effective = 'line' if has_line else 'mail'
+
+                    if effective in ('mail', 'line', 'both'):
+                        db.users.update_one({"_id": user_oid}, {"$set": {"sentOption": effective}})
+                except Exception:
+                    logger.exception('Failed to persist send_option to user document')
         except Exception:
             logger.exception("Failed to persist cron job id to user document")
 
@@ -389,6 +422,12 @@ async def start_scheduler():
         started, err = ensure_scheduler_started()
         if not started:
             raise Exception(err or 'Failed to start scheduler')
+        # Ensure jobs defined in `scheduler.py` are registered when cron is started
+        try:
+            scheduler_mod.register_with_apscheduler(scheduler)
+        except Exception:
+            logger.exception('Failed to register scheduler.py jobs on start')
+
         jobs = [{"id": j.id, "next_run_time": str(j.next_run_time)} for j in scheduler.get_jobs()]
         return {"message": "scheduler started", "running": True, "job_count": len(jobs), "jobs": jobs}
     except Exception as e:
@@ -410,6 +449,25 @@ async def stop_scheduler():
         return {"message": "scheduler stopped", "running": False}
     except Exception as e:
         logger.exception(f"Failed to stop scheduler: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cron/clear")
+async def clear_all_jobs():
+    """Remove all scheduled jobs from the APScheduler instance (and jobstore)."""
+    try:
+        started, err = ensure_scheduler_started()
+        if not started:
+            raise Exception(err or 'Scheduler could not be started')
+
+        # Remove all jobs from scheduler; if a persistent jobstore is used
+        # (MongoDBJobStore) the underlying collection will also be cleared
+        # when jobs are removed via the scheduler API.
+        scheduler.remove_all_jobs()
+        jobs = []
+        return {"message": "cleared jobs", "job_count": 0, "jobs": jobs}
+    except Exception as e:
+        logger.exception(f'Failed to clear jobs: {e}')
         raise HTTPException(status_code=500, detail=str(e))
 
 

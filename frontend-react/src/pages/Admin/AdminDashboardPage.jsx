@@ -55,13 +55,11 @@ export default function AdminDashboardPage() {
   const [chartHeight, setChartHeight] = useState(320);
   const summaryRef = useRef(null);
   const itemsRef = useRef({});
-  const [recentActivity, setRecentActivity] = useState([]);
   const { user } = useContext(AuthContext) || {};
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState("");
   const [modalTitle, setModalTitle] = useState("");
   const [cronRunning, setCronRunning] = useState(false);
-  const [marketSchedulerEnabled, setMarketSchedulerEnabled] = useState(false);
   const [ctlLoading, setCtlLoading] = useState(false);
 
   // adjust chart heights responsively based on viewport width (smaller)
@@ -103,18 +101,7 @@ export default function AdminDashboardPage() {
     } finally { setCtlLoading(false); }
   };
 
-  const toggleMarketScheduler = async (enable) => {
-    setCtlLoading(true);
-    try {
-      const res = await fetch(`${PY_BASE}/py/scheduler/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: !!enable }) });
-      if (!res.ok) throw new Error('Failed to toggle market scheduler');
-      const data = await res.json().catch(() => ({}));
-      setMarketSchedulerEnabled(Boolean(data.scheduler_enabled));
-    } catch (e) {
-      console.error(e);
-      alert(String(e));
-    } finally { setCtlLoading(false); }
-  };
+  // Market scheduler removed; toggle endpoint no longer available.
 
   const refreshCronStatus = async () => {
     try {
@@ -526,16 +513,7 @@ export default function AdminDashboardPage() {
       // ignore
     }
     fetchAll();
-    // fetch recent activity logs separately
-    (async function fetchLogs() {
-      try {
-        const res = await fetch(`${BASE}/node/logs`);
-        const json = await res.json();
-        if (json && json.success && Array.isArray(json.groups)) setRecentActivity(json.groups);
-      } catch (e) {
-        // ignore
-      }
-    })();
+    // recent activity removed from admin dashboard
   }, []);
 
   // Rebuild donut when counts update (i.e., after fetchAll) or when user switches mode
@@ -649,16 +627,11 @@ export default function AdminDashboardPage() {
       <button className="btn btn-small" disabled={ctlLoading} onClick={() => startCron()}>Start Cron</button>
       <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => stopCron()}>Stop Cron</button>
     </div>
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 8 }}>
-      <button className="btn btn-small" disabled={ctlLoading} onClick={() => toggleMarketScheduler(true)}>Enable Market Scheduler</button>
-      <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => toggleMarketScheduler(false)}>Disable Market Scheduler</button>
-    </div>
+    {/* Market scheduler controls removed */}
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <button className="btn btn-small" onClick={() => refreshCronStatus()} disabled={ctlLoading}>Refresh Status</button>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
         Cron: <strong style={{ color: cronRunning ? 'green' : '#666' }}>{cronRunning ? 'jobs' : 'none'}</strong>
-        {'  '}
-        Scheduler: <strong style={{ color: marketSchedulerEnabled ? 'green' : '#666' }}>{marketSchedulerEnabled ? 'enabled' : 'disabled'}</strong>
       </div>
     </div>
   </div>
@@ -863,115 +836,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
-      <div>
-        <h2 style={{ marginTop: 0 }}>Recent Activity (Node API usage)</h2>
-        <div style={{ marginTop: 4 }}>
-          {recentActivity && recentActivity.length > 0 ? (
-            (() => {
-              // Cap total visible items across all groups to 12
-              const MAX_ITEMS = 12;
-              let left = MAX_ITEMS;
-              const displayGroups = [];
-              for (const grp of recentActivity) {
-                if (left <= 0) break;
-                const arr = Array.isArray(grp.items) ? grp.items.slice(0, left) : [];
-                if (arr.length) {
-                  displayGroups.push({ date: grp.date, displayDate: grp.displayDate, items: arr });
-                  left -= arr.length;
-                }
-              }
-
-              return displayGroups.length > 0 ? displayGroups.map((grp) => {
-                const items = grp.items.slice(0, 12);
-                const cols = [];
-                const colsCount = 4;
-                const perCol = 3; // 3 lines per column
-                for (let i = 0; i < colsCount; i++) {
-                  const start = i * perCol;
-                  const col = items.slice(start, start + perCol);
-                  if (col.length) cols.push(col);
-                }
-
-                return (
-                  <div key={grp.date} style={{ marginBottom: 12 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 'clamp(13px, 1.2vw, 15px)' }}>{grp.displayDate}</div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                      {cols.map((col, ci) => (
-                        <div key={ci} style={{ flex: '1 1 0', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {col.map((it, ix) => (
-                            <div key={ix} style={{ fontSize: 'clamp(13px, 1.3vw, 15px)', color: 'var(--text-primary)', display: 'flex', gap: 8, alignItems: 'center' }}>
-                              {(() => {
-                                try {
-                                  const dt = it.timestamp ? new Date(it.timestamp) : null;
-                                  const itemKey = dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` : null;
-                                  // user's local representation
-                                  const userFull = it.timestamp ? formatToUserTZSlash(it.timestamp, (user && user.timeZone) || undefined) : '';
-                                  const userDisplay = userFull ? (itemKey === grp.date ? String(userFull).split(' ')[1] : userFull) : '';
-                                  // UTC short time for reference
-                                  const utcFull = it.timestamp ? formatToUserTZSlash(it.timestamp, 'UTC') : '';
-                                  const utcShort = utcFull ? String(utcFull).split(' ')[1] : '';
-                                  return (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 auto' }}>
-                                      <div style={{ color: '#666', fontSize: 'clamp(11px, 0.9vw, 12px)' }}>{userDisplay}</div>
-                                      {utcShort && <div style={{ color: '#999', fontSize: 'clamp(10px, 0.8vw, 11px)' }}>{utcShort} (UTC)</div>}
-                                    </div>
-                                  );
-                                } catch (e) {
-                                  return <div style={{ color: '#666', fontSize: 'clamp(12px, 1.0vw, 13px)' }}></div>;
-                                }
-                              })()}
-                              <button
-                                onClick={() => {
-                                  try {
-                                    // show user's local date and time: YYYY/MM/DD · HH:MM:SS
-                                    const userLocalFull = it.timestamp ? formatToUserTZSlash(it.timestamp, (user && user.timeZone) || undefined) : '';
-                                    const parts = userLocalFull ? String(userLocalFull).split(' ') : [];
-                                    const dateOnly = parts.length ? parts[0] : (grp.displayDate || '');
-                                    const userTime = parts.length > 1 ? parts.slice(1).join(' ') : '';
-                                    const title = userTime ? `${dateOnly} · ${userTime}` : dateOnly;
-                                    setModalTitle(title || (grp.displayDate || 'Log'));
-                                    setModalContent((it.text || '').replace(/\n/g, ' '));
-                                    setModalOpen(true);
-                                  } catch (e) {
-                                    setModalTitle(grp.displayDate || 'Log');
-                                    setModalContent(String(it.text || ''));
-                                    setModalOpen(true);
-                                  }
-                                }}
-                                aria-label="View full log"
-                                style={{
-                                  background: 'var(--bg-secondary)',
-                                  border: 'none',
-                                  padding: 0,
-                                  margin: 0,
-                                  textAlign: 'left',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  flex: '1 1 0',
-                                  color: 'inherit',
-                                  fontSize: 'inherit'
-                                }}
-                              >
-                                {(it.text || '').replace(/\n/g, ' ')}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                      {/* If no columns (shouldn't happen) show placeholder */}
-                      {cols.length === 0 && <div style={{ color: '#666' }}>No recent activity</div>}
-                    </div>
-                  </div>
-                );
-              }) : <div style={{ color: '#666' }}>No recent activity</div>;
-            })()
-          ) : (
-            <div style={{ color: '#666' }}>No recent activity</div>
-          )}
-        </div>
-      </div>
+      {/* Recent activity removed from admin dashboard */}
       {/* Modal for full log text (uses GenericModal) */}
       <GenericModal isOpen={modalOpen} title={modalTitle} onClose={() => setModalOpen(false)} showClose>
         <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{modalContent}</div>

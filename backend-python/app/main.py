@@ -21,7 +21,9 @@ from api.chart import router as chart_router
 from api.news import router as news_router
 from api.company_info import router as company_info_router
 from api.cron import router as cron_router, ensure_scheduler_started
+import api.cron as cron_module
 from scheduler import MARKETS, combined_market_runner, scheduler_stop_event, job_for_market, run_full_scan_all, scheduler_loop
+import scheduler as scheduler_mod
 from services.train_service import detect_anomalies_incremental, detect_anomalies
 from services.user_notifications import notify_users_of_anomalies
 from config.monitored_stocks import get_all_stocks, get_market_count, get_stocks_by_market
@@ -57,8 +59,7 @@ app.include_router(news_router, prefix="/py")
 app.include_router(company_info_router, prefix="/py")
 app.include_router(cron_router, prefix="/py")
 
-# Toggle state - ENABLED BY DEFAULT
-scheduler_enabled = False
+# Scheduler enabled state is managed in `scheduler.py` as `scheduler_enabled`
 
 def check_models():
     """Ensure per-market models exist. If a model file is missing, trigger training.
@@ -111,8 +112,7 @@ def _scheduler_loop(stop_event):
     try:
         while not stop_event.is_set():
             try:
-                if scheduler_enabled:
-
+                if getattr(scheduler_mod, 'scheduler_enabled', False):
                     combined_market_runner()
                 else:
                     logger.info("[scheduler] disabled - skipping run")
@@ -124,30 +124,38 @@ def _scheduler_loop(stop_event):
 
 @app.on_event("startup")
 async def _on_startup():
-    global scheduler_thread, scheduler_stop_event
-    # Prefer the centralized scheduler loop in `scheduler.py` which handles
-    # both per-minute user summaries and market runners. Start it as a
-    # daemon thread so it runs alongside FastAPI.
-    scheduler_stop_event.clear()
-    scheduler_thread = threading.Thread(target=scheduler_loop, daemon=True)
-    scheduler_thread.start()
-    # Ensure APScheduler for cron jobs is started so persisted jobs run
+    # Ensure centralized APScheduler (api.cron) is started and register
+    # the per-minute and 5-minute jobs from `scheduler.py` with it.
     try:
-        ok, err = ensure_scheduler_started()
+        ok, err = cron_module.ensure_scheduler_started()
         if not ok:
             logger.error(f"Failed to start cron scheduler on startup: {err}")
+        else:
+            try:
+                sched = getattr(cron_module, 'scheduler', None)
+                if sched is not None:
+                    # Register jobs implemented in scheduler.py with APScheduler
+                    scheduler_mod.register_with_apscheduler(sched)
+                    # If the scheduler flag is disabled at startup, pause jobs
+                    if not getattr(scheduler_mod, 'scheduler_enabled', True):
+                        scheduler_mod.pause_registered_jobs(sched)
+            except Exception as e:
+                logger.exception(f"Failed to register scheduler jobs with APScheduler: {e}")
     except Exception as e:
         logger.exception(f"Error ensuring cron scheduler started on startup: {e}")
 
 
 @app.on_event("shutdown")
 async def _on_shutdown():
-    global scheduler_thread, scheduler_stop_event
-    logger.info('[shutdown] stopping scheduler...')
-    scheduler_stop_event.set()
-    if scheduler_thread:
-        scheduler_thread.join(timeout=5)
-    logger.info('[shutdown] scheduler stopped')
+    logger.info('[shutdown] shutting down scheduler integrations...')
+    try:
+        sched = getattr(cron_module, 'scheduler', None)
+        if sched:
+            # Optionally shutdown scheduler here if desired; leave cron router to manage its lifecycle.
+            pass
+    except Exception:
+        logger.debug('Error during scheduler shutdown handling', exc_info=True)
+    logger.info('[shutdown] scheduler integrations handled')
 
 
 class SchedulerToggle(BaseModel):
@@ -155,9 +163,30 @@ class SchedulerToggle(BaseModel):
 
 @app.post("/py/scheduler/toggle")
 def toggle_scheduler(toggle: SchedulerToggle):
-    global scheduler_enabled
-    scheduler_enabled = toggle.state
-    return {"scheduler_enabled": scheduler_enabled}
+    try:
+        # Update runtime flag that the scheduler loop and registered jobs observe
+        scheduler_mod.scheduler_enabled = bool(toggle.state)
+
+        # If APScheduler instance exists, pause or resume registered jobs
+        sched = getattr(cron_module, 'scheduler', None)
+        if sched is not None:
+            if scheduler_mod.scheduler_enabled:
+                scheduler_mod.resume_registered_jobs(sched)
+            else:
+                scheduler_mod.pause_registered_jobs(sched)
+
+        running = getattr(cron_module, 'scheduler', None) is not None and getattr(cron_module, 'scheduler').state == cron_module.STATE_RUNNING
+        jobs = []
+        try:
+            if getattr(cron_module, 'scheduler', None):
+                jobs = [{"id": j.id, "next_run_time": str(j.next_run_time)} for j in cron_module.scheduler.get_jobs()]
+        except Exception:
+            logger.exception('Failed to enumerate cron jobs after toggle')
+
+        return {"scheduler_enabled": scheduler_mod.scheduler_enabled, "cron_running": running, "job_count": len(jobs), "jobs": jobs}
+    except Exception as e:
+        logger.exception(f"Failed toggling scheduler: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Healthcheck
@@ -582,7 +611,7 @@ async def get_monitoring_status():
         
         return {
             "monitored_stocks": counts,
-            "scheduler_enabled": scheduler_enabled,
+            "scheduler_enabled": getattr(scheduler_mod, 'scheduler_enabled', False),
             "anomalies_last_24h": anomaly_stats,
             "recent_detection_runs": recent_runs,
             "all_stocks": get_all_stocks()
