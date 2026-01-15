@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import Any, Dict
+import json
+import hashlib
 from datetime import datetime, timedelta
 import yfinance as yf
 
@@ -44,8 +46,16 @@ def _format_phone(phone: str, country: str = None) -> str:
     digits = re.sub(r"\D", "", p)
     if not digits:
         return p
+
+    if country.lower() in ('japan'):
+        if digits.startswith('81'):
+            rest = digits[2:]
+            if len(rest) == 9:
+                return f"(+81) {rest[0]} {rest[1:5]} {rest[5:]}"
+            return f"(+81) {rest}"
+
     # Thailand heuristic
-    if country and country.strip().lower() in ('thailand', 'th'):
+    if country.lower() in ('thailand'):
         if digits.startswith('0'):
             digits = digits[1:]
         return f"(+66) {digits[:2]} {digits[2:5]} {digits[5:]}" if len(digits) >= 9 else f"(+66) {digits}"
@@ -53,7 +63,7 @@ def _format_phone(phone: str, country: str = None) -> str:
     if len(digits) == 10:
         return f"(+1) {digits[:3]} {digits[3:6]} {digits[6:]}"
     # default: show with leading +
-    return f"+{digits}"
+    return f"{digits}"
 
 
 @router.get('/company/info')
@@ -118,8 +128,35 @@ def company_info(ticker: str):
             if k in info:
                 payload[k] = info.get(k)
 
-        # include raw info for further inspection
-        payload['raw'] = info
+        # include raw info for further inspection, but trim if too large
+        try:
+            raw_str = json.dumps(info, ensure_ascii=False)
+            raw_len = len(raw_str)
+        except Exception:
+            raw_str = ''
+            raw_len = 0
+
+        # If raw payload is large, store a compact summary + hash instead
+        RAW_THRESHOLD = 20 * 1024  # 20 KB
+        if raw_len and raw_len > RAW_THRESHOLD:
+            try:
+                h = hashlib.sha256(raw_str.encode('utf-8')).hexdigest()
+            except Exception:
+                h = ''
+            payload['raw_summary'] = {
+                'length': raw_len,
+                'sha256': h,
+                'sample_keys': list(info.keys())[:20]
+            }
+            # capture a few useful short fields when present
+            snippets = {}
+            for k in ('longBusinessSummary', 'shortName', 'website', 'industry', 'sector'):
+                if k in info and info.get(k):
+                    snippets[k] = info.get(k)
+            if snippets:
+                payload['raw_snippets'] = snippets
+        else:
+            payload['raw'] = info
 
         try:
             _save_to_cache(key, payload)

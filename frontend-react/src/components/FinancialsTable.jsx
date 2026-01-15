@@ -54,6 +54,7 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Total Capitalization': '総資本',
   'Total Assets': '総資産',
   'Tangible ook Value': '有形資産価値',
+  'Tangible Book Value': '有形帳簿価額',
   'Stockholders Equity': '株主資本',
   'Share Issued': '発行済株式数',
   'Retained Earnings': '利益剰余金',
@@ -70,6 +71,7 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Other Equity Adjustments': 'その他資本調整',
   'Other Current Liabilities': 'その他流動負債',
   'Other Current orrowings': 'その他流動借入',
+  'Other Current Borrowings': 'その他の短期借入金',
   'Other Current Assets': 'その他流動資産',
   'Ordinary Shares Number': '普通株式数',
   'Non Current Deferred Taxes Assets': '非流動繰延税資産',
@@ -77,7 +79,11 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Net Tangible Assets': '正味有形資産',
   'Net PPE': '正味PPE',
   'Net Debt': '正味債務',
-  'achinery Furniture Equipment': '機械装置及び家具',
+  'Machinery Furniture Equipment': '機械装置及び家具',
+
+  // Additional normalized labels
+  'Post Retirement Benefit Plans': '退職後給付制度',
+  'Non Current Pension And Other Post Retirement Benefit Plans': '非流動年金およびその他の退職後給付制度',
   'Long Term Debt And Capital Lease Obligation': '長期債務及びリース債務',
   'Long Term Debt': '長期債務',
   'Long Term Capital Lease Obligation': '長期リース債務',
@@ -112,45 +118,39 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Accounts Receivable': '売掛金',
   'Accounts Payable': '買掛金',
   // Balance sheet aliases
-  'alance Sheet': 'バランスシート',
-  'alance Sheet (most recent  periods)': 'バランスシート（最近期）',
-};
-
-// Title translations mapping
-const TITLE_TRANSLATIONS = {
-  'Income Statement': 'msgid-income-statement',
-  'Balance Sheet': 'msgid-balance-sheet',
+  'Balance Sheet': '貸借対照表',
+  'Balance Sheet (most recent  periods)': '貸借対照表（最近期）',
 };
 
 function getLocalizedFieldName(fieldKey, i18n) {
   if (!fieldKey) return '';
-  
-  // First, humanize the camelCase/PascalCase key to get readable English label
   const humanized = humanizeLabel(fieldKey);
-  
-  // Then try to translate the humanized English label using i18n
-  if (i18n) {
-    const translated = i18n._(humanized);
-    // If i18n found a translation (returns different from input), use it
-    if (translated && translated !== humanized) {
-      return translated;
-    }
-  }
-  
-  // Try hardcoded FINANCIAL_FIELD_TRANSLATIONS with the humanized version
+
   if (FINANCIAL_FIELD_TRANSLATIONS[humanized]) {
     return FINANCIAL_FIELD_TRANSLATIONS[humanized];
   }
-  
-  // Fall back to humanized English label
+
+  try {
+    if (i18n) {
+      const translated = i18n._(humanized);
+      if (translated && translated !== humanized) return translated;
+    }
+  } catch (_e) {
+  }
+
   return humanized;
 }
 
 function humanizeLabel(key){
   if (!key) return '';
-  // Replace camelCase / PascalCase / underscores with spaces and split on case change
-  const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-]+/g, ' ');
-  return spaced.replace(/\s+/g,' ').trim().replace(/(^|\s)\w/g, c=>c.toUpperCase());
+  let s = String(key).trim();
+  s = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  s = s.replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+  s = s.replace(/[_\-]+/g, ' ');
+  s = s.replace(/Postretirement/ig, 'Post Retirement');
+  s = s.replace(/NonCurrent/ig, 'Non Current');
+  s = s.replace(/\s+/g,' ').trim();
+  return s.replace(/(^|\s)\w/g, c=>c.toUpperCase());
 }
 
 function formatPeriodLabel(p){
@@ -179,16 +179,15 @@ function formatPeriodLabel(p){
   if (!isNaN(d.getTime())){
     return String(d.getFullYear());
   }
-  
-  // Last resort: return as-is
+
   return s;
 }
 
 function formatNumeric(v){
-  if (v === null || v === undefined) return '--';
+  if (v === null || v === undefined) return '-';
   // handle NaN and empty
   const n = Number(v);
-  if (!isFinite(n)) return '--';
+  if (!isFinite(n)) return '-';
   const abs = Math.abs(n);
   if (abs >= 1e12) return `${(n/1e12).toFixed(2)}T`;
   if (abs >= 1e9) return `${(n/1e9).toFixed(2)}B`;
@@ -216,8 +215,15 @@ export default function FinancialsTable({ title, data, compact = false, transpos
     });
     const cols = Array.from(colSet).sort((a,b)=> b.localeCompare(a)); // newest first
     const rows = metrics.map(m => ({ key: m, label: getLocalizedFieldName(m, i18n), values: cols.map(c => {
-      const v = (data[m] && (data[m][c] !== undefined ? data[m][c] : (data[m][c] === 0 ? 0 : (data[m][c] || null)))) ;
-      return v !== undefined ? v : null;
+      let v = null;
+      if (data[m] && Object.prototype.hasOwnProperty.call(data[m], c)) {
+        v = data[m][c];
+        // treat empty string or explicit null/undefined as missing
+        if (v === '' || v === null || v === undefined) v = null;
+      } else {
+        v = null;
+      }
+      return v;
     }) }));
     return { columns: cols, rows };
   }, [data, i18n]);
@@ -246,9 +252,9 @@ export default function FinancialsTable({ title, data, compact = false, transpos
               {finalMetrics.map(r => (
                 <tr key={r.key} style={{borderTop:'1px solid rgba(0,0,0,0.04)'}}>
                   <td style={{padding:'8px 12px',fontWeight:600,whiteSpace:'nowrap'}}>{r.label}</td>
-                  {yearCols.map((c,idx) => {
+                    {yearCols.map((c,idx) => {
                     const v = (data[r.key] && (data[r.key][c] !== undefined ? data[r.key][c] : null));
-                    return <td key={idx} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '--' : formatNumeric(v)}</td>;
+                    return <td key={idx} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '-' : formatNumeric(v)}</td>;
                   })}
                 </tr>
               ))}
@@ -280,7 +286,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
                   <td style={{padding:'8px 12px',fontWeight:600}}>{formatPeriodLabel(period)}</td>
                   {metrics.map(m => {
                     const v = (data[m.key] && (data[m.key][period] !== undefined ? data[m.key][period] : null));
-                    return <td key={m.key} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '--' : formatNumeric(v)}</td>
+                    return <td key={m.key} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '-' : formatNumeric(v)}</td>
                   })}
                 </tr>
               ))}
@@ -309,8 +315,8 @@ export default function FinancialsTable({ title, data, compact = false, transpos
             {rows.map(r=> (
               <tr key={r.key} style={{borderTop:'1px solid rgba(0,0,0,0.04)'}}>
                 <td style={{padding:'8px 12px',fontWeight:600,whiteSpace:'nowrap'}}>{r.label}</td>
-                {r.values.map((v,idx)=> (
-                  <td key={idx} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '--' : formatNumeric(v)}</td>
+                  {r.values.map((v,idx)=> (
+                  <td key={idx} style={{padding:'8px 12px',textAlign:'right'}}>{v === null || v === undefined || (typeof v === 'number' && isNaN(v)) ? '-' : formatNumeric(v)}</td>
                 ))}
               </tr>
             ))}
@@ -328,7 +334,7 @@ const _StringExtractor = () => (
     <Trans>Balance Sheet</Trans>
     <Trans>Metric</Trans>
     <Trans>Period</Trans>
-    {/* Financial field names for extraction */}
+
     <Trans>Total Revenue</Trans>
     <Trans>Total Operating Income As Reported</Trans>
     <Trans>Total Expenses</Trans>
@@ -362,7 +368,7 @@ const _StringExtractor = () => (
     <Trans>Gross Profit</Trans>
     <Trans>EITDA</Trans>
     <Trans>EIT</Trans>
-    <Trans>Diluted NI Availto Com Stockholders</Trans>
+    <Trans>Diluted NI Avail to Com Stockholders</Trans>
     <Trans>Diluted EPS</Trans>
     <Trans>Diluted Average Shares</Trans>
     <Trans>Cost Of Revenue</Trans>
@@ -370,7 +376,7 @@ const _StringExtractor = () => (
     <Trans>asic Average Shares</Trans>
     <Trans>Working Capital</Trans>
     <Trans>Treasury Shares Number</Trans>
-    <Trans>Tradeand Other Payables Non Current</Trans>
+    <Trans>Trade and Other Payables Non Current</Trans>
     <Trans>Total Tax Payable</Trans>
     <Trans>Total Non Current Liabilities Net inority Interest</Trans>
     <Trans>Total Non Current Assets</Trans>
@@ -379,7 +385,7 @@ const _StringExtractor = () => (
     <Trans>Total Debt</Trans>
     <Trans>Total Capitalization</Trans>
     <Trans>Total Assets</Trans>
-    <Trans>Tangible ook Value</Trans>
+    <Trans>Tangible Book Value</Trans>
     <Trans>Stockholders Equity</Trans>
     <Trans>Share Issued</Trans>
     <Trans>Retained Earnings</Trans>
@@ -395,7 +401,7 @@ const _StringExtractor = () => (
     <Trans>Other Investments</Trans>
     <Trans>Other Equity Adjustments</Trans>
     <Trans>Other Current Liabilities</Trans>
-    <Trans>Other Current orrowings</Trans>
+    <Trans>Other Current Borrowings</Trans>
     <Trans>Other Current Assets</Trans>
     <Trans>Ordinary Shares Number</Trans>
     <Trans>Non Current Deferred Taxes Assets</Trans>
@@ -403,7 +409,7 @@ const _StringExtractor = () => (
     <Trans>Net Tangible Assets</Trans>
     <Trans>Net PPE</Trans>
     <Trans>Net Debt</Trans>
-    <Trans>achinery Furniture Equipment</Trans>
+    <Trans>Machinery Furniture Equipment</Trans>
     <Trans>Long Term Debt And Capital Lease Obligation</Trans>
     <Trans>Long Term Debt</Trans>
     <Trans>Long Term Capital Lease Obligation</Trans>
@@ -416,6 +422,8 @@ const _StringExtractor = () => (
     <Trans>Income Tax Payable</Trans>
     <Trans>Gross PPE</Trans>
     <Trans>Gains Losses Not Affecting Retained Earnings</Trans>
+    <Trans>Post Retirement Benefit Plans</Trans>
+    <Trans>Non Current Pension And Other Post Retirement Benefit Plans</Trans>
     <Trans>Current Liabilities</Trans>
     <Trans>Current Deferred Revenue</Trans>
     <Trans>Current Deferred Liabilities</Trans>

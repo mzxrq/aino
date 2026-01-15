@@ -329,7 +329,7 @@ def scheduler_loop():
                 else:
                     logger.info("[scheduler] disabled - skipping run")
 
-                tick += 1
+                    tick += 1
             except Exception as e:
                 logger.exception(f"[scheduler] run error: {e}")
             time.sleep(60)

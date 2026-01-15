@@ -40,6 +40,27 @@ async function fetchJsonWithFallback(path, init) {
   return await res2.json();
 }
 
+// Deduplicating fetch helper for Node API calls (GET + identical POSTs)
+const _inFlightRequests = new Map();
+async function fetchWithDedup(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  let key = `${method} ${url}`;
+  if (method !== 'GET' && options.body) {
+    try { key += ' ' + (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)); } catch (_e) {}
+  }
+  if (_inFlightRequests.has(key)) return _inFlightRequests.get(key);
+  const p = (async () => {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return await res.json();
+    return await res.text();
+  })();
+  _inFlightRequests.set(key, p);
+  p.finally(() => { try { _inFlightRequests.delete(key); } catch (_) {} });
+  return p;
+}
+
 const PERIOD_PRESETS = [
   { label: '1D', period: '1d', interval: '1m' },
   { label: '5D', period: '5d', interval: '5m' },
@@ -1387,21 +1408,22 @@ export default function MainChart() {
         try {
           const toCache = [{ articleId: item.articleKey || item.link, url: item.link || null, title: item.title || null, source: item.source || null, pubDate: item.date || item.pubDate || null, thumbnail: item.thumbnail || null, sourceTicker: ticker || null }].filter(x => x.url && x.url !== '#');
           let cr = null;
-          if (toCache.length) cr = await fetch(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-          if (cr.ok) {
-            const cj = await cr.json();
-            const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
-            if (found) {
-              articleId = found.id || found.articleKey || articleId;
-              item.cacheId = found.id || null;
-              if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
-              if (!item.date && found.pubDate) item.date = found.pubDate;
-            }
+          if (toCache.length) {
+            try {
+              const cj = await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
+              const found = (cj.items || []).find(i => i && i.articleKey === (item.articleKey || item.link));
+              if (found) {
+                articleId = found.id || found.articleKey || articleId;
+                item.cacheId = found.id || null;
+                if (!item.thumbnail && found.thumbnail) item.thumbnail = found.thumbnail;
+                if (!item.date && found.pubDate) item.date = found.pubDate;
+              }
+            } catch (_e) { }
           }
         } catch (e) { /* ignore cache errors */ }
       }
       const payload = { url: link, articleId, title: item.title, ticker, thumbnail: item.thumbnail || null, pubDate: item.date || item.pubDate || null };
-      fetch(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(()=>{});
+      fetchWithDedup(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(()=>{});
       window.open(link, '_blank', 'noopener');
     }catch(err){
       const link = item.link || item.url || '#';
