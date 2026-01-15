@@ -7,10 +7,13 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 import requests
 from pymongo import MongoClient
+import time
+import random
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,61 @@ def get_db():
 db = get_db()
 
 # -------------------------
+# Simple in-process rate limiter
+# -------------------------
+# Configurable via env vars
+_RATE_WINDOW = int(os.getenv('RATE_WINDOW_SECONDS', '60'))
+_LINE_MAX_CALLS = int(os.getenv('LINE_MAX_CALLS', '30'))
+_MAIL_MAX_CALLS = int(os.getenv('MAIL_MAX_CALLS', '20'))
+_BLOCK_DURATION = int(os.getenv('RATE_BLOCK_SECONDS', '60'))
+
+_rate_lock = threading.Lock()
+_rate_state = {
+    'line': {'timestamps': [], 'blocked_until': 0},
+    'mail': {'timestamps': [], 'blocked_until': 0}
+}
+
+def _cleanup_timestamps(api_key: str):
+    now = time.time()
+    cutoff = now - _RATE_WINDOW
+    state = _rate_state[api_key]
+    # remove old timestamps
+    state['timestamps'] = [t for t in state['timestamps'] if t >= cutoff]
+
+def _can_send(api_key: str, max_calls: int) -> bool:
+    now = time.time()
+    with _rate_lock:
+        state = _rate_state[api_key]
+        # check blocked
+        if state.get('blocked_until', 0) > now:
+            return False
+        _cleanup_timestamps(api_key)
+        if len(state['timestamps']) >= max_calls:
+            # block for configured duration
+            state['blocked_until'] = now + _BLOCK_DURATION
+            logger.warning(f"Rate limit exceeded for {api_key}; blocking for {_BLOCK_DURATION}s")
+            return False
+        return True
+
+def _record_send(api_key: str):
+    now = time.time()
+    with _rate_lock:
+        state = _rate_state[api_key]
+        state['timestamps'].append(now)
+
+def _wait_and_record(api_key: str, max_calls: int) -> bool:
+    """Return True if allowed to send; sleeps 1-2s before returning and records the send.
+    If rate limit exceeded, returns False immediately.
+    """
+    if not _can_send(api_key, max_calls):
+        return False
+    # small randomized delay to avoid bursts
+    delay = random.uniform(1.0, 2.0)
+    time.sleep(delay)
+    _record_send(api_key)
+    return True
+
+# -------------------------
 # Timezone Handling
 # -------------------------
 try:
@@ -62,8 +120,10 @@ def format_datetime(dt, tz_name="UTC"):
 # -------------------------
 # LINE Flex Message Templates
 # -------------------------
-def create_summary_flex_message(anomalies: List[Dict], user_timezone="UTC"):
-    """Create a beautiful LINE flex message with anomaly summary."""
+def create_summary_flex_message(anomalies: List[Dict], user_timezone="UTC", reason: Optional[str] = None):
+    """Create a beautiful LINE flex message with anomaly summary.
+    Optional `reason` will be displayed under the timestamp when provided.
+    """
     total_anomalies = len(anomalies)
     tickers = list(set([a.get('Ticker') or a.get('ticker', '') for a in anomalies]))
     
@@ -99,7 +159,15 @@ def create_summary_flex_message(anomalies: List[Dict], user_timezone="UTC"):
                     "size": "xs",
                     "margin": "md"
                 }
-            ],
+            ] + ([
+                {
+                    "type": "text",
+                    "text": f"Reason: {reason}",
+                    "color": "#FFFFFFCC",
+                    "size": "xs",
+                    "margin": "sm"
+                }
+            ] if reason else []),
             "backgroundColor": "#DC3545",
             "paddingAll": "20px"
         },
@@ -215,17 +283,17 @@ def create_summary_flex_message(anomalies: List[Dict], user_timezone="UTC"):
         }
     }
 
-def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
+def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC", reason: Optional[str] = None):
     """Create detailed flex bubbles for each anomaly."""
     bubbles = []
-    
+
     for anomaly in anomalies[:10]:  # Limit to 10 detailed cards
         ticker = anomaly.get('Ticker') or anomaly.get('ticker', 'N/A')
         dt = anomaly.get('Datetime') or anomaly.get('datetime')
         close = anomaly.get('Close') or anomaly.get('close', 0)
         volume = anomaly.get('Volume') or anomaly.get('volume', 0)
         score = anomaly.get('anomaly_score', 0)
-        
+
         # Get company name from marketlists
         company_name = "Unknown Company"
         try:
@@ -234,7 +302,7 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
                 company_name = ticker_meta.get('companyName', company_name)
         except Exception:
             pass
-        
+
         bubble = {
             "type": "bubble",
             "size": "mega",
@@ -356,6 +424,7 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
+                    *([{"type": "text", "text": f"Reason: {reason}", "size": "xs", "color": "#666666", "margin": "xs"}] if reason else []),
                     {
                         "type": "button",
                         "action": {
@@ -372,10 +441,10 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC"):
             }
         }
         bubbles.append(bubble)
-    
+
     return bubbles
 
-def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezone="UTC", allow_empty: bool = False, is_summary: bool = False):
+def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezone="UTC", allow_empty: bool = False, is_summary: bool = False, reason: Optional[str] = None):
     """Send LINE notification with summary + detailed anomalies."""
     # Import config flags here so they reflect runtime env
     from core.config import ENABLE_LINE_NOTIFICATIONS
@@ -399,11 +468,11 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
         return False
 
     try:
-        # Create summary message
-        summary_bubble = create_summary_flex_message(anomalies, user_timezone)
+        # Create summary message (include reason if provided)
+        summary_bubble = create_summary_flex_message(anomalies, user_timezone, reason=reason)
 
         # Create detailed bubbles
-        detail_bubbles = create_detail_flex_bubbles(anomalies, user_timezone)
+        detail_bubbles = create_detail_flex_bubbles(anomalies, user_timezone, reason=reason)
 
         # Combine: summary first, then details
         all_bubbles = [summary_bubble] + detail_bubbles
@@ -419,6 +488,8 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
             "payload_preview": {
                 "bubbles": len(all_bubbles),
                 "anomalies": len(anomalies)
+            ,
+                "reason": (reason[:200] if isinstance(reason, str) else None)
             },
             "result": None,
             "response": None
@@ -444,6 +515,9 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
             messages = []
             if header_text:
                 messages.append({"type": "text", "text": header_text})
+            # Include reason as a separate text message so it's visible in the chat timeline
+            if reason:
+                messages.append({"type": "text", "text": f"Reason: {reason}"})
             messages.append({
                 "type": "flex",
                 "altText": f"⚠️ {len(anomalies)} Anomalies Detected",
@@ -456,6 +530,15 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
             payload = {"to": user_line_id, "messages": messages}
 
             try:
+                # enforce rate limit + delay per external LINE API call
+                if not _wait_and_record('line', _LINE_MAX_CALLS):
+                    logger.error(f"Skipping LINE send to {user_line_id}: rate limit/block in effect")
+                    try:
+                        db.notification_logs.update_one({"type": "line_attempt", "to": user_line_id}, {"$set": {"result": "rate_limited", "sent_at": datetime.utcnow()}}, upsert=False)
+                    except Exception:
+                        logger.debug("Failed to update LINE attempt after rate limit")
+                    return False
+
                 response = requests.post(url, headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {channel_token}"
@@ -508,7 +591,7 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
 # -------------------------
 # Email Notification
 # -------------------------
-def create_email_html(anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None):
+def create_email_html(anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None,reason: Optional[str] = None):
     """Create HTML email with anomaly summary."""
     total = len(anomalies)
     tickers = list(set([a.get('Ticker') or a.get('ticker', '') for a in anomalies]))
@@ -558,6 +641,7 @@ def create_email_html(anomalies: List[Dict], user_timezone="UTC", start_dt=None,
             </div>
             <p style="margin:20px 0 0;font-size:14px;color:#666;">Found in <strong>{len(tickers)}</strong> stock{'' if len(tickers) == 1 else 's'}</p>
             {f'<p style="margin:8px 0 0;font-size:13px;color:#555;">Range: <strong>{range_str}</strong></p>' if range_str else ''}
+                {f'<p style="margin:8px 0 0;font-size:13px;color:#555;"><strong>Reason:</strong> {reason}</p>' if reason else ''}
         </div>
         
         <!-- Details by Ticker -->
@@ -656,7 +740,7 @@ def create_email_html(anomalies: List[Dict], user_timezone="UTC", start_dt=None,
     
     return html
 
-def send_email_notification(user_email: str, anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None, allow_empty: bool = False):
+def send_email_notification(user_email: str, anomalies: List[Dict], user_timezone="UTC", start_dt=None, end_dt=None, allow_empty: bool = False, reason: Optional[str] = None):
     """Send email notification with anomaly summary."""
     from core.config import ENABLE_EMAIL_NOTIFICATIONS
     
@@ -677,12 +761,16 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         return False
     
     try:
-        html = create_email_html(anomalies, user_timezone, start_dt=start_dt, end_dt=end_dt)
+        html = create_email_html(anomalies, user_timezone, start_dt=start_dt, end_dt=end_dt, reason=reason)
         total = len(anomalies)
-        
+
+        subject = f"⚠️ {total} Stock Anomal{'y' if total == 1 else 'ies'} Detected"
+        if reason:
+            subject = subject + f" — {reason[:60]}"
+
         payload = {
             "to": user_email,
-            "subject": f"⚠️ {total} Stock Anomal{'y' if total == 1 else 'ies'} Detected",
+            "subject": subject,
             "html": html,
             "text": f"{total} anomalies detected. Please view HTML version for details."
         }
@@ -690,6 +778,11 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
         # NOTE: Email attempts are logged by the mail sending service (MAIL_API_URL)
         # (backend-node nodemailer.service logs to its own `nodemailer_logs` collection).
         # Avoid duplicating email logs in `notification_logs` which is reserved for LINE logs.
+
+        # enforce rate limit + delay per external Mail API call
+        if not _wait_and_record('mail', _MAIL_MAX_CALLS):
+            logger.error(f"Skipping email send to {user_email}: rate limit/block in effect")
+            return False
 
         response = requests.post(MAIL_API_URL, json=payload, timeout=10)
         response.raise_for_status()
@@ -717,7 +810,7 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
 # -------------------------
 # Main Notification Handler
 # -------------------------
-def notify_users_of_anomalies(anomalies: List[Dict], is_summary: bool = False, summary_start_dt=None, summary_end_dt=None):
+def notify_users_of_anomalies(anomalies: List[Dict], is_summary: bool = False, summary_start_dt=None, summary_end_dt=None, reason: Optional[str] = None):
     """
     Notify users of new anomalies based on their subscriptions.
     
@@ -842,12 +935,12 @@ def notify_users_of_anomalies(anomalies: List[Dict], is_summary: bool = False, s
         
         # Send LINE notification
         if sent_option in ["line", "both"] and user_line_id:
-            if send_line_notification(user_line_id, user_anomalies, user_timezone, allow_empty=False, is_summary=is_summary):
+            if send_line_notification(user_line_id, user_anomalies, user_timezone, allow_empty=False, is_summary=is_summary, reason=reason):
                 stats["line_sent"] += 1
         
         # Send email notification
         if sent_option in ["mail", "both"] and user_email:
-            if send_email_notification(user_email, user_anomalies, user_timezone, start_dt=summary_start_dt, end_dt=summary_end_dt):
+            if send_email_notification(user_email, user_anomalies, user_timezone, start_dt=summary_start_dt, end_dt=summary_end_dt, reason=reason):
                 stats["email_sent"] += 1
         
         stats["notified_users"] += 1

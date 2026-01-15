@@ -195,16 +195,35 @@ export default function CompanyProfile() {
         };
       });
 
-      // attach stored view counts where available
+      // attach stored view counts where available (cached POST lookup, 5min TTL)
       try {
         const keys = items.map(a => a.link).filter(Boolean);
         if (keys.length) {
-          const lookup = await fetch(`${API_URL}/node/news/views/lookup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) });
-          if (lookup.ok) {
-            const pl = await lookup.json();
-            const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
-            for (let i = 0; i < items.length; i++) { const k = items[i].link; items[i].views = (map[k] && map[k].views) ? map[k].views : 0; }
-          }
+          try {
+            const url = `${API_URL}/node/news/views/lookup`;
+            const body = JSON.stringify({ keys });
+            const storageKey = 'apipostcache:' + encodeURIComponent(url + '|POST|' + body);
+            const now = Date.now();
+            let pl = null;
+            const raw = sessionStorage.getItem(storageKey);
+            if (raw) {
+              try {
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.ts && (now - parsed.ts) < (5 * 60 * 1000) && parsed.data) pl = parsed.data;
+              } catch (_e) { /* ignore */ }
+            }
+            if (!pl) {
+              const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+              if (r.ok) {
+                pl = await r.json();
+                try { sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), data: pl })); } catch (_e) {}
+              }
+            }
+            if (pl) {
+              const map = (pl.items || []).reduce((acc, it) => { acc[it.articleKey || it.url] = it; return acc; }, {});
+              for (let i = 0; i < items.length; i++) { const k = items[i].link; items[i].views = (map[k] && map[k].views) ? map[k].views : 0; }
+            }
+          } catch (err) { console.debug('views lookup (cached) failed', err); }
         }
       } catch (err) { console.debug('views lookup failed', err); }
 

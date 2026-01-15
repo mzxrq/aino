@@ -1,8 +1,12 @@
-.flex-table-root { --gap: 12px; display: block; }
-.flex-table-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
+.flex-table-root { --gap: 12px; display: block; position: relative; z-index: 0; }
+.flex-table-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; z-index: 2; }
 .flex-table-left { display:flex; gap:8px; align-items:center; }
 .flex-table-right { display:flex; gap:8px; align-items:center; }
-.search-input { padding:6px 8px; border:1px solid var(--border); border-radius:4px; background:var(--card-bg); color:var(--text); }
+.search-input { padding:6px 8px; border:1px solid var(--border); border-radius:4px; background:var(--card-bg); color:var(--text); min-width: 160px; max-width: 420px; width: 220px; }
+
+/* Ensure toolbar is not accidentally hidden by parent containers */
+.flex-table-root .flex-table-toolbar { display: flex !important; visibility: visible !important; }
+.pagination-controls { display:flex !important; }
 .card-table { background: var(--card-bg); border: 1px solid var(--border); border-radius:6px; overflow:hidden; }
 /* Ensure the table wrapper doesn't introduce extra horizontal padding that
 	can offset header vs body alignment (AdminPage had extra padding). */
@@ -132,4 +136,34 @@ table { width:100%; table-layout: fixed; border-collapse: collapse; font-size:14
 		.admin-actions { flex-direction: column; gap: 8px; }
 		.admin-actions .btn { width: 100%; }
 	}
+}
+
+/* Strong overrides for pagination icons/buttons to prevent global .btn rules from hiding them */
+.pagination-controls .btn-icon {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	width: 36px !important;
+	height: 36px !important;
+	min-width: 36px !important;
+	min-height: 36px !important;
+	border-radius: 8px !important;
+	background: var(--bg-secondary) !important;
+	color: var(--text-primary) !important;
+	font-size: 14px !important;
+}
+
+/* Ensure arrow buttons keep inline-flex layout and don't collapse */
+.pagination-left .btn, .pagination-right .btn {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	padding: 6px !important;
+	min-width: 36px !important;
+}
+
+/* Make sure disabled arrow buttons remain visible but de-emphasized */
+.pagination-left .btn[disabled], .pagination-right .btn[disabled] {
+	opacity: 0.5 !important;
+	pointer-events: none !important;
 }
