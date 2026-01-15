@@ -155,7 +155,129 @@ def ensure_columns_exist(df: pd.DataFrame, required_columns: list) -> bool:
     return True
 
 
-def load_dataset(tickers, period: str = "2d", interval: str = "15m"):
+import pandas as pd
+import yfinance as yf
+import time
+import logging
+from datetime import datetime
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def load_dataset(tickers):
+    """
+    Downloads historical daily data and appends the most recent 15-minute bar 
+    for real-time detection precision.
+    """
+    # 1. Handle input types
+    if isinstance(tickers, str):
+        ticker_list = [t.strip() for t in tickers.split(',')]
+    else:
+        ticker_list = list(tickers) if tickers else []
+    
+    dataframes = []
+    failed_tickers = []
+    
+    for ticker in ticker_list:
+        if not ticker: continue
+        
+        # Retry logic with exponential backoff
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Step A: Download 1 year of daily data
+                df_daily = yf.download(ticker, period="1y", interval="1d", auto_adjust=False, progress=False)
+                
+                # Step B: Download today's 15-minute data
+                df_intraday = yf.download(ticker, period="1d", interval="15m", auto_adjust=False, progress=False)
+                
+                # Ensure safety: yfinance can theoretically return None; guard before attribute access
+                if df_daily is None or getattr(df_daily, "empty", True):
+                    logger.warning(f"⚠️ No daily data found for {ticker}")
+                    failed_tickers.append(ticker)
+                    break
+
+                # Standardize Columns (Handle MultiIndex from yfinance)
+                for d in [df_daily, df_intraday]:
+                    if d is not None and not d.empty:
+                        if isinstance(d.columns, pd.MultiIndex):
+                            d.columns = d.columns.get_level_values(0)
+                        d.columns = [str(c) for c in d.columns]
+
+                # Step C: Prepare Daily Data
+                df_daily = df_daily.reset_index()
+                df_daily.rename(columns={df_daily.columns[0]: 'Datetime'}, inplace=True)
+                df_daily['Datetime'] = pd.to_datetime(df_daily['Datetime'], utc=True)
+                df_daily['Ticker'] = ticker
+
+                # Remove today's incomplete daily bar to avoid double-counting
+                today = pd.Timestamp.now(tz='UTC').normalize()
+                if not df_daily.empty:
+                    last_date = df_daily.iloc[-1]['Datetime'].tz_localize(None).tz_localize('UTC').normalize()
+                    if last_date >= today:
+                        df_daily = df_daily.iloc[:-1]
+
+                # Step D: Prepare Intraday Data (Take the absolute latest 15m bar)
+                if df_intraday is not None and not getattr(df_intraday, "empty", True):
+                    df_intraday = df_intraday.reset_index()
+                    df_intraday.rename(columns={df_intraday.columns[0]: 'Datetime'}, inplace=True)
+                    df_intraday['Datetime'] = pd.to_datetime(df_intraday['Datetime'], utc=True)
+                    df_intraday['Ticker'] = ticker
+                    latest_bar = df_intraday.tail(1)
+                    df = pd.concat([df_daily, latest_bar], ignore_index=True)
+                else:
+                    df = df_daily
+
+                # Step E: Data Cleaning & Validation
+                df = df.dropna(subset=['Open', 'High', 'Low', 'Close']).reset_index(drop=True)
+                
+                # Validate OHLC integrity
+                bad_rows = [i for i, row in df.iterrows() if not _validate_ohlc_bar(row, ticker, i)]
+                if bad_rows:
+                    df = df.drop(bad_rows).reset_index(drop=True)
+                    logger.info(f"✅ {ticker}: Cleaned {len(bad_rows)} corrupted bars.")
+
+                if not df.empty:
+                    dataframes.append(df)
+                    logger.info(f"✅ Loaded {len(df)} rows for {ticker}")
+                    break # Success
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                else:
+                    logger.error(f"❌ Failed to download {ticker}: {e}")
+                    failed_tickers.append(ticker)
+
+    # final consolidation
+    if not dataframes:
+        return pd.DataFrame()
+    
+    return pd.concat(dataframes, ignore_index=True)
+
+def _validate_ohlc_bar(row, ticker, idx):
+    """Checks if High is the highest and Low is the lowest in a bar."""
+    try:
+        h, l, o, c = row['High'], row['Low'], row['Open'], row['Close']
+        if h < l or h < o or h < c or l > o or l > c:
+            return False
+        if any(v <= 0 for v in [h, l, o, c]): # Basic check for zero/negative prices
+            return False
+        return True
+    except:
+        return False
+
+def _filter_close_between_low_high(df: pd.DataFrame) -> pd.DataFrame:
+    """Return rows where Close is within [Low, High]."""
+    if df is None or df.empty:
+        return df
+    required = {'Close', 'Low', 'High'}
+    if not required.issubset(set(df.columns)):
+        return df
+    return df[(df['Close'] >= df['Low']) & (df['Close'] <= df['High'])].copy()
+
+def chart_builder(tickers, period: str = "2d", interval: str = "15m"):
     # Handle both comma-separated string and list inputs
     if isinstance(tickers, str):
         ticker_list = [t.strip() for t in tickers.split(',')]
@@ -404,12 +526,14 @@ def data_preprocessing(df: pd.DataFrame):
     # ---- Only ffill/bfill numeric columns ----
     num_cols = df.select_dtypes(include=["number"]).columns.tolist()
     if num_cols:
-        # Use a safer approach: fill by ticker group
-        for ticker in df["Ticker"].unique():
-            mask = df["Ticker"] == ticker
+        # Use groupby-transform to bfill per ticker for all numeric columns
+        try:
+            df[num_cols] = df.groupby("Ticker")[num_cols].transform(lambda g: g.bfill())
+        except Exception:
+            # Fallback: simple column-wise bfill if groupby-transform fails
             for col in num_cols:
                 if col in df.columns:
-                    df.loc[mask, col] = df.loc[mask, col].ffill().bfill()
+                    df[col] = df[col].bfill()
 
     # ---- Restore Ticker (in case it was modified) ----
     df["Ticker"] = tickers
@@ -581,7 +705,7 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
     
     try:
         # 3. Load full historical data
-        df = load_dataset([ticker], period=period, interval=interval)
+        df = load_dataset([ticker])
         
         if df.empty:
             DetectionRun.complete_run(run_id, status="failed", error=f"No data available for {ticker}")
@@ -665,6 +789,7 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
         # Reduce consecutive anomaly streaks to the first row only
         if not anomalies_df.empty:
             anomalies_df = _keep_first_of_streak(anomalies_df)
+            anomalies_df = _filter_close_between_low_high(anomalies_df)
 
         if not anomalies_df.empty:
             docs = []
@@ -764,7 +889,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
     
     Best for on-demand detection via chart API. Adjusts sensitivity per stock characteristics.
     """
-    df = load_dataset([ticker], period=period, interval=interval)
+    df = load_dataset([ticker])
     if df.empty:
         logger.warning(f"No data for ticker: {ticker}")
         return pd.DataFrame()
@@ -854,6 +979,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
 
         # Persist to DB (avoid duplicates)
         if db is not None and not anomalies_df.empty:
+            anomalies_df = _filter_close_between_low_high(anomalies_df)
             price_emit = _price_warning_emit_mask(df)
             for _, row in anomalies_df.iterrows():
                 query = {
@@ -1023,7 +1149,7 @@ def detect_anomalies(tickers, period, interval):
         tickers = [tickers]
 
     for ticker in tickers:
-        df = load_dataset([ticker], period=period, interval=interval)
+        df = load_dataset([ticker])
         if df.empty or 'Ticker' not in df.columns:
             logger.warning(f"No valid data for ticker: {ticker}")
             continue
@@ -1076,12 +1202,14 @@ def detect_anomalies(tickers, period, interval):
 
         if anomalies.empty:
             continue
+        anomalies = _filter_close_between_low_high(anomalies)
         all_anomalies = pd.concat([all_anomalies, anomalies], ignore_index=True)
 
         anomalies = df[df['Is_Anomaly'] == True]
 
         if anomalies.empty:
             continue
+        anomalies = _filter_close_between_low_high(anomalies)
         all_anomalies = pd.concat([all_anomalies, anomalies], ignore_index=True)
 
         if db is not None and not anomalies.empty:
@@ -1089,6 +1217,7 @@ def detect_anomalies(tickers, period, interval):
             price_emit = _price_warning_emit_mask(df)
             # Reduce consecutive anomaly rows to single first-of-streak
             anomalies = _keep_first_of_streak(anomalies)
+            anomalies = _filter_close_between_low_high(anomalies)
             for idx, row in anomalies.iterrows():
                 ticker_key = row.get('Ticker') if 'Ticker' in row.index else None
                 if ticker_key is None:

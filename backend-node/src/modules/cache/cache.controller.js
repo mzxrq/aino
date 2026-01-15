@@ -1,4 +1,18 @@
 const CacheService = require('./cache.service');
+const fs = require('fs').promises;
+const path = require('path');
+
+const getNewsCache = async (req, res) => {
+  try {
+    const cachePath = path.join(__dirname, '../../cache/news_api_cache.json');
+    const data = await fs.readFile(cachePath, 'utf8');
+    const cacheData = JSON.parse(data);
+    return res.status(200).json(cacheData);
+  } catch (err) {
+    console.error('Get News Cache Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to read news cache.' });
+  }
+};
 
 const createCache = async (req, res) => {
   try {
@@ -164,5 +178,6 @@ module.exports = {
   deleteStaleCache,
   checkCacheStale,
   getAllSparklines,
-  getRecentCache
+  getRecentCache,
+  getNewsCache
 };

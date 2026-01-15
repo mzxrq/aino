@@ -1,7 +1,7 @@
 [
   {
     "key": "https://newsapi.org/v2/top-headlines|{\"q\":\"stock market\",\"limit\":6,\"language\":\"en\"}",
-    "ts": 1768442422675,
+    "ts": 1768521205184,
     "data": {
       "articles": []
     }
@@ -17,10 +17,10 @@
   },
   {
     "key": "https://newsapi.org/v2/everything|{\"q\":\"MSFT\",\"pageSize\":6}",
-    "ts": 1768443091450,
+    "ts": 1768519995625,
     "data": {
       "status": "ok",
-      "totalResults": 180,
+      "totalResults": 183,
       "articles": [
         {
           "source": {
@@ -101,6 +101,121 @@
           "content": "When investing in artificial intelligence (AI) stocks, individuals tend to focus on the large, mega-cap stocks that are all the rage, yet the next wave of AI may more comfortably benefit smaller infr… [+6650 chars]"
         }
       ]
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"SCB.BK\",\"pageSize\":6}",
+    "ts": 1768517405850,
+    "data": {
+      "status": "ok",
+      "totalResults": 0,
+      "articles": []
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"#\",\"pageSize\":6}",
+    "ts": 1768517429413,
+    "data": {
+      "status": "ok",
+      "totalResults": 0,
+      "articles": []
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"AAPL\",\"pageSize\":6}",
+    "ts": 1768520273294,
+    "data": {
+      "status": "ok",
+      "totalResults": 366,
+      "articles": [
+        {
+          "source": {
+            "id": null,
+            "name": "24/7 Wall St."
+          },
+          "author": "Omor Ibne Ehsan",
+          "title": "Buffett’s $24 Billion Selling Spree: The 6 Stocks Berkshire Hathaway Dumped",
+          "description": "Investors began to notice that Warren Buffett began being more conservative with the stock market three years ago, and that streak has continued even as the ...",
+          "url": "https://247wallst.com/investing/2025/12/23/buffetts-24-billion-selling-spree-the-6-stocks-berkshire-hathaway-dumped/",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/4f8G.4_vfcPuokDwxX8DbQ--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD02NzU-/https://media.zenfs.com/en/24_7_wall_st__718/28e9dca34a89254a46ee4645e85680b5",
+          "publishedAt": "2025-12-23T14:02:07Z",
+          "content": "Mark Wilson / Getty Images\r\n<ul><li>Buffett sold over $24B in stocks during the first nine months of the year including $10.6B in Apple.\r\n</li><li>He reduced his Bank of America stake by $1.92B in Q3… [+5129 chars]"
+        },
+        {
+          "source": {
+            "id": "business-insider",
+            "name": "Business Insider"
+          },
+          "author": "Dominick Reuter,Robert Scammell",
+          "title": "Apple strikes deal with Google's Gemini to power Siri's AI capabilities",
+          "description": "Apple and Alphabet have reached a deal that will have Google Gemini powering Siri's artificial intelligence capabilities.",
+          "url": "https://www.businessinsider.com/apple-google-gemini-to-power-siri-ai-capabilities-2026-1",
+          "urlToImage": "https://i.insider.com/6965166604eda4732f2ee3db?width=1200&format=jpeg",
+          "publishedAt": "2026-01-12T16:32:48Z",
+          "content": "Apple and Alphabet have reached a big AI deal.Matteo Della Torre/NurPhoto via Getty Images\r\n<ul><li>Apple and Alphabet have reached a deal to allow Google Gemini to power Siri's AI.</li><li>The compa… [+2202 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Github.com"
+          },
+          "author": "262588213843476",
+          "title": "Getting serial port output on modern Macs",
+          "description": "Getting serial on modern Macs. GitHub Gist: instantly share code, notes, and snippets.",
+          "url": "https://gist.github.com/dhinakg/3fcd9ad43c82c96964b4f64eb05e6a5e",
+          "urlToImage": "https://github.githubassets.com/assets/gist-og-image-54fd7dc0713e.png",
+          "publishedAt": "2025-12-16T01:54:50Z",
+          "content": "Modern devices default to serial output over DockChannel by default, which is why macvdmtool serial doesn't work. In order to use legacy UART:\r\nOn the target device:\r\n<ol><li>Disable SIP</li><li>Disa… [+2988 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "9to5Mac"
+          },
+          "author": "Ben Lovejoy",
+          "title": "Steve Jobs memorabilia auction includes his desk, bow ties, and much more",
+          "description": "A Steve Jobs memorabilia auction is now live online, and items available include the desk from the famous garage where Apple started, the first check the two Steves ever signed, Steve’s bow ties from high school and much more.\n\n\n\nThe auction also includes a w…",
+          "url": "https://9to5mac.com/2026/01/06/steve-jobs-memorabilia-auction-includes-his-desk-bow-ties-and-much-more/",
+          "urlToImage": "https://i0.wp.com/9to5mac.com/wp-content/uploads/sites/6/2026/01/Steve-Jobs-memorabilia-auction-includes-his-desk-bow-ties-and-much-more.jpg?resize=1200%2C628&quality=82&strip=all&ssl=1",
+          "publishedAt": "2026-01-06T14:52:55Z",
+          "content": "A Steve Jobs memorabilia auction is now live online, and items available include the desk from the famous garage where Apple started, the first check the two Steves ever signed, Steve’s bow ties from… [+1770 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Yahoo Entertainment"
+          },
+          "author": "Daniel Howley",
+          "title": "CES 2026: What to expect from the tech industry’s biggest show of the year",
+          "description": "CES 2026 kicks off in Las Vegas on Jan. 6. Here's what to expect from the tech industry's biggest event.",
+          "url": "https://finance.yahoo.com/news/ces-2026-what-to-expect-from-the-tech-industrys-biggest-show-of-the-year-140552142.html",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/FpOvxay47uhdm_jVg3WsLA--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD04MDA-/https://d29szjachogqwa.cloudfront.net/images/2025-12/f8ba9f33-a632-409d-9ec0-5b0fe7960b58",
+          "publishedAt": "2026-01-02T14:05:52Z",
+          "content": "Welcome to 2026. Now rinse out that champagne glass and pop some Advil because the tech industrys biggest show of the year, CES, kicks off on Tuesday under the bright lights of Las Vegas.\r\nCompanies … [+5095 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Yahoo Entertainment"
+          },
+          "author": "Daniel Howley",
+          "title": "Apple spent 2025 setting itself up for the future — and its biggest moves weren't about AI",
+          "description": "Apple's 2025 helped set up its future.",
+          "url": "https://finance.yahoo.com/news/apple-spent-2025-setting-itself-up-for-the-future--and-its-biggest-moves-werent-about-ai-211525196.html",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/xwQLfyrEuvvS8dnq_Jgwhw--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD04MDA-/https://s.yimg.com/os/creatr-uploaded-images/2025-01/4aae2830-dda3-11ef-9f5f-9631a8d45eb7",
+          "publishedAt": "2025-12-23T21:15:25Z",
+          "content": "Its been quite a year for Apple (AAPL). The company reported record revenue on the back of strong iPhone sales. Its Services business continued its impressive growth, hitting $109.2 billion in sales.… [+4744 chars]"
+        }
+      ]
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"LH.BK\",\"pageSize\":6}",
+    "ts": 1768521214849,
+    "data": {
+      "status": "ok",
+      "totalResults": 0,
+      "articles": []
     }
   }
 ]

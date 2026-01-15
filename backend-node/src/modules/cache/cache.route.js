@@ -10,6 +10,7 @@ const cacheController = require("./cache.controller");
 const { requireAuth, authorize } = require('../../middleware/authMiddleware');
 
 // Special routes (must be defined before parameterized routes)
+router.get("/news", cacheController.getNewsCache);
 router.get("/sparklines/all", cacheController.getAllSparklines);
 router.delete("/stale", cacheController.deleteStaleCache);
 router.post("/bulk", cacheController.bulkCreateCache);
