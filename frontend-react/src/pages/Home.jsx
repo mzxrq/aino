@@ -84,12 +84,8 @@ export default function Home() {
   const [topAnomalies, setTopAnomalies] = useState([]);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
-  const [masterTickersMap, setMasterTickersMap] = useState(null);
-
-  // Refs for API safety
-  const hasInitialFetched = useRef(false);
-  const pyCacheRef = useRef(new Map());
-
+  const lastFetchedNewsTicker = useRef(null);
+  const { isLoggedIn } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 
@@ -110,7 +106,7 @@ export default function Home() {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`status ${r.status}`);
     return await r.json();
-  }
+  })
 
   // Deduplicating fetch helper for Node API calls (GET + identical POSTs)
   const _inFlightRequests = new Map();
@@ -368,6 +364,12 @@ export default function Home() {
     const fetchNews = async () => {
       try {
         const topTicker = anomalies?.[0]?.ticker || topAnomalies?.[0]?.ticker || 'AAPL';
+        
+        // Skip if we've already fetched for this ticker
+        if (lastFetchedNewsTicker.current === topTicker) {
+          return;
+        }
+        lastFetchedNewsTicker.current = topTicker;
 
         // 1) Try top-viewed cached articles
         try {
@@ -526,8 +528,8 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Anomalies and News Grid */}
       <div className="homepage-grid">
-        {/* Left Column: Recent Anomalies */}
         <div className="left-column">
           <div className="card anomaly-card">
             <div className="card-header">

@@ -236,13 +236,13 @@ export default function Navbar() {
                 });
                 const j = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                  alert('Scan request failed: ' + (j.error || res.statusText));
+                  alert(i18n._('Scan request failed: ') + (j.error || res.statusText));
                 } else {
-                  alert('Full scan started');
+                  alert(i18n._('Full scan started'));
                 }
               } catch (e) {
                 console.error('Run scan error', e);
-                alert('Failed to start scan: ' + e.message);
+                alert(i18n._('Failed to start scan: ') + e.message);
               }
             }}
           >

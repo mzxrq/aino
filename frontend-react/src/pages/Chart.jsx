@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { i18n } from '@lingui/core';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DateTime } from 'luxon';
 import Swal from '../utils/muiSwal';
@@ -941,7 +942,7 @@ export default function Chart() {
           {/* Add button separated from pills so pills width/scrolling isn't affected */}
           <button
             className="chart-pill add-pill"
-            aria-label="Add ticker"
+            aria-label={i18n._("Add ticker")}
             onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); }}
             ref={addBtnRef}
             onKeyDown={handleAddKeyDown}
@@ -952,8 +953,8 @@ export default function Chart() {
           {/* Clear All button (trash icon, same size as Add) */}
           <button
             className="chart-pill add-pill toolbar-action-btn clear-btn"
-            aria-label="Clear all tickers"
-            title="Clear all tickers"
+            aria-label={i18n._('Clear all tickers')}
+            title={i18n._('Clear all tickers')}
             onClick={() => { if (tickers.length) clearAllTags(); }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>

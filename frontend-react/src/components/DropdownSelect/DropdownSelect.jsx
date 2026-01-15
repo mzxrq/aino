@@ -51,7 +51,7 @@ export default function DropdownSelect({ value, onChange, options = [], classNam
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="flag-empty" style={{ padding: '8px 12px', color: '#666' }}>No results</div>
+              <div className="flag-empty" style={{ padding: '8px 12px', color: '#666' }}>{i18n._("No results")}</div>
             )}
           </div>
         </PortalDropdown>

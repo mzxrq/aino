@@ -11,6 +11,11 @@ import yfinance as yf
 from pydantic import BaseModel, Field
 
 from core.config import db, logger
+from services.financial_service import (
+    get_company_profile, get_latest_income_statement, get_income_statements,
+    get_latest_balance_sheet, get_balance_sheets, get_financial_summary,
+    get_net_income_history, get_board_members, get_financial_ratios
+)
 from services.train_service import chart_builder,load_dataset, data_preprocessing, detect_anomalies, detect_anomalies_adaptive
 
 router = APIRouter()
@@ -1299,3 +1304,205 @@ def get_stock_info(ticker: str):
             'last_trade_time': None,
             'error': str(e)
         }
+
+
+# -------------------------
+# Financial Data Endpoints (from pre-fetched collections)
+# -------------------------
+
+@router.get("/company/profile")
+def get_profile(ticker: str) -> Dict[str, Any]:
+    """
+    Get company profile data for a ticker.
+    
+    Includes: address, employees, board members, governance metrics.
+    Data is pre-fetched and stored locally - no yfinance API calls.
+    
+    Query params:
+    - ticker: Stock ticker (e.g., 'AAPL', '9020.T')
+    """
+    try:
+        profile = get_company_profile(ticker)
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"No profile found for {ticker}")
+        return profile
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching profile for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/income-statement/latest")
+def get_latest_income_stmt(ticker: str) -> Dict[str, Any]:
+    """
+    Get the most recent income statement for a ticker.
+    
+    Includes: Revenue, Net Income, Operating Income, EPS, EBITDA, etc.
+    
+    Query params:
+    - ticker: Stock ticker
+    """
+    try:
+        stmt = get_latest_income_statement(ticker)
+        if not stmt:
+            raise HTTPException(status_code=404, detail=f"No income statement found for {ticker}")
+        return stmt
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching income statement for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/income-statement/history")
+def get_income_stmt_history(
+    ticker: str,
+    period_type: Optional[str] = None,
+    limit: int = 8
+) -> List[Dict[str, Any]]:
+    """
+    Get historical income statements for a ticker.
+    
+    Query params:
+    - ticker: Stock ticker
+    - period_type: 'annual' or 'quarterly' (optional, returns all if not specified)
+    - limit: Maximum records to return (default 8)
+    """
+    try:
+        stmts = get_income_statements(ticker, period_type=period_type, limit=limit)
+        return stmts
+    except Exception as e:
+        logger.error(f"Error fetching income statement history for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/balance-sheet/latest")
+def get_latest_balance_sheet_endpoint(ticker: str) -> Dict[str, Any]:
+    """
+    Get the most recent balance sheet for a ticker.
+    
+    Includes: Assets, Liabilities, Equity with all sub-categories.
+    
+    Query params:
+    - ticker: Stock ticker
+    """
+    try:
+        bs = get_latest_balance_sheet(ticker)
+        if not bs:
+            raise HTTPException(status_code=404, detail=f"No balance sheet found for {ticker}")
+        return bs
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching balance sheet for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/balance-sheet/history")
+def get_balance_sheet_history(
+    ticker: str,
+    period_type: Optional[str] = None,
+    limit: int = 8
+) -> List[Dict[str, Any]]:
+    """
+    Get historical balance sheets for a ticker.
+    
+    Query params:
+    - ticker: Stock ticker
+    - period_type: 'annual' or 'quarterly' (optional, returns all if not specified)
+    - limit: Maximum records to return (default 8)
+    """
+    try:
+        bss = get_balance_sheets(ticker, period_type=period_type, limit=limit)
+        return bss
+    except Exception as e:
+        logger.error(f"Error fetching balance sheet history for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/summary")
+def get_financial_summary_endpoint(ticker: str) -> Dict[str, Any]:
+    """
+    Get comprehensive financial summary for a ticker.
+    
+    Combines latest profile, income statement, and balance sheet.
+    Useful for dashboard displays and company info pages.
+    
+    Query params:
+    - ticker: Stock ticker
+    """
+    try:
+        summary = get_financial_summary(ticker)
+        if not summary or not summary.get('profile'):
+            raise HTTPException(status_code=404, detail=f"No financial data found for {ticker}")
+        return summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error building financial summary for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/net-income-history")
+def get_net_income_history_endpoint(ticker: str, limit: int = 8) -> List[Dict[str, Any]]:
+    """
+    Get historical net income values (trend analysis).
+    
+    Returns: fiscalDate, netIncome, eps, revenue
+    
+    Query params:
+    - ticker: Stock ticker
+    - limit: Maximum records (default 8)
+    """
+    try:
+        history = get_net_income_history(ticker, limit=limit)
+        return history
+    except Exception as e:
+        logger.error(f"Error fetching net income history for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/company/board-members")
+def get_board_members_endpoint(ticker: str) -> List[Dict[str, Any]]:
+    """
+    Get list of board members and company officers.
+    
+    Includes: name, title, age, compensation details.
+    
+    Query params:
+    - ticker: Stock ticker
+    """
+    try:
+        members = get_board_members(ticker)
+        return members
+    except Exception as e:
+        logger.error(f"Error fetching board members for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/financials/ratios")
+def get_ratios_endpoint(ticker: str) -> Dict[str, Any]:
+    """
+    Get calculated financial ratios from latest statements.
+    
+    Includes:
+    - profitMargin (Net Income / Revenue)
+    - roa (Return on Assets)
+    - roe (Return on Equity)
+    - debtToEquity ratio
+    - currentRatio
+    
+    Query params:
+    - ticker: Stock ticker
+    """
+    try:
+        ratios = get_financial_ratios(ticker)
+        if not ratios:
+            raise HTTPException(status_code=404, detail=f"Could not calculate ratios for {ticker}")
+        return ratios
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating ratios for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

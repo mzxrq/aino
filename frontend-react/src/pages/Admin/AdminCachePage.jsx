@@ -8,6 +8,7 @@ import GenericModal from '../../components/GenericModal/GenericModal';
 import DropdownSelect from '../../components/DropdownSelect/DropdownSelect';
 import { formatToUserTZSlash } from '../../utils/dateUtils';
 import { AuthContext } from '../../context/contextBase';
+import { i18n } from '@lingui/core';
 
 function DebugCacheFetch({ refreshSignal }) {
   React.useEffect(() => {
@@ -183,25 +184,25 @@ const AdminCachePage = () => {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2>Cache Management</h2>
-          <p className="admin-subtitle">Manage cached chart payloads (chart::ticker::period::interval).</p>
+          <h2><Trans>Cache Management</Trans></h2>
+          <p className="admin-subtitle"><Trans>Manage cached chart payloads (chart::ticker::period::interval).</Trans></p>
         </div>
         <div className="admin-actions">
-          <button className="btn btn-primary" onClick={openCreate}>+ Create Cache</button>
+          <button className="btn btn-primary" onClick={openCreate}>+ <Trans>Create Cache</Trans></button>
           <button className="btn btn-danger" onClick={async () => {
-            const r = await Swal.fire({ icon: 'warning', title: 'Delete All Cache', html: '<strong>This will permanently delete ALL cache entries.</strong><br/>This action cannot be undone. Are you sure?', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, delete all' });
+            const r = await Swal.fire({ icon: 'warning', title: <Trans>Delete All Cache</Trans>, html: i18n._('<strong><Trans>This will permanently delete ALL cache entries.</Trans></strong><br/><Trans>This action cannot be undone. Are you sure?</Trans>'), showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: <Trans>Yes, delete all</Trans> });
             if (!r.isConfirmed) return;
             try {
               const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=cache`, { method: 'DELETE' });
               const body = await res.json();
-              if (!res.ok) throw new Error(body.error || 'Delete all failed');
+              if (!res.ok) throw new Error(body.error || i18n._('Delete all failed'));
               setRefreshSignal(s => s + 1);
-              await Swal.fire({ icon: 'success', title: 'Deleted', text: 'All cache entries deleted.', timer: 1200 });
+              await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All cache entries deleted.'), timer: 1200 });
             } catch (err) {
               console.error('Delete all cache error', err);
-              await Swal.fire({ icon: 'error', title: 'Error', text: 'Delete all failed: ' + err.message });
+              await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete all failed: ') + err.message });
             }
-          }}>Delete All</button>
+          }}><Trans>Delete All</Trans></button>
         </div>
       </div>
       {/* Debug: log raw cache endpoint response to help diagnose display issues */}
@@ -209,10 +210,10 @@ const AdminCachePage = () => {
 
       <FlexTable
         columns={[
-          { key: 'ticker', label: 'Ticker', sortable: true, width: '120px' },
-          { key: 'period', label: 'Period', sortable: true, width: '120px' },
-          { key: 'interval', label: 'Interval', sortable: true, width: '120px', className: 'center-right' },
-          { key: 'fetched_at', label: 'Fetched At', sortable: true, width: '180px' },
+          { key: 'ticker', label: i18n._('Ticker'), sortable: true, width: '120px' },
+          { key: 'period', label: i18n._('Period'), sortable: true, width: '120px' },
+          { key: 'interval', label: i18n._('Interval'), sortable: true, width: '120px', className: 'center-right' },
+          { key: 'fetched_at', label: i18n._('Fetched At'), sortable: true, width: '180px' },
         ]}
         keyField="_id"
         renderRow={renderRow}
@@ -227,7 +228,7 @@ const AdminCachePage = () => {
             return row;
           }
         }}
-        emptyText="No cache entries found."
+        emptyText={i18n._("No cache entries found.")}
         fetchUrl={`${API_BASE}/node/cache`}
         refreshSignal={refreshSignal}
         enablePagination={true}
@@ -236,12 +237,11 @@ const AdminCachePage = () => {
       />
 
       {/* View Payload modal */}
-      <GenericModal isOpen={!!viewPayload} title={viewPayload ? `Payload: ${viewPayload._id || viewPayload.id}` : ''} onClose={() => setViewPayload(null)} showClose>
+      <GenericModal isOpen={!!viewPayload} title={viewPayload ? `${i18n._('Payload')}: ${viewPayload._id || viewPayload.id}` : ''} onClose={() => setViewPayload(null)} showClose>
         <div style={{ padding: 18 }}>
           <pre style={{ maxHeight: '50vh', overflow: 'auto', background: 'var(--bg-main)', padding: 12, borderRadius: 8 }}>{viewPayload ? JSON.stringify(viewPayload.payload || viewPayload, null, 2) : ''}</pre>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button className="btn btn-small btn-primary" onClick={() => { navigator.clipboard?.writeText(JSON.stringify(viewPayload?.payload || viewPayload || {}, null, 2)); Swal.fire({ icon: 'success', title: 'Copied' }); }}>Copy</button>
-
+            <button className="btn btn-small btn-primary" onClick={() => { navigator.clipboard?.writeText(JSON.stringify(viewPayload?.payload || viewPayload || {}, null, 2)); Swal.fire({ icon: 'success', title: i18n._('Copied') }); }}><Trans>Copy</Trans></button>
           </div>
         </div>
       </GenericModal>
@@ -250,22 +250,22 @@ const AdminCachePage = () => {
       <GenericModal isOpen={modalOpen} title={editItem ? `Edit Cache ${editItem._id}` : 'Create Cache'} onClose={closeModal} onSave={handleSave} saveLabel={editItem ? 'Save' : 'Create'}>
         <div className="form-grid">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', gridColumn: '1 / -1' }}>
-            <label className="form-field" style={{ flex: 1 }}><span>Ticker</span><input name="ticker" value={form.ticker} onChange={(e) => setForm(s => ({ ...s, ticker: e.target.value.toUpperCase() }))} placeholder="AAPL" /></label>
-            <label className="form-field" style={{ flex: 1 }}><span>Period</span><input name="period" value={form.period} onChange={(e) => setForm(s => ({ ...s, period: e.target.value }))} placeholder="1d" /></label>
-            <label className="form-field" style={{ flex: 1 }}><span>Interval</span><input name="interval" value={form.interval} onChange={(e) => setForm(s => ({ ...s, interval: e.target.value }))} placeholder="1m" /></label>
+            <label className="form-field" style={{ flex: 1 }}><span><Trans>Ticker</Trans></span><input name="ticker" value={form.ticker} onChange={(e) => setForm(s => ({ ...s, ticker: e.target.value.toUpperCase() }))} placeholder="AAPL" /></label>
+            <label className="form-field" style={{ flex: 1 }}><span><Trans>Period</Trans></span><input name="period" value={form.period} onChange={(e) => setForm(s => ({ ...s, period: e.target.value }))} placeholder="1d" /></label>
+            <label className="form-field" style={{ flex: 1 }}><span><Trans>Interval</Trans></span><input name="interval" value={form.interval} onChange={(e) => setForm(s => ({ ...s, interval: e.target.value }))} placeholder="1m" /></label>
           </div>
 
-          <label className="form-field"><span>Fetched At</span><input name="fetched_at" value={form.fetched_at} onChange={(e) => setForm(s => ({ ...s, fetched_at: e.target.value }))} placeholder="ISO date" /></label>
-          <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Payload (JSON)</span><textarea value={form.payload} onChange={(e) => setForm(s => ({ ...s, payload: e.target.value }))} style={{ minHeight: 200 }} placeholder='{ "dates": [...], "open": [...] }' /></label>
+          <label className="form-field"><span><Trans>Fetched At</Trans></span><input name="fetched_at" value={form.fetched_at} onChange={(e) => setForm(s => ({ ...s, fetched_at: e.target.value }))} placeholder="ISO date" /></label>
+          <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Payload (JSON)</Trans></span><textarea value={form.payload} onChange={(e) => setForm(s => ({ ...s, payload: e.target.value }))} style={{ minHeight: 200 }} placeholder='{ "dates": [...], "open": [...] }' /></label>
         </div>
       </GenericModal>
 
       {/* Row actions modal (contextual) */}
       <GenericModal isOpen={!!rowActions} title="Actions" onClose={() => setRowActions(null)}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-small btn-secondary" onClick={() => { setViewPayload(rowActions); setRowActions(null); }}>View Payload</button>
-          <button className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); setRowActions(null); }}>Edit</button>
-          <button className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions); setRowActions(null); }}>Delete</button>
+          <button className="btn btn-small btn-secondary" onClick={() => { setViewPayload(rowActions); setRowActions(null); }}><Trans>View Payload</Trans></button>
+          <button className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); setRowActions(null); }}><Trans>Edit</Trans></button>
+          <button className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions); setRowActions(null); }}><Trans>Delete</Trans></button>
         </div>
       </GenericModal>
     </main>

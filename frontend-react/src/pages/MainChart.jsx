@@ -1121,19 +1121,20 @@ export default function MainChart() {
     // anomalies as scatter with labeled markers (like Chart.jsx)
     if (showAnomaly && anomalies && anomalies.length) {
       // Reason mapping - MUST MATCH backend train_service.py identify_reason()
+      // Use i18n._() for translated labels that support Japanese and other languages
       const REASON_MAP = {
-        'Volume Spike': { color: '#ff8c00', label: <Trans>Volume Spike</Trans> },
-        'Volume Average (14d)': { color: '#ff9500', label: <Trans>Volume Average (14d)</Trans> },
-        'Price Spike': { color: '#ff3b30', label: <Trans>Price Spike</Trans> },
-        'Flash Crash': { color: '#dc143c', label: <Trans>Flash Crash</Trans> },
-        'Price Average (20d)': { color: '#f59e0b', label: <Trans>Price Average (20d)</Trans> },
-        'Absorption': { color: '#0ea5a4', label: <Trans>Absorption</Trans> },
-        'Bullish Crossover': { color: '#10b981', label: <Trans>Bullish</Trans> },
-        'Bearish Crossunder': { color: '#ef4444', label: <Trans>Bearish</Trans> },
-        'Anomaly Detected': { color: '#6b7280', label: <Trans>Anomaly</Trans> },
-        'System anomaly detected': { color: '#6b7280', label: <Trans>System</Trans> },
-        'Rule-based': { color: '#8b5cf6', label: <Trans>Rule</Trans> },
-        other: { color: '#9ca3af', label: <Trans>Other</Trans> }
+        'Volume Spike': { color: '#ff8c00', label: i18n._('Volume Spike') },
+        'Volume Average (14d)': { color: '#ff9500', label: i18n._('Volume Average (14d)') },
+        'Price Spike': { color: '#ff3b30', label: i18n._('Price Spike') },
+        'Flash Crash': { color: '#dc143c', label: i18n._('Flash Crash') },
+        'Price Average (20d)': { color: '#f59e0b', label: i18n._('Price Average (20d)') },
+        'Absorption': { color: '#0ea5a4', label: i18n._('Absorption') },
+        'Bullish Crossover': { color: '#10b981', label: i18n._('Bullish') },
+        'Bearish Crossunder': { color: '#ef4444', label: i18n._('Bearish') },
+        'Anomaly Detected': { color: '#6b7280', label: i18n._('Anomaly') },
+        'System anomaly detected': { color: '#6b7280', label: i18n._('System') },
+        'Rule-based': { color: '#8b5cf6', label: i18n._('Rule') },
+        other: { color: '#9ca3af', label: i18n._('Other') }
       };
 
       const normalizeReasonType = (r) => {
@@ -1171,6 +1172,7 @@ export default function MainChart() {
 
           scatterData.push({
             value: [idx, a.y],
+            reason: map.label,  // Store reason label for tooltip
             itemStyle: { color: map.color },
             label: {
               show: alwaysShow.includes(reasonType),
@@ -1192,14 +1194,24 @@ export default function MainChart() {
       });
 
       option.series.push({
-        name: <Trans>Anomalies</Trans>,
+        name: i18n._('Anomalies'),
         type: 'scatter',
         data: scatterData,
         xAxisIndex: 0,
         yAxisIndex: 0,
         symbol: 'circle',
         symbolSize: 8,
-        zlevel: 15
+        zlevel: 15,
+        tooltip: {
+          formatter: (params) => {
+            if (params.data && params.data.reason) {
+              const date = new Date(params.axisValue);
+              const price = params.value[1]?.toFixed(2) || '-';
+              return `<div style="color:#000;font-size:12px;"><strong>${date.toLocaleString()}</strong><br/><span style="color:${params.color}">Reason: ${params.data.reason}</span><br/><span style="color:${params.color}">Price: ${price}</span></div>`;
+            }
+            return '';
+          }
+        }
       });
     }
 

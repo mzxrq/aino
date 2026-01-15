@@ -171,16 +171,16 @@ export default function AdminUsersPage() {
 
       <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit User') : i18n._('Create User')} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? i18n._('Save') : i18n._('Create')}>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-          <label className="form-field"><span>Email</span><input name="email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder="user@example.com" /></label>
-          <label className="form-field"><span>Username</span><input name="username" value={form.username} onChange={(e) => setForm((s) => ({ ...s, username: e.target.value }))} placeholder="jdoe" /></label>
-          <label className="form-field"><span>Name</span><input name="name" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="John Doe" /></label>
+          <label className="form-field"><span><Trans>Email</Trans></span><input name="email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} placeholder={i18n._('user@example.com')} /></label>
+          <label className="form-field"><span><Trans>Username</Trans></span><input name="username" value={form.username} onChange={(e) => setForm((s) => ({ ...s, username: e.target.value }))} placeholder={i18n._('jdoe')} /></label>
+          <label className="form-field"><span><Trans>Name</Trans></span><input name="name" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder={i18n._('John Doe')} /></label>
           {!editing && (
             <>
-              <label className="form-field"><span><Trans>Password</Trans></span><input name="password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder="At least 6 characters" /></label>
-              <label className="form-field"><span><Trans>Confirm</Trans></span><input name="confirm" type="password" value={form.confirm} onChange={(e) => setForm((s) => ({ ...s, confirm: e.target.value }))} placeholder="Confirm password" /></label>
+              <label className="form-field"><span><Trans>Password</Trans></span><input name="password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} placeholder={i18n._('At least 6 characters')} /></label>
+              <label className="form-field"><span><Trans>Confirm</Trans></span><input name="confirm" type="password" value={form.confirm} onChange={(e) => setForm((s) => ({ ...s, confirm: e.target.value }))} placeholder={i18n._('Confirm password')} /></label>
             </>
           )}
-          <label className="form-field"><span>Role</span><DropdownSelect className="select-input" value={form.role} onChange={(v) => setForm((s) => ({ ...s, role: v }))} options={ROLE_OPTIONS} /></label>
+          <label className="form-field"><span><Trans>Role</Trans></span><DropdownSelect className="select-input" value={form.role} onChange={(v) => setForm((s) => ({ ...s, role: v }))} options={ROLE_OPTIONS} /></label>
         </div>
         {editing && (
           <div style={{ padding: 12, display: 'flex', justifyContent: 'flex-end' }}>
@@ -189,10 +189,10 @@ export default function AdminUsersPage() {
         )}
       </GenericModal>
 
-      <GenericModal isOpen={changePwdOpen} title="Change Password" onClose={() => { setChangePwdOpen(false); setPwdForm({ password: '', confirm: '' }); }} onSave={async () => {
-        if (!editing || !(editing._id || editing.id)) { await Swal.fire({ icon: 'warning', title: 'Error', text: 'No user selected' }); return; }
-        if (!pwdForm.password || pwdForm.password.length < 6) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Password must be at least 6 characters' }); return; }
-        if (pwdForm.password !== pwdForm.confirm) { await Swal.fire({ icon: 'warning', title: 'Validation', text: 'Passwords do not match' }); return; }
+      <GenericModal isOpen={changePwdOpen} title={i18n._('Change Password')} onClose={() => { setChangePwdOpen(false); setPwdForm({ password: '', confirm: '' }); }} onSave={async () => {
+        if (!editing || !(editing._id || editing.id)) { await Swal.fire({ icon: 'warning', title: i18n._('Error'), text: i18n._('No user selected') }); return; }
+        if (!pwdForm.password || pwdForm.password.length < 6) { await Swal.fire({ icon: 'warning', title: i18n._('Validation'), text: i18n._('Password must be at least 6 characters') }); return; }
+        if (pwdForm.password !== pwdForm.confirm) { await Swal.fire({ icon: 'warning', title: i18n._('Validation'), text: i18n._('Passwords do not match') }); return; }
           try {
           setChangePwdLoading(true);
           const id = editing._id || editing.id;
@@ -201,18 +201,18 @@ export default function AdminUsersPage() {
           if (token) headers.Authorization = `Bearer ${token}`;
           const res = await fetch(`${API_BASE}/node/users/${id}/change-password`, { method: 'PUT', headers, body: JSON.stringify({ newPassword: pwdForm.password }) });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Change password failed');
-          await Swal.fire({ icon: 'success', title: 'Password changed', timer: 1200 });
+          if (!res.ok) throw new Error(data.error || i18n._('Change password failed'));
+          await Swal.fire({ icon: 'success', title: i18n._('Password changed'), timer: 1200 });
           setChangePwdOpen(false);
           setPwdForm({ password: '', confirm: '' });
         } catch (err) {
           console.error('Change password error', err);
-          await Swal.fire({ icon: 'error', title: 'Error', text: 'Change password failed: ' + err.message });
+          await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Change password failed: ') + err.message });
         } finally { setChangePwdLoading(false); }
-      }} saveLabel={changePwdLoading ? 'Changing...' : 'Change'}>
+      }} saveLabel={changePwdLoading ? i18n._('Changing...') : i18n._('Change')}>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: 12 }}>
-          <label className="form-field"><span>New password</span><input type="password" value={pwdForm.password} onChange={(e) => setPwdForm((s) => ({ ...s, password: e.target.value }))} placeholder="Enter new password" /></label>
-          <label className="form-field"><span>Confirm password</span><input type="password" value={pwdForm.confirm} onChange={(e) => setPwdForm((s) => ({ ...s, confirm: e.target.value }))} placeholder="Confirm new password" /></label>
+          <label className="form-field"><span>{i18n._('New password')}</span><input type="password" value={pwdForm.password} onChange={(e) => setPwdForm((s) => ({ ...s, password: e.target.value }))} placeholder={i18n._('Enter new password')} /></label>
+          <label className="form-field"><span>{i18n._('Confirm password')}</span><input type="password" value={pwdForm.confirm} onChange={(e) => setPwdForm((s) => ({ ...s, confirm: e.target.value }))} placeholder={i18n._('Confirm new password')} /></label>
         </div>
       </GenericModal>
 

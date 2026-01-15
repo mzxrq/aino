@@ -3,6 +3,7 @@ import './FlexTable.css';
 import { AuthContext } from '../../context/contextBase';
 import { formatToUserTZSlash, isIsoLike, normalizeTimestampToMs } from '../../utils/dateUtils';
 import DropdownSelect from '../DropdownSelect/DropdownSelect';
+import { i18n } from '@lingui/core';
 
 const DEFAULT_LIMITS = [5, 10, 20, 50, 100];
 
@@ -313,7 +314,7 @@ export default function FlexTable({
             <input
               type="search"
               className="search-input"
-              placeholder="Search"
+              placeholder={i18n._("Search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); load(); } }}
@@ -360,7 +361,7 @@ export default function FlexTable({
             )}
             <tbody>
               {loading && (
-                <tr><td colSpan={columns.length} style={{ padding: 24, textAlign: 'center' }}>Loading...</td></tr>
+                <tr><td colSpan={columns.length} style={{ padding: 24, textAlign: 'center' }}>{i18n._("Loading...")}</td></tr>
               )}
               {!loading && error && (
                 <tr><td colSpan={columns.length} style={{ padding: 24, textAlign: 'center' }}>{error}</td></tr>
@@ -390,7 +391,12 @@ export default function FlexTable({
             <button className="btn btn-small btn-arrow" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page">
               <span className="btn-icon">◀</span>
             </button>
-            <span className="page-label">Page {page}{total ? ` / ${Math.max(1, Math.ceil(total / limit))}` : ''}</span>
+            <span className="page-label">
+              {total 
+                ? i18n._(`Page {page} / {totalPages}`, { page, totalPages: Math.max(1, Math.ceil(total / limit)) })
+                : i18n._(`Page {page}`, { page })
+              }
+            </span>
             <button className="btn btn-small btn-arrow" onClick={() => setPage((p) => p + 1)} disabled={total !== null && page >= Math.ceil(total / limit)} aria-label="Next page">
               <span className="btn-icon">▶</span>
             </button>
@@ -401,7 +407,7 @@ export default function FlexTable({
             <div style={{ minWidth: 88 }}>
               {allowRowsChange ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <label className="rows-label" style={{ fontSize: 13, color: 'var(--text-primary)', marginRight: 6 }}>Rows:</label>
+                  <label className="rows-label" style={{ fontSize: 13, color: 'var(--text-primary)', marginRight: 6 }}>{i18n._("Rows")}:</label>
                   <DropdownSelect
                     value={limit}
                     onChange={(v) => { setLimit(Number(v)); setPage(1); }}
@@ -412,7 +418,7 @@ export default function FlexTable({
                 <div />
               )}
             </div>
-            <button className="btn btn-small refresh-btn" onClick={() => { setPage(1); load(); }} aria-label="Refresh">Refresh</button>
+            <button className="btn btn-small refresh-btn" onClick={() => { setPage(1); load(); }} aria-label="Refresh">{i18n._("Refresh")}</button>
           </div>
         </div>
       )}
