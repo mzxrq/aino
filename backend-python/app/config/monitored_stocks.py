@@ -24,7 +24,8 @@ US_STOCKS = [
 # Japan Market - Nikkei 225 leaders
 JP_STOCKS = [
     # Tech/Electronics
-    'SONY.T', '6758.T',      # Sony, Sony Group
+    # 'SONY.T',
+    '6758.T',      # Sony, Sony Group
     '6861.T',                 # Keyence
     '6954.T',                 # Fanuc
     # Automotive

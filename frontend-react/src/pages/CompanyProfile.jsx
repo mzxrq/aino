@@ -216,7 +216,7 @@ export default function CompanyProfile() {
         };
       });
 
-      // attach stored view counts where available
+      // attach stored view counts where available (cached POST lookup, 5min TTL)
       try {
         const keys = items.map(a => a.link).filter(Boolean);
         if (keys.length) {

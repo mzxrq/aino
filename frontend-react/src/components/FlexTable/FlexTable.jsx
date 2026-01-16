@@ -216,6 +216,9 @@ export default function FlexTable({
       }
       list = Array.isArray(list) ? list : [];
 
+      // Determine whether we asked the server for a paged slice (server-side paging)
+      const requestedPaging = enablePagination && !searching;
+
       // If searching, apply client-side filtering across ticker/companyName/note
       if (searching) {
         const q = String(search).toLowerCase();
@@ -255,12 +258,20 @@ export default function FlexTable({
           setRows(list);
           setTotal(Number(totalCount));
         } else if (Array.isArray(list)) {
-          // Server returned an array but no total -> perform client-side pagination
-          const inferredTotal = list.length;
-          setTotal(inferredTotal);
-          const start = (page - 1) * limit;
-          const pageSlice = list.slice(start, start + limit);
-          setRows(pageSlice);
+          if (requestedPaging) {
+            // We requested a paged slice from the server (limit/skip). The server returned the current page.
+            // We cannot safely infer the global total from this response; leave `total` null so UI
+            // enables the Next button when appropriate (computed from returned length elsewhere).
+            setRows(list);
+            setTotal(null);
+          } else {
+            // Server returned a full array (we didn't request paging) -> perform client-side pagination
+            const inferredTotal = list.length;
+            setTotal(inferredTotal);
+            const start = (page - 1) * limit;
+            const pageSlice = list.slice(start, start + limit);
+            setRows(pageSlice);
+          }
         } else {
           // Unknown shape, just set rows and leave total null
           setRows(list);

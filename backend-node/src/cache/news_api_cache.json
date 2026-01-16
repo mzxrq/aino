@@ -1,18 +1,106 @@
 [
   {
     "key": "https://newsapi.org/v2/top-headlines|{\"q\":\"stock market\",\"limit\":6,\"language\":\"en\"}",
-    "ts": 1768358917887,
+    "ts": 1768442422675,
     "data": {
       "articles": []
     }
   },
   {
     "key": "https://newsapi.org/v2/everything|{\"q\":\"KTB.BK\",\"pageSize\":6}",
-    "ts": 1768358918112,
+    "ts": 1768442422931,
     "data": {
       "status": "ok",
       "totalResults": 0,
       "articles": []
+    }
+  },
+  {
+    "key": "https://newsapi.org/v2/everything|{\"q\":\"MSFT\",\"pageSize\":6}",
+    "ts": 1768443091450,
+    "data": {
+      "status": "ok",
+      "totalResults": 180,
+      "articles": [
+        {
+          "source": {
+            "id": null,
+            "name": "Yahoo Entertainment"
+          },
+          "author": "Zacks Equity Research",
+          "title": "Microsoft (MSFT) Stock Falls Amid Market Uptick: What Investors Need to Know",
+          "description": "Microsoft (MSFT) reached $472.93 at the closing of the latest trading day, reflecting a -2.21% change compared to its last close.",
+          "url": "https://finance.yahoo.com/news/microsoft-msft-stock-falls-amid-224508690.html",
+          "urlToImage": "https://media.zenfs.com/en/zacks.com/ace7df31c7fcb10255abe7c990ea373a",
+          "publishedAt": "2026-01-02T22:45:08Z",
+          "content": "Microsoft (MSFT) closed at $472.93 in the latest trading session, marking a -2.21% move from the prior day. The stock's change was less than the S&amp;P 500's daily gain of 0.19%. Meanwhile, the Dow … [+2505 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Yahoo Entertainment"
+          },
+          "author": null,
+          "title": "Microsoft Stock Is Entering an ‘Inflection’ Year. What Dan Ives Thinks Is Coming for MSFT.",
+          "description": null,
+          "url": "https://consent.yahoo.com/v2/collectConsent?sessionId=1_cc-session_77653803-90bd-47a4-b0c8-0e8290656342",
+          "urlToImage": null,
+          "publishedAt": "2026-01-05T15:10:23Z",
+          "content": "If you click 'Accept all', we and our partners, including 245 who are part of the IAB Transparency &amp; Consent Framework, will also store and/or access information on a device (in other words, use … [+714 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Barchart.com"
+          },
+          "author": "Mohit Oberoi",
+          "title": "This Dividend-Yielding Tech Stock Looks a ‘Compelling Buy’ for 2026 After 2 Years of Underperformance",
+          "description": "Microsoft is set to underperform markets for the second consecutive year. Dan Ives of Wedbush, meanwhile, sees it as a “compelling” buy and predicts nearly...",
+          "url": "https://www.barchart.com/story/news/36784733/this-dividend-yielding-tech-stock-looks-a-compelling-buy-for-2026-after-2-years-of-underperformance",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/zbqgrKJnYxEyQ.DTJCMcrA--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD04MDE-/https://media.zenfs.com/en/barchart_com_477/a2b7ec91e64a9235675aeab5524f2944",
+          "publishedAt": "2025-12-25T00:30:02Z",
+          "content": "With year-to-date (YTD) gains of just about 15%, Microsoft (MSFT) is underperforming both the broad-based S&amp;P 500 Index ($SPX) and the tech-heavy Nasdaq Composite Index ($NASX). The Satya Nadella… [+4525 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Yahoo Entertainment"
+          },
+          "author": "Daniel Howley",
+          "title": "Apple spent 2025 setting itself up for the future — and its biggest moves weren't about AI",
+          "description": "Apple's 2025 helped set up its future.",
+          "url": "https://finance.yahoo.com/news/apple-spent-2025-setting-itself-up-for-the-future--and-its-biggest-moves-werent-about-ai-211525196.html",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/xwQLfyrEuvvS8dnq_Jgwhw--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD04MDA-/https://s.yimg.com/os/creatr-uploaded-images/2025-01/4aae2830-dda3-11ef-9f5f-9631a8d45eb7",
+          "publishedAt": "2025-12-23T21:15:25Z",
+          "content": "Its been quite a year for Apple (AAPL). The company reported record revenue on the back of strong iPhone sales. Its Services business continued its impressive growth, hitting $109.2 billion in sales.… [+4744 chars]"
+        },
+        {
+          "source": {
+            "id": "business-insider",
+            "name": "Business Insider"
+          },
+          "author": "Jacob Zinkula,Madison Hoff",
+          "title": "Job seekers in 2025 faced a Great Frustration: never-ending applications, ghosting after interviews, and losing hope",
+          "description": "Job seekers in 2025 faced long searches, slow hiring, and growing frustration. They shared their biggest challenges and how they're coping.",
+          "url": "https://www.businessinsider.com/job-market-find-work-employment-hiring-slowdown-careers-2025-12",
+          "urlToImage": "https://i.insider.com/693b23ff04eda4732f2d62ac?width=1200&format=jpeg",
+          "publishedAt": "2025-12-21T09:53:01Z",
+          "content": "Getty Images; Tyler Le/BI\r\n<ul><li>Job seekers in 2025 have faced a challenging hiring landscape.</li><li>Companies aren't hiring at the same levels they used to, and applicants report facing stiff c… [+10658 chars]"
+        },
+        {
+          "source": {
+            "id": null,
+            "name": "Barchart.com"
+          },
+          "author": "Nauman Khan",
+          "title": "Dan Ives Loves This Under-the-Radar AI Stock for 2026",
+          "description": "Wall Street likes Nebius’s AI scale story, but investors are paying upfront for growth that still needs to prove durable.",
+          "url": "https://www.barchart.com/story/news/36787957/dan-ives-loves-this-under-the-radar-ai-stock-for-2026",
+          "urlToImage": "https://s.yimg.com/ny/api/res/1.2/tZqN2Io0Wi32hlB46i7ulg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD03NTA-/https://media.zenfs.com/en/barchart_com_477/68e703c3a7ceec6923cfa4542a9ce88b",
+          "publishedAt": "2025-12-25T12:30:02Z",
+          "content": "When investing in artificial intelligence (AI) stocks, individuals tend to focus on the large, mega-cap stocks that are all the rage, yet the next wave of AI may more comfortably benefit smaller infr… [+6650 chars]"
+        }
+      ]
     }
   }
 ]

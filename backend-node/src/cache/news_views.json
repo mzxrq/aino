@@ -28,6 +28,62 @@
     ]
   },
   {
+<<<<<<< HEAD
+    "id": "1768432350632-8317",
+    "articleKey": "fe3387c4-6175-35c1-ab88-b9a768d4c314",
+    "url": "https://finance.yahoo.com/news/ant-international-national-itmx-boost-101012021.html",
+    "title": "Market Update",
+    "source": "Financial News",
+    "pubDate": "2025-10-27T10:10:12Z",
+    "thumbnail": "https://media.zenfs.com/en/electronic_payments_938/73d8aafa7f209459f2937e182014db98",
+    "views": 8,
+    "lastViewed": "2026-01-14T23:17:27.788Z",
+    "tickers": [
+      "KTB.BK"
+    ]
+  },
+  {
+    "id": "1768432356176-1901",
+    "articleKey": "cd1ad957-9771-3b36-8bd0-4f0b62150021",
+    "url": "https://finance.yahoo.com/news/3-asian-dividend-stocks-yielding-043149499.html",
+    "title": "Market Update",
+    "source": "Financial News",
+    "pubDate": "2025-08-11T04:31:49Z",
+    "thumbnail": "https://media.zenfs.com/en/simply_wall_st__316/618e6fc7283f3230bbd917de1ca111f2",
+    "views": 3,
+    "lastViewed": "2026-01-15T00:33:46.694Z",
+    "tickers": [
+      "KTB.BK"
+    ]
+  },
+  {
+    "id": "1768432357351-7771",
+    "articleKey": "61bd78ba-1c55-35c7-935c-deecc4648d79",
+    "url": null,
+    "title": "Market Update",
+    "source": "Financial News",
+    "pubDate": null,
+    "thumbnail": null,
+    "views": 3,
+    "lastViewed": "2026-01-14T23:16:29.300Z",
+    "tickers": [
+      "KTB.BK"
+    ]
+  },
+  {
+    "id": "1768438763202-4651",
+    "articleKey": "https://finance.yahoo.com/news/3-reliable-dividend-stocks-offering-000221236.html",
+    "url": "https://finance.yahoo.com/news/3-reliable-dividend-stocks-offering-000221236.html",
+    "title": "3 Reliable Dividend Stocks Offering Up To 6.4% Yield",
+    "source": "Simply Wall St.",
+    "pubDate": "2025-02-24T00:02:21Z",
+    "thumbnail": "https://media.zenfs.com/en/simply_wall_st__316/5b27ddae48f0a4af769bb0a3a077435e",
+    "views": 1,
+    "lastViewed": "2026-01-15T01:22:31.690Z",
+    "tickers": [
+      "KTB.BK"
+    ]
+=======
     "id": "1768356520733-5718",
     "articleKey": "https://finance.yahoo.com/news/cosrx-kicks-off-2026-bright-020500688.html",
     "url": "https://finance.yahoo.com/news/cosrx-kicks-off-2026-bright-020500688.html",
@@ -114,6 +170,7 @@
     "thumbnail": null,
     "views": 0,
     "lastViewed": null
+<<<<<<< HEAD
   },
   {
     "id": "1768448967196-3084",
@@ -202,5 +259,8 @@
     "thumbnail": null,
     "views": 0,
     "lastViewed": null
+=======
+>>>>>>> ebe68285d74103181f6ee081d282c9962b669286
+>>>>>>> e7df9a96b335c7062f6a8dcae100f496bebe105c
   }
 ]
