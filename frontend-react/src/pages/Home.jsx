@@ -9,7 +9,6 @@ import '../css/Home.css';
 import logoSvg from '../assets/aino.svg';
 import Footer from '../components/Footer';
 
-// --- Constants & Fallbacks ---
 const fallbacka_loading = [
   { id: '1', ticker: '#', company: '########', price: 1000, change: 0.1, anomalies: 0 },
   { id: '2', ticker: '#', company: '########', price: 1000, change: 0.2, anomalies: 1 },
@@ -23,90 +22,29 @@ const fallbackn_loading = [
   { id: 3, title: '############', source: '########' }
 ];
 
-const PY_CACHE_TTL = 300000; // 5 minutes
-
-// --- Optimized News Fetch Logic ---
-function useNewsFetch(ticker, apiBase) {
-  const [news, setNews] = useState(null);
-
-  useEffect(() => {
-    if (!ticker || ticker === '#') return;
-    let isMounted = true;
-
-    const fetchNewsData = async () => {
-      try {
-        // Attempt Top Viewed News
-        const topRes = await fetch(`${apiBase}/node/news/views/top?limit=6`);
-        if (topRes.ok) {
-          const payload = await topRes.json();
-          const items = (payload.items || []).map((it, idx) => ({
-            id: it.articleKey || idx,
-            title: it.title || 'Market Update',
-            source: it.source || 'News',
-            link: it.url || null,
-            thumbnail: it.thumbnail || null,
-            views: it.views || 0
-          }));
-          if (isMounted && items.length) return setNews(items);
-        }
-
-        // Fallback to Node Proxy News
-        const res = await fetch(`${apiBase}/node/news?q=${encodeURIComponent(ticker)}&pageSize=6`);
-        if (res.ok) {
-          const j = await res.json();
-          const articles = (j.articles || []).map((n, idx) => ({
-            id: idx,
-            title: n.title || 'Market Update',
-            source: n.source?.name || 'News',
-            link: n.url || null,
-            thumbnail: n.urlToImage || null,
-            views: 0
-          }));
-          if (isMounted) setNews(articles.length ? articles : fallbackn_loading);
-        }
-      } catch (e) {
-        if (isMounted) setNews(fallbackn_loading);
-      }
-    };
-
-    fetchNewsData();
-    return () => { isMounted = false; };
-  }, [ticker, apiBase]);
-
-  return news;
-}
-
 export default function Home() {
   const navigate = useNavigate();
   const { i18n: lingui } = useLingui();
   const [anomalies, setAnomalies] = useState([]);
   const [recentAnomalies, setRecentAnomalies] = useState([]);
   const [topAnomalies, setTopAnomalies] = useState([]);
+  const [_allAnomalies, setAllAnomalies] = useState([]);
+  const [news, setNews] = useState(null);
+  const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
   const lastFetchedNewsTicker = useRef(null);
   const { isLoggedIn } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-
-  // Derived stable key for news trigger
-  const topTickerSymbol = topAnomalies?.[0]?.ticker || recentAnomalies?.[0]?.ticker || null;
-  const news = useNewsFetch(topTickerSymbol, API_URL);
-
-  // --- Helpers ---
-  const fetchPyJson = useCallback(async (path) => {
-    const url = `${PY_URL}/py${path}`;
-    const now = Date.now();
-
-    if (pyCacheRef.current.has(url)) {
-      const entry = pyCacheRef.current.get(url);
-      if (now - entry.ts < PY_CACHE_TTL) return entry.data;
-    }
-
-    const r = await fetch(url);
+  const PY_BASE = `${PY_URL}/py`;
+  async function fetchPyJson(path, init) {
+    // call Python service directly on configured port (default 5000)
+    const url = `${PY_BASE}${path}`;
+    const r = await fetch(url, init);
     if (!r.ok) throw new Error(`status ${r.status}`);
     return await r.json();
-  })
+  }
 
   // Deduplicating fetch helper for Node API calls (GET + identical POSTs)
   const _inFlightRequests = new Map();
@@ -161,57 +99,62 @@ export default function Home() {
   }, [masterTickersMap, normalizeTickerVariants]);
 
   const fetchTickerInfos = useCallback(async (tickers = []) => {
-    const uniqueTickers = [...new Set(tickers)].filter(t => t && t !== '#');
+    if (!Array.isArray(tickers) || tickers.length === 0) return;
+    const map = new Map(tickerInfoMap || []);
+    const newLoading = { ...(loadingMap || {}) };
+    const requests = [];
     const TTL = 24 * 60 * 60 * 1000; // 1 day cache
     const now = Date.now();
 
-    uniqueTickers.forEach(async (t) => {
-      const key = t.toUpperCase();
-      const storageKey = `ticker_info_${key}`;
-      
-      // Check LocalStorage first to skip network
-      const cached = localStorage.getItem(storageKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (now - parsed.ts < TTL) {
-          setTickerInfoMap(prev => new Map(prev).set(key, parsed.info));
-          return;
-        }
-      }
-
-      setLoadingMap(prev => ({ ...prev, [key]: true }));
+    for (const t of tickers) {
+      if (!t) continue;
+      const key = `ticker_info_${String(t).toUpperCase()}`;
       try {
-        const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
-        localStorage.setItem(storageKey, JSON.stringify({ ts: now, info: json }));
-        setTickerInfoMap(prev => new Map(prev).set(key, json));
-      } catch (e) {
-        console.error(`Failed info for ${t}`);
-      } finally {
-        setLoadingMap(prev => ({ ...prev, [key]: false }));
+        const cachedRaw = localStorage.getItem(key);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (parsed && parsed.ts && (now - parsed.ts) < TTL && parsed.info) {
+            map.set(String(t).toUpperCase(), parsed.info);
+            continue; // skip network fetch
+          }
+        }
+      } catch (_e) {
+        // ignore localStorage parse errors
       }
-    });
-  }, [fetchPyJson]);
 
-  // --- Effects ---
+      newLoading[String(t).toUpperCase()] = true;
 
-  // 1. Load Master Tickers once
+      const p = (async () => {
+        try {
+          const json = await fetchPyJson(`/stock/info?ticker=${encodeURIComponent(t)}`);
+          map.set(String(t).toUpperCase(), json);
+          try {
+            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), info: json }));
+          } catch (_e) { /* ignore storage errors */ }
+          return { ticker: String(t).toUpperCase(), info: json };
+        } catch (_e) {
+          return null;
+        }
+      })();
+      requests.push(p);
+    }
+
+    setLoadingMap(newLoading);
+
+    if (requests.length) {
+      await Promise.allSettled(requests);
+      const cleared = { ...newLoading };
+      for (const t of tickers) cleared[String(t).toUpperCase()] = false;
+      setLoadingMap(cleared);
+    }
+
+    setTickerInfoMap(map);
+  }, [tickerInfoMap, loadingMap]);
+
+  // Fetch recent anomalies and compute top tickers by anomaly count
   useEffect(() => {
-    fetch('/master_tickers.json')
-      .then(res => res.json())
-      .then(data => {
-        const map = new Map();
-        data.forEach(item => map.set(item.symbol?.toUpperCase(), item.displayTicker || item.name));
-        setMasterTickersMap(map);
-      })
-      .catch(() => {});
-  }, []);
-
-  // 2. Fetch Anomalies (Guarded against double-execution)
-  useEffect(() => {
-    if (hasInitialFetched.current) return;
-    hasInitialFetched.current = true;
-
-    const loadAnomalies = async () => {
+    let isMounted = true;
+    const fetchAnomalies = async () => {
       try {
         // Fetch anomalies from the past 6 months and aggregate by ticker
         const endDate = new Date();
@@ -517,13 +460,15 @@ export default function Home() {
 
   return (
     <div className="home-container">
+      {/* Hero Section - Appears First */}
       <section className="hero-section-full">
         <div className="hero-content-centered">
           <img src={logoSvg} alt="Logo" className="hero-logo website-logo" />
           <p className="hero-motto"><Trans>Stock Trading Anomaly Detector</Trans></p>
+          {/*<p className="hero-subtitle">Real-time market monitoring with alerts and easy subscription via LINE.</p> */}
           <div className="hero-buttons">
             <button className="btn btn-primary" onClick={handleChart}><Trans>Get Started</Trans></button>
-            {!isLoggedIn && <button className="btn btn-line" onClick={() => navigate('/login')}><Trans>LINE Login</Trans></button>}
+            {!isLoggedIn && <button className="btn btn-line" onClick={handleLogin}><Trans>LINE Login</Trans></button>}
           </div>
         </div>
       </section>
@@ -592,33 +537,86 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Column: Top Anomalies & News */}
         <div className="right-column">
           <div className="card anomaly-card">
-            <div className="card-header"><h3><Trans>Most anomaly found</Trans></h3></div>
+            <div className="card-header">
+              <h3><Trans>Most anomaly found</Trans></h3>
+            </div>
             <div className="card-body">
-              {topAnomalies.slice(0, 3).map(a => (
-                <AnomalyRow 
-                  key={a.id} 
-                  data={a} 
-                  info={tickerInfoMap.get(a.ticker)} 
-                  loading={loadingMap[a.ticker]}
-                  onClick={() => navigate(`/chart/u/${encodeURIComponent(a.ticker)}`)}
-                />
+              {(topAnomalies.length ? topAnomalies.slice(0, 3) : fallbacka_loading).map(a => (
+                <div key={a.id} className="anomaly-row" onClick={() => { if (a && a.ticker) navigate(`/chart/u/${encodeURIComponent(a.ticker)}`); }} style={{ cursor: 'pointer' }}>
+                  <div className="logo-circle" title={a.company}>
+                    {(() => {
+                      const key = String(a.ticker || '').toUpperCase();
+                      const info = tickerInfoMap.get(key);
+                      const logo = info && (info.logo || info?.logo_url);
+                      const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
+                      const src = logo || parqetLogo;
+                      return (
+                        <img
+                          src={src}
+                          alt={getDisplayFromRaw(key) || a.company}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                          onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                        />
+                      );
+                    })()}
+                  </div>
+                  <div className="anomaly-meta">
+                    <div className="ticker">{getDisplayFromRaw(a.ticker)}</div>
+                    <div className="company">{a.company}</div>
+                  </div>
+                  <div className="anomaly-stats">
+                    {(() => {
+                      const info = tickerInfoMap.get(a.ticker) || {};
+                      const price = (info.price !== undefined && info.price !== null) ? info.price : a.price || 0;
+                      const pct = (info.change_pct !== undefined && info.change_pct !== null) ? info.change_pct : (a.change || 0);
+                      const up = pct > 0;
+                      const cls = `price ${up ? 'up' : 'down'}`;
+                      return (
+                        <div className={cls}>
+                          {up ? '↑' : '↓'} {Number(price || 0).toLocaleString()} <span className="percent">{pct > 0 ? '+' : ''}{(pct !== null ? Number(pct).toFixed(2) : '0')}%</span>
+                        </div>
+                      );
+                    })()}
+                    <div className="anomaly-count">
+                      <span className="count-number">{a.anomalies}</span>
+                      <span className="count-text">{a.anomalies} anml</span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
           <div className="news-card card">
-            <div className="card-header"><h3><Trans>News</Trans></h3></div>
+            <div className="card-header">
+              <h3><Trans>News</Trans></h3>
+            </div>
+            
             <ul className="news-list">
-              {(news || fallbackn_loading).map(n => (
-                <li key={n.id} className="news-item" onClick={() => handleNewsClick(n)}>
-                  {n.thumbnail ? <img src={n.thumbnail} className="news-thumb" alt="" /> : <div className="news-thumb--placeholder" />}
-                  <div className="news-details">
-                    <div className="news-title">{n.title}</div>
-                    <div className="news-source">
-                      {n.source} {n.views > 0 && <span>· {n.views} views</span>}
+              {((news === null) ? fallbackn_loading : (news.length ? news : [{ id: 'none', title: "Doesn't have new right now", source: '' }]))
+                .map(n => (
+                <li key={n.id} className="news-item" style={{ display: 'flex', alignItems: 'center', gap: 20, cursor: 'pointer' }} onClick={() => handleNewsClick(n)} onMouseDown={(e) => { if (e.button === 1 || e.button === 2) handleNewsClick(n); }} onAuxClick={(e) => { if (e.button === 1) handleNewsClick(n); }}>
+                  {n.thumbnail ? (
+                    <img src={n.thumbnail} alt={n.title} className="news-thumb" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none' }} />
+                  ) : (
+                    <div className="news-thumb--placeholder" />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    {n.link ? (
+                      <a
+                        href={n.link}
+                        className="news-title-link"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNewsClick(n); }}
+                      >
+                        <div className="news-title" style={{ fontWeight: 600 }}>{n.title}</div>
+                      </a>
+                    ) : (
+                      <div className="news-title" style={{ fontWeight: 600 }}>{n.title}</div>
+                    )}
+                    <div className="news-source" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      {n.source}{n.views ? <span className="news-views" style={{ marginLeft: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>· {n.views} views</span> : null}
                     </div>
                   </div>
                 </li>
@@ -627,56 +625,8 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <Footer />
-    </div>
-  );
-}
 
-// Sub-component for cleaner rendering
-function AnomalyRow({ data, info, loading, onClick }) {
-  const { i18n } = useLingui();
-  const ticker = data.ticker?.toUpperCase();
-  const price = info?.price ?? data.price;
-  const pct = info?.change_pct ?? 0;
-  
-  function formatTimestamp(iso) {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return iso;
-      const locale = (i18n && i18n.locale) ? i18n.locale : 'en';
-      return new Intl.DateTimeFormat(locale, {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        year: 'numeric', month: 'short', day: 'numeric'
-      }).format(d);
-    } catch (e) {
-      return iso;
-    }
-  }
-  
-  return (
-    <div className="anomaly-row" onClick={onClick} style={{ cursor: 'pointer' }}>
-      <div className="logo-circle">
-        {loading ? <div className="ticker-loader" /> : (
-          <img 
-            src={info?.logo || `https://assets.parqet.com/logos/symbol/${ticker}?format=png`} 
-            alt="" 
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        )}
-      </div>
-      <div className="anomaly-meta">
-        <div className="ticker">{getDisplayFromRaw(ticker)}</div>
-        <div className="company">{data.company}</div>
-      </div>
-      <div className="anomaly-stats">
-        <div className={`price ${pct >= 0 ? 'up' : 'down'}`}>
-          {pct >= 0 ? '↑' : '↓'} {Number(price).toLocaleString()} 
-          <span className="percent"> {pct > 0 ? '+' : ''}{Number(pct).toFixed(2)}%</span>
-        </div>
-        <div className="anomaly-time">{formatTimestamp(data.datetime)}</div>
-        <div className="anomaly-count">Found {data.anomalies} anomalies</div>
-      </div>
+      <Footer />
     </div>
   );
 }

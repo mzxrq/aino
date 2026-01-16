@@ -97,10 +97,10 @@ const getAllAnomalies = async (options = {}) => {
 		// initial match for equality filters (if any)
 		if (Object.keys(filter).length > 0) pipeline.push({ $match: filter });
 
-		// lookup marketlists to enrich companyName
+		// lookup stockList to enrich companyName
 		pipeline.push({
 			$lookup: {
-				from: 'marketlists',
+				from: 'stockList',
 				localField: 'ticker',
 				foreignField: 'ticker',
 				as: 'market'

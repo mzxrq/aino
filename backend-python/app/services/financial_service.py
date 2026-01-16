@@ -6,17 +6,34 @@ This service handles:
 - Income statement queries (revenue, net income, earnings)
 - Balance sheet queries (assets, liabilities, equity)
 
-Data is pre-fetched and stored locally in MongoDB to avoid repeated yfinance API calls.
+Data is pre-fetched and stored locally in MongoDB with normalized stockListId (ObjectId) references.
 Use this instead of querying chart.py endpoints for financial data.
 """
 
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+from bson import ObjectId
 from core.config import db, logger
+
+
+def _get_stock_list_id(ticker: str) -> Optional[ObjectId]:
+    """Helper: Get stockListId by ticker. Returns ObjectId or None."""
+    if db is None:
+        return None
+    try:
+        # Try stockList first (new schema), then marketlists (legacy)
+        doc = db.stockList.find_one({"ticker": ticker.upper()}, {"_id": 1})
+        if not doc:
+            doc = db.marketlists.find_one({"ticker": ticker.upper()}, {"_id": 1})
+        return doc.get('_id') if doc else None
+    except Exception:
+        return None
 
 
 def get_company_profile(ticker: str) -> Optional[Dict[str, Any]]:
     """Get company profile data for a ticker.
+    
+    Queries by stockListId (ObjectId reference to stockList).
     
     Includes:
     - Basic info (company name, website, phone)
@@ -30,6 +47,14 @@ def get_company_profile(ticker: str) -> Optional[Dict[str, Any]]:
         return None
     
     try:
+        # Try by stockListId first (new schema), then by ticker (legacy)
+        stock_id = _get_stock_list_id(ticker)
+        if stock_id:
+            profile = db.company_profiles.find_one({"stockListId": stock_id})
+            if profile:
+                return profile
+        
+        # Fallback to ticker string (legacy)
         profile = db.company_profiles.find_one({"ticker": ticker.upper()})
         return profile
     except Exception as e:
@@ -39,6 +64,8 @@ def get_company_profile(ticker: str) -> Optional[Dict[str, Any]]:
 
 def get_latest_income_statement(ticker: str) -> Optional[Dict[str, Any]]:
     """Get the most recent income statement for a ticker.
+    
+    Queries by stockListId (ObjectId reference to stockList).
     
     Returns latest fiscal period with metrics like:
     - Total Revenue
@@ -51,6 +78,17 @@ def get_latest_income_statement(ticker: str) -> Optional[Dict[str, Any]]:
         return None
     
     try:
+        # Try by stockListId first (new schema), then by ticker (legacy)
+        stock_id = _get_stock_list_id(ticker)
+        if stock_id:
+            stmt = db.income_statements.find_one(
+                {"stockListId": stock_id},
+                sort=[("fiscalDate", -1)]
+            )
+            if stmt:
+                return stmt
+        
+        # Fallback to ticker string (legacy)
         stmt = db.income_statements.find_one(
             {"ticker": ticker.upper()},
             sort=[("fiscalDate", -1)]
@@ -69,6 +107,8 @@ def get_income_statements(
 ) -> List[Dict[str, Any]]:
     """Get multiple income statements for a ticker.
     
+    Queries by stockListId (ObjectId reference to stockList).
+    
     Args:
         ticker: Stock ticker
         period_type: Filter by 'annual' or 'quarterly' (None = all)
@@ -82,7 +122,15 @@ def get_income_statements(
         return []
     
     try:
-        query = {"ticker": ticker.upper()}
+        # Try by stockListId first (new schema), then by ticker (legacy)
+        stock_id = _get_stock_list_id(ticker)
+        query = {}
+        
+        if stock_id:
+            query["stockListId"] = stock_id
+        else:
+            query["ticker"] = ticker.upper()
+        
         if period_type:
             query["periodType"] = period_type
         
@@ -96,12 +144,25 @@ def get_income_statements(
 def get_latest_balance_sheet(ticker: str) -> Optional[Dict[str, Any]]:
     """Get the most recent balance sheet for a ticker.
     
+    Queries by stockListId (ObjectId reference to stockList).
+    
     Returns latest fiscal period with assets, liabilities, and equity metrics.
     """
     if db is None:
         return None
     
     try:
+        # Try by stockListId first (new schema), then by ticker (legacy)
+        stock_id = _get_stock_list_id(ticker)
+        if stock_id:
+            bs = db.balance_sheets.find_one(
+                {"stockListId": stock_id},
+                sort=[("fiscalDate", -1)]
+            )
+            if bs:
+                return bs
+        
+        # Fallback to ticker string (legacy)
         bs = db.balance_sheets.find_one(
             {"ticker": ticker.upper()},
             sort=[("fiscalDate", -1)]
@@ -120,6 +181,8 @@ def get_balance_sheets(
 ) -> List[Dict[str, Any]]:
     """Get multiple balance sheets for a ticker.
     
+    Queries by stockListId (ObjectId reference to stockList).
+    
     Args:
         ticker: Stock ticker
         period_type: Filter by 'annual' or 'quarterly' (None = all)
@@ -133,7 +196,15 @@ def get_balance_sheets(
         return []
     
     try:
-        query = {"ticker": ticker.upper()}
+        # Try by stockListId first (new schema), then by ticker (legacy)
+        stock_id = _get_stock_list_id(ticker)
+        query = {}
+        
+        if stock_id:
+            query["stockListId"] = stock_id
+        else:
+            query["ticker"] = ticker.upper()
+        
         if period_type:
             query["periodType"] = period_type
         

@@ -188,16 +188,36 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
     return meta
 
 
-def _get_marketlist_display_ticker(t: str) -> Optional[str]:
-    """Return a displayTicker from the marketlists collection if present."""
+def _get_stocklist_display_ticker(t: str) -> Optional[str]:
+    """Return a displayTicker from the stockList collection if present."""
     if db is None:
         return None
     try:
-        doc = db.marketlists.find_one({"ticker": t.upper()})
+        # Try stockList first (new schema), fallback to marketlists (legacy)
+        doc = db.stockList.find_one({"ticker": t.upper()})
+        if not doc:
+            doc = db.marketlists.find_one({"ticker": t.upper()})
         if not doc:
             return None
         # common field name: displayTicker (case-sensitive in seed may vary)
         return doc.get('displayTicker') or doc.get('displayTickerName') or doc.get('display')
+    except Exception:
+        return None
+
+
+def _get_stock_list_id_by_ticker(ticker: str) -> Optional[str]:
+    """Lookup stockListId by ticker from stockList collection. Returns ObjectId as string."""
+    if db is None:
+        return None
+    try:
+        # Try stockList first (new schema), then marketlists (legacy)
+        doc = db.stockList.find_one({"ticker": ticker.upper()}, {"_id": 1})
+        if not doc:
+            doc = db.marketlists.find_one({"ticker": ticker.upper()}, {"_id": 1})
+        if doc and doc.get('_id'):
+            # Convert ObjectId to string for storage
+            return str(doc['_id'])
+        return None
     except Exception:
         return None
 
@@ -695,10 +715,10 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                 meta = _get_ticker_meta(t)
                 cached['companyName'] = cached.get('companyName') or meta.get('companyName')
                 cached['market'] = cached.get('market') or meta.get('market')
-                # Prefer displayTicker from cache or marketlists metadata when available
+                # Prefer displayTicker from cache or stockList metadata when available
                 ml_display = cached.get('displayTicker') if isinstance(cached, dict) else None
                 if not ml_display:
-                    ml_display = _get_marketlist_display_ticker(t)
+                    ml_display = _get_stocklist_display_ticker(t)
                 if ml_display:
                     cached['displayTicker'] = ml_display
                 enriched = _enrich_anomalies_from_db_if_missing(t, cached)
@@ -785,7 +805,7 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
         try:
             ml_display = payload.get('displayTicker')
             if not ml_display:
-                ml_display = _get_marketlist_display_ticker(t)
+                ml_display = _get_stocklist_display_ticker(t)
             if ml_display:
                 payload['displayTicker'] = ml_display
         except Exception:
@@ -842,7 +862,7 @@ def post_chart(request: ChartRequest):
 
 @router.get("/chart/ticker")
 def search_ticker(query: str) -> List[dict]:
-    """Search tickers by symbol or name substring (case-insensitive)."""
+    """Search tickers by symbol or name substring (case-insensitive) from stockList."""
     if not query:
         raise HTTPException(status_code=400, detail="Query parameter is required")
     if db is None:
@@ -850,8 +870,9 @@ def search_ticker(query: str) -> List[dict]:
         return []
 
     regex = {"$regex": query, "$options": "i"}  # Case-insensitive regex
-    cursor = db.marketlists.find({"$or": [{"ticker": regex}, {"companyName": regex}]})
-
+    # Try stockList first (new schema), fall back to marketlists (legacy)
+    cursor = db.stockList.find({"$or": [{"ticker": regex}, {"companyName": regex}]})
+    
     results = []
     for doc in cursor:
         # Provide both `exchange` (frontend pill) and `market` keys for compatibility

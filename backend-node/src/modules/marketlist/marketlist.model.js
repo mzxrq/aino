@@ -1,9 +1,9 @@
 /** marketlist.model.js
  *  ----------------------
- *  Market list schema and collection name
+ *  Market list schema and collection name (renamed to stockList)
  */
 
-const COLLECTION_NAME = "marketlists";
+const COLLECTION_NAME = "stockList";
 
 function MarketListSchema(data = {}) {
     return {

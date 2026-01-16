@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { getDb } = require('../../config/db');
 
-const seedMarketlists = async (req, res) => {
+const seedStockList = async (req, res) => {
   try {
     const db = getDb();
     if (!db) {
@@ -22,7 +22,7 @@ const seedMarketlists = async (req, res) => {
     console.log(`Loaded ${tickersData.length} tickers from JSON`);
 
     // Clear existing
-    const deleteResult = await db.collection('marketlists').deleteMany({});
+    const deleteResult = await db.collection('stockList').deleteMany({});
     console.log(`Cleared ${deleteResult.deletedCount} existing records`);
 
     // Prepare documents
@@ -36,12 +36,12 @@ const seedMarketlists = async (req, res) => {
 
     // Insert
     if (documents.length > 0) {
-      const insertResult = await db.collection('marketlists').insertMany(documents);
+      const insertResult = await db.collection('stockList').insertMany(documents);
       console.log(`Seeded ${insertResult.insertedCount} tickers`);
 
       // Create indexes
-      await db.collection('marketlists').createIndex({ ticker: 1 });
-      await db.collection('marketlists').createIndex({ companyName: 1 });
+      await db.collection('stockList').createIndex({ ticker: 1 });
+      await db.collection('stockList').createIndex({ companyName: 1 });
       
       res.status(200).json({
         success: true,
@@ -53,9 +53,9 @@ const seedMarketlists = async (req, res) => {
       res.status(400).json({ success: false, error: 'No valid documents to insert' });
     }
   } catch (err) {
-    console.error('seedMarketlists err', err);
+    console.error('seedStockList err', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };
 
-module.exports = { seedMarketlists };
+module.exports = { seedStockList };

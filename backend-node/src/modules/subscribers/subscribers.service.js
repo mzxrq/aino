@@ -52,10 +52,10 @@ const addOrUpdateSubscriber = async (id, tickers) => {
       const updatedTickers = Array.from(new Set([...(existingSubscriber.tickers || []), ...tickers]));
       await subscribersModel.updateSubscriber(query, { tickers: updatedTickers, updatedAt: new Date() });
 
-      // Try to update marketlists if DB available: mark existing tickers active, create missing tickers as inactive
+      // Try to update stockList if DB available: mark existing tickers active, create missing tickers as inactive
       try {
         const db = getDb();
-        const tickerCollection = db.collection("marketlists");
+        const tickerCollection = db.collection("stockList");
         const existingDocs = await tickerCollection.find({ ticker: { $in: tickers } }).project({ ticker: 1 }).toArray();
         const existingTickers = (existingDocs || []).map((d) => d.ticker).filter(Boolean);
         if (existingTickers.length > 0) {
@@ -83,7 +83,7 @@ const addOrUpdateSubscriber = async (id, tickers) => {
 
       try {
         const db = getDb();
-        const tickerCollection = db.collection("marketlists");
+        const tickerCollection = db.collection("stockList");
         const existingDocs = await tickerCollection.find({ ticker: { $in: tickers } }).project({ ticker: 1 }).toArray();
         const existingTickers = (existingDocs || []).map((d) => d.ticker).filter(Boolean);
         if (existingTickers.length > 0) {

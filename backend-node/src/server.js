@@ -82,11 +82,12 @@ app.use('/node/cache', cacheRoutes);
 const subscribersRoutes = require('./modules/subscribers/subscribers.route');
 app.use('/node/subscribers', subscribersRoutes);
 
-// Marketlists routes
+// Stock list routes (stockList collection). Keep legacy /marketlists alias for compatibility.
 const marketlistsRoutes = require('./modules/marketlist/marketlist.route');
+app.use('/node/stock-list', marketlistsRoutes);
 app.use('/node/marketlists', marketlistsRoutes);
 
-// Search route (simple fuzzy search over marketlists)
+// Search route (simple fuzzy search over stockList)
 const searchRoutes = require('./modules/search/search.route');
 app.use('/node/search', searchRoutes);
 

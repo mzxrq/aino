@@ -488,13 +488,27 @@ const getPreferences  = async (userId) => {
 
 const updatePreferences = async (userId, preferences) => {
   const db = getDb();
+  
   if (db) {
+    // Normalize any stockList reference arrays in preferences (e.g., favoriteStocks, watchedStocks)
+    const normalized = { ...preferences };
+    if (normalized.favoriteStocks && Array.isArray(normalized.favoriteStocks)) {
+      normalized.favoriteStocks = normalized.favoriteStocks.map(item =>
+        typeof item === 'string' ? new ObjectId(item) : item
+      );
+    }
+    if (normalized.notificationPrefs && Array.isArray(normalized.notificationPrefs.watchedStocks)) {
+      normalized.notificationPrefs.watchedStocks = normalized.notificationPrefs.watchedStocks.map(item =>
+        typeof item === 'string' ? new ObjectId(item) : item
+      );
+    }
+
     // 1. Update user preferences by ID
     await db
       .collection(COLLECTION_NAME)
       .updateOne(
         { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
-        { $set: { preferences, updatedAt: new Date() } }
+        { $set: { preferences: normalized, updatedAt: new Date() } }
       );
   }
   else {
@@ -705,6 +719,114 @@ const updateUser = async (userId, updateData) => {
 };
 
 
+// ===== Watchlist Management (replaces Subscribers) =====
+const addToWatchlist = async (userId, tickerIds) => {
+  // tickerIds: Array of ObjectId strings or ObjectId references to stockList
+  const db = getDb();
+  const { ObjectId } = require("mongodb");
+
+  if (db) {
+    const normalizedIds = (tickerIds || []).map(id => 
+      typeof id === 'string' ? new ObjectId(id) : id
+    );
+    
+    await db
+      .collection(COLLECTION_NAME)
+      .updateOne(
+        { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
+        { $addToSet: { watchlist: { $each: normalizedIds } } }
+      );
+    
+    const updated = await getUserById(userId);
+    return { message: "Items added to watchlist", watchlist: updated.watchlist || [] };
+  } else {
+    // Fallback to file
+    const users = readUser();
+    const userIndex = users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) throw new Error("User not found");
+    
+    const existing = users[userIndex].watchlist || [];
+    const updated = Array.from(new Set([...existing, ...tickerIds]));
+    users[userIndex].watchlist = updated;
+    users[userIndex].updatedAt = new Date();
+    writeUser(users);
+    
+    return { message: "Items added to watchlist", watchlist: updated };
+  }
+};
+
+const removeFromWatchlist = async (userId, tickerIds) => {
+  // Remove items from watchlist by ObjectId
+  const db = getDb();
+  const { ObjectId } = require("mongodb");
+
+  if (db) {
+    const normalizedIds = (tickerIds || []).map(id => 
+      typeof id === 'string' ? new ObjectId(id) : id
+    );
+    
+    await db
+      .collection(COLLECTION_NAME)
+      .updateOne(
+        { _id: typeof userId === "string" ? new ObjectId(userId) : userId },
+        { $pullAll: { watchlist: normalizedIds } }
+      );
+    
+    const updated = await getUserById(userId);
+    return { message: "Items removed from watchlist", watchlist: updated.watchlist || [] };
+  } else {
+    // Fallback to file
+    const users = readUser();
+    const userIndex = users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) throw new Error("User not found");
+    
+    const existing = users[userIndex].watchlist || [];
+    const toRemove = new Set(tickerIds.map(id => id.toString()));
+    const updated = existing.filter(id => !toRemove.has(id.toString()));
+    users[userIndex].watchlist = updated;
+    users[userIndex].updatedAt = new Date();
+    writeUser(users);
+    
+    return { message: "Items removed from watchlist", watchlist: updated };
+  }
+};
+
+const getWatchlist = async (userId) => {
+  // Return user's watchlist with stockList doc data populated
+  const db = getDb();
+
+  if (db) {
+    const user = await db
+      .collection(COLLECTION_NAME)
+      .aggregate([
+        { $match: { _id: typeof userId === "string" ? new ObjectId(userId) : userId } },
+        {
+          $lookup: {
+            from: "stockList",
+            localField: "watchlist",
+            foreignField: "_id",
+            as: "watchlistData"
+          }
+        },
+        { $project: { watchlist: 1, watchlistData: 1 } }
+      ])
+      .toArray();
+    
+    if (!user || user.length === 0) throw new Error("User not found");
+    return {
+      watchlistIds: user[0].watchlist || [],
+      watchlistData: user[0].watchlistData || []
+    };
+  } else {
+    // File fallback: return IDs only
+    const users = readUser();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error("User not found");
+    return { watchlistIds: user.watchlist || [], watchlistData: [] };
+  }
+};
+
+
 // Exporting service methods
 module.exports = {
   authenticateUser,
@@ -725,4 +847,7 @@ module.exports = {
   createUser,
   getUserById,
   updateUser,
+  addToWatchlist,
+  removeFromWatchlist,
+  getWatchlist,
 };

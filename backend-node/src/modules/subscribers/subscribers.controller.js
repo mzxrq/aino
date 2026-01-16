@@ -121,15 +121,15 @@ const getMySubscriptions = async (req, res) => {
 
     const db = getDb();
 
-    // get statuses from marketlists
+    // get statuses from stockList
     let marketRows = [];
     try {
-      marketRows = await db.collection('marketlists')
+      marketRows = await db.collection('stockList')
         .find({ ticker: { $in: tickers } })
         .project({ _id: 0, ticker: 1, status: 1 })
         .toArray();
     } catch (e) {
-      console.warn('marketlists read error:', e.message);
+      console.warn('stockList read error:', e.message);
       marketRows = [];
     }
     const statusMap = new Map(marketRows.map(r => [r.ticker, r.status || 'Unknown']));
