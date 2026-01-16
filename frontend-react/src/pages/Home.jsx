@@ -79,6 +79,8 @@ const TickerLogo = ({ ticker, company, tickerInfoMap, loadingMap }) => {
         src={src}
         alt={getDisplayFromRaw(key) || company}
         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+        loading="lazy"
+        decoding="async"
         onError={(e) => { e.target.style.display = 'none'; }}
       />
     </div>
@@ -288,15 +290,29 @@ export default function Home() {
 
   // Effects: Master Tickers
   useEffect(() => {
-    fetch('/master_tickers.json')
-      .then(res => res.json())
-      .then(data => {
+    // Defer loading the large master_tickers.json until the browser is idle
+    const load = async () => {
+      try {
+        const res = await fetch('/master_tickers.json');
+        if (!res.ok) return;
+        const data = await res.json();
         const map = new Map();
         data.forEach(item => {
           if (item?.symbol) map.set(item.symbol.toUpperCase(), item.displayTicker || item.name || item.symbol);
         });
         setMasterTickersMap(map);
-      }).catch(() => {});
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(load, { timeout: 2000 });
+      return () => window.cancelIdleCallback && window.cancelIdleCallback(id);
+    } else {
+      const t = setTimeout(load, 1500);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   // Effects: News
@@ -444,7 +460,7 @@ export default function Home() {
               <ul className="news-list">
               {(news ?? FALLBACK_NEWS).map(n => (
                 <li key={n.id} className="news-item" onClick={() => handleNewsClick(n)}>
-                  {n.thumbnail ? <img src={n.thumbnail} alt="" className="news-thumb" onError={(e) => e.target.style.display='none'} /> : <div className="news-thumb--placeholder" />}
+                  {n.thumbnail ? <img src={n.thumbnail} alt="" className="news-thumb" loading="lazy" decoding="async" onError={(e) => e.target.style.display='none'} /> : <div className="news-thumb--placeholder" />}
                   <div style={{ flex: 1 }}>
                     <div className="news-title" style={{ fontWeight: 600 }}>{n.title}</div>
                     <div className="news-source" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
