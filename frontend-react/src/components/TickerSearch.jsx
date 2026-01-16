@@ -307,14 +307,14 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
             value={input}
             onFocus={() => openModal()}
             disabled={loading}
-            aria-label="Open ticker search"
+            aria-label={i18n._("Open ticker search")}
           />
           {input && (
             <button 
               className="ticker-search-clear" 
               onClick={handleClear}
-              aria-label="Clear search"
-              title="Clear"
+              aria-label={i18n._("Clear search")}
+              title={i18n._("Clear")}
             >
               ✕
             </button>
@@ -327,8 +327,8 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
         <div className="lc-modal-overlay" role="dialog" aria-modal="true">
           <div className="lc-modal-content lc-ticker-search-modal" id="ticker-search-panel">
             <div className="lc-modal-header">
-              <h2>Search Ticker</h2>
-              <button className="lc-modal-close" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
+              <h2>{i18n._("Search Ticker")}</h2>
+              <button className="lc-modal-close" onClick={() => setShowModal(false)} aria-label={i18n._("Close")}>✕</button>
             </div>
 
             <div className="lc-modal-body">
@@ -339,13 +339,13 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
                   placeholder={placeholder}
                   value={modalQuery}
                   onChange={(e) => setModalQuery(e.target.value)}
-                  aria-label="Search tickers"
+                  aria-label={i18n._("Search tickers")}
                 />
               </div>
 
               <div className="lc-ticker-search-list">
                 {modalLoading ? (
-                  <div className="ticker-search-loading">Searching...</div>
+                  <div className="ticker-search-loading">{i18n._("Searching...")}</div>
                 ) : (
                   (modalResults && modalResults.length) ? (
                     modalResults.slice(0, 400).map((t) => {
@@ -369,7 +369,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
                       );
                     })
                   ) : (
-                    <div className="ticker-search-empty">No results</div>
+                    <div className="ticker-search-empty">{i18n._("No results")}</div>
                   )
                 )}
               </div>

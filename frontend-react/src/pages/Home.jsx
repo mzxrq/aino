@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
@@ -33,6 +33,7 @@ export default function Home() {
   const [masterTickersMap, setMasterTickersMap] = useState(null);
   const [tickerInfoMap, setTickerInfoMap] = useState(new Map());
   const [loadingMap, setLoadingMap] = useState({});
+  const lastFetchedNewsTicker = useRef(null);
   const { isLoggedIn } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_URL = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -306,6 +307,12 @@ export default function Home() {
     const fetchNews = async () => {
       try {
         const topTicker = anomalies?.[0]?.ticker || topAnomalies?.[0]?.ticker || 'AAPL';
+        
+        // Skip if we've already fetched for this ticker
+        if (lastFetchedNewsTicker.current === topTicker) {
+          return;
+        }
+        lastFetchedNewsTicker.current = topTicker;
 
         // 1) Try top-viewed cached articles
         try {
@@ -467,7 +474,7 @@ export default function Home() {
       </section>
 
       {/* Anomalies and News Grid */}
-      <div className="homepage-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+      <div className="homepage-grid">
         <div className="left-column">
           <div className="card anomaly-card">
             <div className="card-header">

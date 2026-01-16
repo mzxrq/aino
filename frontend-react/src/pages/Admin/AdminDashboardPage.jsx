@@ -606,7 +606,7 @@ export default function AdminDashboardPage() {
     alignItems: "center",            // Vertically centers them
   }}
 >
-  <h1 style={{ marginTop : "10px" }}>Admin Dashboard</h1>
+  {/* <h1 style={{ marginTop : "10px" }}>Admin Dashboard</h1> */}
 
   <DropdownSelect
     value={interval}
@@ -615,21 +615,21 @@ export default function AdminDashboardPage() {
       fetchAll(v);
     }}
     options={[
-      { value: "day", label: "Day" },
-      { value: "week", label: "Week" },
-      { value: "month", label: "Month" },
-      { value: "year", label: "Year" },
+      { value: "day", label: i18n._("Day") },
+      { value: "week", label: i18n._("Week") },
+      { value: "month", label: i18n._("Month") },
+      { value: "year", label: i18n._("Year") },
     ]}
-    placeholder="Select period"
+    placeholder={i18n._("Select period")}
   />
   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 8 }}>
-      <button className="btn btn-small" disabled={ctlLoading} onClick={() => startCron()}>Start Cron</button>
-      <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => stopCron()}>Stop Cron</button>
+      <button className="btn btn-small" disabled={ctlLoading} onClick={() => startCron()}><Trans>Start Cron</Trans></button>
+      <button className="btn btn-small btn-outline" disabled={ctlLoading} onClick={() => stopCron()}><Trans>Stop Cron</Trans></button>
     </div>
     {/* Market scheduler controls removed */}
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <button className="btn btn-small" onClick={() => refreshCronStatus()} disabled={ctlLoading}>Refresh Status</button>
+      <button className="btn btn-small" onClick={() => refreshCronStatus()} disabled={ctlLoading}><Trans>Refresh Status</Trans></button>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
         Cron: <strong style={{ color: cronRunning ? 'green' : '#666' }}>{cronRunning ? 'jobs' : 'none'}</strong>
       </div>
@@ -774,12 +774,12 @@ export default function AdminDashboardPage() {
           }}
         >
           <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-        <h3 >Collection Counts Over Time</h3>
+        <h3 ><Trans>Collection Counts Over Time</Trans></h3>
 
             <MultiLineChart
               dates={chartDates}
               series={chartSeries}
-              yLabel="Count"
+              yLabel={i18n._("Count")}
               height={`${chartHeight}px`}
             />
           </div>
@@ -793,7 +793,7 @@ export default function AdminDashboardPage() {
                 marginBottom: 8,
               }}
             >
-                <h3>{donutMode === "subscribers" ? "Top Ticker Subscribers" : "Top Ticker Anomalies"}</h3>
+                <h3><Trans>{donutMode === "subscribers" ? "Top Ticker Subscribers" : "Top Ticker Anomalies"}</Trans></h3>
               <DropdownSelect
                 value={donutMode}
                 onChange={(v) => {
@@ -806,8 +806,8 @@ export default function AdminDashboardPage() {
                   }
                 }}
                 options={[
-                  { value: "subscribers", label: "Subscribers" },
-                  { value: "anomalies", label: "Anomalies" },
+                  { value: "subscribers", label: i18n._("Subscribers") },
+                  { value: "anomalies", label: i18n._("Anomalies") },
                 ]}
                 placeholder="Mode"
               />
@@ -826,8 +826,8 @@ export default function AdminDashboardPage() {
                 data={donutData}
                 title={
                   donutMode === "subscribers"
-                    ? "Top Subscribers"
-                    : "Top Anomalies"
+                    ? i18n._("Top Subscribers")
+                    : i18n._("Top Anomalies")
                 }
                 width="100%"
                 height={`${Math.max(160, Math.min(320, chartHeight))}px`}

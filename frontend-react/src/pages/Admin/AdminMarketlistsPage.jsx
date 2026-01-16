@@ -200,18 +200,18 @@ export default function AdminMarketlistsPage() {
           <label className="form-field"><span><Trans>Sector Group</Trans></span><input name="sectorGroup" value={form.sectorGroup} onChange={(e) => setForm((s) => ({ ...s, sectorGroup: e.target.value }))} placeholder={i18n._('Sector')} /></label>
           <label className="form-field"><span><Trans>Status</Trans></span>
             <select name="status" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="active"><Trans>Active</Trans></option>
+              <option value="inactive"><Trans>Inactive</Trans></option>
             </select>
           </label>
-          <label className="form-field"><span>Asset Type</span><input name="assetType" value={form.assetType} onChange={(e) => setForm((s) => ({ ...s, assetType: e.target.value }))} placeholder="Equity / ETF / Crypto" /></label>
+          <label className="form-field"><span><Trans>Asset Type</Trans></span><input name="assetType" value={form.assetType} onChange={(e) => setForm((s) => ({ ...s, assetType: e.target.value }))} placeholder={i18n._('Equity / ETF / Crypto')} /></label>
         </div>
       </GenericModal>
 
-      <GenericModal isOpen={!!rowActions} title="Actions" onClose={closeRowActions}>
+      <GenericModal isOpen={!!rowActions} title={i18n._('Actions')} onClose={closeRowActions}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button style={modalButtonStyles.secondary} className="btn btn-small btn-secondary" onClick={() => { setModalOpen(true); startEdit(rowActions); closeRowActions(); }}>Edit</button>
-          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}>Delete</button>
+          <button style={modalButtonStyles.secondary} className="btn btn-small btn-secondary" onClick={() => { setModalOpen(true); startEdit(rowActions); closeRowActions(); }}><Trans>Edit</Trans></button>
+          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}><Trans>Delete</Trans></button>
         </div>
       </GenericModal>
     </main>

@@ -17,7 +17,7 @@ except Exception:
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 
 # Load environment variables
 load_dotenv()
@@ -240,7 +240,9 @@ def parse_jp_market():
             'primaryExchange': 'TSE',
             'sectorGroup': sector,
             'assetType': asset_type,
-            'status': 'active'
+            'status': 'active',
+            'createdAt': datetime.now(UTC),
+            'updatedAt': datetime.now(UTC)
         })
 
     print(f"✅ Parsed {len(results)} JP items ({stock_count} stocks + {etf_count} ETFs)")
@@ -367,7 +369,8 @@ def parse_th_market():
         company_fax = local_faxes.get(ticker_clean, '')
         company_website = local_websites.get(ticker_clean, '')
 
-        company_name_display, asset_type = normalize_name_and_asset(company_name_local.strip() or company_name_en.strip() or ticker_clean, 'stock')
+        # Prefer English name for display, store local separately
+        company_name_display, asset_type = normalize_name_and_asset(company_name_en.strip() or company_name_local.strip() or ticker_clean, 'stock')
         company_name_local = company_name_local.strip()
 
         results.append({
@@ -384,7 +387,9 @@ def parse_th_market():
             "primaryExchange": "SET",
             "sectorGroup": sector.strip(),
             "assetType": asset_type,
-            "status": "active"
+            "status": "active",
+            "createdAt": datetime.now(UTC),
+            "updatedAt": datetime.now(UTC)
         })
 
     print(f"✅ Parsed {len(results)} TH stocks")
@@ -420,8 +425,8 @@ def parse_th_etfs():
             "sectorGroup": "ETF",
             "assetType": "etf",
             "status": "active",
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat()
+            "createdAt": datetime.now(UTC),
+            "updatedAt": datetime.now(UTC)
         })
     
     print(f"✅ Parsed {len(results)} TH ETFs")
@@ -480,8 +485,8 @@ def parse_us_market():
                     "sectorGroup": sector_group.strip(),
                     "assetType": asset_type,
                     "status": "active",
-                    "createdAt": datetime.utcnow().isoformat(),
-                    "updatedAt": datetime.utcnow().isoformat()
+                    "createdAt": datetime.now(UTC),
+                    "updatedAt": datetime.now(UTC)
                 })
             
             print(f"✅ {len(data)} entries")
@@ -532,8 +537,8 @@ def parse_us_etfs():
                 "sectorGroup": sector.strip() if sector else "ETF",
                 "assetType": asset_type,
                 "status": "active",
-                "createdAt": datetime.utcnow().isoformat(),
-                "updatedAt": datetime.utcnow().isoformat()
+                "createdAt": datetime.now(UTC),
+                "updatedAt": datetime.now(UTC)
             })
         
         print(f"✅ {len(results)} ETFs")
@@ -543,6 +548,357 @@ def parse_us_etfs():
         print("   Note: ETF data is optional, stocks will still be imported")
     
     return results
+
+
+# -------------------------
+# Company Profile Extraction (from yfinance info)
+# -------------------------
+def _extract_company_profile(ticker, info_dict):
+    """Extract company profile data from yfinance info dict."""
+    if not info_dict or not isinstance(info_dict, dict):
+        return None
+    
+    try:
+        profile = {
+            'ticker': ticker.upper(),
+            'companyName': info_dict.get('longName') or info_dict.get('shortName') or ticker,
+            'website': info_dict.get('website'),
+            'phone': info_dict.get('phone'),
+            'industry': info_dict.get('industry'),
+            'industryKey': info_dict.get('industryKey'),
+            'sector': info_dict.get('sector'),
+            'sectorKey': info_dict.get('sectorKey'),
+            'businessSummary': info_dict.get('longBusinessSummary'),
+            'fullTimeEmployees': info_dict.get('fullTimeEmployees'),
+            'address': {
+                'address1': info_dict.get('address1'),
+                'address2': info_dict.get('address2'),
+                'city': info_dict.get('city'),
+                'state': info_dict.get('state'),
+                'zip': info_dict.get('zip'),
+                'country': info_dict.get('country'),
+            },
+            'governance': {
+                'auditRisk': info_dict.get('auditRisk'),
+                'boardRisk': info_dict.get('boardRisk'),
+                'compensationRisk': info_dict.get('compensationRisk'),
+                'shareHolderRightsRisk': info_dict.get('shareHolderRightsRisk'),
+                'overallRisk': info_dict.get('overallRisk'),
+                'governanceEpochDate': info_dict.get('governanceEpochDate'),
+            },
+            'boardMembers': info_dict.get('companyOfficers') or [],
+            'currency': info_dict.get('currency'),
+            'exchange': info_dict.get('exchange'),
+            'exchangeTimezoneName': info_dict.get('exchangeTimezoneName'),
+            'createdAt': datetime.now(UTC),
+            'updatedAt': datetime.now(UTC)
+        }
+        
+        # Clean up None values in nested objects
+        profile['address'] = {k: v for k, v in profile['address'].items() if v is not None}
+        profile['governance'] = {k: v for k, v in profile['governance'].items() if v is not None}
+        
+        return profile
+    except Exception as e:
+        print(f"Error extracting profile for {ticker}: {e}")
+        return None
+
+
+def _normalize_financial_field_names(df):
+    """Normalize financial statement field names for consistency.
+    
+    Handles both spaced and non-spaced versions from yfinance:
+    - 'Basic EPS' vs 'BasicEPS'
+    - 'Net Income' vs 'NetIncome'
+    Maps to standardized names without spaces for internal use.
+    """
+    if df is None or df.empty:
+        return df
+    
+    # Mapping of problematic names to canonical names
+    field_mapping = {
+        'BasicEPS': 'Basic EPS',
+        'BasicAverageShares': 'Basic Average Shares',
+        'DilutedEPS': 'Diluted EPS',
+        'DilutedAverageShares': 'Diluted Average Shares',
+        'DilutedNIAvailtoComStockholders': 'Diluted NI Availto Com Stockholders',
+        'NetIncomeCommonStockholders': 'Net Income Common Stockholders',
+        'NetIncome': 'Net Income',
+        'GrossProfit': 'Gross Profit',
+        'CostOfRevenue': 'Cost Of Revenue',
+        'TotalRevenue': 'Total Revenue',
+        'OperatingRevenue': 'Operating Revenue',
+        'OperatingIncome': 'Operating Income',
+        'TotalOperatingExpense': 'Operating Expense',
+    }
+    
+    # Reverse the mapping to handle both cases
+    for spaced_name, standard_name in list(field_mapping.items()):
+        if spaced_name in df.index and standard_name not in df.index:
+            df.rename(index={spaced_name: standard_name}, inplace=True)
+    
+    return df
+
+
+def _extract_income_statement_data(ticker):
+    """Fetch and structure income statement data from yfinance.
+    
+    Returns list of records with one per fiscal period (year/quarter).
+    Includes Net Income (required), Revenue, Operating Income, etc.
+    """
+    try:
+        yt = yf.Ticker(ticker)
+        
+        # Try to get quarterly income statements first (more granular)
+        income_stmt = None
+        try:
+            income_stmt = yt.quarterly_income_stmt
+            period_type = 'quarterly'
+        except Exception:
+            pass
+        
+        # Fall back to annual if quarterly fails
+        if income_stmt is None or income_stmt.empty:
+            try:
+                income_stmt = yt.income_stmt
+                period_type = 'annual'
+            except Exception:
+                return []
+        
+        if income_stmt is None or income_stmt.empty:
+            return []
+        
+        # Normalize field names
+        income_stmt = _normalize_financial_field_names(income_stmt)
+        
+        records = []
+        
+        # Transpose so columns are periods and rows are metrics
+        for col in income_stmt.columns:
+            period_data = {
+                'ticker': ticker.upper(),
+                'fiscalDate': pd.Timestamp(col).isoformat() if isinstance(col, (pd.Timestamp, str, int)) else str(col),
+                'periodType': period_type,
+                'metrics': {}
+            }
+            
+            # Extract key metrics
+            key_metrics = [
+                'Total Revenue', 'Operating Revenue',
+                'Gross Profit', 'Operating Income',
+                'Net Income', 'Net Income Common Stockholders',
+                'Cost Of Revenue', 'Operating Expense',
+                'Diluted EPS', 'Basic EPS',
+                'EBITDA', 'Interest Expense', 'Tax Provision',
+                'Pretax Income', 'Diluted Average Shares', 'Basic Average Shares'
+            ]
+            
+            for metric in key_metrics:
+                if metric in income_stmt.index:
+                    val = income_stmt.loc[metric, col]
+                    if pd.notna(val):
+                        period_data['metrics'][metric] = float(val)
+            
+            if period_data['metrics']:  # Only add if has data
+                period_data['createdAt'] = datetime.now(UTC)
+                period_data['updatedAt'] = datetime.now(UTC)
+                records.append(period_data)
+        
+        return records
+    except Exception as e:
+        print(f"Error extracting income statement for {ticker}: {e}")
+        return []
+
+
+def _extract_balance_sheet_data(ticker):
+    """Fetch and structure balance sheet data from yfinance.
+    
+    Returns list of records with one per fiscal period.
+    Includes Assets, Liabilities, Equity, etc.
+    """
+    try:
+        yt = yf.Ticker(ticker)
+        
+        # Try quarterly first
+        balance_sheet = None
+        try:
+            balance_sheet = yt.quarterly_balance_sheet
+            period_type = 'quarterly'
+        except Exception:
+            pass
+        
+        # Fall back to annual
+        if balance_sheet is None or balance_sheet.empty:
+            try:
+                balance_sheet = yt.balance_sheet
+                period_type = 'annual'
+            except Exception:
+                return []
+        
+        if balance_sheet is None or balance_sheet.empty:
+            return []
+        
+        # Normalize field names
+        balance_sheet = _normalize_financial_field_names(balance_sheet)
+        
+        records = []
+        
+        # Transpose so columns are periods
+        for col in balance_sheet.columns:
+            period_data = {
+                'ticker': ticker.upper(),
+                'fiscalDate': pd.Timestamp(col).isoformat() if isinstance(col, (pd.Timestamp, str, int)) else str(col),
+                'periodType': period_type,
+                'assets': {},
+                'liabilities': {},
+                'equity': {}
+            }
+            
+            # Asset metrics
+            asset_metrics = [
+                'Total Assets', 'Current Assets', 'Cash And Cash Equivalents',
+                'Accounts Receivable', 'Inventories', 'Gross Accounts Receivable',
+                'Other Current Assets'
+            ]
+            
+            # Liability metrics
+            liability_metrics = [
+                'Total Liabilities', 'Current Liabilities', 'Accounts Payable',
+                'Current Debt', 'Total Debt', 'Short Term Debt', 'Long Term Debt',
+                'Other Current Liabilities'
+            ]
+            
+            # Equity metrics
+            equity_metrics = [
+                'Total Equity', 'Common Stock', 'Retained Earnings',
+                'Treasury Stock', 'Share Issued', 'Ordinary Shares Number'
+            ]
+            
+            for metric in asset_metrics:
+                if metric in balance_sheet.index:
+                    val = balance_sheet.loc[metric, col]
+                    if pd.notna(val):
+                        period_data['assets'][metric] = float(val)
+            
+            for metric in liability_metrics:
+                if metric in balance_sheet.index:
+                    val = balance_sheet.loc[metric, col]
+                    if pd.notna(val):
+                        period_data['liabilities'][metric] = float(val)
+            
+            for metric in equity_metrics:
+                if metric in balance_sheet.index:
+                    val = balance_sheet.loc[metric, col]
+                    if pd.notna(val):
+                        period_data['equity'][metric] = float(val)
+            
+            if period_data['assets'] or period_data['liabilities'] or period_data['equity']:
+                period_data['createdAt'] = datetime.now(UTC)
+                period_data['updatedAt'] = datetime.now(UTC) 
+                records.append(period_data)
+        
+        return records
+    except Exception as e:
+        print(f"Error extracting balance sheet for {ticker}: {e}")
+        return []
+
+
+def enrich_with_company_data(tickers, sample_size=10):
+    """
+    Enrich sample tickers with comprehensive company profile and financial data.
+    Fetches from yfinance and stores in:
+    - company_profiles collection
+    - income_statements collection
+    - balance_sheets collection
+    
+    Only fetches for a sample to avoid rate limiting.
+    """
+    print(f"\n🔍 Enriching {sample_size} sample tickers with company profile and financial data...")
+    
+    if not tickers:
+        print("  No tickers to enrich")
+        return
+    
+    client = MongoClient(MONGO_URI)
+    db = client.get_default_database()
+    
+    companyProfile = db['companyProfile']
+    incomeStmt = db['incomeStmt']
+    balSheet = db['balSheet']
+    
+    # Create indexes for faster queries
+    try:
+        companyProfile.create_index('ticker')
+        incomeStmt.create_index('ticker')
+        incomeStmt.create_index('fiscalDate')
+        balSheet.create_index('ticker')
+        balSheet.create_index('fiscalDate')
+    except Exception:
+        pass
+    
+    profile_count = 0
+    income_stmt_count = 0
+    balance_sheet_count = 0
+    
+    for i, ticker_data in enumerate(tickers[:sample_size]):
+        ticker = ticker_data['ticker']
+        print(f"  [{i+1}/{sample_size}] Fetching {ticker}...", end=" ")
+        
+        try:
+            yt = yf.Ticker(ticker)
+            
+            # Extract and store company profile
+            profile = _extract_company_profile(ticker, yt.info)
+            if profile:
+                companyProfile.update_one(
+                    {'ticker': ticker.upper()},
+                    {'$set': profile},
+                    upsert=True
+                )
+                profile_count += 1
+            
+            # Extract and store income statement
+            income_statements = _extract_income_statement_data(ticker)
+            if income_statements:
+                for stmt in income_statements:
+                    incomeStmt.update_one(
+                        {
+                            'ticker': ticker.upper(),
+                            'fiscalDate': stmt['fiscalDate']
+                        },
+                        {'$set': stmt},
+                        upsert=True
+                    )
+                income_stmt_count += len(income_statements)
+            
+            # Extract and store balance sheet
+            balance_sheets = _extract_balance_sheet_data(ticker)
+            if balance_sheets:
+                for bs in balance_sheets:
+                    balSheet.update_one(
+                        {
+                            'ticker': ticker.upper(),
+                            'fiscalDate': bs['fiscalDate']
+                        },
+                        {'$set': bs},
+                        upsert=True
+                    )
+                balance_sheet_count += len(balance_sheets)
+            
+            print("✅")
+            time.sleep(0.5)  # Rate limit
+        
+        except Exception as e:
+            print(f"❌ {str(e)[:30]}")
+            time.sleep(0.5)
+    
+    print(f"\n✅ Company enrichment complete!")
+    print(f"   • Profiles stored: {profile_count}")
+    print(f"   • Income statements: {income_stmt_count}")
+    print(f"   • Balance sheets: {balance_sheet_count}")
+    
+    client.close()
+
 
 def enrich_with_yfinance(tickers, sample_size=10):
     """
@@ -569,7 +925,7 @@ def enrich_with_yfinance(tickers, sample_size=10):
                 "website": info.get("website"),
                 "description": info.get("longBusinessSummary"),
                 "employees": info.get("fullTimeEmployees"),
-                "fetched_at": datetime.utcnow().isoformat()
+                "fetched_at": datetime.now(UTC)
             }
 
             # Merge top-level contact fields only when missing
@@ -677,41 +1033,84 @@ def main():
     print("🚀 Building Comprehensive MarketLists")
     print("=" * 20)
     
+    # Market selection menu
+    print("\n📍 Which markets to fetch?")
+    print("  1. US only")
+    print("  2. JP only")
+    print("  3. TH only")
+    print("  4. US + JP")
+    print("  5. US + TH")
+    print("  6. JP + TH")
+    print("  7. All (US + JP + TH) [default]")
+    
+    choice = input("\nEnter choice (1-7) or press Enter for all: ").strip() or "7"
+    
+    markets = {
+        "1": {"us": True, "jp": False, "th": False},
+        "2": {"us": False, "jp": True, "th": False},
+        "3": {"us": False, "jp": False, "th": True},
+        "4": {"us": True, "jp": True, "th": False},
+        "5": {"us": True, "jp": False, "th": True},
+        "6": {"us": False, "jp": True, "th": True},
+        "7": {"us": True, "jp": True, "th": True},
+    }
+    
+    selected = markets.get(choice, markets["7"])
+    selected_names = []
+    if selected["us"]:
+        selected_names.append("US")
+    if selected["jp"]:
+        selected_names.append("JP")
+    if selected["th"]:
+        selected_names.append("TH")
+    
+    print(f"\n✅ Fetching: {', '.join(selected_names)}")
+    
     all_tickers = []
     
-    # Parse all markets (JP/TH parsing includes ETFs if available in Excel)
-    jp_tickers = parse_jp_market()
-    th_tickers = parse_th_market()
-    th_etfs = parse_th_etfs()
-    us_tickers = parse_us_market()
-    us_etfs = parse_us_etfs()
+    # Parse selected markets
+    if selected["jp"]:
+        jp_tickers = parse_jp_market()
+        all_tickers.extend(jp_tickers)
     
-    # Combine all data
-    all_tickers.extend(jp_tickers)
-    all_tickers.extend(th_tickers)
-    all_tickers.extend(th_etfs)
-    all_tickers.extend(us_tickers)
-    all_tickers.extend(us_etfs)
-
-    # backup_path = "stocks/json/marketlists_backup.json"
-    # if os.path.exists(backup_path):
-    #     use_backup = input(f"\n📂 Merge missing tickers from backup {backup_path}? (y/N): ").strip().lower() == "y"
-    #     if use_backup:
-    #         backup_items = load_backup(backup_path)
-    #         if backup_items:
-    #             existing = {t["ticker"]: t for t in all_tickers}
-    #             added = 0
-    #             for item in backup_items:
-    #                 tic = item.get("ticker")
-    #                 if not tic or tic in existing:
-    #                     continue
-    #                 name_clean, asset_type = normalize_name_and_asset(item.get("companyName"), item.get("assetType", "stock"))
-    #                 item["companyName"] = name_clean
-    #                 item["assetType"] = asset_type
-    #                 existing[tic] = item
-    #                 added += 1
-    #             all_tickers = list(existing.values())
-    #             print(f"✅ Added {added} tickers from backup")
+    if selected["th"]:
+        th_tickers = parse_th_market()
+        th_etfs = parse_th_etfs()
+        all_tickers.extend(th_tickers)
+        all_tickers.extend(th_etfs)
+    
+    if selected["us"]:
+        us_tickers = parse_us_market()
+        us_etfs = parse_us_etfs()
+        all_tickers.extend(us_tickers)
+        all_tickers.extend(us_etfs)
+    
+    # Optional: Merge with latest backup to preserve data from other markets
+    backup_dir = "json"
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    # Find latest backup file
+    backup_files = [f for f in os.listdir(backup_dir) if f.endswith("_marketlists_backup.json")]
+    if backup_files:
+        latest_backup = sorted(backup_files)[-1]  # Sort by filename (includes timestamp)
+        latest_backup_path = os.path.join(backup_dir, latest_backup)
+        
+        merge_backup = input(f"\n📂 Merge with latest backup {latest_backup}? (y/N): ").strip().lower() == "y"
+        if merge_backup:
+            backup_items = load_backup(latest_backup_path)
+            if backup_items:
+                # Create a map of current tickers for deduplication
+                existing_tickers = {t["ticker"]: t for t in all_tickers}
+                merged_count = 0
+                
+                # Add backup items that aren't in current fetch (preserve old US/JP data, etc)
+                for item in backup_items:
+                    ticker = item.get("ticker")
+                    if ticker and ticker not in existing_tickers:
+                        all_tickers.append(item)
+                        merged_count += 1
+                
+                print(f"✅ Merged {merged_count} tickers from backup")
     
     # Breakdown by asset type and country
     print("\n📊 Breakdown by type and country:")
@@ -732,13 +1131,20 @@ def main():
         sample_size = int(input("How many samples? (default 10): ") or "10")
         enrich_with_yfinance(all_tickers, sample_size)
     
+    # Optional: Enrich with company profile and financial data
+    enrich_company = input("\n🔍 Enrich sample tickers with company profile & financial data? (y/N): ").strip().lower()
+    if enrich_company == 'y':
+        sample_size = int(input("How many samples? (default 10): ") or "10")
+        enrich_with_company_data(all_tickers, sample_size)
+    
     # Import to MongoDB
     import_to_mongodb(all_tickers)
     
     # Save to JSON backup with timestamped filename (UTC)
     ts = datetime.utcnow().strftime("%y%m%d-%H%M")
-    os.makedirs("stocks/json", exist_ok=True)
-    backup_file = f"stocks/json/{ts} marketlists_backup.json"
+    market_suffix = "_".join(selected_names)  # e.g., "US_JP_TH" or "US_only"
+    os.makedirs("json", exist_ok=True)
+    backup_file = f"json/{ts}_{market_suffix}_marketlists_backup.json"
     print(f"\n💾 Saving backup to {backup_file}...")
     with open(backup_file, "w", encoding="utf-8") as f:
         json.dump(all_tickers, f, indent=2, ensure_ascii=False)

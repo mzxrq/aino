@@ -318,11 +318,11 @@ const AnomaliesManagementPage = () => {
                 <input type="checkbox" checked={allowEditReadonly} onChange={(e) => setAllowEditReadonly(e.target.checked)} />
                 <span style={{ marginLeft: 6 }}><Trans>Allow editing readonly fields</Trans></span>
               </label>
-              <label className="form-field"><span>Ticker</span><input className="input-readonly" value={form.ticker} readOnly /></label>
-              <label className="form-field"><span>Company</span>{allowEditReadonly ? <input name="companyName" value={form.companyName || ''} onChange={handleChange} /> : <input className="input-readonly" value={form.companyName || '-'} readOnly />}</label>
-              <label className="form-field"><span>Close Price</span>{allowEditReadonly ? <input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} /> : <input className="input-readonly" value={fmtClose(form.value)} readOnly />}</label>
-              <label className="form-field"><span>Volume</span>{allowEditReadonly ? <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} /> : <input className="input-readonly" value={fmtVolume(form.volume)} readOnly />}</label>
-              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span>{allowEditReadonly ? (<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input name="date" type="date" value={form.date} onChange={handleChange} /><input name="time" type="time" value={form.time || ''} onChange={handleChange} /></div>) : <input className="input-readonly" value={fmtDate(form.date)} readOnly />}</label>
+              <label className="form-field"><span><Trans>Ticker</Trans></span><input className="input-readonly" value={form.ticker} readOnly /></label>
+              <label className="form-field"><span><Trans>Company</Trans></span>{allowEditReadonly ? <input name="companyName" value={form.companyName || ''} onChange={handleChange} /> : <input className="input-readonly" value={form.companyName || '-'} readOnly />}</label>
+              <label className="form-field"><span><Trans>Close Price</Trans></span>{allowEditReadonly ? <input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} /> : <input className="input-readonly" value={fmtClose(form.value)} readOnly />}</label>
+              <label className="form-field"><span><Trans>Volume</Trans></span>{allowEditReadonly ? <input name="volume" type="number" value={form.volume || ''} onChange={handleChange} /> : <input className="input-readonly" value={fmtVolume(form.volume)} readOnly />}</label>
+              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Date</Trans></span>{allowEditReadonly ? (<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input name="date" type="date" value={form.date} onChange={handleChange} /><input name="time" type="time" value={form.time || ''} onChange={handleChange} /></div>) : <input className="input-readonly" value={fmtDate(form.date)} readOnly />}</label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
               <label className="form-field"><span><Trans>Status</Trans></span><DropdownSelect value={form.status || ''} onChange={(v) => setForm((s) => ({ ...s, status: v }))} placeholder={i18n._('Select status')} options={SELECT_OPTIONS_STATUS} /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Analyst Note</Trans></span><textarea className="textarea" value={form.note || ''} onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))} placeholder={i18n._('Add comments about this anomaly...')} /></label>
@@ -333,8 +333,8 @@ const AnomaliesManagementPage = () => {
               <label className="form-field"></label>
               <label className="form-field"><span><Trans>Close Price</Trans></span><input name="value" type="number" step="0.01" value={form.value} onChange={handleChange} placeholder={i18n._('Close price')} /></label>
               <label className="form-field"><span><Trans>Volume</Trans></span><input name="volume" type="number" value={form.volume || ''} onChange={handleChange} placeholder={i18n._('Volume')} /></label>
-              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span>Date</span><input name="date" type="date" value={form.date} onChange={handleChange} /></label>
-              <label className="form-field"><span>Time</span><input name="time" type="time" value={form.time} onChange={handleChange} /></label>
+              <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Date</Trans></span><input name="date" type="date" value={form.date} onChange={handleChange} /></label>
+              <label className="form-field"><span><Trans>Time</Trans></span><input name="time" type="time" value={form.time} onChange={handleChange} /></label>
               <hr style={{ gridColumn: '1 / -1', width: '100%', border: 0, borderTop: '1px solid var(--border-color)', margin: 0 }} />
               <label className="form-field"><span><Trans>Status</Trans></span><DropdownSelect value={form.status || 'new'} onChange={(v) => setForm((s) => ({ ...s, status: v }))} options={SELECT_OPTIONS_STATUS} /></label>
               <label className="form-field" style={{ gridColumn: '1 / -1' }}><span><Trans>Analyst Note</Trans></span><textarea name="note" className="textarea" value={form.note || ''} onChange={handleChange} placeholder={i18n._('Add comments about this anomaly...')} /></label>
@@ -346,17 +346,17 @@ const AnomaliesManagementPage = () => {
       {/* Note viewer modal */}
       <GenericModal isOpen={!!noteView} title={noteView ? `Note: ${noteView.ticker} ${noteView.date ? `on ${fmtDate(noteView.date)}` : ''}` : ''} onClose={() => setNoteView(null)} showClose>
         <div style={{ padding: 24, lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
-          {noteView?.note || '(No note provided)'}
-          {noteView?.updatePerson && (<div style={{ marginTop: 12, fontSize: 13 }}><em>Last updated by {noteView.updatePerson}</em></div>)}
+          {noteView?.note || i18n._('(No note provided)')}
+          {noteView?.updatePerson && (<div style={{ marginTop: 12, fontSize: 13 }}><em><Trans>Last updated by</Trans> {noteView.updatePerson}</em></div>)}
         </div>
       </GenericModal>
 
       {/* Row actions modal */}
       <GenericModal isOpen={!!rowActions} title="Actions" onClose={closeRowActions}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button style={modalButtonStyles.secondary} className="btn btn-small btn-secondary" onClick={() => { setNoteView(rowActions); closeRowActions(); }}>View Note</button>
-          <button style={modalButtonStyles.primary} className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); closeRowActions(); }}>Edit</button>
-          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}>Delete</button>
+          <button style={modalButtonStyles.secondary} className="btn btn-small btn-secondary" onClick={() => { setNoteView(rowActions); closeRowActions(); }}><Trans>View Note</Trans></button>
+          <button style={modalButtonStyles.primary} className="btn btn-small btn-primary" onClick={() => { startEdit(rowActions); closeRowActions(); }}><Trans>Edit</Trans></button>
+          <button style={modalButtonStyles.danger} className="btn btn-small btn-danger" onClick={() => { handleDelete(rowActions._id || rowActions.id); closeRowActions(); }}><Trans>Delete</Trans></button>
         </div>
       </GenericModal>
     </main>
