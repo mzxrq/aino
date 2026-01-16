@@ -518,9 +518,13 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
             # Include reason as a separate text message so it's visible in the chat timeline
             if reason:
                 messages.append({"type": "text", "text": f"Reason: {reason}"})
+            alt_text = f"⚠️ {len(anomalies)} Anomalies Detected"
+            if reason:
+                short = reason if len(reason) <= 120 else reason[:117] + '...'
+                alt_text = f"{alt_text} — {short}"
             messages.append({
                 "type": "flex",
-                "altText": f"⚠️ {len(anomalies)} Anomalies Detected",
+                "altText": alt_text,
                 "contents": {
                     "type": "carousel",
                     "contents": batch
@@ -772,7 +776,7 @@ def send_email_notification(user_email: str, anomalies: List[Dict], user_timezon
             "to": user_email,
             "subject": subject,
             "html": html,
-            "text": f"{total} anomalies detected. Please view HTML version for details."
+            "text": (f"{total} anomalies detected. Reason: {reason}. Please view HTML version for details." if reason else f"{total} anomalies detected. Please view HTML version for details.")
         }
         
         # NOTE: Email attempts are logged by the mail sending service (MAIL_API_URL)

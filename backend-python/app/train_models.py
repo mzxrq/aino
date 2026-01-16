@@ -183,7 +183,7 @@ def train_market_model(market: str, tickers: list, period: str = '2y', interval:
     try:
         # 1. Load data
         logger.info(f"📥 Downloading data for {len(tickers)} tickers...")
-        df = load_dataset(tickers_str, period=period, interval=interval)
+        df = load_dataset(tickers_str)
         
         if df.empty:
             logger.error(f"❌ No data downloaded for {market_upper}")

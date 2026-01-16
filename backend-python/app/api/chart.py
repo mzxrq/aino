@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, cast
 from datetime import datetime, date, time as dtime, timedelta
 try:
     from zoneinfo import ZoneInfo
@@ -11,12 +11,12 @@ import yfinance as yf
 from pydantic import BaseModel, Field
 
 from core.config import db, logger
-from services.train_service import load_dataset, data_preprocessing, detect_anomalies, detect_anomalies_adaptive
 from services.financial_service import (
     get_company_profile, get_latest_income_statement, get_income_statements,
     get_latest_balance_sheet, get_balance_sheets, get_financial_summary,
     get_net_income_history, get_board_members, get_financial_ratios
 )
+from services.train_service import chart_builder,load_dataset, data_preprocessing, detect_anomalies, detect_anomalies_adaptive
 
 router = APIRouter()
 
@@ -55,15 +55,18 @@ def _safe_to_datetime_series(series):
         except Exception:
             return str(v)
 
-    vals = [_norm(x) for x in (series.tolist() if hasattr(series, 'tolist') else list(series))]
+    raw = (series.tolist() if hasattr(series, 'tolist') else list(series))
+    vals = [_norm(x) for x in raw]
+    # If all normalized values are numeric, use unit='s' for epoch seconds
     try:
-        return _pd.to_datetime(vals, utc=True, errors='coerce')
+        if all(isinstance(v, (int, float)) for v in vals if v is not None):
+            nums = [float(v) for v in vals if v is not None]
+            return _pd.to_datetime(nums, utc=True, errors='coerce', unit='s')
+        # Otherwise, convert all to strings and parse
+        strs = [str(v) if v is not None else '' for v in vals]
+        return _pd.to_datetime(strs, utc=True, errors='coerce')
     except Exception:
-        # last-resort: stringify then parse
-        try:
-            return _pd.to_datetime([str(x) for x in vals], utc=True, errors='coerce')
-        except Exception:
-            return _pd.to_datetime([], utc=True, errors='coerce')
+        return _pd.to_datetime([], utc=True, errors='coerce')
 
 
 def _coalesce_duplicate_named_column(df: pd.DataFrame, name: str) -> pd.DataFrame:
@@ -81,14 +84,9 @@ def _coalesce_duplicate_named_column(df: pd.DataFrame, name: str) -> pd.DataFram
         # find all positions with the duplicate name
         idxs = [i for i, c in enumerate(cols) if c == name]
         sub = df.iloc[:, idxs]
-
-        def _first_non_null(row):
-            for v in row:
-                if pd.notna(v):
-                    return v
-            return None
-
-        newcol = sub.apply(_first_non_null, axis=1)
+        # Take the first non-null across columns per row using bfill
+        # bfill across columns ensures the leftmost non-null ends up at position 0
+        newcol = sub.bfill(axis=1).iloc[:, 0]
 
         # keep all columns that are not the duplicate name
         keep_cols = [c for c in cols if c != name]
@@ -476,12 +474,13 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
             an_df = pd.DataFrame({'Datetime': an_dt, 'Reason': reason_vals}).sort_values('Datetime')
 
             # Compute a reasonable tolerance: twice median interval (fallback to 1 day)
+            tol: pd.Timedelta = pd.Timedelta(days=1)
             try:
                 med = chart_merge['Datetime'].diff().median()
-                if pd.isna(med) or med <= pd.Timedelta(0):
-                    tol = pd.Timedelta(days=1)
-                else:
-                    tol = max(med * 2, pd.Timedelta(minutes=1))
+                if isinstance(med, pd.Timedelta) and not pd.isna(med) and med > pd.Timedelta(0):
+                    tol = cast(pd.Timedelta, med) * 2
+                    if tol < pd.Timedelta(minutes=1):
+                        tol = pd.Timedelta(minutes=1)
             except Exception:
                 tol = pd.Timedelta(days=1)
 
@@ -491,7 +490,8 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
                 # Dates and y-values
                 merged_dates = list(merged['Datetime'].tolist()) if 'Datetime' in merged.columns else []
                 payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in merged_dates]
-                payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in list(merged['Close_chart'].tolist())]
+                y_series = merged['Close_chart'] if 'Close_chart' in merged.columns else pd.Series([], dtype=float)
+                payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in y_series.tolist()]
 
                 # Reason: prefer merged 'Reason' column (we normalized earlier), fallback to None
                 if 'Reason' in merged.columns:
@@ -505,10 +505,15 @@ def _build_chart_response_for_ticker(df: pd.DataFrame, anomalies: pd.DataFrame) 
                     payload['anomaly_markers']['dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in list(anomalies['Datetime'].tolist())]
                     close_vals = anomalies.get('Close', anomalies.get('close', []))
                     # ensure iterable
-                    try:
-                        close_list = list(close_vals.tolist()) if hasattr(close_vals, 'tolist') else list(close_vals)
-                    except Exception:
-                        close_list = []
+                    if isinstance(close_vals, pd.Series):
+                        close_list = close_vals.tolist()
+                    elif isinstance(close_vals, list):
+                        close_list = close_vals
+                    else:
+                        try:
+                            close_list = list(close_vals)
+                        except Exception:
+                            close_list = []
                     payload['anomaly_markers']['y_values'] = [float(x) if pd.notna(x) else None for x in close_list]
 
                     # Fallback: try to read reason from a flexible set of column names
@@ -725,7 +730,7 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                 result[t] = _ensure_payload_shape(enriched)
                 continue
 
-        df = load_dataset([t], period=period, interval=interval)
+        df = chart_builder([t], period=period, interval=interval)
         if df.empty:
             result[t] = {}
             continue
@@ -753,7 +758,7 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                     pass
 
             def _query_anomalies() -> pd.DataFrame:
-                query = {
+                query: Dict[str, Any] = {
                     "$or": [
                         {"Ticker": t},
                         {"ticker": t},
@@ -763,11 +768,12 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
                 # Filter by date window if available
                 if date_window:
                     date_filter = {"$gte": date_window[0], "$lte": date_window[1]}
-                    query["$or"] = [
+                    or_list: List[Dict[str, Any]] = [
                         {"Ticker": t, "Datetime": date_filter},
                         {"ticker": t, "datetime": date_filter},
                         {"ticker": t.lower() if isinstance(t, str) else t, "datetime": date_filter}
                     ]
+                    query["$or"] = or_list
                 cursor = db.anomalies.find(query)
                 return pd.DataFrame(list(cursor))
 
@@ -909,7 +915,7 @@ def get_financials(ticker: str, force: Optional[bool] = False):
     try:
         yt = yf.Ticker(t)
 
-        def df_to_dict_safe(dframe):
+        def df_to_dict_safe(dframe: Any) -> Dict[str, Any]:
             try:
                 if dframe is None:
                     return {}
@@ -919,24 +925,22 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                         dframe = dframe()
                     except Exception:
                         return {}
-                if hasattr(dframe, 'fillna'):
+                # If pandas-like, fill NaNs
+                if isinstance(dframe, pd.DataFrame):
                     dframe = dframe.fillna(0)
                 # If pandas-like object, convert to dict then normalize keys/values
-                if hasattr(dframe, 'to_dict'):
+                if isinstance(dframe, pd.DataFrame):
                     try:
-                        # Convert with orient='index' so the index becomes a column (which we'll need to handle)
-                        # Or better, reset the index and then convert
                         raw = dframe.to_dict()
                     except Exception:
-                        # fallback: try orient records
                         try:
-                            raw = getattr(dframe, 'to_dict', lambda: {})()
+                            raw = dframe.to_dict()
                         except Exception:
                             raw = {}
                     import numpy as _np
                     import pandas as _pd
 
-                    def make_jsonable(o):
+                    def make_jsonable(o: Any) -> Any:
                         if isinstance(o, dict):
                             import re
                             result = {}
@@ -983,14 +987,17 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                             pass
                         return o
 
-                    return make_jsonable(raw)
+                    converted = make_jsonable(raw)
+                    if isinstance(converted, dict):
+                        return converted  # type: ignore[return-value]
+                    return {}
                 if isinstance(dframe, dict):
                     return {str(k): v for k, v in dframe.items()}
                 return {}
             except Exception:
                 return {}
 
-        def get_schema(obj):
+        def get_schema(obj: Any) -> List[str]:
             """Return a list of column/header names for pandas-like or dict-like objects."""
             try:
                 if obj is None:
@@ -1005,13 +1012,13 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                 # pandas DataFrame
                 try:
                     import pandas as _pd
-                    if hasattr(val, 'columns'):
+                    if isinstance(val, _pd.DataFrame):
                         return [str(c) for c in list(val.columns)]
                 except Exception:
                     pass
                 # to_dict() keys
                 try:
-                    if hasattr(val, 'to_dict'):
+                    if isinstance(val, _pd.DataFrame):
                         d = val.to_dict()
                         if isinstance(d, dict):
                             return [str(k) for k in list(d.keys())]
@@ -1200,7 +1207,7 @@ def chart_debug(ticker: Optional[str] = None, period: str = "1mo", interval: str
     out = {}
     for t in tickers:
         try:
-            df = load_dataset([t], period=period, interval=interval)
+            df = chart_builder([t], period=period, interval=interval)
             if df.empty:
                 out[t] = { 'count': 0, 'error': 'no-data' }
                 continue

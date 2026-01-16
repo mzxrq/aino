@@ -256,6 +256,7 @@ const AnomaliesManagementPage = () => {
       <tr key={rowId} onMouseEnter={() => setHovered(rowId)} onMouseLeave={() => setHovered(null)} onClick={() => openRowActions(r)} style={{ backgroundColor: isHovered ? 'var(--bg-hover)' : 'transparent', transition: 'background-color 0.15s ease', cursor: 'pointer' }}>
         <td className="col-ticker">{r.ticker}</td>
         <td className="company">{r.companyName || r.name || r.company || '-'}</td>
+        <td className="col-reason">{r.reason || r.Top_Reason || r.Reason || '-'}</td>
         <td className="col-date">{fmtDate(r.datetime || r.date)}</td>
         <td className="col-number">{fmtClose(r.close ?? r.value)}</td>
         <td className="col-volume col-number">{fmtVolume(r.volume)}</td>
@@ -281,17 +282,19 @@ const AnomaliesManagementPage = () => {
         <FlexTable
           columns={[
             { key: 'ticker', label: i18n._('Ticker'), sortable: true, width: '120px' },
-              { key: 'companyName', label: i18n._('Company'), sortable: true, width: '240px' },
-              { key: 'date', label: i18n._('Date'), sortable: true, width: '120px' },
-              { key: 'value', label: i18n._('Close'), sortable: true, width: '120px', className: 'center-right' },
-              { key: 'volume', label: i18n._('Volume'), sortable: true, width: '120px', className: 'center-right' },
-              { key: 'status', label: i18n._('Status'), sortable: true, width: '120px' },
+            { key: 'companyName', label: i18n._('Company'), sortable: true, width: '240px' },
+            { key: 'reason', label: i18n._('Reason'), sortable: false, width: '240px' },
+            { key: 'date', label: i18n._('Date'), sortable: true, width: '120px' },
+            { key: 'value', label: i18n._('Close'), sortable: true, width: '120px', className: 'center-right' },
+            { key: 'volume', label: i18n._('Volume'), sortable: true, width: '120px', className: 'center-right' },
+            { key: 'status', label: i18n._('Status'), sortable: true, width: '120px' },
           ]}
           keyField="_id"
           renderRow={({ row }) => (
             <tr key={row._id || row.id} onMouseEnter={() => setHovered(row._id || row.id)} onMouseLeave={() => setHovered(null)} onClick={() => setRowActions(row)} className={hovered === (row._id || row.id) ? 'row-hover' : ''}>
               <td className="col-ticker">{row.ticker || '-'}</td>
               <td className="company">{row.companyName || '-'}</td>
+              <td className="col-reason">{row.reason || row.Top_Reason || row.Reason || '-'}</td>
               <td className="col-date">{fmtDate(row.datetime || row.date)}</td>
               <td className="col-number center-right">{fmtClose(row.close ?? row.value)}</td>
               <td className="col-volume center-right">{fmtVolume(row.volume)}</td>

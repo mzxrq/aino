@@ -1,8 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @media (max-width: 768px) {
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-  
   /* AdminPage.css  Ecleaned and deduplicated */
-  
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; }
@@ -1503,10 +1502,7 @@
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-  
   /* AdminPage.css  Ecleaned and deduplicated */
-  
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; }
@@ -3007,10 +3003,7 @@
 }
 
 @media (min-width: 1025px) {
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-  
   /* AdminPage.css  Ecleaned and deduplicated */
-  
   /* === Base / Reset === */
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; }
