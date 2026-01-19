@@ -147,15 +147,83 @@ def combined_market_runner():
 
 
 def run_full_scan_all():
-    """Run anomaly detection for all markets and all monitored tickers regardless of market hours."""
-    logger.info("Running full-scan across all markets (forced)")
-    threads = []
-    for market_name in MARKETS.keys():
-        t = threading.Thread(target=job_for_market, args=(market_name,))
-        t.start()
-        threads.append(t)
-    # Optionally join threads here or let them run detached
-    return threads
+    """Run anomaly detection for ALL stocks in the stockList collection, organized by market."""
+    logger.info("🌍 SCANNING ALL STOCKS FROM DATABASE (forced full-scan)")
+    
+    if db is None:
+        logger.error("Database not available, cannot scan all stocks")
+        return []
+    
+    try:
+        # Fetch all tickers from stockList collection
+        stocklist = db.get_collection("stockList")
+        all_docs = list(stocklist.find({}, {"ticker": 1, "market": 1, "country": 1}))
+        
+        if not all_docs:
+            logger.warning("No stocks found in stockList collection")
+            return []
+        
+        # Group by country/market
+        market_tickers = {}
+        for doc in all_docs:
+            ticker = doc.get("ticker", "").upper()
+            country = doc.get("country") or doc.get("market")
+            
+            if not ticker or not country:
+                continue
+            
+            if country not in market_tickers:
+                market_tickers[country] = []
+            market_tickers[country].append(ticker)
+        
+        logger.info(f"📊 SCAN-ALL SCOPE: {sum(len(v) for v in market_tickers.values())} total stocks across {len(market_tickers)} markets")
+        for market, tickers in market_tickers.items():
+            logger.info(f"   {market}: {len(tickers)} stocks")
+        
+        # Run detection in parallel threads by market
+        threads = []
+        for market_name in market_tickers.keys():
+            t = threading.Thread(target=_run_detection_for_all_tickers, args=(market_name, market_tickers[market_name]))
+            t.start()
+            threads.append(t)
+        
+        return threads
+        
+    except Exception as e:
+        logger.exception(f"Error in run_full_scan_all: {e}")
+        return []
+
+
+def _run_detection_for_all_tickers(market_name: str, tickers: list):
+    """Run adaptive anomaly detection for all tickers in a market (used by scan-all)."""
+    logger.info(f"\n{'='*70}")
+    logger.info(f"🔄 SCAN-ALL for {market_name}: {len(tickers)} tickers")
+    logger.info(f"{'='*70}")
+    
+    total_anomalies = 0
+    processed = 0
+    failed = 0
+    
+    for ticker in tickers:
+        try:
+            processed += 1
+            if processed % 10 == 0:
+                logger.info(f"  Progress: {processed}/{len(tickers)} tickers processed...")
+            
+            # Use adaptive anomaly detection with 3-month lookback
+            anomaly_df = detect_anomalies_adaptive(ticker, period="3mo", interval="1d")
+            
+            if not anomaly_df.empty:
+                batch_count = len(anomaly_df)
+                total_anomalies += batch_count
+                logger.debug(f"  ✓ {ticker}: {batch_count} anomalies")
+            
+        except Exception as e:
+            failed += 1
+            logger.debug(f"  ✗ {ticker}: {type(e).__name__}: {str(e)[:80]}")
+    
+    logger.info(f"✅ SCAN-ALL {market_name} complete: {total_anomalies} anomalies detected across {processed} stocks ({failed} failed)")
+    logger.info(f"{'='*70}\n")
 
 
 def _run_user_summaries_minute():

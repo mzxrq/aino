@@ -3,7 +3,7 @@
  *  Market list controller functions
  */
 
-const MarketListModel = require('./marketlist.model');
+const MarketListModel = require('./stocklist.model');
 const axios = require('axios');
 const http = require('http');
 const https = require('https');

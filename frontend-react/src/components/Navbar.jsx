@@ -54,8 +54,6 @@ export default function Navbar() {
     setLocale(newLocale);
     try { localStorage.setItem('locale', newLocale); } catch (e) { void e; }
     setProfileMenuOpen(false);
-    // Reload page to apply new locale
-    window.location.reload();
   };
 
   const { isLoggedIn, isAdmin, token, user, logout } = useAuth() || {};

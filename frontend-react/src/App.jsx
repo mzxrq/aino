@@ -18,13 +18,13 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import CompanyProfile from "./pages/CompanyProfile";
 import Compare from "./pages/Compare";
-import MarketList from "./pages/MarketList";
+import StockList from "./pages/StockList";
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
 import AdminLayout from "../src/layouts/AdminLayout";
 import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
 import CacheManagementPage from "./pages/Admin/AdminCachePage";
-import MarketlistsManagementPage from "./pages/Admin/AdminMarketlistsPage";
+import AdminStockList from "./pages/Admin/AdminStockListPage";
 import UsersManagementPage from "./pages/Admin/AdminUsersPage";
 import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
 import AdminDashboardPage from "./pages/Admin/AdminDashboardPage";
@@ -100,7 +100,7 @@ function App() {
                 <Route path="/notification-logs" element={<AdminNotificationLogsPage />} />
                 <Route path="/nodemailer-logs" element={<AdminNodemailerLogsPage />} />
                 <Route path="/jobs" element={<AdminJobsPage />} />
-                <Route path="/marketlists" element={<MarketlistsManagementPage />} />
+                <Route path="/stocklist" element={<AdminStockList />} />
                 <Route path="/users" element={<UsersManagementPage />} />
                 <Route path="/subscribers" element={<SubscribersManagementPage />} />
               </Route>
@@ -116,7 +116,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/company/:ticker" element={<CompanyProfile />} />
             <Route path="/compare" element={<Compare />} />
-            <Route path="/list" element={<MarketList />} />
+            <Route path="/list" element={<StockList />} />
 
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />

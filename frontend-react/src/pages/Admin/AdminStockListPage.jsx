@@ -16,7 +16,7 @@ const modalButtonStyles = {
   danger: { background: 'linear-gradient(180deg, #DC2626 0%, #B91C1C 100%)', color: '#fff', border: 'none' },
 };
 
-export default function AdminMarketlistsPage() {
+export default function AdminStockList() {
   const { i18n } = useLingui();
   const [form, setForm] = useState({ _id: null, country: '', ticker: '', companyName: '', primaryExchange: '', sectorGroup: '', status: 'inactive' });
   const [editing, setEditing] = useState(null);
@@ -58,7 +58,7 @@ export default function AdminMarketlistsPage() {
     try {
       setLoading(true);
       const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive', assetType: form.assetType || '' };
-      const res = await fetch(`${API_BASE}/node/marketlists`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${API_BASE}/node/stock-list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || i18n._('Create failed'));
       setRefreshSignal((s) => s + 1);
@@ -77,7 +77,7 @@ export default function AdminMarketlistsPage() {
       setLoading(true);
       const id = editing._id || editing.id;
       const payload = { country: form.country || '', ticker: form.ticker.toUpperCase(), companyName: form.companyName || '', primaryExchange: form.primaryExchange || '', sectorGroup: form.sectorGroup || '', status: form.status || 'inactive', assetType: form.assetType || '' };
-      const res = await fetch(`${API_BASE}/node/marketlists/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${API_BASE}/node/stock-list/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || i18n._('Update failed'));
       setRefreshSignal((s) => s + 1);
@@ -91,10 +91,10 @@ export default function AdminMarketlistsPage() {
   }
 
   async function handleDelete(id) {
-    const result = await Swal.fire({ icon: 'warning', title: i18n._('Delete'), text: i18n._('Delete marketlist {id}?', { id }), showCancelButton: true, confirmButtonText: i18n._('Delete') });
+    const result = await Swal.fire({ icon: 'warning', title: i18n._('Delete'), text: i18n._('Delete stocklist {id}?', { id }), showCancelButton: true, confirmButtonText: i18n._('Delete') });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`${API_BASE}/node/marketlists/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/node/stock-list/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || i18n._('Delete failed'));
       setRefreshSignal((s) => s + 1);
@@ -137,15 +137,15 @@ export default function AdminMarketlistsPage() {
     <main className="main-container">
       <div className="admin-header">
         <div>
-          <h2><Trans>Marketlists Management</Trans></h2>
+          <h2><Trans>Stocklists Management</Trans></h2>
           <p className="admin-subtitle"><Trans>Manage market instruments and metadata.</Trans></p>
         </div>
         <div className="admin-actions">
           <button className="btn btn-danger" onClick={async () => {
             const r = await Swal.fire({
               icon: 'warning',
-              title: i18n._('Delete All Marketlists'),
-              html: i18n._('<strong>This will permanently delete ALL marketlists.</strong><br/>This action cannot be undone. Are you sure?'),
+              title: i18n._('Delete All Stocklists'),
+              html: i18n._('<strong>This will permanently delete ALL stocklists.</strong><br/>This action cannot be undone. Are you sure?'),
               showCancelButton: true,
               confirmButtonColor: '#dc2626',
               cancelButtonColor: '#6b7280',
@@ -154,13 +154,13 @@ export default function AdminMarketlistsPage() {
             if (!r.isConfirmed) return;
             try {
               setLoading(true);
-              const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=marketlists`, { method: 'DELETE' });
+              const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=stocklist`, { method: 'DELETE' });
               const body = await res.json();
               if (!res.ok) throw new Error(body.error || i18n._('Delete all failed'));
               setRefreshSignal((s) => s + 1);
-              await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All marketlists deleted.'), timer: 1500 });
+              await Swal.fire({ icon: 'success', title: i18n._('Deleted'), text: i18n._('All stocklists deleted.'), timer: 1500 });
             } catch (err) {
-              console.error('Delete all marketlists error', err);
+              console.error('Delete all stocklists error', err);
               await Swal.fire({ icon: 'error', title: i18n._('Error'), text: i18n._('Delete all failed: ') + err.message });
             } finally { setLoading(false); }
           }}><Trans>Delete All</Trans></button>
@@ -180,8 +180,8 @@ export default function AdminMarketlistsPage() {
         ]}
         keyField="_id"
         renderRow={renderRow}
-        emptyText={i18n._('No marketlists found.')}
-        fetchUrl={`${API_BASE}/node/marketlists`}
+        emptyText={i18n._('No stocklists found.')}
+        fetchUrl={`${API_BASE}/node/stock-list`}
         searchFields={['ticker','companyName','assetType']}
         refreshSignal={refreshSignal}
         enablePagination={true}
@@ -191,7 +191,7 @@ export default function AdminMarketlistsPage() {
         createLabel={i18n._('+ Create')}
       />
 
-      <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit Marketlist') : i18n._('Create Marketlist')} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? i18n._('Save') : i18n._('Create')}>
+      <GenericModal isOpen={modalOpen} title={editing ? i18n._('Edit Stocklist') : i18n._('Create Stocklist')} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} saveLabel={editing ? i18n._('Save') : i18n._('Create')}>
         <div className="form-grid">
           <label className="form-field"><span><Trans>Ticker</Trans></span><input name="ticker" value={form.ticker} onChange={(e) => setForm((s) => ({ ...s, ticker: e.target.value }))} placeholder={i18n._('AAPL')} /></label>
           <label className="form-field"><span><Trans>Company</Trans></span><input name="companyName" value={form.companyName} onChange={(e) => setForm((s) => ({ ...s, companyName: e.target.value }))} placeholder={i18n._('Company Name')} /></label>

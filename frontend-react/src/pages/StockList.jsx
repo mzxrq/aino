@@ -7,7 +7,7 @@ import { GridComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { useAuth } from "../context/useAuth";
 import { ViewChartIcon, CompareIcon, CompareDataIcon, FollowIcon, MenuIcon, FavoriteIcon } from "../components/SvgIcons";
-import "../css/MarketList.css";
+import "../css/StockList.css";
 
 echarts.use([LineChart, GridComponent, SVGRenderer]);
 
@@ -16,9 +16,13 @@ echarts.use([LineChart, GridComponent, SVGRenderer]);
 // VITE_LINE_PY_URL or VITE_PY_API_URL for the Python service.
 const API_URL = import.meta.env.VITE_NODE_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const PY_API_URL = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_PY_API_URL || 'http://localhost:5000';
+const DEFAULT_PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 let bulkSparklineUnsupported = false; // remember if bulk endpoint 404s
+const priceFailCache = new Set(); // avoid re-fetching tickers that already 404'd this session
+const logoFailCache = new Set(); // avoid re-fetching logos that already 404'd this session
 
-export default function MarketListScreen() {
+export default function StockList() {
   const { user, token } = useAuth();
   const [search, setSearch] = useState("");
   const [marketFilter, setMarketFilter] = useState("All");
@@ -31,10 +35,9 @@ export default function MarketListScreen() {
   const [pricesMap, setPricesMap] = useState({});
   const [favoritesSet, setFavoritesSet] = useState(new Set()); // Track favorited tickers
   const [loading, setLoading] = useState(false);
-  const PAGE_SIZE = 5;
   // Server-driven pagination state
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
@@ -61,6 +64,13 @@ export default function MarketListScreen() {
     setIsSearching(false);
     fetchMarketData(1, false);
   }, [marketFilter, marketStatus]);
+
+  // Reload when page size changes (table-style control)
+  useEffect(() => {
+    setPage(1);
+    setIsSearching(false);
+    fetchMarketData(1, false);
+  }, [pageSize]);
 
   // Reload when sort changes: request server-sorted page when not searching,
   // otherwise re-run the search to apply client-side sort/enrichment.
@@ -231,9 +241,15 @@ const fetchBulkPriceData = async (items) => {
 // Fetch price for a single ticker (fallback to per-ticker endpoint)
 const fetchSinglePrice = async (item) => {
   try {
+    // Skip if this ticker already 404'd to avoid repeated network noise
+    if (priceFailCache.has(item.ticker)) return { ticker: item.ticker, data: null };
+
     const resolvedTicker = resolveYfTicker(item.ticker, item.country);
     const res = await fetch(`${API_URL}/node/price/${encodeURIComponent(resolvedTicker)}?period=1mo&interval=1d`);
-    if (!res.ok) return { ticker: item.ticker, data: null };
+    if (!res.ok) {
+      if (res.status === 404) priceFailCache.add(item.ticker);
+      return { ticker: item.ticker, data: null };
+    }
     const json = await res.json();
     if (json && json.success) return { ticker: item.ticker, data: json };
     return { ticker: item.ticker, data: null };
@@ -372,7 +388,8 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
           '1376','1376.T','1377','1377.T','1379','1379.T','137A','137A.T','1380','1380.T',
           '1381','1381.T','1382','1382.T','1383','1383.T','1384','1384.T','138A','138A.T'
         ];
-        const shouldSkipLogo = skipLogoTickers.some(skip => {
+        // Only skip if we've already seen a 404 for this ticker or it is in a known bad list.
+        const shouldSkipLogo = logoFailCache.has(ticker) || skipLogoTickers.some(skip => {
           if (country === 'JP' && !ticker.includes('.')) {
             return ticker === skip;
           }
@@ -479,7 +496,13 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
       sparklineSvg: sparklineMap[item.ticker] || ""
     }));
     
-    setPricesMap(allPriceData);
+    setPricesMap(prev => {
+      const merged = { ...prev };
+      Object.entries(allPriceData).forEach(([t, v]) => {
+        if (v) merged[t] = v; // only overwrite when we actually got data
+      });
+      return merged;
+    });
 
     setMarketData(list);
   } catch (err) {
@@ -890,8 +913,21 @@ const toggleFollow = async (ticker) => {
           </select>
         </div>
 
+        <div className="filter-group compact">
+          <label className="filter-label"><Trans>Rows</Trans></label>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="filter-select"
+          >
+            {PAGE_SIZE_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="results-count">
-          {`Showing ${visibleData.length} of ${totalCount || sortedData.length} stocks`}
+          {`Page ${page} / ${totalPages} · ${visibleData.length} shown of ${totalCount || sortedData.length}`}
         </div>
 
         <div className="view-mode-toggle">
@@ -934,18 +970,22 @@ const toggleFollow = async (ticker) => {
                   <div className="stock-card-header">
                     <div className="stock-logo-section">
                       <div className="stock-logo-badge">
-                        {item.logo && (
+                        {item.logo && !item.hideLogo && !logoFailCache.has(item.ticker) && (
                           <img 
                             src={item.logo} 
                             alt={item.ticker}
                             className="stock-logo"
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               e.target.onerror = null;
+                              logoFailCache.add(item.ticker);
+                              handleLogoError(item.ticker);
                               e.target.src = '/no-logo.svg';
                             }}
                           />
                         )}
-                        <span className="stock-logo-fallback" style={{display: (!item.logo && !item.hideLogo) ? 'block' : 'none'}}>
+                        <span className="stock-logo-fallback" style={{display: (!item.logo || item.hideLogo || logoFailCache.has(item.ticker)) ? 'block' : 'none'}}>
                           {item.ticker.substring(0, 1)}
                         </span>
                       </div>
@@ -1077,10 +1117,13 @@ const toggleFollow = async (ticker) => {
       <div className="marketlist-load-more">
         {!isSearching && (
           <div className="pagination-controls">
-            <button className="pagination-btn prev-btn" onClick={goPrev} disabled={page <= 1 || loading}>&laquo; Prev</button>
-            {/* Load more removed — use Prev/Next for pagination */}
-            <button className="pagination-btn next-btn" onClick={goNext} disabled={page >= totalPages || loading}>Next &raquo;</button>
-            {/* sentinel removed */}
+            <button className="pagination-btn prev-btn" onClick={goPrev} disabled={page <= 1 || loading}>
+              ‹ Prev
+            </button>
+            <div className="page-indicator">Page {page} of {totalPages}</div>
+            <button className="pagination-btn next-btn" onClick={goNext} disabled={page >= totalPages || loading}>
+              Next ›
+            </button>
           </div>
         )}
       </div>

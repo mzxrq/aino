@@ -192,6 +192,11 @@ body.dark .loading-state {
   min-width: 180px;
 }
 
+.filter-group.compact {
+  min-width: 120px;
+  flex: 0 0 auto;
+}
+
 .filter-label {
   font-size: 0.85rem;
   font-weight: 600;
@@ -242,6 +247,49 @@ body.dark .filter-select {
 body.dark .filter-select option {
   background: #2a2a2a;
   color: #e0e0e0;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.pagination-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(44, 193, 127, 0.4);
+  background: linear-gradient(135deg, rgba(44, 193, 127, 0.16), rgba(44, 193, 127, 0.08));
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px rgba(44, 193, 127, 0.15);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #2cc17f;
+  box-shadow: 0 8px 20px rgba(44, 193, 127, 0.25);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.page-indicator {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-width: 140px;
+  text-align: center;
 }
 
 /* Stock card styles */

@@ -83,7 +83,7 @@ const subscribersRoutes = require('./modules/subscribers/subscribers.route');
 app.use('/node/subscribers', subscribersRoutes);
 
 // Stock list routes (stockList collection). Keep legacy /marketlists alias for compatibility.
-const marketlistsRoutes = require('./modules/marketlist/marketlist.route');
+const marketlistsRoutes = require('./modules/stockList/stocklist.route');
 app.use('/node/stock-list', marketlistsRoutes);
 app.use('/node/marketlists', marketlistsRoutes);
 

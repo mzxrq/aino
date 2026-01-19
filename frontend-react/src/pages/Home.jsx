@@ -137,9 +137,9 @@ export default function Home() {
   const { i18n: lingui } = useLingui();
   const { isLoggedIn } = useContext(AuthContext);
 
-  const [anomalies, setAnomalies] = useState([]);
-  const [recentAnomalies, setRecentAnomalies] = useState([]);
-  const [topAnomalies, setTopAnomalies] = useState([]);
+  const [anomalies, setAnomalies] = useState(FALLBACK_ANOMALIES);
+  const [recentAnomalies, setRecentAnomalies] = useState(FALLBACK_ANOMALIES.slice(0, 6));
+  const [topAnomalies, setTopAnomalies] = useState(FALLBACK_ANOMALIES);
   const [news, setNews] = useState(null);
   const [newsDebug, setNewsDebug] = useState(null);
   const [masterTickersMap, setMasterTickersMap] = useState(null);
@@ -394,6 +394,19 @@ export default function Home() {
     fetchWithDedup(`${API_URL}/node/news/views`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
     window.open(item.link, '_blank');
   };
+
+  const handleLogin = useCallback(() => {
+    const clientID = import.meta.env.VITE_LINE_CLIENT_ID || '2008465838';
+    const redirectURI = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+    if (!clientID || !redirectURI) {
+      navigate('/login');
+      return;
+    }
+
+    const state = `home-${Math.random().toString(36).slice(2)}`;
+    const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientID}&redirect_uri=${encodeURIComponent(redirectURI)}&state=${state}&scope=profile%20openid`;
+    window.location.href = url;
+  }, [navigate]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Enter') handleChart(); };

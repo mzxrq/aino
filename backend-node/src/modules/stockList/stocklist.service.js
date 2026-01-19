@@ -3,6 +3,6 @@
  * Market list service functions
  */
 
-const MarketListModel = require('./marketlist.model');
+const MarketListModel = require('./stocklist.model');
 
               

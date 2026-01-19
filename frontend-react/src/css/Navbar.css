@@ -166,7 +166,7 @@
   left: 0;
   right: 0;
   background: linear-gradient(135deg, rgba(30, 30, 30, 0.98) 0%, rgba(40, 40, 40, 0.98) 100%);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px) saturate(120%);
   border-bottom: 1px solid rgba(44, 193, 127, 0.2);
   z-index: 1799;
   max-height: calc(100vh - 42px);
@@ -598,6 +598,28 @@ body:not(.dark) .menu-toggle:hover {
 
 body:not(.dark) .menu-toggle .hb {
   stroke: #333;
+}
+
+body:not(.dark) .nav-links {
+  background: linear-gradient(135deg, rgba(240, 240, 240, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+body:not(.dark) .nav-links .nav-link {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+body:not(.dark) .nav-links .nav-link:hover {
+  background-color: rgba(44, 193, 127, 0.1);
+  color: rgba(0, 0, 0, 1);
+}
+
+body:not(.dark) .nav-links .nav-link.admin-link {
+  color: rgba(198, 40, 40, 0.8);
+}
+
+body:not(.dark) .nav-links .nav-link.admin-link:hover {
+  color: rgba(198, 40, 40, 1);
 }
 
 body:not(.dark) .mobile-menu {

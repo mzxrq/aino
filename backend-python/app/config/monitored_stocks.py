@@ -51,7 +51,6 @@ TH_STOCKS = [
     # Telecom
     'ADVANC.BK',              # Advanced Info Service
     'TRUE.BK',                # True Corporation
-    'DTAC.BK',                # Total Access Communication
     # Finance
     'BBL.BK',                 # Bangkok Bank
     'KBANK.BK',               # Kasikornbank

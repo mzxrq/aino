@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const marketscontroller = require('./marketlist.controller');
+const marketscontroller = require('./stocklist.controller');
 const { requireAuth, authorize } = require('../../middleware/authMiddleware');
 
 // Debug: Log route access

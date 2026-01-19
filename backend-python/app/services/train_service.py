@@ -1341,6 +1341,7 @@ def detect_anomalies_incremental(ticker: str, interval: str = '1d', period: str 
                         "status": "new",
                         "displayed": False,
                         "reason": row.get('Top_Reason', 'Unknown'),
+                        "detectedAt": datetime.utcnow(),
                     }
                     docs_local.append(doc)
                 return docs_local
@@ -1502,6 +1503,7 @@ def detect_anomalies_adaptive(ticker: str, period: str = "1y", interval: str = "
                         doc = {
                             "ticker": ticker,
                             "datetime": row.get('Datetime'),
+                            "detectedAt": datetime.utcnow(),
                             "close": float(row.get('Close', 0)) if pd.notna(row.get('Close')) else None,
                             "volume": int(row.get('Volume', 0)) if pd.notna (row.get('Volume')) else 0,
                             "sent": False,
@@ -1808,6 +1810,7 @@ def detect_anomalies_by_country(tickers, period='10y', interval='1d', trigger='m
                         doc = {
                             "ticker": row.get('Ticker'),
                             "datetime": row.get('Datetime'),
+                            "detectedAt": datetime.utcnow(),
                             "close": float(row.get('Close', 0)) if row.get('Close') is not None and pd.notna(row.get('Close')) else None,
                             "volume": int(row.get('Volume', 0)) if row.get('Volume') is not None and pd.notna(row.get('Volume')) else 0,
                             "detection_timestamp": datetime.utcnow(),

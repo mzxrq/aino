@@ -3,7 +3,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const MarketListModel = require('../marketlist/marketlist.model');
+const MarketListModel = require('../stockList/stocklist.model');
 
 // GET /node/search?q=apple&limit=20
 router.get('/', async (req, res) => {

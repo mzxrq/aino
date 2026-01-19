@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import '../css/TickerSearch.css';
 
@@ -7,6 +8,15 @@ import '../css/TickerSearch.css';
  * Autocomplete search with global ticker database
  */
 const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = "Search stocks by name or symbol...", showInput = true }, ref) {
+  const { i18n } = useLingui();
+  // Safe translation helper: falls back to raw string if i18n is unavailable
+  const tt = (msg) => {
+    try {
+      return i18n && typeof i18n._ === 'function' ? i18n._(msg) : msg;
+    } catch {
+      return msg;
+    }
+  };
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [tickers, setTickers] = useState([]);
@@ -307,14 +317,14 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
             value={input}
             onFocus={() => openModal()}
             disabled={loading}
-            aria-label={i18n._("Open ticker search")}
+            aria-label={tt("Open ticker search")}
           />
           {input && (
             <button 
               className="ticker-search-clear" 
               onClick={handleClear}
-              aria-label={i18n._("Clear search")}
-              title={i18n._("Clear")}
+              aria-label={tt("Clear search")}
+              title={tt("Clear")}
             >
               ✕
             </button>
@@ -327,8 +337,8 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
         <div className="lc-modal-overlay" role="dialog" aria-modal="true">
           <div className="lc-modal-content lc-ticker-search-modal" id="ticker-search-panel">
             <div className="lc-modal-header">
-              <h2>{i18n._("Search Ticker")}</h2>
-              <button className="lc-modal-close" onClick={() => setShowModal(false)} aria-label={i18n._("Close")}>✕</button>
+              <h2>{tt("Search Ticker")}</h2>
+              <button className="lc-modal-close" onClick={() => setShowModal(false)} aria-label={tt("Close")}>✕</button>
             </div>
 
             <div className="lc-modal-body">
@@ -339,13 +349,13 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
                   placeholder={placeholder}
                   value={modalQuery}
                   onChange={(e) => setModalQuery(e.target.value)}
-                  aria-label={i18n._("Search tickers")}
+                  aria-label={tt("Search tickers")}
                 />
               </div>
 
               <div className="lc-ticker-search-list">
                 {modalLoading ? (
-                  <div className="ticker-search-loading">{i18n._("Searching...")}</div>
+                  <div className="ticker-search-loading">{tt("Searching...")}</div>
                 ) : (
                   (modalResults && modalResults.length) ? (
                     modalResults.slice(0, 400).map((t) => {
@@ -369,7 +379,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
                       );
                     })
                   ) : (
-                    <div className="ticker-search-empty">{i18n._("No results")}</div>
+                    <div className="ticker-search-empty">{tt("No results")}</div>
                   )
                 )}
               </div>

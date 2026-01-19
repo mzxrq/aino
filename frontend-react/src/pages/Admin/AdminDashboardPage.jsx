@@ -18,12 +18,11 @@ const BASE =
   (typeof import.meta !== "undefined" &&
     import.meta.env &&
     import.meta.env.VITE_NODE_API_URL) ||
-  "";
-const PY_BASE = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_LINE_PY_URL) || "";
+  "http://localhost:5050";
+const PY_BASE = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_LINE_PY_URL) || "http://localhost:5000";
 const ENDPOINTS = {
   users: `${BASE}/node/users`,
-  subscribers: `${BASE}/node/subscribers`,
-  marketlists: `${BASE}/node/marketlists`,
+  stockList: `${BASE}/node/stock-list`,
   anomalies: `${BASE}/node/anomalies`,
   cache: `${BASE}/node/cache`,
 };
@@ -201,6 +200,7 @@ export default function AdminDashboardPage() {
       "fetchedAt",
       "updatedAt",
       "updated_at",
+      "detectedAt",
       "ts",
       "timeCreated",
     ];
@@ -216,6 +216,15 @@ export default function AdminDashboardPage() {
       if (!Number.isNaN(parsed)) return parsed;
       const num = Number(v);
       if (!Number.isNaN(num)) return num;
+    }
+    // Extract timestamp from MongoDB ObjectId if no other timestamp found
+    if (item._id && typeof item._id === 'string' && item._id.length === 24) {
+      try {
+        const timestamp = parseInt(item._id.substring(0, 8), 16) * 1000;
+        if (!isNaN(timestamp) && timestamp > 0) return timestamp;
+      } catch (e) {
+        // ignore ObjectId parse errors
+      }
     }
     // try nested structures
     if (item.meta && typeof item.meta === "object") {
@@ -325,20 +334,78 @@ export default function AdminDashboardPage() {
     setError(null);
     try {
       const keys = Object.keys(ENDPOINTS);
+      console.log('[AdminDashboard] ENDPOINTS:', ENDPOINTS);
       const promises = keys.map((k) =>
         fetch(ENDPOINTS[k])
-          .then((r) => r.json())
-          .catch(() => null)
+          .then((r) => {
+            console.log(`[AdminDashboard] ${k} response status:`, r.status);
+            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+            return r.json();
+          })
+          .catch((err) => {
+            console.error(`[AdminDashboard] ${k} fetch error:`, err.message);
+            return null;
+          })
       );
       const results = await Promise.all(promises);
       // store raw items for charting
       const itemsMap = {};
       keys.forEach((k, i) => {
         const res = results[i] || null;
-        if (Array.isArray(res)) itemsMap[k] = res;
-        else if (res && Array.isArray(res.data)) itemsMap[k] = res.data;
-        else itemsMap[k] = [];
+        // Debug: log raw response structure
+        console.log(`[AdminDashboard] Raw response for ${k}:`, res);
+        if (res) {
+          console.log(`[AdminDashboard] ${k} keys:`, Object.keys(res).slice(0, 10));
+          console.log(`[AdminDashboard] ${k} type:`, typeof res, 'isArray:', Array.isArray(res));
+        }
+        
+        if (Array.isArray(res)) {
+          itemsMap[k] = res;
+          console.log(`[AdminDashboard] ${k} parsed as array: ${res.length} items`);
+        }
+        else if (res && Array.isArray(res.data)) {
+          itemsMap[k] = res.data;
+          console.log(`[AdminDashboard] ${k} parsed from .data: ${res.data.length} items`);
+        }
+        else if (res && typeof res === 'object') {
+          // Try other possible structures
+          if (res.items && Array.isArray(res.items)) {
+            itemsMap[k] = res.items;
+            console.log(`[AdminDashboard] ${k} parsed from .items: ${res.items.length} items`);
+          }
+          else if (res.result && Array.isArray(res.result)) {
+            itemsMap[k] = res.result;
+            console.log(`[AdminDashboard] ${k} parsed from .result: ${res.result.length} items`);
+          }
+          else {
+            itemsMap[k] = [];
+            console.log(`[AdminDashboard] ${k} no array found in object`);
+          }
+        }
+        else {
+          itemsMap[k] = [];
+          console.log(`[AdminDashboard] ${k} not array or object with data`);
+        }
       });
+      
+      // Debug: log what we fetched
+      console.log('[AdminDashboard] Fetched items:', {
+        users: itemsMap.users?.length,
+        subscribers: itemsMap.subscribers?.length,
+        marketlists: itemsMap.marketlists?.length,
+        anomalies: itemsMap.anomalies?.length,
+        cache: itemsMap.cache?.length,
+      });
+      
+      // Debug: log some user timestamps
+      if (itemsMap.users?.length > 0) {
+        console.log('[AdminDashboard] Sample user timestamps:', itemsMap.users.slice(0, 3).map(u => ({
+          _id: u._id,
+          createdAt: u.createdAt,
+          extracted: extractTs(u)
+        })));
+      }
+      
       itemsRef.current = itemsMap;
       // build donut immediately from fetched items (allow override when caller wants new mode)
       try {
@@ -455,6 +522,7 @@ export default function AdminDashboardPage() {
       try {
         buildChartSeries(itemsRef.current, periodOverride || interval);
       } catch (e) {
+        console.error('[AdminDashboard] Chart build error:', e);
         // ignore chart build errors
       }
 
@@ -485,6 +553,7 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       setError(err.message || String(err));
+      console.error('[AdminDashboard] fetchAll error:', err);
     } finally {
       setLoading(false);
     }
@@ -528,8 +597,7 @@ export default function AdminDashboardPage() {
   const summaryItems = useMemo(
     () => [
       { key: "users", label: i18n._("Users") },
-      { key: "subscribers", label: i18n._("Subscribers") },
-      { key: "marketlists", label: i18n._("Marketlists") },
+      { key: "stockList", label: i18n._("Stock List") },
       { key: "anomalies", label: i18n._("Anomalies") },
       { key: "cache", label: i18n._("Cache") },
     ],
