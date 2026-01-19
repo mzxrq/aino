@@ -177,7 +177,7 @@ body.dark .search-input:focus {
 }
 
 body.dark .search-dropdown {
-  background-color: #1f2937;
+  background-color: #1a1f26;
   border-color: #374151;
   box-shadow: 0 4px 16px rgba(44, 193, 127, 0.2);
 }
@@ -187,7 +187,7 @@ body.dark .search-item {
 }
 
 body.dark .search-item:hover {
-  background-color: #1e3f34;
+  background-color: #242a33;
 }
 
 body.dark .search-link {
@@ -195,7 +195,7 @@ body.dark .search-link {
 }
 
 body.dark .search-link:hover {
-  background-color: #1e3f34;
+  background-color: #242a33;
 }
 
 body.dark .search-link .name {
@@ -203,13 +203,13 @@ body.dark .search-link .name {
 }
 
 body.dark .search-show-more {
-  background-color: #1e3f34;
+  background-color: #242a33;
   border-top-color: #374151;
   color: #9ef0c8;
 }
 
 body.dark .search-show-more:hover {
-  background-color: #2a5f53;
+  background-color: #2d343d;
   color: #a8f5d8;
 }
 

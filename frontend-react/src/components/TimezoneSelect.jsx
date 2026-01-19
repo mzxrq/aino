@@ -1,8 +1,10 @@
 ﻿import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import PortalDropdown from './DropdownSelect/PortalDropdown';
 
 export default function TimezoneSelect({ value, onChange, options = [], currentTimezone, formatLabel, displayTime, sortFn, className = '', twoLine = true }) {
+  const { i18n } = useLingui();
   const btnRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
@@ -33,7 +35,7 @@ export default function TimezoneSelect({ value, onChange, options = [], currentT
     return [...current, ...others];
   }, [options, currentTimezone, sortFn]);
 
-  const displayLabel = displayTime || (formatLabel ? formatLabel(value) : value || 'Timezone');
+  const displayLabel = displayTime || (formatLabel ? formatLabel(value) : value || i18n._('Timezone'));
 
   return (
     <div className={`timezone-select ${className}`}>

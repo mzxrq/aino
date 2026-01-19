@@ -126,7 +126,7 @@ export default function Sidebar({
 
     .sidebar {
       width: 260px;
-      background: #111827;
+      background: #0f1419;
       color: #f3f4f6;
       padding: 20px;
       display: flex;
@@ -140,6 +140,13 @@ export default function Sidebar({
       min-width: 260px;
     }
     
+    /* Light theme sidebar */
+    body:not(.dark) .sidebar {
+      background: #ffffff;
+      color: #1f2937;
+      border-right: 1px solid rgba(0,0,0,0.1);
+    }
+    
     .sidebar-header { 
       margin-bottom: 32px; 
       padding-bottom: 16px; 
@@ -148,6 +155,10 @@ export default function Sidebar({
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+    }
+    
+    body:not(.dark) .sidebar-header {
+      border-bottom: 1px solid rgba(0,0,0,0.1);
     }
 
     .sidebar-close {
@@ -176,7 +187,7 @@ export default function Sidebar({
       width: 40px; 
       height: 40px; 
       border-radius: 50%; 
-      background: #374151; 
+      background: #1a1f26; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -184,11 +195,20 @@ export default function Sidebar({
       color: white;
       flex-shrink: 0;
     }
+    
+    body:not(.dark) .avatar {
+      background: #e5e7eb;
+      color: #1f2937;
+    }
 
     .username { 
       font-size: 14px; 
       font-weight: 600; 
       color: white;
+    }
+    
+    body:not(.dark) .username {
+      color: #1f2937;
     }
 
     .menu { 
@@ -211,6 +231,15 @@ export default function Sidebar({
     .menu-item:hover { 
       background: rgba(255,255,255,0.05); 
       color: white;
+    }
+    
+    body:not(.dark) .menu-item {
+      color: #6b7280;
+    }
+    
+    body:not(.dark) .menu-item:hover {
+      background: rgba(0,0,0,0.04);
+      color: #1f2937;
     }
     
     /* Medium screens - hide sidebar */

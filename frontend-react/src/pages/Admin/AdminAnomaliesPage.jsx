@@ -1,5 +1,5 @@
 import Swal from '../../utils/muiSwal';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
 import { formatToUserTZSlash } from '../../utils/dateUtils';
@@ -10,15 +10,6 @@ import FlexTable from '../../components/FlexTable/FlexTable';
 import GenericModal from '../../components/GenericModal/GenericModal';
 import { useAuth } from '../../context/useAuth';
 
-const SELECT_OPTIONS_STATUS = [
-  { value: '', label: 'Select status' },
-  { value: 'new', label: 'New' },
-  { value: 'review', label: 'Review' },
-  { value: 'confirm', label: 'Confirm' },
-  { value: 'safe', label: 'Safe' },
-  { value: 'clear', label: 'Clear' },
-];
-
 const modalButtonStyles = {
   primary: { background: 'linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff', border: 'none' },
   secondary: { background: 'linear-gradient(180deg, #10B981 0%, #059669 100%)', color: '#fff', border: 'none' },
@@ -28,6 +19,15 @@ const modalButtonStyles = {
 const AnomaliesManagementPage = () => {
   const { user } = useAuth();
   const { i18n } = useLingui();
+
+  const SELECT_OPTIONS_STATUS = useMemo(() => [
+    { value: '', label: i18n._('Select status') },
+    { value: 'new', label: i18n._('New') },
+    { value: 'review', label: i18n._('Review') },
+    { value: 'confirm', label: i18n._('Confirm') },
+    { value: 'safe', label: i18n._('Safe') },
+    { value: 'clear', label: i18n._('Clear') },
+  ], [i18n]);
 
   const [form, setForm] = useState({ id: null, ticker: '', date: '', time: '', value: '', note: '', companyName: '', volume: '', status: 'new' });
   const [editing, setEditing] = useState(null);

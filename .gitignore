@@ -26,6 +26,7 @@ __pycache__/
 venv/
 env/
 .venv/
+frontend-react/archive
 backend-python/archive
 backend-python/__pycache__/
 .vscode/

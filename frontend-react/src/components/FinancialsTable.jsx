@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { getFinancialLabel } from '../utils/financialLabels';
 
 // Financial field name translations (from yfinance API)
 const FINANCIAL_FIELD_TRANSLATIONS = {
@@ -40,8 +41,8 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Diluted EPS': '希薄化後EPS',
   'Diluted Average Shares': '希薄化後平均株数',
   'Cost Of Revenue': '売上原価',
-  'asic EPS': '基本EPS',
-  'asic Average Shares': '基本平均株数',
+  'Basic EPS': '基本EPS',
+  'Basic Average Shares': '基本平均株数',
   'Working Capital': '運転資本',
   'Treasury Shares Number': '自己株式数',
   'Tradeand Other Payables Non Current': '長期買掛金及び支払債務',
@@ -53,7 +54,6 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Total Debt': '総債務',
   'Total Capitalization': '総資本',
   'Total Assets': '総資産',
-  'Tangible ook Value': '有形資産価値',
   'Tangible Book Value': '有形帳簿価額',
   'Stockholders Equity': '株主資本',
   'Share Issued': '発行済株式数',
@@ -124,6 +124,13 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
 
 function getLocalizedFieldName(fieldKey, i18n) {
   if (!fieldKey) return '';
+  
+  // Try getFinancialLabel first (uses Lingui i18n with Japanese support)
+  const label = getFinancialLabel(fieldKey);
+  if (label && label !== fieldKey) {
+    return label;
+  }
+  
   const humanized = humanizeLabel(fieldKey);
 
   if (FINANCIAL_FIELD_TRANSLATIONS[humanized]) {

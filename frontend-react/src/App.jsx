@@ -17,7 +17,6 @@ import LineCallback from "./pages/LineCallback";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import CompanyProfile from "./pages/CompanyProfile";
-import Compare from "./pages/Compare";
 import StockList from "./pages/StockList";
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
@@ -115,7 +114,6 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/company/:ticker" element={<CompanyProfile />} />
-            <Route path="/compare" element={<Compare />} />
             <Route path="/list" element={<StockList />} />
 
             {/* The "invisible" page LINE redirects to */}

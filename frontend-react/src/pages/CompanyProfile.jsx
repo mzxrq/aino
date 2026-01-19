@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { getLocalizedCompanyName } from '../utils/companyNameUtils';
+import { getFinancialLabel } from '../utils/financialLabels';
 import EchartsCard from '../components/EchartsCard';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
@@ -450,15 +451,15 @@ export default function CompanyProfile() {
               <table className="">
                 <tbody>
                   <tr>
-                    <strong><Trans>Industry</Trans></strong>
+                    <strong>{getFinancialLabel('industry')}</strong>
                   </tr>
                   {companyInfo?.industry || meta?.yfinance?.industry || "-"}
                   <tr>
-                    <strong><Trans>Sector</Trans></strong>
+                    <strong>{getFinancialLabel('sector')}</strong>
                   </tr>
                   {companyInfo?.sector || meta?.yfinance?.sector || "-"}
                   <tr>
-                    <strong><Trans>Website</Trans></strong>
+                    <strong>{getFinancialLabel('website')}</strong>
                   </tr>
                   {companyInfo?.website ? (
                     <a
@@ -472,7 +473,7 @@ export default function CompanyProfile() {
                     "-"
                   )}
                   <tr>
-                    <strong><Trans>Phone</Trans></strong>
+                    <strong>{getFinancialLabel('phone')}</strong>
                   </tr>
                   {companyInfo?.phone || "-"}
                 </tbody>
@@ -495,9 +496,9 @@ export default function CompanyProfile() {
                   >
                     <thead>
                       <tr>
-                        <th><Trans>Title</Trans></th>
-                        <th><Trans>Name</Trans></th>
-                        <th><Trans>Fiscal Year</Trans></th>
+                        <th>{getFinancialLabel('title')}</th>
+                        <th>{getFinancialLabel('name')}</th>
+                        <th>{getFinancialLabel('fiscalYear')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -521,18 +522,18 @@ export default function CompanyProfile() {
             </div>
             <div className="financial-tabs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="fin-section">
-                <h5><Trans>Income</Trans></h5>
+                <h5>{getFinancialLabel('incomeStatement')}</h5>
                 {Object.entries(financials.income_stmt || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title={i18n._('Income Statement')} data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
+                <FinancialsTable title={getFinancialLabel('incomeStatement')} data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
               </div>
               <div className="fin-section">
-                <h5><Trans>Balance</Trans></h5>
+                <h5>{getFinancialLabel('balanceSheet')}</h5>
                 {Object.entries(financials.balance_sheet || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title={i18n._('Balance Sheet')} data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
+                <FinancialsTable title={getFinancialLabel('balanceSheet')} data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
               </div>
             </div>
           </div>

@@ -223,7 +223,7 @@ export default function Navbar() {
         {isAdmin && (
           <button
             className="btn btn-danger"
-            title="Scan Anomaly"
+            title={i18n._('Scan Anomaly')}
             onClick={async () => {
               try {
                 const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';

@@ -916,6 +916,9 @@ def get_financials(ticker: str, force: Optional[bool] = False):
         yt = yf.Ticker(t)
 
         def df_to_dict_safe(dframe: Any) -> Dict[str, Any]:
+            import numpy as _np
+            import pandas as _pd
+            
             try:
                 if dframe is None:
                     return {}
@@ -937,8 +940,6 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                             raw = dframe.to_dict()
                         except Exception:
                             raw = {}
-                    import numpy as _np
-                    import pandas as _pd
 
                     def make_jsonable(o: Any) -> Any:
                         if isinstance(o, dict):
@@ -1018,7 +1019,7 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                     pass
                 # to_dict() keys
                 try:
-                    if isinstance(val, _pd.DataFrame):
+                    if isinstance(val, _pd.DataFrame): # type: ignore
                         d = val.to_dict()
                         if isinstance(d, dict):
                             return [str(k) for k in list(d.keys())]

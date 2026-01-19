@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
+import { useLingui } from '@lingui/react';
 import ReactECharts from 'echarts-for-react';
 import PropTypes from 'prop-types';
 
 const PieDonutChart = ({ data = [], title = '', height = '300px', width = '300px', colors }) => {
+  const { i18n } = useLingui();
   const option = useMemo(() => {
     const defaultColors = colors || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
     return {
@@ -18,7 +20,7 @@ const PieDonutChart = ({ data = [], title = '', height = '300px', width = '300px
       color: defaultColors,
       series: [
         {
-          name: title || 'Series',
+          name: title || i18n._('Series'),
           type: 'pie',
           radius: ['50%', '75%'],
           avoidLabelOverlap: false,

@@ -3,8 +3,8 @@
 }
 :root {
   /* Core global tokens */
-  --bg-main: #FFFFFF;
-  --bg-secondary: #f5f7f9;
+  --bg-main: #F3F6F8;
+  --bg-secondary: #F3F6F8;
   --text-primary: #333333;
   --primary-btn: #00c300; /* primary now LINE green */
   --line-btn: #00c300; /* LINE-like green */
@@ -73,7 +73,7 @@ body {
 
 /* Dark theme variables applied when `body` has class `dark` */
 body.dark {
-  --bg-main: #0a0e1a;
+  --bg-main: #0f1419;
   --bg-secondary: #0f1419;
   --text-primary: #e8f0f8;
   --primary-btn: #00c300;
@@ -82,16 +82,16 @@ body.dark {
   --line-btn: #06c755;
   --anomaly-color: #6ee7b7;
   /* card and input tokens for dark mode */
-  --card-border: rgba(0, 195, 0, 0.15);
-  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
   --muted: #8fa3b8;
-  --input-bg: rgba(255, 255, 255, 0.04);
-  --input-border: rgba(0, 195, 0, 0.12);
+  --input-bg: rgba(255, 255, 255, 0.03);
+  --input-border: rgba(255, 255, 255, 0.08);
   --focus-color: #00c300;
   /* map search/card tokens to dark-mode variants */
   --card-bg: var(--bg-secondary);
   --border-color: var(--card-border);
-  --hover-bg: rgba(0, 195, 0, 0.06);
+  --hover-bg: rgba(255, 255, 255, 0.04);
 }
 
 /* Smooth transition for theme changes */

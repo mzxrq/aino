@@ -64,7 +64,7 @@ body.dark .profile-avatar-button .profile-avatar-placeholder {
 }
 
 body.dark .profile-dropdown {
-  background: #1a1a1a;
+  background: #1a1f26;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -250,7 +250,7 @@ body.dark .profile-dropdown-select:focus {
 }
 
 body.dark .profile-dropdown-select option {
-  background: #2a2a2a;
+  background: #1a1f26;
   color: #e0e0e0;
 }
 
