@@ -42,7 +42,7 @@ export default function TimezoneSelect({ value, onChange, options = [], currentT
       <button
         ref={btnRef}
         type="button"
-        className="timezone-select-button"
+        className="timezone-button"
         onClick={() => setOpen(v => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -67,7 +67,7 @@ export default function TimezoneSelect({ value, onChange, options = [], currentT
       </button>
 
       {open && anchorRect && (
-        <PortalDropdown anchorRect={anchorRect} align="right" offsetY={8} onClose={() => setOpen(false)} className="timezone-portal-dropdown">
+        <PortalDropdown anchorRect={anchorRect} align="right" offsetY={8} onClose={() => setOpen(false)} className="timezone-dropdown">
           <ul className="timezone-options" role="listbox" aria-activedescendant={value}>
             {sortedOptions.map(opt => {
               const raw = formatLabel ? formatLabel(opt) : opt;
