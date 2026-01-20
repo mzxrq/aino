@@ -44,6 +44,11 @@ export default function StockList() {
   
   const navigate = useNavigate();
 
+  // Ensure list page starts at top when entering this route
+  useEffect(() => {
+    try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch { window.scrollTo(0, 0); }
+  }, []);
+
   // ---------------------------------------------------
   // Initial data fetch
   // ---------------------------------------------------

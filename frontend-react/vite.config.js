@@ -25,4 +25,44 @@ export default defineConfig({
       os: 'os-browserify/browser',
     },
   },
+  server: {
+    hmr: {
+      overlay: false, // disable error overlay that can cause slowdowns
+    },
+    watch: {
+      usePolling: false, // avoid polling, use native fs events
+      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'], // skip heavy dirs
+    },
+    fs: {
+      strict: false, // allow serving files outside root if needed
+    },
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'echarts',
+      'echarts/core',
+      'echarts/charts',
+      'echarts/components',
+      'echarts/renderers',
+      '@lingui/react',
+      '@lingui/core',
+      'luxon',
+    ],
+    exclude: ['@vite/client', '@vite/env'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-echarts': ['echarts', 'echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
+          'vendor-i18n': ['@lingui/react', '@lingui/core', 'luxon'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 })

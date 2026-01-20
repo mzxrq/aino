@@ -62,11 +62,10 @@ async function fetchWithDedup(url, options = {}) {
 }
 
 const PERIOD_PRESETS = [
-  { label: '1D', period: '1d', interval: '1m' },
+  { label: '1D', period: '1d', interval: '5m' },
   { label: '5D', period: '5d', interval: '5m' },
   { label: '1W', period: '1wk', interval: '5m' },
-  { label: '1M30', period: '1mo', interval: '30m' },
-  { label: '1M1', period: '1mo', interval: '1d' },
+  { label: '1M', period: '1mo', interval: '5m' },
   { label: '3M', period: '3mo', interval: '1d' },
   { label: '6M', period: '6mo', interval: '1d' },
   { label: '1Y', period: '1y', interval: '1d' },
@@ -115,8 +114,10 @@ function formatPresetLabel(p, i18n) {
     '1d': i18n._('Intraday'),
     '5d': i18n._('5 Days'),
     '1wk': i18n._('1 Week'),
-    '1mo_30m': i18n._('1 Month (30m)'),
-    '1mo_1d': i18n._('1 Month (1d)'),
+    '1mo_5m': i18n._('1 Month'),
+    '1mo_15m': i18n._('1 Month'),
+    '1mo_1h': i18n._('1 Month'),
+    '1mo_1d': i18n._('1 Month'),
     '1mo': i18n._('1 Month'),
     '3mo': i18n._('3 Months'),
     '6mo': i18n._('6 Months'),
@@ -125,8 +126,8 @@ function formatPresetLabel(p, i18n) {
     '5y': i18n._('5 Years'),
     'max': i18n._('Max')
   };
-  const key = per === '1mo' ? `${per}_${itv}` : per;
-  return labelMap[key] || (p.label || '').split(' ')[0] || p.label;
+  const specificKey = `${per}_${itv}`;
+  return labelMap[specificKey] || labelMap[per] || (p.label || '').split(' ')[0] || p.label || per.toUpperCase();
 }
 
 // City-based timezone labels mapped to IANA identifiers
@@ -208,10 +209,10 @@ function detectUserTimezone() {
 function enforceIntervalRules(period, interval) {
   const p = (period || '').toLowerCase();
   const itv = (interval || '').toLowerCase();
-  if (p === '1d') return ['1m','2m','5m','15m','30m','1h'].includes(itv) ? itv : '1m';
+  if (p === '1d') return ['1m','2m','5m','15m','30m','1h'].includes(itv) ? itv : '5m';
   if (p === '5d') return ['1m','2m','5m','15m','30m','1h','1d'].includes(itv) ? itv : '5m';
   if (p === '1wk') return ['1m','2m','5m','15m','30m','1h','1d'].includes(itv) ? itv : '5m';
-  if (p === '1mo') return ['5m','15m','30m','1h','1d'].includes(itv) ? itv : '30m';
+  if (p === '1mo') return ['5m','15m','1h','1d'].includes(itv) ? itv : '5m';
   if (['3mo','6mo','1y','2y'].includes(p)) return ['1d','1wk'].includes(itv) ? itv : '1d';
   if (p === '5y' || p === 'max') return ['1wk','1mo'].includes(itv) ? itv : '1wk';
   return ['1d','1wk','1mo'].includes(itv) ? itv : '1wk';
@@ -221,7 +222,7 @@ function getIntervalOptions(period) {
   const p = (period || '').toLowerCase();
   if (p === '1d') return ['1m','2m','5m','15m','30m','1h'];
   if (p === '5d' || p === '1wk') return ['1m','2m','5m','15m','30m','1h','1d'];
-  if (p === '1mo') return ['5m','15m','30m','1h','1d'];
+  if (p === '1mo') return ['5m','15m','1h','1d'];
   if (['3mo','6mo','1y','2y'].includes(p)) return ['1d','1wk'];
   if (p === '5y' || p === 'max') return ['1wk','1mo'];
   return ['1d','1wk','1mo'];
@@ -251,8 +252,7 @@ const _StringExtractor = () => (
     <Trans>1 Month</Trans>
     <Trans>Intraday</Trans>
     <Trans>5 Days</Trans>
-    <Trans>1 Month (30m)</Trans>
-    <Trans>1 Month (1d)</Trans>
+    <Trans>1 Month</Trans>
     <Trans>3 Months</Trans>
     <Trans>6 Months</Trans>
     <Trans>1 Year</Trans>
@@ -274,8 +274,8 @@ export default function MainChart() {
   const [companyName, setCompanyName] = useState('');
   const [market, setMarket] = useState('US');
   // removed unused searchInput/search dropdown states
-  const [period, setPeriod] = useState('1d');
-  const [interval, setInterval] = useState('1m');
+  const [period, setPeriod] = useState('1mo');
+  const [interval, setInterval] = useState('5m');
   const [periodOpen, setPeriodOpen] = useState(false);
   const [intervalOpen, setIntervalOpen] = useState(false);
   const periodBtnRef = useRef(null);
@@ -320,6 +320,7 @@ export default function MainChart() {
   }, [showBB, showVWAP, showAnomaly, showMA5, showMA25, showMA75, showEMA, showMACD, showVolume]);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const indicatorsBtnRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
   const [tickerSearchQuery, setTickerSearchQuery] = useState('');
 
@@ -328,6 +329,11 @@ export default function MainChart() {
   const [followed, setFollowed] = useState(false);
   const [isLoadingFollow, setIsLoadingFollow] = useState(false);
   const [followHover, setFollowHover] = useState(false);
+
+  // Ensure page starts at top when entering this route
+  useEffect(() => {
+    try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch { window.scrollTo(0, 0); }
+  }, []);
 
   // Check follow status on mount / when ticker or auth changes
   useEffect(() => {
@@ -584,33 +590,58 @@ export default function MainChart() {
     let cancelled = false;
     async function loadFinancials() {
       try {
-        const fj = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}`);
-        // If backend returned fetched_at and it's older than 7 days, request a refresh
-        const fetchedAt = fj && (fj.fetched_at || fj.fetchedAt || fj.fetchedAtTime);
-        if (fetchedAt) {
-          const then = new Date(fetchedAt).getTime();
-          const age = Date.now() - then;
-          const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-          if (age > SEVEN_DAYS) {
-            try {
-              const refreshed = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}&force=true`);
-              if (!cancelled && refreshed) {
-                Object.assign(fj, refreshed);
-              }
-            } catch (e) {
-              // ignore refresh failure, keep existing
-            }
+        // Fetch income statement from MongoDB (via Node backend)
+        let incomeStmtFormat = {};
+        try {
+          const incomeStmtData = await fetchWithDedup(`${API_URL}/node/financials/incomeStmt?ticker=${encodeURIComponent(ticker)}`);
+          if (Array.isArray(incomeStmtData)) {
+            incomeStmtData.forEach(doc => {
+              Object.entries(doc.metrics || {}).forEach(([metricName, value]) => {
+                if (!incomeStmtFormat[metricName]) incomeStmtFormat[metricName] = {};
+                incomeStmtFormat[metricName][doc.fiscalDate] = value;
+              });
+            });
           }
-        }
+        } catch (e) { console.warn('incomeStmt fetch failed', e); }
+
+        // Fetch balance sheet from MongoDB (via Node backend)
+        let balSheetFormat = {};
+        try {
+          const balSheetData = await fetchWithDedup(`${API_URL}/node/financials/balSheet?ticker=${encodeURIComponent(ticker)}`);
+          if (Array.isArray(balSheetData)) {
+            balSheetData.forEach(doc => {
+              const allMetrics = {
+                ...doc.assets,
+                ...doc.liabilities,
+                ...doc.equity
+              };
+              Object.entries(allMetrics || {}).forEach(([metricName, value]) => {
+                if (!balSheetFormat[metricName]) balSheetFormat[metricName] = {};
+                balSheetFormat[metricName][doc.fiscalDate] = value;
+              });
+            });
+          }
+        } catch (e) { console.warn('balSheet fetch failed', e); }
+
+        // Fetch news
+        let newsData = [];
+        try {
+          const newsResponse = await fetchJsonWithFallback(`/news?ticker=${encodeURIComponent(ticker)}&pageSize=10`);
+          if (Array.isArray(newsResponse)) {
+            newsData = newsResponse;
+          } else if (newsResponse && Array.isArray(newsResponse.items)) {
+            newsData = newsResponse.items;
+          }
+        } catch (e) { console.warn('news fetch failed', e); }
+
         if (!cancelled) {
-          // Convert nested dict structures to usable format
-            const processed = {
-              income_stmt: fj.income_stmt || {},
-              balance_sheet: fj.balance_sheet || {},
-              cash_flow: fj.cash_flow || fj.cashflow || {},
-              news: Array.isArray(fj.news) ? fj.news : [],
-              fetched_at: fj.fetched_at || fj.fetchedAt || null
-            };
+          const processed = {
+            income_stmt: incomeStmtFormat,
+            balance_sheet: balSheetFormat,
+            cash_flow: {},
+            news: newsData,
+            fetched_at: new Date().toISOString()
+          };
           setFinancials(processed);
         }
       } catch (e) {
@@ -936,6 +967,8 @@ export default function MainChart() {
       return html;
     };
 
+    const textColor = (typeof document !== 'undefined' && document.body.classList.contains('dark')) ? '#e0e0e0' : '#333';
+
     const option = {
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
       title: [
@@ -981,7 +1014,27 @@ export default function MainChart() {
               style: { stroke: '#eee', lineDash: false, lineWidth }
             };
           })
-        )
+        ).concat([
+          {
+            type: 'line',
+            shape: { x1: matrixWidth + matrixMargin, y1: matrixMargin, x2: matrixWidth + matrixMargin, y2: matrixHeight + matrixMargin },
+            style: { stroke: '#ccc', lineWidth: 1 }
+          },
+          // Stock name overlay at the top-right above percentage
+          {
+            type: 'text',
+            right: 8,
+            top: 6,
+            z: 100,
+            style: {
+              text: (companyName && companyName.trim()) ? companyName : displayTicker,
+              fill: textColor,
+              fontSize: 12,
+              fontWeight: 600,
+              textAlign: 'right'
+            }
+          }
+        ])
       }
     };
 
@@ -1447,16 +1500,16 @@ export default function MainChart() {
     <div className="lc-shell">
       {/* Navbar elements merged into main controls (removed fixed bottom navbar) */}
 
-      <div className="lc-body">
+      <div className={`lc-body ${sidebarOpen ? 'sidebar-open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) setSidebarOpen(false); }}>
         {/* Sidebar with ticker info, financials, news */}
         <aside className="lc-sidebar">
           {/* Ticker Card */}
           <div className="lc-card lc-ticker-card">
             <div className="lc-row">
-              <div>
+              <div className="lc-name-wrap">
                 <button
                   className="lc-ticker-name lc-ticker-name-btn"
-                  onClick={() => setShowTickerSearchModal(true)}
+                  onClick={() => { setShowTickerSearchModal(true); setSidebarOpen(false); }}
                   title="Click to search for another ticker"
                   type="button"
                 >
@@ -1535,7 +1588,7 @@ export default function MainChart() {
           <div className="lc-card">
             <div className="lc-card-header">
               <span><Trans>News</Trans></span>
-              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`}><Trans>More</Trans></Link>
+              <Link to={`/company/${ticker}`} className="lc-btn-small" title={`Open ${getDisplayFromRaw(ticker)} company page`} onClick={() => setSidebarOpen(false)}><Trans>More</Trans></Link>
               {/* <button
                 type="button"
                 className="lc-btn-small"
@@ -1660,7 +1713,7 @@ export default function MainChart() {
                       onClose={() => setPeriodOpen(false)}
                       className="mode-dropdown"
                     >
-                      {['1d','5d','1wk','1mo','3mo','6mo','1y','2y','5y','max'].map(p => (
+                      {[...new Set(PERIOD_PRESETS.map(pp => pp.period))].map(p => (
                         <div
                           key={p}
                           role="option"
@@ -1779,6 +1832,20 @@ export default function MainChart() {
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
+                className="lc-btn ghost sidebar-toggle-btn"
+                onClick={() => setSidebarOpen(v => !v)}
+                aria-haspopup="true"
+                aria-expanded={sidebarOpen}
+                title={sidebarOpen ? "Hide data panel" : "Show data panel"}
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <rect x="3" y="3" width="8" height="18" rx="1" fill="currentColor" opacity={sidebarOpen ? "1" : "0.3"} />
+                  <rect x="13" y="3" width="8" height="18" rx="1" fill="currentColor" opacity="0.3" />
+                  <line x1="11" y1="3" x2="11" y2="21" stroke="currentColor" strokeWidth="1" />
+                </svg>
+              </button>
+              <button
                 ref={indicatorsBtnRef}
                 className={`lc-btn ghost ${showBB || showVWAP || showAnomaly || showMA5 || showMA25 || showMA75 || showEMA || showMACD || showVolume ? 'active' : ''}`}
                 onClick={() => setIndicatorsOpen(v => !v)}
@@ -1840,8 +1907,8 @@ export default function MainChart() {
           {loading && <div className="lc-muted">Loading chart…</div>}
           {error && <div className="lc-error">{error}</div>}
           {!loading && !error && (
-            <div style={{ width: '100%' }}>
-              <div id="main-chart-container" ref={mainChartRef} style={{ width: '100%', height: '78vh', minHeight: 520 }} />
+            <div style={{ width: '100%', display: 'flex', flex: 1, minHeight: 0 }}>
+              <div id="main-chart-container" ref={mainChartRef} style={{ width: '100%', height: '100%', minHeight: 0, minWidth: 0 }} />
             </div>
           )}
         </main>
@@ -1882,15 +1949,15 @@ export default function MainChart() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <h5 style={{ marginTop: 0 }}><Trans>Income Statement (most recent 2 periods)</Trans></h5>
-                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} transpose={true} />
+                  <FinancialsTable title="Income Statement" data={truncatedFinancials.income_stmt || {}} />
                 </div>
                 <div>
                   <h5 style={{ marginTop: 0 }}><Trans>Balance Sheet (most recent 2 periods)</Trans></h5>
-                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} transpose={true} />
+                  <FinancialsTable title="Balance Sheet" data={truncatedFinancials.balance_sheet || {}} />
                 </div>
               </div>
             ) : (
-              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} transpose={true} />
+              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} />
             )}
           </div>
         </DialogContent>
