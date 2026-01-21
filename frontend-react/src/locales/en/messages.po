@@ -454,7 +454,7 @@ msgstr "Open Chart"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:288
-#: src/pages/MainChart.jsx:933
+#: src/pages/MainChart.jsx:957
 #: src/utils/financialLabels.ts:160
 msgid "Close"
 msgstr "Close"
@@ -496,7 +496,7 @@ msgid "Resolved"
 msgstr "Resolved"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:930
+#: src/pages/MainChart.jsx:954
 #: src/utils/financialLabels.ts:172
 msgid "Open"
 msgstr "Open"
@@ -811,6 +811,41 @@ msgid "Confirm new password"
 msgstr "Confirm new password"
 
 #. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:41
+msgid "Delete ALL nodemailer logs? This cannot be undone."
+msgstr "Delete ALL nodemailer logs? This cannot be undone."
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:48
+msgid "All nodemailer logs deleted"
+msgstr "All nodemailer logs deleted"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:65
+msgid "No nodemailer logs found."
+msgstr "No nodemailer logs found."
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:45
+msgid "Delete All Notification Logs"
+msgstr "Delete All Notification Logs"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:46
+msgid "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
+msgstr "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:58
+msgid "All notification logs deleted."
+msgstr "All notification logs deleted."
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:75
+msgid "No notification logs found."
+msgstr "No notification logs found."
+
+#. js-lingui-explicit-id
 #: src/pages/Admin/AdminSubscribersPage.jsx:168
 msgid "Delete All Subscribers"
 msgstr "Delete All Subscribers"
@@ -854,81 +889,6 @@ msgstr "Search users..."
 #: src/pages/Admin/AdminSubscribersPage.jsx:233
 msgid "AAPL, MSFT, GOOGL"
 msgstr "AAPL, MSFT, GOOGL"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Please log in"
-msgstr "Please log in"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "You must be logged in to follow tickers."
-msgstr "You must be logged in to follow tickers."
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Log in"
-msgstr "Log in"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Cancel"
-msgstr "Cancel"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:45
-msgid "Delete All Notification Logs"
-msgstr "Delete All Notification Logs"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:46
-msgid "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
-msgstr "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:58
-msgid "All notification logs deleted."
-msgstr "All notification logs deleted."
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:75
-msgid "No notification logs found."
-msgstr "No notification logs found."
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:60
-msgid "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
-msgstr "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:66
-msgid "Jobs cleared"
-msgstr "Jobs cleared"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:71
-msgid "Jobs cleared via admin route"
-msgstr "Jobs cleared via admin route"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:76
-msgid "Failed to clear jobs: "
-msgstr "Failed to clear jobs: "
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:84
-msgid "Job ID"
-msgstr "Job ID"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:85
-msgid "Next Run"
-msgstr "Next Run"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:90
-msgid "No scheduled jobs found."
-msgstr "No scheduled jobs found."
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:58
@@ -1042,19 +1002,59 @@ msgid "Actions"
 msgstr "Actions"
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:41
-msgid "Delete ALL nodemailer logs? This cannot be undone."
-msgstr "Delete ALL nodemailer logs? This cannot be undone."
+#: src/pages/CompanyProfile.jsx:287
+msgid "Please log in"
+msgstr "Please log in"
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:48
-msgid "All nodemailer logs deleted"
-msgstr "All nodemailer logs deleted"
+#: src/pages/CompanyProfile.jsx:287
+msgid "You must be logged in to follow tickers."
+msgstr "You must be logged in to follow tickers."
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:65
-msgid "No nodemailer logs found."
-msgstr "No nodemailer logs found."
+#: src/pages/CompanyProfile.jsx:287
+msgid "Log in"
+msgstr "Log in"
+
+#. js-lingui-explicit-id
+#: src/pages/CompanyProfile.jsx:287
+msgid "Cancel"
+msgstr "Cancel"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:60
+msgid "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
+msgstr "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:66
+msgid "Jobs cleared"
+msgstr "Jobs cleared"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:71
+msgid "Jobs cleared via admin route"
+msgstr "Jobs cleared via admin route"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:76
+msgid "Failed to clear jobs: "
+msgstr "Failed to clear jobs: "
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:84
+msgid "Job ID"
+msgstr "Job ID"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:85
+msgid "Next Run"
+msgstr "Next Run"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:90
+msgid "No scheduled jobs found."
+msgstr "No scheduled jobs found."
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminActivityLogsPage.jsx:50
@@ -1075,17 +1075,6 @@ msgstr "All activity logs deleted."
 #: src/pages/Admin/AdminActivityLogsPage.jsx:80
 msgid "No activity logs found."
 msgstr "No activity logs found."
-
-#. js-lingui-explicit-id
-#: src/pages/Chart.jsx:945
-msgid "Add ticker"
-msgstr "Add ticker"
-
-#. js-lingui-explicit-id
-#: src/pages/Chart.jsx:956
-#: src/pages/Chart.jsx:957
-msgid "Clear all tickers"
-msgstr "Clear all tickers"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminCachePage.jsx:191
@@ -1136,6 +1125,116 @@ msgstr "Payload"
 #: src/pages/Admin/AdminCachePage.jsx:244
 msgid "Copied"
 msgstr "Copied"
+
+#. js-lingui-explicit-id
+#: src/pages/Chart.jsx:964
+msgid "Add ticker"
+msgstr "Add ticker"
+
+#. js-lingui-explicit-id
+#: src/pages/Chart.jsx:975
+#: src/pages/Chart.jsx:976
+msgid "Clear all tickers"
+msgstr "Clear all tickers"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:58
+#: src/pages/StockList.jsx:531
+msgid "Please Login"
+msgstr "Please Login"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:59
+#: src/pages/StockList.jsx:532
+msgid "You need to be signed in to follow tickers."
+msgstr "You need to be signed in to follow tickers."
+
+#. js-lingui-explicit-id
+#: src/pages/StockList.jsx:552
+msgid "Following"
+msgstr "Following"
+
+#. js-lingui-explicit-id
+#: src/pages/StockList.jsx:673
+msgid "Search ticker or company name..."
+msgstr "Search ticker or company name..."
+
+#. js-lingui-explicit-id
+#: src/components/TimezoneSelect.jsx:38
+msgid "Timezone"
+msgstr "Timezone"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:599
+msgid "Users"
+msgstr "Users"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:600
+msgid "Stock List"
+msgstr "Stock List"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:601
+#: src/pages/Admin/AdminDashboardPage.jsx:878
+#: src/pages/MainChart.jsx:1274
+msgid "Anomalies"
+msgstr "Anomalies"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:602
+msgid "Cache"
+msgstr "Cache"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:686
+msgid "Day"
+msgstr "Day"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:687
+msgid "Week"
+msgstr "Week"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:688
+msgid "Month"
+msgstr "Month"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:689
+msgid "Year"
+msgstr "Year"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:691
+msgid "Select period"
+msgstr "Select period"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:850
+msgid "Count"
+msgstr "Count"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:877
+msgid "Subscribers"
+msgstr "Subscribers"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:897
+msgid "Top Subscribers"
+msgstr "Top Subscribers"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:898
+msgid "Top Anomalies"
+msgstr "Top Anomalies"
+
+#. js-lingui-explicit-id
+#: src/components/TickerSearch.jsx:12
+msgid "Search stocks by name or symbol..."
+msgstr "Search stocks by name or symbol..."
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:24
@@ -1266,83 +1365,6 @@ msgid "(No note provided)"
 msgstr "(No note provided)"
 
 #. js-lingui-explicit-id
-#: src/components/TimezoneSelect.jsx:38
-msgid "Timezone"
-msgstr "Timezone"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:599
-msgid "Users"
-msgstr "Users"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:600
-msgid "Stock List"
-msgstr "Stock List"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:601
-#: src/pages/Admin/AdminDashboardPage.jsx:878
-#: src/pages/MainChart.jsx:1250
-msgid "Anomalies"
-msgstr "Anomalies"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:602
-msgid "Cache"
-msgstr "Cache"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:686
-msgid "Day"
-msgstr "Day"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:687
-msgid "Week"
-msgstr "Week"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:688
-msgid "Month"
-msgstr "Month"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:689
-msgid "Year"
-msgstr "Year"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:691
-msgid "Select period"
-msgstr "Select period"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:850
-msgid "Count"
-msgstr "Count"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:877
-msgid "Subscribers"
-msgstr "Subscribers"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:897
-msgid "Top Subscribers"
-msgstr "Top Subscribers"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:898
-msgid "Top Anomalies"
-msgstr "Top Anomalies"
-
-#. js-lingui-explicit-id
-#: src/components/TickerSearch.jsx:12
-msgid "Search stocks by name or symbol..."
-msgstr "Search stocks by name or symbol..."
-
-#. js-lingui-explicit-id
 #: src/components/Navbar.jsx:226
 msgid "Scan Anomaly"
 msgstr "Scan Anomaly"
@@ -1363,24 +1385,9 @@ msgid "Failed to start scan: "
 msgstr "Failed to start scan: "
 
 #. js-lingui-explicit-id
-#: src/components/FollowableChartCard.jsx:58
-msgid "Please Login"
-msgstr "Please Login"
-
-#. js-lingui-explicit-id
-#: src/components/FollowableChartCard.jsx:59
-msgid "You need to be signed in to follow tickers."
-msgstr "You need to be signed in to follow tickers."
-
-#. js-lingui-explicit-id
 #: src/components/PieDonutChart/PieDonutChart.jsx:23
 msgid "Series"
 msgstr "Series"
-
-#. js-lingui-explicit-id
-#: src/components/DropdownSelect/DropdownSelect.jsx:54
-msgid "No results"
-msgstr "No results"
 
 #. js-lingui-explicit-id
 #: src/components/FlexTable/FlexTable.jsx:15
@@ -1416,6 +1423,11 @@ msgstr "Rows"
 #: src/components/FlexTable/FlexTable.jsx:421
 msgid "Refresh"
 msgstr "Refresh"
+
+#. js-lingui-explicit-id
+#: src/components/DropdownSelect/DropdownSelect.jsx:54
+msgid "No results"
+msgstr "No results"
 
 #. js-lingui-explicit-id
 #: src/pages/MainChart.jsx:94
@@ -1509,82 +1521,82 @@ msgid "Max"
 msgstr "Max"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:931
+#: src/pages/MainChart.jsx:955
 msgid "High"
 msgstr "High"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:932
+#: src/pages/MainChart.jsx:956
 msgid "Low"
 msgstr "Low"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:171
-#: src/pages/MainChart.jsx:1179
+#: src/pages/MainChart.jsx:1203
 msgid "Volume Spike"
 msgstr "Volume Spike"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:1180
+#: src/pages/MainChart.jsx:1204
 msgid "Volume Average (14d)"
 msgstr "Volume Average (14d)"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:172
-#: src/pages/MainChart.jsx:1181
+#: src/pages/MainChart.jsx:1205
 msgid "Price Spike"
 msgstr "Price Spike"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:173
-#: src/pages/MainChart.jsx:1182
+#: src/pages/MainChart.jsx:1206
 msgid "Flash Crash"
 msgstr "Flash Crash"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:1183
+#: src/pages/MainChart.jsx:1207
 msgid "Price Average (20d)"
 msgstr "Price Average (20d)"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:175
-#: src/pages/MainChart.jsx:1184
+#: src/pages/MainChart.jsx:1208
 msgid "Absorption"
 msgstr "Absorption"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:176
-#: src/pages/MainChart.jsx:1185
+#: src/pages/MainChart.jsx:1209
 msgid "Bullish"
 msgstr "Bullish"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:177
-#: src/pages/MainChart.jsx:1186
+#: src/pages/MainChart.jsx:1210
 msgid "Bearish"
 msgstr "Bearish"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:178
-#: src/pages/MainChart.jsx:1187
+#: src/pages/MainChart.jsx:1211
 msgid "Anomaly"
 msgstr "Anomaly"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:179
-#: src/pages/MainChart.jsx:1188
+#: src/pages/MainChart.jsx:1212
 msgid "System"
 msgstr "System"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:180
-#: src/pages/MainChart.jsx:1189
+#: src/pages/MainChart.jsx:1213
 msgid "Rule"
 msgstr "Rule"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:181
-#: src/pages/MainChart.jsx:1190
+#: src/pages/MainChart.jsx:1214
 msgid "Other"
 msgstr "Other"
 
@@ -1673,6 +1685,10 @@ msgstr "Price Avg"
 #~ msgid "Searching..."
 #~ msgstr "Searching..."
 
+#: src/pages/StockList.jsx:883
+msgid "‹ Prev"
+msgstr "‹ Prev"
+
 #. placeholder {0}: descExpanded ? "Show less" : "Show more"
 #. placeholder {0}: donutMode === "subscribers" ? "Top Ticker Subscribers" : "Top Ticker Anomalies"
 #. placeholder {0}: editMode ? 'Cancel' : 'Edit'
@@ -1686,18 +1702,22 @@ msgid "{0}"
 msgstr "{0}"
 
 #: src/pages/StockList.jsx:902
-msgid "% Change: High to Low"
-msgstr "% Change: High to Low"
+#~ msgid "% Change: High to Low"
+#~ msgstr "% Change: High to Low"
 
 #: src/pages/StockList.jsx:903
-msgid "% Change: Low to High"
-msgstr "% Change: Low to High"
+#~ msgid "% Change: Low to High"
+#~ msgstr "% Change: Low to High"
 
-#: src/pages/StockList.jsx:1001
+#: src/pages/StockList.jsx:863
+msgid "+ Follow"
+msgstr "+ Follow"
+
+#: src/pages/StockList.jsx:803
 msgid "○ Closed"
 msgstr "○ Closed"
 
-#: src/pages/StockList.jsx:1000
+#: src/pages/StockList.jsx:802
 msgid "● Open"
 msgstr "● Open"
 
@@ -1734,7 +1754,7 @@ msgstr "1 Week"
 msgid "1 Year"
 msgstr "1 Year"
 
-#: src/pages/Chart.jsx:1145
+#: src/pages/Chart.jsx:1164
 msgid "1.5σ (Tight)"
 msgstr "1.5σ (Tight)"
 
@@ -1750,7 +1770,7 @@ msgstr "2 Min"
 msgid "2 Years"
 msgstr "2 Years"
 
-#: src/pages/Chart.jsx:1134
+#: src/pages/Chart.jsx:1153
 msgid "2σ (Standard)"
 msgstr "2σ (Standard)"
 
@@ -1824,10 +1844,11 @@ msgid "Admin Dashboard"
 msgstr "Admin Dashboard"
 
 #: src/pages/StockList.jsx:915
-msgid "All"
-msgstr "All"
+#~ msgid "All"
+#~ msgstr "All"
 
-#: src/pages/StockList.jsx:884
+#: src/pages/StockList.jsx:688
+#: src/pages/StockList.jsx:700
 msgid "All Markets"
 msgstr "All Markets"
 
@@ -1836,8 +1857,8 @@ msgid "Allow editing readonly fields"
 msgstr "Allow editing readonly fields"
 
 #: src/pages/StockList.jsx:904
-msgid "Alphabetical"
-msgstr "Alphabetical"
+#~ msgid "Alphabetical"
+#~ msgstr "Alphabetical"
 
 #: src/pages/Register.jsx:239
 msgid "Already have an account?"
@@ -1850,8 +1871,8 @@ msgstr "Analyst Note"
 
 #: src/components/Navbar.jsx:208
 #: src/components/Sidebar.jsx:7
-#: src/pages/Chart.jsx:1079
-#: src/pages/MainChart.jsx:1875
+#: src/pages/Chart.jsx:1098
+#: src/pages/MainChart.jsx:1899
 msgid "Anomalies"
 msgstr "Anomalies"
 
@@ -1864,10 +1885,10 @@ msgstr "Anomalies Management"
 #~ msgstr "Anomaly"
 
 #: src/pages/StockList.jsx:899
-msgid "Anomaly Count"
-msgstr "Anomaly Count"
+#~ msgid "Anomaly Count"
+#~ msgstr "Anomaly Count"
 
-#: src/pages/Chart.jsx:1207
+#: src/pages/Chart.jsx:1226
 msgid "Area"
 msgstr "Area"
 
@@ -1883,7 +1904,7 @@ msgstr "asic EPS"
 msgid "Asset Type"
 msgstr "Asset Type"
 
-#: src/pages/Chart.jsx:1201
+#: src/pages/Chart.jsx:1220
 msgid "Auto"
 msgstr "Auto"
 
@@ -1899,7 +1920,7 @@ msgstr "Back"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
-#: src/pages/MainChart.jsx:1570
+#: src/pages/MainChart.jsx:1594
 msgid "Balance"
 msgstr "Balance"
 
@@ -1908,15 +1929,15 @@ msgstr "Balance"
 msgid "Balance Sheet"
 msgstr "Balance Sheet"
 
-#: src/pages/MainChart.jsx:1955
+#: src/pages/MainChart.jsx:1979
 msgid "Balance Sheet (most recent 2 periods)"
 msgstr "Balance Sheet (most recent 2 periods)"
 
-#: src/pages/Chart.jsx:1205
+#: src/pages/Chart.jsx:1224
 msgid "Bar"
 msgstr "Bar"
 
-#: src/pages/Chart.jsx:1123
+#: src/pages/Chart.jsx:1142
 msgid "BB Bands Width"
 msgstr "BB Bands Width"
 
@@ -1924,8 +1945,8 @@ msgstr "BB Bands Width"
 #~ msgid "Bearish"
 #~ msgstr "Bearish"
 
-#: src/pages/Chart.jsx:1059
-#: src/pages/MainChart.jsx:1867
+#: src/pages/Chart.jsx:1078
+#: src/pages/MainChart.jsx:1891
 msgid "Bollinger Bands"
 msgstr "Bollinger Bands"
 
@@ -1945,7 +1966,7 @@ msgstr "Cache Management"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/pages/Chart.jsx:1202
+#: src/pages/Chart.jsx:1221
 msgid "Candlestick"
 msgstr "Candlestick"
 
@@ -1988,7 +2009,7 @@ msgstr "Chart"
 
 #: src/pages/CompanyProfile.jsx:380
 #: src/pages/MainChart.jsx:265
-#: src/pages/MainChart.jsx:1965
+#: src/pages/MainChart.jsx:1989
 msgid "Close"
 msgstr "Close"
 
@@ -1998,10 +2019,10 @@ msgid "Close Price"
 msgstr "Close Price"
 
 #: src/pages/StockList.jsx:917
-msgid "Closed"
-msgstr "Closed"
+#~ msgid "Closed"
+#~ msgstr "Closed"
 
-#: src/pages/MainChart.jsx:1522
+#: src/pages/MainChart.jsx:1546
 msgid "CLOSED"
 msgstr "CLOSED"
 
@@ -2009,7 +2030,7 @@ msgstr "CLOSED"
 msgid "Collection Counts Over Time"
 msgstr "Collection Counts Over Time"
 
-#: src/pages/Chart.jsx:1206
+#: src/pages/Chart.jsx:1225
 msgid "Column"
 msgstr "Column"
 
@@ -2129,7 +2150,7 @@ msgstr "Dashboard"
 msgid "Date"
 msgstr "Date"
 
-#: src/pages/MainChart.jsx:1324
+#: src/pages/MainChart.jsx:1348
 msgid "DEA"
 msgstr "DEA"
 
@@ -2156,7 +2177,7 @@ msgstr "Delete All"
 #~ msgid "Delete All Cache"
 #~ msgstr "Delete All Cache"
 
-#: src/pages/MainChart.jsx:1321
+#: src/pages/MainChart.jsx:1345
 msgid "DIF"
 msgstr "DIF"
 
@@ -2195,7 +2216,7 @@ msgstr "EIT"
 msgid "EITDA"
 msgstr "EITDA"
 
-#: src/pages/MainChart.jsx:1891
+#: src/pages/MainChart.jsx:1915
 msgid "EMA"
 msgstr "EMA"
 
@@ -2229,7 +2250,7 @@ msgstr "Fetched At"
 #~ msgstr "Fetched:"
 
 #: src/pages/CompanyProfile.jsx:522
-#: src/pages/MainChart.jsx:1549
+#: src/pages/MainChart.jsx:1573
 msgid "Financials"
 msgstr "Financials"
 
@@ -2241,11 +2262,11 @@ msgstr "Financials"
 #~ msgid "Flash Crash"
 #~ msgstr "Flash Crash"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Follow"
 msgstr "Follow"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Following"
 msgstr "Following"
 
@@ -2266,7 +2287,7 @@ msgstr "Gains Losses Not Affecting Retained Earnings"
 msgid "General"
 msgstr "General"
 
-#: src/pages/Home.jsx:426
+#: src/pages/Home.jsx:430
 msgid "Get Started"
 msgstr "Get Started"
 
@@ -2282,7 +2303,7 @@ msgstr "Gross Profit"
 msgid "High"
 msgstr "High"
 
-#: src/pages/Chart.jsx:1208
+#: src/pages/Chart.jsx:1227
 msgid "HLC"
 msgstr "HLC"
 
@@ -2290,7 +2311,7 @@ msgstr "HLC"
 msgid "Inactive"
 msgstr "Inactive"
 
-#: src/pages/MainChart.jsx:1564
+#: src/pages/MainChart.jsx:1588
 msgid "Income"
 msgstr "Income"
 
@@ -2299,7 +2320,7 @@ msgstr "Income"
 msgid "Income Statement"
 msgstr "Income Statement"
 
-#: src/pages/MainChart.jsx:1951
+#: src/pages/MainChart.jsx:1975
 msgid "Income Statement (most recent 2 periods)"
 msgstr "Income Statement (most recent 2 periods)"
 
@@ -2307,7 +2328,7 @@ msgstr "Income Statement (most recent 2 periods)"
 msgid "Income Tax Payable"
 msgstr "Income Tax Payable"
 
-#: src/pages/MainChart.jsx:1857
+#: src/pages/MainChart.jsx:1881
 msgid "Indicators"
 msgstr "Indicators"
 
@@ -2355,6 +2376,11 @@ msgstr "Investmentin Financial Assets"
 msgid "Investments And Advances"
 msgstr "Investments And Advances"
 
+#: src/pages/StockList.jsx:690
+#: src/pages/StockList.jsx:712
+msgid "Japan (TSE)"
+msgstr "Japan (TSE)"
+
 #: src/components/Sidebar.jsx:15
 msgid "Jobs"
 msgstr "Jobs"
@@ -2385,7 +2411,7 @@ msgstr "Leases"
 msgid "Light"
 msgstr "Light"
 
-#: src/pages/Chart.jsx:1203
+#: src/pages/Chart.jsx:1222
 msgid "Line"
 msgstr "Line"
 
@@ -2397,7 +2423,7 @@ msgstr "LINE"
 msgid "LINE Integration"
 msgstr "LINE Integration"
 
-#: src/pages/Home.jsx:427
+#: src/pages/Home.jsx:431
 msgid "LINE Login"
 msgstr "LINE Login"
 
@@ -2410,10 +2436,11 @@ msgid "Loading chart…"
 msgstr "Loading chart…"
 
 #: src/pages/StockList.jsx:961
-msgid "Loading stocks..."
-msgstr "Loading stocks..."
+#~ msgid "Loading stocks..."
+#~ msgstr "Loading stocks..."
 
-#: src/pages/Chart.jsx:1252
+#: src/pages/Chart.jsx:1271
+#: src/pages/StockList.jsx:760
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -2457,32 +2484,32 @@ msgstr "Long Term Debt And Capital Lease Obligation"
 msgid "Low"
 msgstr "Low"
 
-#: src/pages/MainChart.jsx:1883
+#: src/pages/MainChart.jsx:1907
 msgid "MA (25)"
 msgstr "MA (25)"
 
-#: src/pages/MainChart.jsx:1879
+#: src/pages/MainChart.jsx:1903
 msgid "MA (5)"
 msgstr "MA (5)"
 
-#: src/pages/MainChart.jsx:1887
+#: src/pages/MainChart.jsx:1911
 msgid "MA (75)"
 msgstr "MA (75)"
 
-#: src/pages/Chart.jsx:1099
+#: src/pages/Chart.jsx:1118
 msgid "MA25 (Mid-term)"
 msgstr "MA25 (Mid-term)"
 
-#: src/pages/Chart.jsx:1089
+#: src/pages/Chart.jsx:1108
 msgid "MA5 (Short-term)"
 msgstr "MA5 (Short-term)"
 
-#: src/pages/Chart.jsx:1109
+#: src/pages/Chart.jsx:1128
 msgid "MA75 (Long-term)"
 msgstr "MA75 (Long-term)"
 
-#: src/pages/MainChart.jsx:1319
-#: src/pages/MainChart.jsx:1895
+#: src/pages/MainChart.jsx:1343
+#: src/pages/MainChart.jsx:1919
 msgid "MACD"
 msgstr "MACD"
 
@@ -2506,7 +2533,7 @@ msgstr "Manage market instruments and metadata."
 msgid "Manage subscribers and their ticker lists."
 msgstr "Manage subscribers and their ticker lists."
 
-#: src/pages/StockList.jsx:878
+#: src/pages/StockList.jsx:681
 msgid "Market"
 msgstr "Market"
 
@@ -2519,8 +2546,8 @@ msgid "Market List"
 msgstr "Market List"
 
 #: src/pages/StockList.jsx:909
-msgid "Market Status"
-msgstr "Market Status"
+#~ msgid "Market Status"
+#~ msgstr "Market Status"
 
 #: src/pages/Admin/AdminStockListPage.jsx:140
 #~ msgid "Marketlists Management"
@@ -2539,12 +2566,12 @@ msgstr "Metric"
 msgid "Monitor and manage market irregularities."
 msgstr "Monitor and manage market irregularities."
 
-#: src/pages/MainChart.jsx:1556
-#: src/pages/MainChart.jsx:1591
+#: src/pages/MainChart.jsx:1580
+#: src/pages/MainChart.jsx:1615
 msgid "More"
 msgstr "More"
 
-#: src/pages/Home.jsx:457
+#: src/pages/Home.jsx:461
 msgid "Most anomaly found"
 msgstr "Most anomaly found"
 
@@ -2610,14 +2637,18 @@ msgid "New Password"
 msgstr "New Password"
 
 #: src/pages/CompanyProfile.jsx:590
-#: src/pages/Home.jsx:474
-#: src/pages/MainChart.jsx:1590
+#: src/pages/Home.jsx:478
+#: src/pages/MainChart.jsx:1614
 msgid "News"
 msgstr "News"
 
 #: src/pages/CompanyProfile.jsx:697
 msgid "Next"
 msgstr "Next"
+
+#: src/pages/StockList.jsx:887
+msgid "Next ›"
+msgstr "Next ›"
 
 #: src/pages/Compare.jsx:103
 #~ msgid "no chart"
@@ -2636,9 +2667,13 @@ msgstr "No data"
 msgid "No news"
 msgstr "No news"
 
-#: src/pages/MainChart.jsx:1600
+#: src/pages/MainChart.jsx:1624
 msgid "No recent news"
 msgstr "No recent news"
+
+#: src/pages/StockList.jsx:873
+msgid "No stocks found"
+msgstr "No stocks found"
 
 #: src/components/Sidebar.jsx:14
 #: src/pages/Admin/AdminNodemailerLogsPage.jsx:36
@@ -2678,7 +2713,7 @@ msgstr "Notifications"
 #~ msgid "OHLC (Heiken-Ashi)"
 #~ msgstr "OHLC (Heiken-Ashi)"
 
-#: src/pages/Chart.jsx:1204
+#: src/pages/Chart.jsx:1223
 msgid "OHLC (Heikin-Ashi)"
 msgstr "OHLC (Heikin-Ashi)"
 
@@ -2686,7 +2721,7 @@ msgstr "OHLC (Heikin-Ashi)"
 msgid "Open"
 msgstr "Open"
 
-#: src/pages/MainChart.jsx:1522
+#: src/pages/MainChart.jsx:1546
 msgid "OPEN"
 msgstr "OPEN"
 
@@ -2694,13 +2729,13 @@ msgstr "OPEN"
 msgid "Open Chart"
 msgstr "Open Chart"
 
-#: src/pages/MainChart.jsx:1966
+#: src/pages/MainChart.jsx:1990
 msgid "Open Company Profile"
 msgstr "Open Company Profile"
 
 #: src/pages/StockList.jsx:916
-msgid "Open Now"
-msgstr "Open Now"
+#~ msgid "Open Now"
+#~ msgstr "Open Now"
 
 #: src/components/FinancialsTable.jsx:461
 msgid "Operating Expense"
@@ -2782,7 +2817,16 @@ msgstr "Other Short Term Investments"
 msgid "OTP"
 msgstr "OTP"
 
-#: src/pages/Chart.jsx:1119
+#. placeholder {0}: visibleData.length
+#: src/pages/StockList.jsx:753
+msgid "Page {page} / {totalPages} · {0} shown of {totalCount}"
+msgstr "Page {page} / {totalPages} · {0} shown of {totalCount}"
+
+#: src/pages/StockList.jsx:885
+msgid "Page {page} of {totalPages}"
+msgstr "Page {page} of {totalPages}"
+
+#: src/pages/Chart.jsx:1138
 msgid "Parabolic SAR"
 msgstr "Parabolic SAR"
 
@@ -2847,12 +2891,12 @@ msgstr "Prev"
 #~ msgstr "Price Spike"
 
 #: src/pages/StockList.jsx:901
-msgid "Price: High to Low"
-msgstr "Price: High to Low"
+#~ msgid "Price: High to Low"
+#~ msgstr "Price: High to Low"
 
 #: src/pages/StockList.jsx:900
-msgid "Price: Low to High"
-msgstr "Price: Low to High"
+#~ msgid "Price: Low to High"
+#~ msgstr "Price: Low to High"
 
 #: src/pages/Admin/AdminStockListPage.jsx:199
 msgid "Primary Exchange"
@@ -2863,7 +2907,7 @@ msgid "Processing LINE login..."
 msgstr "Processing LINE login..."
 
 #: src/components/Navbar.jsx:216
-#: src/pages/MainChart.jsx:1860
+#: src/pages/MainChart.jsx:1884
 msgid "Profile"
 msgstr "Profile"
 
@@ -2884,10 +2928,10 @@ msgid "Receivables"
 msgstr "Receivables"
 
 #: src/pages/StockList.jsx:898
-msgid "Recent Anomalies"
-msgstr "Recent Anomalies"
+#~ msgid "Recent Anomalies"
+#~ msgstr "Recent Anomalies"
 
-#: src/pages/Home.jsx:436
+#: src/pages/Home.jsx:440
 msgid "Recent anomaly found"
 msgstr "Recent anomaly found"
 
@@ -2944,7 +2988,7 @@ msgstr "Retained Earnings"
 msgid "Role"
 msgstr "Role"
 
-#: src/pages/StockList.jsx:922
+#: src/pages/StockList.jsx:726
 msgid "Rows"
 msgstr "Rows"
 
@@ -3005,7 +3049,7 @@ msgstr "Share Issued"
 msgid "Show more"
 msgstr "Show more"
 
-#: src/pages/Home.jsx:437
+#: src/pages/Home.jsx:441
 msgid "Show more ›"
 msgstr "Show more ›"
 
@@ -3034,8 +3078,8 @@ msgid "Sign up"
 msgstr "Sign up"
 
 #: src/pages/StockList.jsx:892
-msgid "Sort By"
-msgstr "Sort By"
+#~ msgid "Sort By"
+#~ msgstr "Sort By"
 
 #: src/pages/Admin/AdminDashboardPage.jsx:695
 msgid "Start Cron"
@@ -3055,7 +3099,7 @@ msgstr "stock"
 msgid "Stock List"
 msgstr "Stock List"
 
-#: src/pages/Home.jsx:423
+#: src/pages/Home.jsx:427
 msgid "Stock Trading Anomaly Detector"
 msgstr "Stock Trading Anomaly Detector"
 
@@ -3110,6 +3154,11 @@ msgstr "Tax Provision"
 #: src/components/FinancialsTable.jsx:449
 msgid "Tax Rate For Calcs"
 msgstr "Tax Rate For Calcs"
+
+#: src/pages/StockList.jsx:691
+#: src/pages/StockList.jsx:718
+msgid "Thailand (SET)"
+msgstr "Thailand (SET)"
 
 #: src/components/Navbar.jsx:292
 #: src/components/Navbar.jsx:349
@@ -3196,17 +3245,26 @@ msgstr "Trade and Other Payables Non Current"
 msgid "Treasury Shares Number"
 msgstr "Treasury Shares Number"
 
-#: src/pages/MainChart.jsx:580
+#: src/pages/StockList.jsx:874
+msgid "Try adjusting your search or filters"
+msgstr "Try adjusting your search or filters"
+
+#: src/pages/MainChart.jsx:604
 msgid "Unable to load chart data"
 msgstr "Unable to load chart data"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Unfollow"
 msgstr "Unfollow"
 
 #: src/pages/CompanyProfile.jsx:559
 msgid "Updated:"
 msgstr "Updated:"
+
+#: src/pages/StockList.jsx:689
+#: src/pages/StockList.jsx:706
+msgid "US (NYSE/NASDAQ)"
+msgstr "US (NYSE/NASDAQ)"
 
 #: src/pages/Admin/AdminUsersPage.jsx:156
 #: src/pages/Admin/AdminUsersPage.jsx:175
@@ -3237,9 +3295,9 @@ msgstr "View Payload"
 
 #: src/pages/Admin/AdminAnomaliesPage.jsx:327
 #: src/pages/Admin/AdminAnomaliesPage.jsx:338
-#: src/pages/Chart.jsx:1049
-#: src/pages/MainChart.jsx:1286
-#: src/pages/MainChart.jsx:1899
+#: src/pages/Chart.jsx:1068
+#: src/pages/MainChart.jsx:1310
+#: src/pages/MainChart.jsx:1923
 msgid "Volume"
 msgstr "Volume"
 
@@ -3251,8 +3309,8 @@ msgstr "Volume"
 #~ msgid "Volume Spike"
 #~ msgstr "Volume Spike"
 
-#: src/pages/MainChart.jsx:1273
-#: src/pages/MainChart.jsx:1871
+#: src/pages/MainChart.jsx:1297
+#: src/pages/MainChart.jsx:1895
 msgid "VWAP"
 msgstr "VWAP"
 

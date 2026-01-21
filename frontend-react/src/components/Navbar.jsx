@@ -12,10 +12,12 @@ import logoSvg from '../assets/aino.svg';
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const location = useLocation();
   const profileMenuRef = useRef(null);
   const profileAvatarRef = useRef(null);
+  const langButtonRef = useRef(null);
+  const langMenuRef = useRef(null);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('theme') || 'light';
@@ -106,11 +108,15 @@ export default function Navbar() {
           !profileAvatarRef.current.contains(e.target)) {
         setProfileMenuOpen(false);
       }
+      // Close language dropdown when clicking outside
+      if (langDropdownOpen && langButtonRef.current && !langButtonRef.current.contains(e.target)) {
+        setLangDropdownOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, langDropdownOpen]);
 
   // Close menu when navigating (for mobile UX)
   const handleNavClick = () => setMenuOpen(false);
@@ -299,15 +305,31 @@ export default function Navbar() {
                       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                     </svg>
                     <span><Trans>Language</Trans></span>
-                    <select 
-                      className="profile-dropdown-select" 
-                      value={locale} 
-                      onChange={(e) => switchLocale(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <option value="en">English</option>
-                      <option value="ja">日本語</option>
-                    </select>
+                    <div className="lang-dropdown" ref={langButtonRef}>
+                      <button
+                        className="lang-dropdown-button"
+                        onClick={(e) => { e.stopPropagation(); setLangDropdownOpen(!langDropdownOpen); }}
+                      >
+                        <span>{locale === 'en' ? 'English' : '日本語'}</span>
+                        <span className={`dropdown-arrow ${langDropdownOpen ? 'open' : ''}`}>▼</span>
+                      </button>
+                      {langDropdownOpen && (
+                        <div className="lang-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className={`lang-dropdown-item ${locale === 'en' ? 'active' : ''}`}
+                            onClick={() => { switchLocale('en'); setLangDropdownOpen(false); }}
+                          >
+                            English
+                          </div>
+                          <div
+                            className={`lang-dropdown-item ${locale === 'ja' ? 'active' : ''}`}
+                            onClick={() => { switchLocale('ja'); setLangDropdownOpen(false); }}
+                          >
+                            日本語
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Link to="/profile" className="profile-dropdown-item" onClick={() => setProfileMenuOpen(false)}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -356,15 +378,31 @@ export default function Navbar() {
                       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                     </svg>
                     <span><Trans>Language</Trans></span>
-                    <select 
-                      className="profile-dropdown-select" 
-                      value={locale} 
-                      onChange={(e) => switchLocale(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <option value="en">English</option>
-                      <option value="ja">日本語</option>
-                    </select>
+                    <div className="lang-dropdown" ref={langButtonRef}>
+                      <button
+                        className="lang-dropdown-button"
+                        onClick={(e) => { e.stopPropagation(); setLangDropdownOpen(!langDropdownOpen); }}
+                      >
+                        <span>{locale === 'en' ? 'English' : '日本語'}</span>
+                        <span className={`dropdown-arrow ${langDropdownOpen ? 'open' : ''}`}>▼</span>
+                      </button>
+                      {langDropdownOpen && (
+                        <div className="lang-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className={`lang-dropdown-item ${locale === 'en' ? 'active' : ''}`}
+                            onClick={() => { switchLocale('en'); setLangDropdownOpen(false); }}
+                          >
+                            English
+                          </div>
+                          <div
+                            className={`lang-dropdown-item ${locale === 'ja' ? 'active' : ''}`}
+                            onClick={() => { switchLocale('ja'); setLangDropdownOpen(false); }}
+                          >
+                            日本語
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="profile-dropdown-divider"></div>
                   <Link to="/login" className="profile-dropdown-item" onClick={() => setProfileMenuOpen(false)}>

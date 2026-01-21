@@ -12,6 +12,7 @@ function MarketListSchema(data = {}) {
         market: (data.market || "US").toString().toUpperCase(),
         // support multiple incoming company name fields (companyName, name, company)
         companyName: data.companyName ? data.companyName.toString() : (data.name ? data.name.toString() : (data.company ? data.company.toString() : "")),
+        companyNameLocal: data.companyNameLocal ? data.companyNameLocal.toString() : (data.localName ? data.localName.toString() : (data.company_name_local ? data.company_name_local.toString() : "")),
         name: data.name ? data.name.toString() : (data.companyName ? data.companyName.toString() : (data.company ? data.company.toString() : "")),
         country: data.country ? data.country.toString() : (data.countryCode ? data.countryCode.toString() : ''),
         primaryExchange: data.primaryExchange ? data.primaryExchange.toString() : (data.exchange ? data.exchange.toString() : ''),
@@ -106,40 +107,37 @@ async function getAll(options = {}) {
     }
 
     // Only project necessary fields to reduce payload size and network transfer
-    // Include status, assetType and timestamps so admin UI can display and sort/search them
-    const projection = { ticker: 1, companyName: 1, name: 1, primaryExchange: 1, country: 1, sectorGroup: 1, status: 1, assetType: 1, createdAt: 1, updatedAt: 1 };
+    // Include status, assetType, timestamps, and companyNameLocal for i18n display
+    const projection = { ticker: 1, companyName: 1, companyNameLocal: 1, name: 1, primaryExchange: 1, country: 1, sectorGroup: 1, status: 1, assetType: 1, createdAt: 1, updatedAt: 1 };
     const cursor = db.collection(COLLECTION_NAME).find(filter, { projection });
 
     // apply sort if provided — map common UI keys to DB fields to be robust
-    if (sortBy) {
-        const allowedSorts = {
-            ticker: 'ticker',
-            symbol: 'ticker',
-            displayTicker: 'ticker',
-            alphabetical: 'companyName',
-            alphabetic: 'companyName',
-            company: 'companyName',
-            companyName: 'companyName',
-            name: 'companyName',
-            exchange: 'primaryExchange',
-            primaryExchange: 'primaryExchange',
-            market: 'market',
-            country: 'country',
-            status: 'status',
-            sector: 'sectorGroup',
-            assetType: 'assetType',
-            type: 'assetType',
-        };
+    const allowedSorts = {
+        ticker: 'ticker',
+        symbol: 'ticker',
+        displayTicker: 'ticker',
+        alphabetical: 'companyName',
+        alphabetic: 'companyName',
+        company: 'companyName',
+        companyName: 'companyName',
+        name: 'companyName',
+        exchange: 'primaryExchange',
+        primaryExchange: 'primaryExchange',
+        market: 'market',
+        country: 'country',
+        status: 'status',
+        sector: 'sectorGroup',
+        assetType: 'assetType',
+        type: 'assetType',
+        recentAnomalies: 'updatedAt', // deterministic fallback for "recent" sort
+    };
 
-        const key = String(sortBy).trim();
-        const mapped = allowedSorts[key] || allowedSorts[key.toLowerCase()] || null;
-        const fieldToSort = mapped || key; // fall back to provided key if not in whitelist
-
-        const order = (String(sortOrder || 'asc').toLowerCase() === 'desc') ? -1 : 1;
-        const sortObj = {};
-        sortObj[fieldToSort] = order;
-        cursor.sort(sortObj);
-    }
+    const sortKey = sortBy ? String(sortBy).trim() : 'ticker';
+    const mapped = allowedSorts[sortKey] || allowedSorts[sortKey.toLowerCase()] || 'ticker';
+    const order = (String(sortOrder || 'asc').toLowerCase() === 'desc') ? -1 : 1;
+    const sortObj = {};
+    sortObj[mapped] = order;
+    cursor.sort(sortObj);
 
     // compute total before applying limit/skip
     const total = await db.collection(COLLECTION_NAME).countDocuments(filter);
@@ -152,6 +150,7 @@ async function getAll(options = {}) {
         _id: d._id,
         id: d._id,
         companyName: d.companyName || d.name || d.company || d.company_name || '',
+        companyNameLocal: d.companyNameLocal || '',
         ticker: d.ticker,
         primaryExchange: d.primaryExchange,
         country: d.country,

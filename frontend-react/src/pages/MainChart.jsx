@@ -272,7 +272,27 @@ export default function MainChart() {
   const [ticker, setTicker] = useState((paramTicker || 'AAPL').toUpperCase());
   const displayTicker = getDisplayFromRaw(ticker);
   const [companyName, setCompanyName] = useState('');
+  const [companyNameLocal, setCompanyNameLocal] = useState('');
+  const [country, setCountry] = useState('');
   const [market, setMarket] = useState('US');
+  
+  // Inline localization helper (same logic as Chart.jsx)
+  const localizedCompanyName = useMemo(() => {
+    const locale = i18n.locale || 'en';
+    const localePrefix = locale.split('-')[0];
+    const isJa = localePrefix === 'ja' || localePrefix === 'jp';
+    const isTh = localePrefix === 'th';
+    const hasLocal = companyNameLocal && companyNameLocal.trim() !== '';
+    
+    if (isJa && (country === 'JP' || ticker.endsWith('.T')) && hasLocal) {
+      return companyNameLocal;
+    }
+    if (isTh && country === 'TH' && hasLocal) {
+      return companyNameLocal;
+    }
+    return companyName || ticker;
+  }, [companyName, companyNameLocal, country, ticker, i18n.locale]);
+  
   // removed unused searchInput/search dropdown states
   const [period, setPeriod] = useState('1mo');
   const [interval, setInterval] = useState('5m');
@@ -549,7 +569,11 @@ export default function MainChart() {
         const data = await fetchJsonWithFallback(`/chart/ticker?query=${encodeURIComponent(ticker)}`);
         if (!cancelled) {
           const match = Array.isArray(data) ? data.find((d) => d.ticker === ticker) : null;
-          if (match) setCompanyName(match.name || '');
+          if (match) {
+            setCompanyName(match.name || '');
+            setCompanyNameLocal(match.companyNameLocal || '');
+            setCountry(match.country || '');
+          }
         }
       } catch (e) {
         // Silently fail
@@ -1027,7 +1051,7 @@ export default function MainChart() {
             top: 6,
             z: 100,
             style: {
-              text: (companyName && companyName.trim()) ? companyName : displayTicker,
+              text: (localizedCompanyName && localizedCompanyName.trim()) ? localizedCompanyName : displayTicker,
               fill: textColor,
               fontSize: 12,
               fontWeight: 600,
@@ -1515,7 +1539,7 @@ export default function MainChart() {
                 >
                   {displayTicker}
                 </button>
-                <div className="lc-company-name">{companyName || 'Loading...'}</div>
+                <div className="lc-company-name">{localizedCompanyName || 'Loading...'}</div>
               </div>
               <div className="lc-status">
                 <span className={`lc-dot ${isMarketOpen ? 'open' : 'closed'}`} />
@@ -2017,6 +2041,8 @@ export default function MainChart() {
                           onClick={() => {
                             setTicker(stock.ticker);
                             setCompanyName(stock.name || '');
+                            setCompanyNameLocal('');
+                            setCountry('');
                             setShowTickerSearchModal(false);
                             setTickerSearchQuery('');
                           }}
@@ -2051,7 +2077,7 @@ export default function MainChart() {
                         const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
                         const displayTicker = (t.displayTicker || symbolText).toString();
                         return (
-                          <button key={`res-${idx}-${symbolText}`} type="button" className="lc-ticker-search-item" onClick={() => { setTicker(symbolText); setCompanyName(t.name || ''); setShowTickerSearchModal(false); setTickerSearchQuery(''); }}>
+                          <button key={`res-${idx}-${symbolText}`} type="button" className="lc-ticker-search-item" onClick={() => { setTicker(symbolText); setCompanyName(t.name || ''); setCompanyNameLocal(t.companyNameLocal || ''); setCountry(t.country || ''); setShowTickerSearchModal(false); setTickerSearchQuery(''); }}>
                             <div className="lc-ticker-search-item-ticker">
                               {logoUrl ? (
                                 <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />

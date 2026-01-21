@@ -62,26 +62,41 @@ const normalizeTickerVariants = (sym) => {
 
 // --- Sub-Components ---
 
-const TickerLogo = ({ ticker, company, tickerInfoMap, loadingMap }) => {
+const TickerLogo = ({ ticker, company, country, tickerInfoMap, loadingMap }) => {
   const key = String(ticker || '').toUpperCase();
   const info = tickerInfoMap.get(key);
   const loading = !!loadingMap[key];
 
   if (loading) return <div className="ticker-loader" />;
 
-  const logo = info?.logo || info?.logo_url;
-  const parqetLogo = `https://assets.parqet.com/logos/symbol/${encodeURIComponent(key)}?format=png`;
-  const src = logo || parqetLogo;
+  const resolveLogoTicker = () => {
+    const countryCode = (country || info?.country || '').toUpperCase();
+    if (countryCode === 'TH' && !key.includes('.BK')) return `${key}.BK`;
+    if (countryCode === 'JP' && !key.includes('.T')) return `${key}.T`;
+    return key;
+  };
+
+  const logoTicker = resolveLogoTicker();
+  const localLogo = `/logos/${encodeURIComponent(logoTicker)}.png`;
+  const fallbackLogo = `/logos/no-logo.svg`;
 
   return (
     <div className="logo-circle" title={company}>
       <img
-        src={src}
+        src={localLogo}
         alt={getDisplayFromRaw(key) || company}
         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
         loading="lazy"
         decoding="async"
-        onError={(e) => { e.target.style.display = 'none'; }}
+        onError={(e) => {
+          // single local fallback to no-logo asset
+          if (e.target.dataset.fallback !== '1') {
+            e.target.dataset.fallback = '1';
+            e.target.src = fallbackLogo;
+          } else {
+            e.target.style.display = 'none';
+          }
+        }}
       />
     </div>
   );
@@ -96,7 +111,7 @@ const AnomalyRow = ({ item, tickerInfoMap, loadingMap, locale, onClick, isMini =
 
   return (
     <div className="anomaly-row" onClick={onClick} style={{ cursor: 'pointer' }}>
-      <TickerLogo ticker={item.ticker} company={item.company} tickerInfoMap={tickerInfoMap} loadingMap={loadingMap} />
+      <TickerLogo ticker={item.ticker} company={item.company} country={item.country} tickerInfoMap={tickerInfoMap} loadingMap={loadingMap} />
       
       <div className="anomaly-meta">
         <div className="ticker">{getDisplayFromRaw(item.ticker)}</div>
@@ -242,11 +257,14 @@ export default function Home() {
       const tickerMap = new Map();
       list.forEach(a => {
         const t = a.ticker.toUpperCase();
-        const existing = tickerMap.get(t) || { ticker: t, company: a.companyName || t, anomalies: 0, latestDatetime: null };
+        const existing = tickerMap.get(t) || { ticker: t, company: a.companyName || t, companyNameLocal: a.companyNameLocal, country: a.country, anomalies: 0, latestDatetime: null };
         existing.anomalies++;
         if (!existing.latestDatetime || new Date(a.datetime) > new Date(existing.latestDatetime)) {
           existing.latestDatetime = a.datetime;
           existing.price = a.close || a.price || existing.price;
+          // Update companyNameLocal and country from latest anomaly
+          if (a.companyNameLocal) existing.companyNameLocal = a.companyNameLocal;
+          if (a.country) existing.country = a.country;
         }
         tickerMap.set(t, existing);
       });
@@ -264,6 +282,7 @@ export default function Home() {
           ticker: t,
           company: findCompanyName(t) || d.companyName || t,
           companyNameLocal: d.companyNameLocal,
+          country: d.country,
           price: d.close || 0,
           anomalies: 1,
           datetime: d.datetime

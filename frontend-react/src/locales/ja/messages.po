@@ -454,7 +454,7 @@ msgstr "チャートを開く"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:288
-#: src/pages/MainChart.jsx:933
+#: src/pages/MainChart.jsx:957
 #: src/utils/financialLabels.ts:160
 msgid "Close"
 msgstr "終値"
@@ -496,7 +496,7 @@ msgid "Resolved"
 msgstr "解決済み"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:930
+#: src/pages/MainChart.jsx:954
 #: src/utils/financialLabels.ts:172
 msgid "Open"
 msgstr "始値"
@@ -811,6 +811,41 @@ msgid "Confirm new password"
 msgstr "新しいパスワードの確認"
 
 #. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:41
+msgid "Delete ALL nodemailer logs? This cannot be undone."
+msgstr "すべてのnodemailerログを削除しますか？この操作は元に戻せません。"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:48
+msgid "All nodemailer logs deleted"
+msgstr "すべてのnodemailerログが削除されました"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNodemailerLogsPage.jsx:65
+msgid "No nodemailer logs found."
+msgstr "nodemailerのログが見つかりませんでした。"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:45
+msgid "Delete All Notification Logs"
+msgstr "すべての通知ログを削除"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:46
+msgid "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
+msgstr "<strong>これにより、すべての通知ログが完全に削除されます。</strong><br/>この操作は元に戻せません。本当に削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:58
+msgid "All notification logs deleted."
+msgstr "すべての通知ログが削除されました。"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminNotificationLogsPage.jsx:75
+msgid "No notification logs found."
+msgstr "通知ログが見つかりませんでした。"
+
+#. js-lingui-explicit-id
 #: src/pages/Admin/AdminSubscribersPage.jsx:168
 msgid "Delete All Subscribers"
 msgstr "すべての購読者を削除"
@@ -854,81 +889,6 @@ msgstr "ユーザーを検索..."
 #: src/pages/Admin/AdminSubscribersPage.jsx:233
 msgid "AAPL, MSFT, GOOGL"
 msgstr "AAPL, MSFT, GOOGL"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Please log in"
-msgstr "ログインしてください"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "You must be logged in to follow tickers."
-msgstr "ティッカーをフォローするにはログインが必要です。"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Log in"
-msgstr "ログイン"
-
-#. js-lingui-explicit-id
-#: src/pages/CompanyProfile.jsx:287
-msgid "Cancel"
-msgstr "キャンセル"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:45
-msgid "Delete All Notification Logs"
-msgstr "すべての通知ログを削除"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:46
-msgid "<strong>This will permanently delete ALL notification logs.</strong><br/>This action cannot be undone. Are you sure?"
-msgstr "<strong>これにより、すべての通知ログが完全に削除されます。</strong><br/>この操作は元に戻せません。本当に削除しますか？"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:58
-msgid "All notification logs deleted."
-msgstr "すべての通知ログが削除されました。"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminNotificationLogsPage.jsx:75
-msgid "No notification logs found."
-msgstr "通知ログが見つかりませんでした。"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:60
-msgid "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
-msgstr "すべてのスケジュールされたジョブを削除しますか？これは元に戻せない可能性があります。続行しますか？"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:66
-msgid "Jobs cleared"
-msgstr "ジョブ完了"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:71
-msgid "Jobs cleared via admin route"
-msgstr "管理ルート経由で処理されたジョブ"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:76
-msgid "Failed to clear jobs: "
-msgstr "ジョブのクリアに失敗した理由: "
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:84
-msgid "Job ID"
-msgstr "ジョブID"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:85
-msgid "Next Run"
-msgstr "次の実行"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminJobsPage.jsx:90
-msgid "No scheduled jobs found."
-msgstr "スケジュールされたジョブが見つかりませんでした。"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:58
@@ -1042,19 +1002,59 @@ msgid "Actions"
 msgstr "実行"
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:41
-msgid "Delete ALL nodemailer logs? This cannot be undone."
-msgstr "すべてのnodemailerログを削除しますか？この操作は元に戻せません。"
+#: src/pages/CompanyProfile.jsx:287
+msgid "Please log in"
+msgstr "ログインしてください"
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:48
-msgid "All nodemailer logs deleted"
-msgstr "すべてのnodemailerログが削除されました"
+#: src/pages/CompanyProfile.jsx:287
+msgid "You must be logged in to follow tickers."
+msgstr "ティッカーをフォローするにはログインが必要です。"
 
 #. js-lingui-explicit-id
-#: src/pages/Admin/AdminNodemailerLogsPage.jsx:65
-msgid "No nodemailer logs found."
-msgstr "nodemailerのログが見つかりませんでした。"
+#: src/pages/CompanyProfile.jsx:287
+msgid "Log in"
+msgstr "ログイン"
+
+#. js-lingui-explicit-id
+#: src/pages/CompanyProfile.jsx:287
+msgid "Cancel"
+msgstr "キャンセル"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:60
+msgid "Delete ALL scheduled jobs? This may be irreversible. Proceed?"
+msgstr "すべてのスケジュールされたジョブを削除しますか？これは元に戻せない可能性があります。続行しますか？"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:66
+msgid "Jobs cleared"
+msgstr "ジョブ完了"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:71
+msgid "Jobs cleared via admin route"
+msgstr "管理ルート経由で処理されたジョブ"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:76
+msgid "Failed to clear jobs: "
+msgstr "ジョブのクリアに失敗した理由: "
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:84
+msgid "Job ID"
+msgstr "ジョブID"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:85
+msgid "Next Run"
+msgstr "次の実行"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminJobsPage.jsx:90
+msgid "No scheduled jobs found."
+msgstr "スケジュールされたジョブが見つかりませんでした。"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminActivityLogsPage.jsx:50
@@ -1075,17 +1075,6 @@ msgstr "すべてのアクティビティログが削除されました。"
 #: src/pages/Admin/AdminActivityLogsPage.jsx:80
 msgid "No activity logs found."
 msgstr "アクティビティログが見つかりませんでした。"
-
-#. js-lingui-explicit-id
-#: src/pages/Chart.jsx:945
-msgid "Add ticker"
-msgstr "追加"
-
-#. js-lingui-explicit-id
-#: src/pages/Chart.jsx:956
-#: src/pages/Chart.jsx:957
-msgid "Clear all tickers"
-msgstr "全部削除"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminCachePage.jsx:191
@@ -1136,6 +1125,116 @@ msgstr "ペイロード"
 #: src/pages/Admin/AdminCachePage.jsx:244
 msgid "Copied"
 msgstr "コピーされました"
+
+#. js-lingui-explicit-id
+#: src/pages/Chart.jsx:964
+msgid "Add ticker"
+msgstr "追加"
+
+#. js-lingui-explicit-id
+#: src/pages/Chart.jsx:975
+#: src/pages/Chart.jsx:976
+msgid "Clear all tickers"
+msgstr "全部削除"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:58
+#: src/pages/StockList.jsx:531
+msgid "Please Login"
+msgstr "ログインしてください"
+
+#. js-lingui-explicit-id
+#: src/components/FollowableChartCard.jsx:59
+#: src/pages/StockList.jsx:532
+msgid "You need to be signed in to follow tickers."
+msgstr "銘柄をフォローする前に、ログインしてください。"
+
+#. js-lingui-explicit-id
+#: src/pages/StockList.jsx:552
+msgid "Following"
+msgstr "フォローしている"
+
+#. js-lingui-explicit-id
+#: src/pages/StockList.jsx:673
+msgid "Search ticker or company name..."
+msgstr "銘柄コード検索"
+
+#. js-lingui-explicit-id
+#: src/components/TimezoneSelect.jsx:38
+msgid "Timezone"
+msgstr "時間帯"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:599
+msgid "Users"
+msgstr "ユーザー"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:600
+msgid "Stock List"
+msgstr "めいがら"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:601
+#: src/pages/Admin/AdminDashboardPage.jsx:878
+#: src/pages/MainChart.jsx:1274
+msgid "Anomalies"
+msgstr "異常データ\""
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:602
+msgid "Cache"
+msgstr "キャッシュ"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:686
+msgid "Day"
+msgstr "日"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:687
+msgid "Week"
+msgstr "週"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:688
+msgid "Month"
+msgstr "月"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:689
+msgid "Year"
+msgstr "年"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:691
+msgid "Select period"
+msgstr "感覚選択"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:850
+msgid "Count"
+msgstr "カウント"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:877
+msgid "Subscribers"
+msgstr "購読者"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:897
+msgid "Top Subscribers"
+msgstr "上位購読者"
+
+#. js-lingui-explicit-id
+#: src/pages/Admin/AdminDashboardPage.jsx:898
+msgid "Top Anomalies"
+msgstr "上位異常データ"
+
+#. js-lingui-explicit-id
+#: src/components/TickerSearch.jsx:12
+msgid "Search stocks by name or symbol..."
+msgstr "名や銘柄コードで検索"
 
 #. js-lingui-explicit-id
 #: src/pages/Admin/AdminAnomaliesPage.jsx:24
@@ -1266,83 +1365,6 @@ msgid "(No note provided)"
 msgstr "（注記なし）"
 
 #. js-lingui-explicit-id
-#: src/components/TimezoneSelect.jsx:38
-msgid "Timezone"
-msgstr "時間帯"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:599
-msgid "Users"
-msgstr "ユーザー"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:600
-msgid "Stock List"
-msgstr "めいがら"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:601
-#: src/pages/Admin/AdminDashboardPage.jsx:878
-#: src/pages/MainChart.jsx:1250
-msgid "Anomalies"
-msgstr "いじょうデータ"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:602
-msgid "Cache"
-msgstr "キャッシュ"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:686
-msgid "Day"
-msgstr "日"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:687
-msgid "Week"
-msgstr "週"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:688
-msgid "Month"
-msgstr "月"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:689
-msgid "Year"
-msgstr "年"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:691
-msgid "Select period"
-msgstr "感覚選択"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:850
-msgid "Count"
-msgstr "カウント"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:877
-msgid "Subscribers"
-msgstr "購読者"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:897
-msgid "Top Subscribers"
-msgstr "上位購読者"
-
-#. js-lingui-explicit-id
-#: src/pages/Admin/AdminDashboardPage.jsx:898
-msgid "Top Anomalies"
-msgstr "上位異常データ"
-
-#. js-lingui-explicit-id
-#: src/components/TickerSearch.jsx:12
-msgid "Search stocks by name or symbol..."
-msgstr "名や銘柄コードで検索"
-
-#. js-lingui-explicit-id
 #: src/components/Navbar.jsx:226
 msgid "Scan Anomaly"
 msgstr "スキャン"
@@ -1363,24 +1385,9 @@ msgid "Failed to start scan: "
 msgstr "スキャンを開始できませんでした: "
 
 #. js-lingui-explicit-id
-#: src/components/FollowableChartCard.jsx:58
-msgid "Please Login"
-msgstr "ログインしてください"
-
-#. js-lingui-explicit-id
-#: src/components/FollowableChartCard.jsx:59
-msgid "You need to be signed in to follow tickers."
-msgstr "銘柄をフォローする前に、ログインしてください。"
-
-#. js-lingui-explicit-id
 #: src/components/PieDonutChart/PieDonutChart.jsx:23
 msgid "Series"
 msgstr "シリーズ"
-
-#. js-lingui-explicit-id
-#: src/components/DropdownSelect/DropdownSelect.jsx:54
-msgid "No results"
-msgstr "検索結果がありませんでした"
 
 #. js-lingui-explicit-id
 #: src/components/FlexTable/FlexTable.jsx:15
@@ -1416,6 +1423,11 @@ msgstr "行"
 #: src/components/FlexTable/FlexTable.jsx:421
 msgid "Refresh"
 msgstr "更新"
+
+#. js-lingui-explicit-id
+#: src/components/DropdownSelect/DropdownSelect.jsx:54
+msgid "No results"
+msgstr "検索結果がありませんでした"
 
 #. js-lingui-explicit-id
 #: src/pages/MainChart.jsx:94
@@ -1509,82 +1521,82 @@ msgid "Max"
 msgstr "最大"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:931
+#: src/pages/MainChart.jsx:955
 msgid "High"
 msgstr "高値"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:932
+#: src/pages/MainChart.jsx:956
 msgid "Low"
 msgstr "安値"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:171
-#: src/pages/MainChart.jsx:1179
+#: src/pages/MainChart.jsx:1203
 msgid "Volume Spike"
 msgstr "出来高急増"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:1180
+#: src/pages/MainChart.jsx:1204
 msgid "Volume Average (14d)"
 msgstr "出来高平均 (14日)"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:172
-#: src/pages/MainChart.jsx:1181
+#: src/pages/MainChart.jsx:1205
 msgid "Price Spike"
 msgstr "価格急騰"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:173
-#: src/pages/MainChart.jsx:1182
+#: src/pages/MainChart.jsx:1206
 msgid "Flash Crash"
 msgstr "フラッシュクラッシュ"
 
 #. js-lingui-explicit-id
-#: src/pages/MainChart.jsx:1183
+#: src/pages/MainChart.jsx:1207
 msgid "Price Average (20d)"
 msgstr "価格平均 (20日)"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:175
-#: src/pages/MainChart.jsx:1184
+#: src/pages/MainChart.jsx:1208
 msgid "Absorption"
 msgstr "吸収"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:176
-#: src/pages/MainChart.jsx:1185
+#: src/pages/MainChart.jsx:1209
 msgid "Bullish"
 msgstr "強気"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:177
-#: src/pages/MainChart.jsx:1186
+#: src/pages/MainChart.jsx:1210
 msgid "Bearish"
 msgstr "弱気"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:178
-#: src/pages/MainChart.jsx:1187
+#: src/pages/MainChart.jsx:1211
 msgid "Anomaly"
 msgstr "異常"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:179
-#: src/pages/MainChart.jsx:1188
+#: src/pages/MainChart.jsx:1212
 msgid "System"
 msgstr "システム"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:180
-#: src/pages/MainChart.jsx:1189
+#: src/pages/MainChart.jsx:1213
 msgid "Rule"
 msgstr "ルール"
 
 #. js-lingui-explicit-id
 #: src/components/EchartsCard.jsx:181
-#: src/pages/MainChart.jsx:1190
+#: src/pages/MainChart.jsx:1214
 msgid "Other"
 msgstr "その他"
 
@@ -1673,6 +1685,10 @@ msgstr "価格平均"
 #~ msgid "Searching..."
 #~ msgstr "検索中・・・"
 
+#: src/pages/StockList.jsx:883
+msgid "‹ Prev"
+msgstr "‹ 戻る"
+
 #. placeholder {0}: descExpanded ? "Show less" : "Show more"
 #. placeholder {0}: donutMode === "subscribers" ? "Top Ticker Subscribers" : "Top Ticker Anomalies"
 #. placeholder {0}: editMode ? 'Cancel' : 'Edit'
@@ -1686,18 +1702,22 @@ msgid "{0}"
 msgstr "{0}"
 
 #: src/pages/StockList.jsx:902
-msgid "% Change: High to Low"
-msgstr "変化率（最高・最低）"
+#~ msgid "% Change: High to Low"
+#~ msgstr "変化率（最高・最低）"
 
 #: src/pages/StockList.jsx:903
-msgid "% Change: Low to High"
-msgstr "変化率（最低・最高）"
+#~ msgid "% Change: Low to High"
+#~ msgstr "変化率（最低・最高）"
 
-#: src/pages/StockList.jsx:1001
+#: src/pages/StockList.jsx:863
+msgid "+ Follow"
+msgstr "+ フォロー"
+
+#: src/pages/StockList.jsx:803
 msgid "○ Closed"
 msgstr "○ 市場終了"
 
-#: src/pages/StockList.jsx:1000
+#: src/pages/StockList.jsx:802
 msgid "● Open"
 msgstr "● 市場開始"
 
@@ -1734,7 +1754,7 @@ msgstr "1週"
 msgid "1 Year"
 msgstr "1年"
 
-#: src/pages/Chart.jsx:1145
+#: src/pages/Chart.jsx:1164
 msgid "1.5σ (Tight)"
 msgstr "1.5σ"
 
@@ -1750,7 +1770,7 @@ msgstr "2分"
 msgid "2 Years"
 msgstr "2年"
 
-#: src/pages/Chart.jsx:1134
+#: src/pages/Chart.jsx:1153
 msgid "2σ (Standard)"
 msgstr "2σ"
 
@@ -1824,10 +1844,11 @@ msgid "Admin Dashboard"
 msgstr "アドミン・ダッシュボード"
 
 #: src/pages/StockList.jsx:915
-msgid "All"
-msgstr "全部"
+#~ msgid "All"
+#~ msgstr "全部"
 
-#: src/pages/StockList.jsx:884
+#: src/pages/StockList.jsx:688
+#: src/pages/StockList.jsx:700
 msgid "All Markets"
 msgstr "全市場"
 
@@ -1836,8 +1857,8 @@ msgid "Allow editing readonly fields"
 msgstr "読み取り専用フィールドの編集を許可する"
 
 #: src/pages/StockList.jsx:904
-msgid "Alphabetical"
-msgstr "アルファベット順"
+#~ msgid "Alphabetical"
+#~ msgstr "アルファベット順"
 
 #: src/pages/Register.jsx:239
 msgid "Already have an account?"
@@ -1850,8 +1871,8 @@ msgstr "アナリストノート"
 
 #: src/components/Navbar.jsx:208
 #: src/components/Sidebar.jsx:7
-#: src/pages/Chart.jsx:1079
-#: src/pages/MainChart.jsx:1875
+#: src/pages/Chart.jsx:1098
+#: src/pages/MainChart.jsx:1899
 msgid "Anomalies"
 msgstr "異常データ"
 
@@ -1864,10 +1885,10 @@ msgstr "異常管理"
 #~ msgstr "異常"
 
 #: src/pages/StockList.jsx:899
-msgid "Anomaly Count"
-msgstr "異常数"
+#~ msgid "Anomaly Count"
+#~ msgstr "異常数"
 
-#: src/pages/Chart.jsx:1207
+#: src/pages/Chart.jsx:1226
 msgid "Area"
 msgstr "エリア"
 
@@ -1883,7 +1904,7 @@ msgstr "基本EPS"
 msgid "Asset Type"
 msgstr "資産種別"
 
-#: src/pages/Chart.jsx:1201
+#: src/pages/Chart.jsx:1220
 msgid "Auto"
 msgstr "自動"
 
@@ -1899,7 +1920,7 @@ msgstr "戻る"
 msgid "Back to sign in"
 msgstr "ログインページに戻る"
 
-#: src/pages/MainChart.jsx:1570
+#: src/pages/MainChart.jsx:1594
 msgid "Balance"
 msgstr "貸借"
 
@@ -1908,7 +1929,7 @@ msgstr "貸借"
 msgid "Balance Sheet"
 msgstr "貸借対照表"
 
-#: src/pages/MainChart.jsx:1955
+#: src/pages/MainChart.jsx:1979
 msgid "Balance Sheet (most recent 2 periods)"
 msgstr "貸借対照表（直近2期間）"
 
@@ -1916,11 +1937,11 @@ msgstr "貸借対照表（直近2期間）"
 #~ msgid "Bangkok"
 #~ msgstr "バンコク"
 
-#: src/pages/Chart.jsx:1205
+#: src/pages/Chart.jsx:1224
 msgid "Bar"
 msgstr "バー"
 
-#: src/pages/Chart.jsx:1123
+#: src/pages/Chart.jsx:1142
 msgid "BB Bands Width"
 msgstr "ボリンジャーバンド幅"
 
@@ -1928,8 +1949,8 @@ msgstr "ボリンジャーバンド幅"
 #~ msgid "Bearish"
 #~ msgstr "弱気"
 
-#: src/pages/Chart.jsx:1059
-#: src/pages/MainChart.jsx:1867
+#: src/pages/Chart.jsx:1078
+#: src/pages/MainChart.jsx:1891
 msgid "Bollinger Bands"
 msgstr "ボリンジャーバンド"
 
@@ -1949,7 +1970,7 @@ msgstr "キャッシュ管理"
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: src/pages/Chart.jsx:1202
+#: src/pages/Chart.jsx:1221
 msgid "Candlestick"
 msgstr "ローソク足"
 
@@ -1992,7 +2013,7 @@ msgstr "チャート"
 
 #: src/pages/CompanyProfile.jsx:380
 #: src/pages/MainChart.jsx:265
-#: src/pages/MainChart.jsx:1965
+#: src/pages/MainChart.jsx:1989
 msgid "Close"
 msgstr "閉じる"
 
@@ -2002,10 +2023,10 @@ msgid "Close Price"
 msgstr "終値"
 
 #: src/pages/StockList.jsx:917
-msgid "Closed"
-msgstr "終了"
+#~ msgid "Closed"
+#~ msgstr "終了"
 
-#: src/pages/MainChart.jsx:1522
+#: src/pages/MainChart.jsx:1546
 msgid "CLOSED"
 msgstr "終了"
 
@@ -2013,7 +2034,7 @@ msgstr "終了"
 msgid "Collection Counts Over Time"
 msgstr "時間の経過に伴う収集件数"
 
-#: src/pages/Chart.jsx:1206
+#: src/pages/Chart.jsx:1225
 msgid "Column"
 msgstr "コラム"
 
@@ -2133,7 +2154,7 @@ msgstr "ダッシュボード"
 msgid "Date"
 msgstr "日付"
 
-#: src/pages/MainChart.jsx:1324
+#: src/pages/MainChart.jsx:1348
 msgid "DEA"
 msgstr "DEA"
 
@@ -2160,7 +2181,7 @@ msgstr "すべて削除"
 #~ msgid "Delete All Cache"
 #~ msgstr "すべてのキャッシュを削除"
 
-#: src/pages/MainChart.jsx:1321
+#: src/pages/MainChart.jsx:1345
 msgid "DIF"
 msgstr "DIF"
 
@@ -2199,7 +2220,7 @@ msgstr "EBIT"
 msgid "EITDA"
 msgstr "EBITDA"
 
-#: src/pages/MainChart.jsx:1891
+#: src/pages/MainChart.jsx:1915
 msgid "EMA"
 msgstr "EMA"
 
@@ -2233,7 +2254,7 @@ msgstr "取得日: "
 #~ msgstr "取得日:"
 
 #: src/pages/CompanyProfile.jsx:522
-#: src/pages/MainChart.jsx:1549
+#: src/pages/MainChart.jsx:1573
 msgid "Financials"
 msgstr "資金面"
 
@@ -2245,11 +2266,11 @@ msgstr "資金面"
 #~ msgid "Flash Crash"
 #~ msgstr "フラッシュクラッシュ"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Follow"
 msgstr "フォロー"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Following"
 msgstr "フォロー中"
 
@@ -2270,7 +2291,7 @@ msgstr "利益剰余金に影響しない利益損失"
 msgid "General"
 msgstr "一般"
 
-#: src/pages/Home.jsx:426
+#: src/pages/Home.jsx:430
 msgid "Get Started"
 msgstr "始めよう"
 
@@ -2286,7 +2307,7 @@ msgstr "売上総利益"
 msgid "High"
 msgstr "高値"
 
-#: src/pages/Chart.jsx:1208
+#: src/pages/Chart.jsx:1227
 msgid "HLC"
 msgstr "HLC"
 
@@ -2294,7 +2315,7 @@ msgstr "HLC"
 msgid "Inactive"
 msgstr "休止中"
 
-#: src/pages/MainChart.jsx:1564
+#: src/pages/MainChart.jsx:1588
 msgid "Income"
 msgstr "損益"
 
@@ -2303,7 +2324,7 @@ msgstr "損益"
 msgid "Income Statement"
 msgstr "損益計算書"
 
-#: src/pages/MainChart.jsx:1951
+#: src/pages/MainChart.jsx:1975
 msgid "Income Statement (most recent 2 periods)"
 msgstr "損益計算書（直近2期間）"
 
@@ -2311,7 +2332,7 @@ msgstr "損益計算書（直近2期間）"
 msgid "Income Tax Payable"
 msgstr "未払法人税等"
 
-#: src/pages/MainChart.jsx:1857
+#: src/pages/MainChart.jsx:1881
 msgid "Indicators"
 msgstr "テクニカル指標"
 
@@ -2359,6 +2380,11 @@ msgstr "金融資産への投資"
 msgid "Investments And Advances"
 msgstr "投資と前払い金"
 
+#: src/pages/StockList.jsx:690
+#: src/pages/StockList.jsx:712
+msgid "Japan (TSE)"
+msgstr "日本（東証）"
+
 #: src/components/Sidebar.jsx:15
 msgid "Jobs"
 msgstr "ジョブ"
@@ -2389,7 +2415,7 @@ msgstr "賃貸借契約"
 msgid "Light"
 msgstr "ライト"
 
-#: src/pages/Chart.jsx:1203
+#: src/pages/Chart.jsx:1222
 msgid "Line"
 msgstr "ライン"
 
@@ -2406,7 +2432,7 @@ msgstr "LINE"
 msgid "LINE Integration"
 msgstr "LINE統合"
 
-#: src/pages/Home.jsx:427
+#: src/pages/Home.jsx:431
 msgid "LINE Login"
 msgstr "LINEでログイン"
 
@@ -2419,10 +2445,11 @@ msgid "Loading chart…"
 msgstr "チャートを読み込み中…"
 
 #: src/pages/StockList.jsx:961
-msgid "Loading stocks..."
-msgstr "。。。"
+#~ msgid "Loading stocks..."
+#~ msgstr "。。。"
 
-#: src/pages/Chart.jsx:1252
+#: src/pages/Chart.jsx:1271
+#: src/pages/StockList.jsx:760
 msgid "Loading..."
 msgstr "。。。"
 
@@ -2470,32 +2497,32 @@ msgstr "長期債務及び資本リース債務"
 msgid "Low"
 msgstr "安値"
 
-#: src/pages/MainChart.jsx:1883
+#: src/pages/MainChart.jsx:1907
 msgid "MA (25)"
 msgstr "移動平均 中期"
 
-#: src/pages/MainChart.jsx:1879
+#: src/pages/MainChart.jsx:1903
 msgid "MA (5)"
 msgstr "移動平均 短期"
 
-#: src/pages/MainChart.jsx:1887
+#: src/pages/MainChart.jsx:1911
 msgid "MA (75)"
 msgstr "移動平均 長期"
 
-#: src/pages/Chart.jsx:1099
+#: src/pages/Chart.jsx:1118
 msgid "MA25 (Mid-term)"
 msgstr "移動平均 中期"
 
-#: src/pages/Chart.jsx:1089
+#: src/pages/Chart.jsx:1108
 msgid "MA5 (Short-term)"
 msgstr "移動平均 短期"
 
-#: src/pages/Chart.jsx:1109
+#: src/pages/Chart.jsx:1128
 msgid "MA75 (Long-term)"
 msgstr "移動平均 長期"
 
-#: src/pages/MainChart.jsx:1319
-#: src/pages/MainChart.jsx:1895
+#: src/pages/MainChart.jsx:1343
+#: src/pages/MainChart.jsx:1919
 msgid "MACD"
 msgstr "MACD"
 
@@ -2519,7 +2546,7 @@ msgstr "市場商品とメタデータを管理する。"
 msgid "Manage subscribers and their ticker lists."
 msgstr "購読者の銘柄コードリストを管理する。"
 
-#: src/pages/StockList.jsx:878
+#: src/pages/StockList.jsx:681
 msgid "Market"
 msgstr "市場"
 
@@ -2532,8 +2559,8 @@ msgid "Market List"
 msgstr "市場欄"
 
 #: src/pages/StockList.jsx:909
-msgid "Market Status"
-msgstr "市場状況"
+#~ msgid "Market Status"
+#~ msgstr "市場状況"
 
 #: src/pages/Admin/AdminStockListPage.jsx:140
 #~ msgid "Marketlists Management"
@@ -2552,12 +2579,12 @@ msgstr "指標"
 msgid "Monitor and manage market irregularities."
 msgstr "市場の異常を監視し管理する。"
 
-#: src/pages/MainChart.jsx:1556
-#: src/pages/MainChart.jsx:1591
+#: src/pages/MainChart.jsx:1580
+#: src/pages/MainChart.jsx:1615
 msgid "More"
 msgstr "もっと見る"
 
-#: src/pages/Home.jsx:457
+#: src/pages/Home.jsx:461
 msgid "Most anomaly found"
 msgstr "一番多い異常検知したアノマリー"
 
@@ -2635,14 +2662,18 @@ msgid "New Password"
 msgstr "新しいパスワード"
 
 #: src/pages/CompanyProfile.jsx:590
-#: src/pages/Home.jsx:474
-#: src/pages/MainChart.jsx:1590
+#: src/pages/Home.jsx:478
+#: src/pages/MainChart.jsx:1614
 msgid "News"
 msgstr "ニュース"
 
 #: src/pages/CompanyProfile.jsx:697
 msgid "Next"
 msgstr "次へ"
+
+#: src/pages/StockList.jsx:887
+msgid "Next ›"
+msgstr "次 ›"
 
 #: src/pages/Compare.jsx:103
 #~ msgid "no chart"
@@ -2661,9 +2692,13 @@ msgstr "データなし"
 msgid "No news"
 msgstr "ニュースなし"
 
-#: src/pages/MainChart.jsx:1600
+#: src/pages/MainChart.jsx:1624
 msgid "No recent news"
 msgstr "最近のニュースなし"
+
+#: src/pages/StockList.jsx:873
+msgid "No stocks found"
+msgstr "見つかりませんでした"
 
 #: src/components/Sidebar.jsx:14
 #: src/pages/Admin/AdminNodemailerLogsPage.jsx:36
@@ -2699,7 +2734,7 @@ msgstr "通知ログ"
 msgid "Notifications"
 msgstr "通知"
 
-#: src/pages/Chart.jsx:1204
+#: src/pages/Chart.jsx:1223
 msgid "OHLC (Heikin-Ashi)"
 msgstr "平均足"
 
@@ -2707,7 +2742,7 @@ msgstr "平均足"
 msgid "Open"
 msgstr "始値"
 
-#: src/pages/MainChart.jsx:1522
+#: src/pages/MainChart.jsx:1546
 msgid "OPEN"
 msgstr "開始"
 
@@ -2715,13 +2750,13 @@ msgstr "開始"
 msgid "Open Chart"
 msgstr "チャートを開く"
 
-#: src/pages/MainChart.jsx:1966
+#: src/pages/MainChart.jsx:1990
 msgid "Open Company Profile"
 msgstr "企業プロフィールを開く"
 
 #: src/pages/StockList.jsx:916
-msgid "Open Now"
-msgstr "開始"
+#~ msgid "Open Now"
+#~ msgstr "開始"
 
 #: src/components/FinancialsTable.jsx:461
 msgid "Operating Expense"
@@ -2799,7 +2834,16 @@ msgstr "その他の短期投資"
 msgid "OTP"
 msgstr "OTP"
 
-#: src/pages/Chart.jsx:1119
+#. placeholder {0}: visibleData.length
+#: src/pages/StockList.jsx:753
+msgid "Page {page} / {totalPages} · {0} shown of {totalCount}"
+msgstr "{page} / {totalPages}ページ · {totalCount}件中{0}件を表示"
+
+#: src/pages/StockList.jsx:885
+msgid "Page {page} of {totalPages}"
+msgstr "{page} / {totalPages} ページ"
+
+#: src/pages/Chart.jsx:1138
 msgid "Parabolic SAR"
 msgstr "パラボリック"
 
@@ -2872,12 +2916,12 @@ msgstr "前へ"
 #~ msgstr "価格急騰"
 
 #: src/pages/StockList.jsx:901
-msgid "Price: High to Low"
-msgstr "価値 (最高・最低)"
+#~ msgid "Price: High to Low"
+#~ msgstr "価値 (最高・最低)"
 
 #: src/pages/StockList.jsx:900
-msgid "Price: Low to High"
-msgstr "価値 (最低・最高)"
+#~ msgid "Price: Low to High"
+#~ msgstr "価値 (最低・最高)"
 
 #: src/pages/Admin/AdminStockListPage.jsx:199
 msgid "Primary Exchange"
@@ -2888,7 +2932,7 @@ msgid "Processing LINE login..."
 msgstr "・・・"
 
 #: src/components/Navbar.jsx:216
-#: src/pages/MainChart.jsx:1860
+#: src/pages/MainChart.jsx:1884
 msgid "Profile"
 msgstr "プロフィール"
 
@@ -2909,10 +2953,10 @@ msgid "Receivables"
 msgstr "売掛金"
 
 #: src/pages/StockList.jsx:898
-msgid "Recent Anomalies"
-msgstr "最近の異常"
+#~ msgid "Recent Anomalies"
+#~ msgstr "最近の異常"
 
-#: src/pages/Home.jsx:436
+#: src/pages/Home.jsx:440
 msgid "Recent anomaly found"
 msgstr "最近の異常"
 
@@ -2974,7 +3018,7 @@ msgstr "利益剰余金"
 msgid "Role"
 msgstr "ロール"
 
-#: src/pages/StockList.jsx:922
+#: src/pages/StockList.jsx:726
 msgid "Rows"
 msgstr "行"
 
@@ -3039,7 +3083,7 @@ msgstr "発行済み株式"
 msgid "Show more"
 msgstr "もっと見る"
 
-#: src/pages/Home.jsx:437
+#: src/pages/Home.jsx:441
 msgid "Show more ›"
 msgstr "もっと見る"
 
@@ -3068,8 +3112,8 @@ msgid "Sign up"
 msgstr "会員登録"
 
 #: src/pages/StockList.jsx:892
-msgid "Sort By"
-msgstr "並べ替え"
+#~ msgid "Sort By"
+#~ msgstr "並べ替え"
 
 #: src/pages/Admin/AdminDashboardPage.jsx:695
 msgid "Start Cron"
@@ -3089,7 +3133,7 @@ msgstr "株"
 msgid "Stock List"
 msgstr "銘柄リスト"
 
-#: src/pages/Home.jsx:423
+#: src/pages/Home.jsx:427
 msgid "Stock Trading Anomaly Detector"
 msgstr "証券取引異常検知システム"
 
@@ -3140,6 +3184,11 @@ msgstr "税引当金"
 #: src/components/FinancialsTable.jsx:449
 msgid "Tax Rate For Calcs"
 msgstr "税率計算用"
+
+#: src/pages/StockList.jsx:691
+#: src/pages/StockList.jsx:718
+msgid "Thailand (SET)"
+msgstr "タイ (SET)"
 
 #: src/components/Navbar.jsx:292
 #: src/components/Navbar.jsx:349
@@ -3227,17 +3276,26 @@ msgstr "買掛金及びその他の未払金（非流動）"
 msgid "Treasury Shares Number"
 msgstr "自己株式数"
 
-#: src/pages/MainChart.jsx:580
+#: src/pages/StockList.jsx:874
+msgid "Try adjusting your search or filters"
+msgstr " "
+
+#: src/pages/MainChart.jsx:604
 msgid "Unable to load chart data"
 msgstr "チャートデータを読み込むことができません"
 
-#: src/pages/MainChart.jsx:1543
+#: src/pages/MainChart.jsx:1567
 msgid "Unfollow"
 msgstr "フォロー解除"
 
 #: src/pages/CompanyProfile.jsx:559
 msgid "Updated:"
 msgstr "更新日:"
+
+#: src/pages/StockList.jsx:689
+#: src/pages/StockList.jsx:706
+msgid "US (NYSE/NASDAQ)"
+msgstr "米国 (NYSE/NASDAQ)"
 
 #: src/pages/Admin/AdminUsersPage.jsx:156
 #: src/pages/Admin/AdminUsersPage.jsx:175
@@ -3268,9 +3326,9 @@ msgstr "ペイロードを表示"
 
 #: src/pages/Admin/AdminAnomaliesPage.jsx:327
 #: src/pages/Admin/AdminAnomaliesPage.jsx:338
-#: src/pages/Chart.jsx:1049
-#: src/pages/MainChart.jsx:1286
-#: src/pages/MainChart.jsx:1899
+#: src/pages/Chart.jsx:1068
+#: src/pages/MainChart.jsx:1310
+#: src/pages/MainChart.jsx:1923
 msgid "Volume"
 msgstr "出来高"
 
@@ -3282,8 +3340,8 @@ msgstr "出来高"
 #~ msgid "Volume Spike"
 #~ msgstr "出来高急増"
 
-#: src/pages/MainChart.jsx:1273
-#: src/pages/MainChart.jsx:1871
+#: src/pages/MainChart.jsx:1297
+#: src/pages/MainChart.jsx:1895
 msgid "VWAP"
 msgstr "VWAP"
 

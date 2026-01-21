@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useNavigate } from "react-router-dom";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
@@ -7,6 +7,7 @@ import { GridComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { useAuth } from "../context/useAuth";
 import { ViewChartIcon, CompareIcon, CompareDataIcon, FollowIcon, MenuIcon, FavoriteIcon } from "../components/SvgIcons";
+import Swal from 'sweetalert2';
 import "../css/StockList.css";
 
 echarts.use([LineChart, GridComponent, SVGRenderer]);
@@ -15,24 +16,23 @@ echarts.use([LineChart, GridComponent, SVGRenderer]);
 // Common env names supported: VITE_NODE_API_URL, VITE_API_URL for node gateway;
 // VITE_LINE_PY_URL or VITE_PY_API_URL for the Python service.
 const API_URL = import.meta.env.VITE_NODE_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5050';
-const PY_API_URL = import.meta.env.VITE_LINE_PY_URL || import.meta.env.VITE_PY_API_URL || 'http://localhost:5000';
 const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-let bulkSparklineUnsupported = false; // remember if bulk endpoint 404s
 const priceFailCache = new Set(); // avoid re-fetching tickers that already 404'd this session
 const logoFailCache = new Set(); // avoid re-fetching logos that already 404'd this session
 
 export default function StockList() {
+  const { i18n } = useLingui();
   const { user, token } = useAuth();
   const [search, setSearch] = useState("");
   const [marketFilter, setMarketFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("recent_anomalies");
-  const [marketStatus, setMarketStatus] = useState("all");
+  const [showMarketDropdown, setShowMarketDropdown] = useState(false);
+  const [showRowsDropdown, setShowRowsDropdown] = useState(false);
+  const marketButtonRef = useRef(null);
+  const rowsButtonRef = useRef(null);
   const [viewMode, setViewMode] = useState("detailed"); // "detailed" or "boxed"
 
   const [marketData, setMarketData] = useState([]);
-  const [anomaliesMap, setAnomaliesMap] = useState({});
-  const [pricesMap, setPricesMap] = useState({});
   const [favoritesSet, setFavoritesSet] = useState(new Set()); // Track favorited tickers
   const [loading, setLoading] = useState(false);
   // Server-driven pagination state
@@ -63,12 +63,12 @@ export default function StockList() {
     }
   }, [user]);
 
-  // Reload when market filter or status changes
+  // Reload when market filter changes
   useEffect(() => {
     setPage(1);
     setIsSearching(false);
     fetchMarketData(1, false);
-  }, [marketFilter, marketStatus]);
+  }, [marketFilter]);
 
   // Reload when page size changes (table-style control)
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function StockList() {
       setPage(1);
       fetchMarketData(1, false);
     }
-  }, [sortBy]);
+  }, []);
 
   // ---------------------------------------------------
   // Debounced search
@@ -111,7 +111,8 @@ export default function StockList() {
         fetchMarketData(1, false);
       } else {
         setIsSearching(true);
-        fetchSearchResults(q);
+        setPage(1);  // Reset to page 1 when starting new search
+        fetchSearchResults(q, 1);  // Pass page 1 to fetchSearchResults
       }
     }, 300);
 
@@ -157,6 +158,20 @@ const resolveYfTicker = (ticker, country) => {
 
   // Which sort keys should be performed server-side (map UI key -> DB field)
   const serverSortable = { alphabetical: 'companyName', company: 'companyName', exchange: 'primaryExchange' };
+
+  const locale = (i18n?.locale || 'en').toLowerCase();
+  const localePrefix = locale.split('-')[0];
+  const localizedName = (item) => {
+    const hasLocal = item.companyNameLocal && item.companyNameLocal.trim();
+    const isJa = localePrefix === 'ja' || localePrefix === 'jp';
+    const isTh = localePrefix === 'th';
+    const country = (item.country || '').toUpperCase();
+    if (hasLocal) {
+      if (isJa && (country === 'JP' || item.ticker.endsWith('.T'))) return item.companyNameLocal.trim();
+      if (isTh && (country === 'TH' || item.ticker.endsWith('.BK'))) return item.companyNameLocal.trim();
+    }
+    return item.companyName;
+  };
 
 // Concurrency control helper: execute async tasks with max N parallel
 const executeWithConcurrency = async (tasks, maxConcurrent = 5) => {
@@ -263,84 +278,45 @@ const fetchSinglePrice = async (item) => {
   }
 };
 
-const fetchSearchResults = async (q) => {
+const fetchSearchResults = async (q, pageToLoad = 1) => {
   try {
-    const res = await fetch(`${API_URL}/node/search?q=${encodeURIComponent(q)}&limit=50`);
+    // Use page-based pagination like marketlists endpoint
+    const res = await fetch(`${API_URL}/node/search?q=${encodeURIComponent(q)}&page=${pageToLoad}&pageSize=${pageSize}`);
     const json = await res.json();
     if (!json.success || !Array.isArray(json.results)) {
       setMarketData([]);
+      setTotalPages(1);
+      setTotalCount(0);
       return;
     }
 
-    // For each search result, attempt to fetch marketlist details for richer data
-    const results = json.results;
-    const tasks = results.map(r => async () => {
-      try {
-        const rr = await fetch(`${API_URL}/node/marketlists/ticker/${encodeURIComponent(r.symbol)}`);
-        if (!rr.ok) return null;
-        const j = await rr.json();
-        return j.data || null;
-      } catch (e) {
-        return null;
-      }
-    });
-
-    const settled = await executeWithConcurrency(tasks, 5);
-    const filtered = settled.filter(s => s.status === 'ok' && s.data).map(s => s.data);
-    // Fallback: if none resolved, map basic search results
-    const final = filtered.length > 0 ? filtered : results.map(r => ({ ticker: r.symbol, companyName: r.name, country: r.exchange, primaryExchange: r.exchange }));
-
-    // PRIORITY: show basic search results immediately, then enrich with prices and sparklines
-    // Build minimal items
-    const items = final.map(it => ({
-      _id: it._id || it.ticker,
-      ticker: it.ticker,
-      companyName: it.companyName || it.name || it.ticker,
-      country: it.country || 'US',
-      primaryExchange: it.primaryExchange || it.exchange || '',
-      sectorGroup: it.sectorGroup || it.sector || '',
+    // INSTANT RESULTS - Map basic search results immediately
+    const items = json.results.map(r => ({
+      _id: r.symbol,
+      ticker: r.symbol,
+      companyName: r.name || r.symbol,
+      companyNameLocal: r.companyNameLocal || '',
+      country: r.country || 'US',
+      primaryExchange: r.exchange || '',
+      sectorGroup: '',
       logo: '',
-      hideLogo: false,
+      hideLogo: true,
       sparklineSvg: ''
     }));
-    // Show basic items immediately so user sees results
+    
+    // Use backend total when available for accurate pagination; fallback to hasMore heuristic
+    const totalFromApi = typeof json.total === 'number' ? json.total : null;
+    const totalCountValue = totalFromApi != null
+      ? json.total
+      : (json.hasMore ? (pageToLoad * pageSize) + 1 : items.length);
+    const totalPagesValue = totalFromApi != null
+      ? Math.max(1, Math.ceil(json.total / pageSize))
+      : (json.hasMore ? pageToLoad + 1 : pageToLoad);
+    
     setMarketData(items);
-    setTotalPages(1);
-    setTotalCount(items.length);
-    setPage(1);
-
-    // Enrich in background: try bulk prices, per-ticker fallback, then sparklines
-    (async () => {
-      try {
-        let priceMap = {};
-        try { priceMap = await fetchBulkPriceData(items); } catch (e) { priceMap = {}; }
-        const missingPrices = items.filter(it => !priceMap[it.ticker]);
-        if (missingPrices.length > 0) {
-          const priceTasks = missingPrices.map(it => async () => await fetchSinglePrice(it));
-          const priceResults = await executeWithConcurrency(priceTasks, 10);
-          priceResults.forEach(r => {
-            if (r.status === 'ok' && r.data && r.data.data) {
-              priceMap[r.data.ticker] = r.data.data;
-            }
-          });
-        }
-        setPricesMap(priceMap);
-
-        const sparkTasks = items.map(it => async () => {
-          const svg = await fetchChartDataForSparkline(it.ticker, it.country);
-          return { ticker: it.ticker, svg };
-        });
-        const sparkResults = await executeWithConcurrency(sparkTasks, 10);
-        const sparklineMap = {};
-        sparkResults.forEach(r => {
-          if (r.status === 'ok' && r.data && r.data.svg) sparklineMap[r.data.ticker] = r.data.svg;
-        });
-
-        setMarketData(prev => prev.map(it => ({ ...it, sparklineSvg: sparklineMap[it.ticker] || it.sparklineSvg || '' })));
-      } catch (e) {
-        console.warn('Search enrichment failed:', e);
-      }
-    })();
+    setTotalPages(totalPagesValue);
+    setTotalCount(totalCountValue);
+    setPage(pageToLoad);
   } catch (err) {
     console.error('Search error:', err);
     setMarketData([]);
@@ -349,19 +325,15 @@ const fetchSearchResults = async (q) => {
 
 const fetchMarketData = async (pageToLoad = 1, append = false) => {
   if (!pageToLoad || pageToLoad < 1) pageToLoad = 1;
-  // unify loading state for both replace and append operations
   setLoading(true);
 
   try {
     const countryParam = marketFilter && marketFilter !== 'All' ? `&country=${encodeURIComponent(marketFilter)}` : '';
-    const statusParam = marketStatus && marketStatus !== 'all' ? `&status=${encodeURIComponent(marketStatus)}` : '';
-    // Ask server to sort for certain UI selections so pagination reflects global order
-    let serverSortParam = '';
-    if (serverSortable[sortBy]) {
-      const field = serverSortable[sortBy];
-      serverSortParam = `&sortBy=${encodeURIComponent(field)}&sortOrder=asc`;
-    }
-    const res = await fetch(`${API_URL}/node/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${statusParam}${serverSortParam}`);
+    
+    // Use default ticker asc sort for deterministic pagination
+    const serverSortParam = `&sortBy=ticker&sortOrder=asc`;
+    
+    const res = await fetch(`${API_URL}/node/marketlists?page=${pageToLoad}&pageSize=${pageSize}${countryParam}${serverSortParam}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : json.data || [];
 
@@ -374,6 +346,7 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
       .map(it => {
         const ticker = it.ticker || it.Ticker || "";
         const companyName = it.companyName || it.name || ticker;
+        const companyNameLocal = it.companyNameLocal || '';
         const country = it.country || it.Country || "US";
         
         // Skip logos for tickers known to not have parqet images
@@ -408,12 +381,13 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
           _id: it._id,
           ticker: ticker,
           companyName: companyName,
+          companyNameLocal: companyNameLocal,
           primaryExchange: it.primaryExchange || it["Primary Exchange"] || "",
           sectorGroup: it.sectorGroup || it.sector || "",
           country: country,
-          // If shouldSkipLogo is true we set `hideLogo` so UI won't render the external request or a fallback
-          logo: (!shouldSkipLogo && logoTicker) ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(logoTicker)}?format=png` : "",
-          hideLogo: !!shouldSkipLogo,
+          // Use local logo files stored in public/logos/
+          logo: `/logos/${encodeURIComponent(logoTicker)}.png`,
+          hideLogo: false,
           sparklineSvg: "",
         };
       });
@@ -425,90 +399,7 @@ const fetchMarketData = async (pageToLoad = 1, append = false) => {
       setPage(pageToLoad);
     } catch (e) {}
 
-    // Merge with previously loaded pages when appending
-    const mergedList = append ? [...marketData, ...list] : list;
-    list = mergedList;
-
-    // Try to fetch all pre-cached sparklines from bulk endpoint (skip if previously unsupported)
-    let sparklineMap = {};
-    if (!bulkSparklineUnsupported) {
-      try {
-        const sparklineRes = await fetch(`${API_URL}/node/cache/sparklines/all`);
-        if (sparklineRes.ok) {
-          const sparklineData = await sparklineRes.json();
-          if (sparklineData.success && Array.isArray(sparklineData.data)) {
-            const generateSvg = (closeArray) => {
-              if (!closeArray || closeArray.length < 2) return "";
-              const min = Math.min(...closeArray);
-              const max = Math.max(...closeArray);
-              const range = max - min || 1;
-              const width = 100, height = 40;
-              const points = closeArray.map((val, i) => {
-                const x = (i / (closeArray.length - 1)) * width;
-                const y = height - ((val - min) / range) * height;
-                return `${x},${y}`;
-              }).join(' ');
-              const isPositive = closeArray[closeArray.length - 1] >= closeArray[0];
-              const color = isPositive ? '#2cc17f' : '#e05654';
-              return `<svg width="${width}" height="${height}" class="sparkline-svg"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-            };
-            sparklineData.data.forEach(item => {
-              const values = item.close || item.sparkline || item.values || item.data || [];
-              if (item.ticker && Array.isArray(values) && values.length >= 2) {
-                sparklineMap[item.ticker] = generateSvg(values);
-              }
-            });
-          }
-        } else if (sparklineRes.status === 404) {
-          bulkSparklineUnsupported = true; // avoid retrying each render if route missing
-        }
-      } catch (err) {
-        console.warn("Failed to fetch pre-cached sparklines, falling back to on-demand:", err);
-      }
-    }
-
-    // On-demand fetch for uncached sparklines is now lazy (see effect below)
-    
-    // Fetch prices ticker-by-ticker with limited concurrency to avoid large bulk requests
-    let allPriceData = {};
-    try {
-      const priceTasks = list.map(item => async () => await fetchSinglePrice(item));
-      // Increase concurrency for per-ticker price fetch to reduce wall-clock time for each page
-      const priceResults = await executeWithConcurrency(priceTasks, 10); // max 10 parallel
-      priceResults.forEach(r => {
-        if (r.status === 'ok' && r.data && r.data.data) {
-          // `fetchSinglePrice` returns { ticker, data }
-          const ticker = r.data.ticker;
-          const pdata = r.data.data;
-          if (pdata && pdata.success) allPriceData[ticker] = pdata;
-        }
-      });
-    } catch (e) {
-      console.warn('Per-ticker price fetch failed, falling back to bulk:', e);
-      // fallback to previous bulk behavior in case of unexpected failure
-      const BATCH_SIZE = 30;
-      for (let i = 0; i < list.length; i += BATCH_SIZE) {
-        const batch = list.slice(i, i + BATCH_SIZE);
-        try {
-          const bulk = await fetchBulkPriceData(batch);
-          allPriceData = { ...allPriceData, ...bulk };
-        } catch (err) { /* ignore */ }
-      }
-    }
-    
-    list = list.map(item => ({
-      ...item,
-      sparklineSvg: sparklineMap[item.ticker] || ""
-    }));
-    
-    setPricesMap(prev => {
-      const merged = { ...prev };
-      Object.entries(allPriceData).forEach(([t, v]) => {
-        if (v) merged[t] = v; // only overwrite when we actually got data
-      });
-      return merged;
-    });
-
+    // SHOW DATA IMMEDIATELY - NO PRICE/SPARKLINE FETCHING ON LOAD
     setMarketData(list);
   } catch (err) {
     console.error("Error fetching market list:", err);
@@ -633,7 +524,12 @@ const toggleFavorite = async (ticker) => {
 
 const toggleFollow = async (ticker) => {
   if (!user || !token) {
-    alert("Please log in to follow stocks");
+    await Swal.fire({
+      icon: 'info',
+      title: i18n._('Please Login'),
+      text: i18n._('You need to be signed in to follow tickers.'),
+      confirmButtonColor: '#00aaff'
+    });
     return;
   }
 
@@ -649,7 +545,13 @@ const toggleFollow = async (ticker) => {
     const json = await res.json();
     
     if (json.success) {
-      alert(`Now following ${ticker}`);
+      await Swal.fire({
+        icon: 'success',
+        title: i18n._('Following'),
+        text: i18n._t(`Now following ${ticker}`),
+        timer: 1500,
+        confirmButtonColor: '#00aaff'
+      });
     }
   } catch (err) {
     console.error("Error following stock:", err);
@@ -729,136 +631,35 @@ const toggleFollow = async (ticker) => {
     return false;
   };
 
-  // Filtering
-  const filteredData = marketData.filter((item) => {
-    // Search filter (ticker or company name)
-    const searchLower = search.toLowerCase();
-    const matchSearch = search.trim() === "" ||
-      item.ticker.toLowerCase().includes(searchLower) ||
-      item.companyName.toLowerCase().includes(searchLower);
+  // NO CLIENT-SIDE FILTERING OR SORTING - Server handles everything
+  const visibleData = marketData;
 
-    // Market filter
-    const matchMarket = marketFilter === "All" || item.country === marketFilter;
-
-    // Market status filter
-    if (marketStatus === "open" && !isMarketOpen(item.country)) return false;
-    if (marketStatus === "closed" && isMarketOpen(item.country)) return false;
-
-    return matchSearch && matchMarket;
-  });
-
-  // Sorting: skip client-side resort when server provided a global sort
-  const sortedData = serverSortable[sortBy]
-    ? [...filteredData]
-    : [...filteredData].sort((a, b) => {
-    const aAnomalies = anomaliesMap[a.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
-    const bAnomalies = anomaliesMap[b.ticker] || { count: 0, lastDetected: null, latestPrice: 0 };
-    const aPriceData = pricesMap[a.ticker] || {};
-    const bPriceData = pricesMap[b.ticker] || {};
-
-    if (sortBy === "recent_anomalies") {
-      // Sort by most recent anomaly detection
-      if (!aAnomalies.lastDetected && !bAnomalies.lastDetected) return 0;
-      if (!aAnomalies.lastDetected) return 1;
-      if (!bAnomalies.lastDetected) return -1;
-      return bAnomalies.lastDetected - aAnomalies.lastDetected;
-    }
-
-    if (sortBy === "price_low") {
-      // Sort by price low to high
-      const aPrice = aAnomalies.latestPrice || aPriceData.currentPrice || 0;
-      const bPrice = bAnomalies.latestPrice || bPriceData.currentPrice || 0;
-      if (aPrice === 0 && bPrice === 0) return 0;
-      if (aPrice === 0) return 1;
-      if (bPrice === 0) return -1;
-      return aPrice - bPrice;
-    }
-
-    if (sortBy === "price_high") {
-      // Sort by price high to low
-      const aPrice = aAnomalies.latestPrice || aPriceData.currentPrice || 0;
-      const bPrice = bAnomalies.latestPrice || bPriceData.currentPrice || 0;
-      return bPrice - aPrice;
-    }
-
-    if (sortBy === "percent_change_high") {
-      // Sort by percentage change high to low (biggest gains first)
-      const aPercent = aPriceData.percentChange || 0;
-      const bPercent = bPriceData.percentChange || 0;
-      return bPercent - aPercent;
-    }
-
-    if (sortBy === "percent_change_low") {
-      // Sort by percentage change low to high (biggest losses first)
-      const aPercent = aPriceData.percentChange || 0;
-      const bPercent = bPriceData.percentChange || 0;
-      return aPercent - bPercent;
-    }
-
-    if (sortBy === "anomaly_count") {
-      // Sort by anomaly count
-      return bAnomalies.count - aAnomalies.count;
-    }
-
-    // Default: alphabetical
-    return (a.ticker || "").localeCompare(b.ticker || "");
-  });
-
-  // Visible data (server-driven paginated results)
-  const visibleData = sortedData;
-
-  // Lazy-load sparklines for currently visible items (and a small buffer)
-  useEffect(() => {
-    const loadVisibleSparklines = async () => {
-      if (visibleData.length === 0) return;
-
-      // Buffer ahead to reduce pop-in during scroll
-      const BUFFER = 50;
-      const loadedCount = marketData.length;
-      const target = sortedData.slice(0, Math.min(loadedCount + BUFFER, sortedData.length));
-
-      const missing = target.filter(item => !item.sparklineSvg);
-      if (missing.length === 0) return;
-
-      const tasks = missing.map(item => () =>
-        fetchChartDataForSparkline(item.ticker, item.country).then(svg => ({ baseTicker: item.ticker, svg }))
-      );
-
-      const results = await executeWithConcurrency(tasks, 5);
-
-      if (results.length > 0) {
-        setMarketData(prev => prev.map(it => {
-          const found = results.find(r => r.status === 'ok' && r.data && r.data.baseTicker === it.ticker);
-          if (found && found.data?.svg) {
-            return { ...it, sparklineSvg: found.data.svg };
-          }
-          return it;
-        }));
-      }
-    };
-
-    loadVisibleSparklines();
-  }, [marketData.length, sortedData]);
-
-  // loadMore removed — pagination via Prev/Next buttons only
-
+  // Pagination handlers
   const goPrev = () => {
-    if (isSearching) return;
-    if (page > 1 && !loading) {
-      fetchMarketData(page - 1, false);
+    if (page > 1) {
+      const newPage = page - 1;
+      if (isSearching) {
+        const q = (search || '').trim();
+        fetchSearchResults(q, newPage);
+      } else {
+        fetchMarketData(newPage, false);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const goNext = () => {
-    if (isSearching) return;
-    if (page < totalPages && !loading) {
-      fetchMarketData(page + 1, false);
+    if (page < totalPages) {
+      const newPage = page + 1;
+      if (isSearching) {
+        const q = (search || '').trim();
+        fetchSearchResults(q, newPage);
+      } else {
+        fetchMarketData(newPage, false);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  // Infinite scroll / load-more sentinel removed — pagination now via Prev/Next
-
-  // Pagination is handled via "Load more" / infinite scroll
 
   return (
     <div className="market-list-page">
@@ -867,7 +668,7 @@ const toggleFollow = async (ticker) => {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search ticker or company name..."
+          placeholder={i18n.t("Search ticker or company name...")}
           className="market-search-input"
         />
       </div>
@@ -876,106 +677,101 @@ const toggleFollow = async (ticker) => {
       <div className="filters-row">
         <div className="filter-group">
           <label className="filter-label"><Trans>Market</Trans></label>
-          <select 
-            value={marketFilter} 
-            onChange={(e) => setMarketFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="All"><Trans>All Markets</Trans></option>
-            <option value="US">🇺🇸 US (NYSE/NASDAQ)</option>
-            <option value="JP">🇯🇵 Japan (TSE)</option>
-            <option value="TH">🇹🇭 Thailand (SET)</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label className="filter-label"><Trans>Sort By</Trans></label>
-          <select 
-            value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value)}
-            className="filter-select"
-          >
-            <option value="recent_anomalies"><Trans>Recent Anomalies</Trans></option>
-            <option value="anomaly_count"><Trans>Anomaly Count</Trans></option>
-            <option value="price_low"><Trans>Price: Low to High</Trans></option>
-            <option value="price_high"><Trans>Price: High to Low</Trans></option>
-            <option value="percent_change_high"><Trans>% Change: High to Low</Trans></option>
-            <option value="percent_change_low"><Trans>% Change: Low to High</Trans></option>
-            <option value="alphabetical"><Trans>Alphabetical</Trans></option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label className="filter-label"><Trans>Market Status</Trans></label>
-          <select 
-            value={marketStatus} 
-            onChange={(e) => setMarketStatus(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all"><Trans>All</Trans></option>
-            <option value="open"><Trans>Open Now</Trans></option>
-            <option value="closed"><Trans>Closed</Trans></option>
-          </select>
+          <div className="fancy-dropdown">
+            <button
+              ref={marketButtonRef}
+              className="fancy-dropdown-button"
+              onClick={() => setShowMarketDropdown(!showMarketDropdown)}
+            >
+              {marketFilter === 'All' && <span><Trans>All Markets</Trans></span>}
+              {marketFilter === 'US' && <span><img src="/flags/us.svg" alt="US" className="flag-icon" /> <Trans>US (NYSE/NASDAQ)</Trans></span>}
+              {marketFilter === 'JP' && <span><img src="/flags/japan.svg" alt="JP" className="flag-icon" /> <Trans>Japan (TSE)</Trans></span>}
+              {marketFilter === 'TH' && <span><img src="/flags/thai.svg" alt="TH" className="flag-icon" /> <Trans>Thailand (SET)</Trans></span>}
+              <span className="dropdown-arrow">{showMarketDropdown ? '▲' : '▼'}</span>
+            </button>
+            {showMarketDropdown && (
+              <div className="fancy-dropdown-menu">
+                <div
+                  className={`fancy-dropdown-item ${marketFilter === 'All' ? 'active' : ''}`}
+                  onClick={() => { setMarketFilter('All'); setShowMarketDropdown(false); }}
+                >
+                  <Trans>All Markets</Trans>
+                </div>
+                <div
+                  className={`fancy-dropdown-item ${marketFilter === 'US' ? 'active' : ''}`}
+                  onClick={() => { setMarketFilter('US'); setShowMarketDropdown(false); }}
+                >
+                  <img src="/flags/us.svg" alt="US" className="flag-icon" /> <Trans>US (NYSE/NASDAQ)</Trans>
+                </div>
+                <div
+                  className={`fancy-dropdown-item ${marketFilter === 'JP' ? 'active' : ''}`}
+                  onClick={() => { setMarketFilter('JP'); setShowMarketDropdown(false); }}
+                >
+                  <img src="/flags/japan.svg" alt="JP" className="flag-icon" /> <Trans>Japan (TSE)</Trans>
+                </div>
+                <div
+                  className={`fancy-dropdown-item ${marketFilter === 'TH' ? 'active' : ''}`}
+                  onClick={() => { setMarketFilter('TH'); setShowMarketDropdown(false); }}
+                >
+                  <img src="/flags/thai.svg" alt="TH" className="flag-icon" /> <Trans>Thailand (SET)</Trans>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="filter-group compact">
           <label className="filter-label"><Trans>Rows</Trans></label>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            className="filter-select"
-          >
-            {PAGE_SIZE_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+          <div className="fancy-dropdown">
+            <button
+              ref={rowsButtonRef}
+              className="fancy-dropdown-button"
+              onClick={() => setShowRowsDropdown(!showRowsDropdown)}
+            >
+              <span>{pageSize}</span>
+              <span className="dropdown-arrow">{showRowsDropdown ? '▲' : '▼'}</span>
+            </button>
+            {showRowsDropdown && (
+              <div className="fancy-dropdown-menu">
+                {PAGE_SIZE_OPTIONS.map((opt) => (
+                  <div
+                    key={opt}
+                    className={`fancy-dropdown-item ${pageSize === opt ? 'active' : ''}`}
+                    onClick={() => { setPageSize(opt); setShowRowsDropdown(false); }}
+                  >
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="results-count">
-          {`Page ${page} / ${totalPages} · ${visibleData.length} shown of ${totalCount || sortedData.length}`}
-        </div>
-
-        <div className="view-mode-toggle">
-          <button 
-            className={`view-btn ${viewMode === 'detailed' ? 'active' : ''}`}
-            onClick={() => setViewMode('detailed')}
-            title="Detailed List"
-          >
-            ☰ List
-          </button>
-          <button 
-            className={`view-btn ${viewMode === 'boxed' ? 'active' : ''}`}
-            onClick={() => setViewMode('boxed')}
-            title="Boxed Grid"
-          >
-            ⊞ Grid
-          </button>
+          <Trans>Page {page} / {totalPages} · {visibleData.length} shown of {totalCount}</Trans>
         </div>
       </div>
 
-      {/* RESULTS */}
-      <div className={`market-results market-results-${viewMode}`}>
-        {loading ? (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p><Trans>Loading stocks...</Trans></p>
-          </div>
+      {/* STOCK CARDS */}
+      <div className="market-list-container">
+        {loading && page === 1 ? (
+          <div className="loading-state"><Trans>Loading...</Trans></div>
         ) : visibleData.length > 0 ? (
-          viewMode === 'detailed' ? (
+          viewMode === "detailed" ? (
             visibleData.map((item) => {
-              const anomalyData = anomaliesMap[item.ticker];
-              const priceData = pricesMap[item.ticker];
-              const marketOpen = isMarketOpen(item.country);
-
+              const marketOpen = isMarketOpen(item.country, item.ticker);
+              const displayName = localizedName(item);
               return (
                 <div 
                   key={item._id || item.ticker} 
                   className="stock-card stock-card-detailed"
+                  onClick={() => navigate(`/chart/u/${item.ticker}`)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="stock-card-header">
                     <div className="stock-logo-section">
                       <div className="stock-logo-badge">
-                        {item.logo && !item.hideLogo && !logoFailCache.has(item.ticker) && (
+                        {item.logo && !item.hideLogo && !logoFailCache.has(item.ticker) ? (
                           <img 
                             src={item.logo} 
                             alt={item.ticker}
@@ -986,13 +782,17 @@ const toggleFollow = async (ticker) => {
                               e.target.onerror = null;
                               logoFailCache.add(item.ticker);
                               handleLogoError(item.ticker);
-                              e.target.src = '/no-logo.svg';
+                              e.target.style.display = 'none';
                             }}
                           />
+                        ) : null}
+                        {(!item.logo || item.hideLogo || logoFailCache.has(item.ticker)) && (
+                          <img 
+                            src="/no-logo.svg" 
+                            alt="No logo"
+                            className="stock-logo-fallback"
+                          />
                         )}
-                        <span className="stock-logo-fallback" style={{display: (!item.logo || item.hideLogo || logoFailCache.has(item.ticker)) ? 'block' : 'none'}}>
-                          {item.ticker.substring(0, 1)}
-                        </span>
                       </div>
                       <div className="stock-info">
                         <div className="stock-ticker-row">
@@ -1000,25 +800,9 @@ const toggleFollow = async (ticker) => {
                           {marketOpen && <span className="status-badge open"><Trans>● Open</Trans></span>}
                           {!marketOpen && <span className="status-badge closed"><Trans>○ Closed</Trans></span>}
                         </div>
-                        <p className="stock-name">{item.companyName}</p>
+                        <p className="stock-name">{displayName}</p>
                       </div>
                     </div>
-
-                    <div className="stock-price-section">
-                      {priceData && (
-                        <>
-                          <div className="stock-price-value">{formatPriceByMarket(priceData.currentPrice, item.country)}</div>
-                          <div className={`stock-price-change ${priceData.isUp ? 'up' : 'down'}`}>
-                            <span className="change-arrow">{priceData.isUp ? '↑' : '↓'}</span>
-                            <span className="change-percent">{Math.abs(priceData.percentChange).toFixed(2)}%</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {item.sparklineSvg && (
-                      <div className="stock-sparkline" dangerouslySetInnerHTML={{__html: item.sparklineSvg}} />
-                    )}
 
                     <div className="stock-actions">
                       <button className="action-icon" title="View Chart" onClick={(e) => { e.stopPropagation(); navigate(`/chart/u/${item.ticker}`); }}>
@@ -1027,94 +811,65 @@ const toggleFollow = async (ticker) => {
                       <button className="action-icon" title="Compare" onClick={(e) => { e.stopPropagation(); navigate(`/chart?ticker=${item.ticker}`); }}>
                         <CompareIcon />
                       </button>
-                      <button className="action-icon" title="Compare Data" onClick={(e) => { e.stopPropagation(); navigate(`/compare?ticker=${item.ticker}`); }}>
-                        <CompareDataIcon />
-                      </button>
                       <button className="action-icon follow-btn" title="Follow" onClick={(e) => { e.stopPropagation(); toggleFollow(item.ticker); }}>
                         <FollowIcon />
                       </button>
                     </div>
-
-
                   </div>
-
-                  {anomalyData && (
-                    <div className="anomaly-badge-bar">
-                      {anomalyData.count} {anomalyData.count === 1 ? 'anomaly' : 'anomalies'}
-                    </div>
-                  )}
                 </div>
               );
             })
-          ) : (
+          ) : 
             visibleData.map((item) => {
-              const anomalyData = anomaliesMap[item.ticker];
-              const priceData = pricesMap[item.ticker];
-
+              const displayName = localizedName(item);
               return (
                 <div 
                   key={item._id || item.ticker} 
                   className="stock-card stock-card-boxed"
+                  onClick={() => navigate(`/chart/u/${item.ticker}`)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="box-logo-section">
                     <div className="box-logo-badge">
-                      {item.logo && (
+                      {item.logo && !item.hideLogo ? (
                         <img 
                           src={item.logo} 
                           alt={item.ticker}
                           className="box-logo"
                           onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = '/no-logo.svg';
+                            e.target.style.display = 'none';
                           }}
                         />
+                      ) : null}
+                      {(!item.logo || item.hideLogo) && (
+                        <img 
+                          src="/no-logo.svg" 
+                          alt="No logo"
+                          className="box-logo-fallback"
+                        />
                       )}
-                      <span className="box-logo-fallback" style={{display: (!item.logo && !item.hideLogo) ? 'block' : 'none'}}>
-                        {item.ticker.substring(0, 1)}
-                      </span>
                     </div>
                   </div>
 
                   <div className="box-info-section">
                     <h4 className="box-ticker">{item.ticker} <span className="stock-exchange">({item.primaryExchange})</span></h4>
-                    <p className="box-name">{item.companyName}</p>
+                    <p className="box-name">{displayName}</p>
                   </div>
-
-                  <div className="box-price-section">
-                    {priceData && (
-                      <>
-                        <div className="box-price">{formatPriceByMarket(priceData.currentPrice, item.country)}</div>
-                        <div className={`box-change ${priceData.isUp ? 'up' : 'down'}`}>
-                          {priceData.isUp ? '↑' : '↓'} {Math.abs(priceData.percentChange).toFixed(2)}%
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {item.sparklineSvg && (
-                    <div className="box-sparkline" dangerouslySetInnerHTML={{__html: item.sparklineSvg}} />
-                  )}
 
                   <div className="box-actions">
                     <button className="box-follow-btn" onClick={(e) => { e.stopPropagation(); toggleFollow(item.ticker); }}>
-                      + Follow
+                      <Trans>+ Follow</Trans>
                     </button>
                   </div>
-
-                  {anomalyData && (
-                    <div className="box-anomaly-badge">
-                      {anomalyData.count}
-                    </div>
-                  )}
                 </div>
               );
-            })
+            }
           )
         ) : (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <h3>No stocks found</h3>
-            <p>Try adjusting your search or filters</p>
+            <h3><Trans>No stocks found</Trans></h3>
+            <p><Trans>Try adjusting your search or filters</Trans></p>
           </div>
         )}
       </div>
@@ -1123,11 +878,11 @@ const toggleFollow = async (ticker) => {
         {!isSearching && (
           <div className="pagination-controls">
             <button className="pagination-btn prev-btn" onClick={goPrev} disabled={page <= 1 || loading}>
-              ‹ Prev
+              <Trans>‹ Prev</Trans>
             </button>
-            <div className="page-indicator">Page {page} of {totalPages}</div>
+            <div className="page-indicator"><Trans>Page {page} of {totalPages}</Trans></div>
             <button className="pagination-btn next-btn" onClick={goNext} disabled={page >= totalPages || loading}>
-              Next ›
+              <Trans>Next ›</Trans>
             </button>
           </div>
         )}

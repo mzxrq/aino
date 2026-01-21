@@ -279,7 +279,58 @@ const getRecentAnomalies = async (limit = 20) => {
 			.sort({ detectedAt: -1 })
 			.limit(limit)
 			.toArray();
-		return docs;
+		
+		// Populate companyName, companyNameLocal, country from stockList
+		const enriched = await Promise.all(docs.map(async (doc) => {
+			let stockDoc = null;
+			
+			// Try lookup by stockListId first
+			if (doc.stockListId) {
+				try {
+					stockDoc = await db.collection('stockList').findOne(
+						{ _id: doc.stockListId },
+						{ projection: { ticker: 1, companyName: 1, companyNameLocal: 1, country: 1 } }
+					);
+				} catch (err) {
+					console.error('Error looking up by stockListId:', err);
+				}
+			}
+			
+			// Fallback: lookup by ticker field (if anomaly has Ticker or ticker field)
+			if (!stockDoc && (doc.Ticker || doc.ticker)) {
+				const tickerValue = (doc.Ticker || doc.ticker || '').toUpperCase();
+				try {
+					stockDoc = await db.collection('stockList').findOne(
+						{ ticker: tickerValue },
+						{ projection: { ticker: 1, companyName: 1, companyNameLocal: 1, country: 1 } }
+					);
+				} catch (err) {
+					console.error('Error looking up by ticker:', err);
+				}
+			}
+			
+			if (stockDoc) {
+				return {
+					...doc,
+					ticker: stockDoc.ticker || doc.Ticker || doc.ticker,
+					companyName: stockDoc.companyName,
+					companyNameLocal: stockDoc.companyNameLocal,
+					country: stockDoc.country,
+					datetime: doc.detectedAt || doc.Datetime || doc.datetime,
+					close: doc.priceAtDetection || doc.close || doc.Close || 0
+				};
+			}
+			
+			// No stockList match found - return as-is with datetime mapping
+			return {
+				...doc,
+				ticker: doc.Ticker || doc.ticker,
+				datetime: doc.detectedAt || doc.Datetime || doc.datetime,
+				close: doc.priceAtDetection || doc.close || doc.Close || 0
+			};
+		}));
+		
+		return enriched;
 	}
 
 	const file = readCache();

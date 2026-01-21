@@ -90,16 +90,16 @@ class ScheduleRequest(BaseModel):
     user_id: str
     job_id: str
     # Accept either a cron expression or explicit fields
-    cron_expression: str = None
-    minute: str = None
-    hour: str = None
-    day: str = None
-    month: str = None
-    day_of_week: str = None
+    cron_expression: str = None # type: ignore
+    minute: str = None # type: ignore
+    hour: str = None # type: ignore
+    day: str = None # type: ignore
+    month: str = None # type: ignore
+    day_of_week: str = None # type: ignore
     # period: 'day' (default) or 'week' for weekly summaries
     period: str = 'day'
     # optional: number of days to include in the summary window (overrides period when provided)
-    range_days: int = None
+    range_days: int = None #    type: ignore
     # notification delivery option: 'mail', 'line', or 'both'
     send_option: str = 'both'
     # job type: 'summary' (default) or 'test_email' to send a simple test email
@@ -109,7 +109,7 @@ class ScheduleRequest(BaseModel):
 class RunNowRequest(BaseModel):
     user_id: str
     period: str = 'day'
-    range_days: int = None
+    range_days: int = None # type: ignore
 
 
 def _safe_object_id(val: str):
@@ -119,7 +119,7 @@ def _safe_object_id(val: str):
         return val
 
 
-def run_user_summary(user_id_str: str, period: str = 'day', range_days: int = None):
+def run_user_summary(user_id_str: str, period: str = 'day', range_days: int = None): # type: ignore
     """Job function: send a summary for a single user id."""
     try:
         user_oid = _safe_object_id(user_id_str)
@@ -376,7 +376,8 @@ async def cancel_job(job_id: str):
 
 
 @router.get("/cron/jobs")
-async def list_jobs(user_id: str = None):
+async def list_jobs(user_id: str = None): # type: ignore
+    """List all scheduled jobs, or only those for a specific user if user_id is provided."""
     jobs = []
     try:
         if user_id and db is not None:
