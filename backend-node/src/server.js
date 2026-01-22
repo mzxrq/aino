@@ -40,7 +40,7 @@ app.use(activityLogger);
    Proxy Middleware - Forward /py/* to Python backend at 5000
    ======================= */
 app.use('/py', createProxyMiddleware({
-  target: 'http://localhost:5000',
+  target: 'https://didactic-chainsaw-qrvv7p7vpxqf45wr-5000.app.github.dev/',
   changeOrigin: true,
   // Do not rewrite the path; Python mounts routers under "/py"
   onError: (err, req, res) => {
@@ -52,7 +52,7 @@ app.use('/py', createProxyMiddleware({
 /* =======================
    Static File Serving
    ======================= */
-app.use('/uploads', serveStatic(join(__dirname, 'public/uploads')));
+app.use('/uploads', serveStatic(join(__dirname, 'uploads')));
 
 /* =======================
    Route Definitions

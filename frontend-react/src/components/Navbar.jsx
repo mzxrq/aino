@@ -3,6 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { i18n } from '@lingui/core';
+import API_BASE from '../config/api';
 import '../css/Navbar.css';
 import '../css/ProfileDropdown.css';
 import "@theme-toggles/react/css/Expand.css";
@@ -16,6 +17,14 @@ export default function Navbar() {
   const location = useLocation();
   const profileMenuRef = useRef(null);
   const profileAvatarRef = useRef(null);
+
+  // Helper to construct full image URL
+  const getImageUrl = (imgPath) => {
+    if (!imgPath) return null;
+    if (imgPath.startsWith('http')) return imgPath; // Already absolute
+    return `${API_BASE}${imgPath.startsWith('/') ? imgPath : '/' + imgPath}`;
+  };
+
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('theme') || 'light';
@@ -255,7 +264,7 @@ export default function Navbar() {
             aria-label="Profile menu"
           >
             {isLoggedIn && user && (user.pictureUrl || user.avatar) ? (
-              <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-avatar" />
+              <img src={getImageUrl(user.pictureUrl || user.avatar)} alt="profile" className="profile-avatar" />
             ) : isLoggedIn ? (
               <span className="profile-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
             ) : (
@@ -272,7 +281,7 @@ export default function Navbar() {
                   <div className="profile-dropdown-header">
                     <div className="profile-dropdown-user">
                       {user && (user.pictureUrl || user.avatar) ? (
-                        <img src={user.pictureUrl || user.avatar} alt="profile" className="profile-dropdown-avatar" />
+                        <img src={getImageUrl(user.pictureUrl || user.avatar)} alt="profile" className="profile-dropdown-avatar" />
                       ) : (
                         <span className="profile-dropdown-avatar-placeholder">{user && user.name ? user.name[0].toUpperCase() : 'U'}</span>
                       )}

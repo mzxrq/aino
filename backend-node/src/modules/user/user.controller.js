@@ -40,9 +40,10 @@ const registerUser = async (req, res) => {
     return res.status(201).json({ success: true, data: newUser });
   } catch (err) {
     console.error("Registration Error:", err);
+    const status = err.statusCode || (err.message?.includes("exists") ? 409 : 500);
     return res
-      .status(500)
-      .json({ success: false, error: "Failed to register user." });
+      .status(status)
+      .json({ success: false, error: err.message || "Failed to register user." });
   }
 };
 
@@ -280,13 +281,18 @@ const updateAvatar = async (req, res) => {
     const userId = req.userId;
     const avatarFile = req.file; 
 
+    // 2. Validate file was uploaded
+    if (!avatarFile) {
+      return res.status(400).json({ success: false, error: "No file uploaded. Please select an image file." });
+    }
+
     // Format path for web (replace backslashes for Windows)
     const filePath = `/${avatarFile.path.replace(/\\/g, '/')}`;
 
-    // 2. Update user avatar via service
+    // 3. Update user avatar via service
     const updatedAvatar = await UserService.updateAvatar(userId, filePath);
 
-    // 3. Respond with updated avatar info
+    // 4. Respond with updated avatar info
     return res.status(200).json({ success: true, data: updatedAvatar });
   } catch (err) {
     console.error("Update Avatar Error:", err);

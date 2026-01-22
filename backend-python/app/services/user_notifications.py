@@ -292,7 +292,7 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC", reaso
         dt = anomaly.get('Datetime') or anomaly.get('datetime')
         close = anomaly.get('Close') or anomaly.get('close', 0)
         volume = anomaly.get('Volume') or anomaly.get('volume', 0)
-        score = anomaly.get('anomaly_score', 0)
+        reason = anomaly.get('reason', None)
 
         # Get company name from marketlists
         company_name = "Unknown Company"
@@ -395,27 +395,27 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC", reaso
                         ],
                         "margin": "md"
                     },
-                    {
+                    *([{
                         "type": "box",
                         "layout": "baseline",
                         "contents": [
                             {
                                 "type": "text",
-                                "text": "Score:",
+                                "text": "Reason:",
                                 "color": "#666666",
                                 "size": "xs",
                                 "flex": 1
                             },
                             {
                                 "type": "text",
-                                "text": f"{score:.3f}" if score else "N/A",
-                                "color": "#FF5722",
+                                "text": f"{reason}",
+                                "color": "#333333",
                                 "size": "xs",
                                 "flex": 3
                             }
                         ],
                         "margin": "md"
-                    }
+                    }] if reason else []),
                 ],
                 "spacing": "sm",
                 "paddingAll": "15px"
@@ -424,7 +424,6 @@ def create_detail_flex_bubbles(anomalies: List[Dict], user_timezone="UTC", reaso
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    *([{"type": "text", "text": f"Reason: {reason}", "size": "xs", "color": "#666666", "margin": "xs"}] if reason else []),
                     {
                         "type": "button",
                         "action": {
@@ -481,18 +480,25 @@ def send_line_notification(user_line_id: str, anomalies: List[Dict], user_timezo
         url = "https://api.line.me/v2/bot/message/push"
 
         # Persist an attempt record so delivery issues can be inspected
+        # Use the first anomaly's reason if top-level reason is None
+        preview_reason = None
+        if isinstance(reason, str) and reason:
+            preview_reason = reason[:200]
+        elif anomalies and isinstance(anomalies[0], dict):
+            anomaly_reason = anomalies[0].get('reason') or anomalies[0].get('reson')
+            if isinstance(anomaly_reason, str) and anomaly_reason:
+                preview_reason = anomaly_reason[:200]
         attempt_doc = {
             "type": "line_attempt",
             "to": user_line_id,
             "attempted_at": datetime.utcnow(),
             "payload_preview": {
                 "bubbles": len(all_bubbles),
-                "anomalies": len(anomalies)
-            ,
-                "reason": (reason[:200] if isinstance(reason, str) else None)
+                "anomalies": len(anomalies),
+                "reason": preview_reason
             },
-            "result": None,
-            "response": None
+            "result": 'sent',
+            "response": datetime.utcnow()
         }
         try:
             db.notification_logs.insert_one(attempt_doc)

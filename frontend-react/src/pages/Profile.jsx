@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
+import { DateTime } from 'luxon';
 
 // --- Environment Variables ---
 const NODE_API = API_URL;
@@ -177,7 +178,7 @@ const Profile = () => {
         setLoading((l) => ({ ...l, avatarUploading: true }));
         try {
             const form = new FormData();
-            form.append('avatar', file);
+            form.append('file', file);
 
             const res = await fetch(`${NODE_API}/node/users/profile/avatar`, {
                 method: 'POST',
@@ -469,11 +470,29 @@ const NotificationsSection = () => {
         setCustomDays((prev) => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
     };
 
+    const resolveUserTimezone = () => user?.timeZone || user?.timezone || 'UTC';
+
     const buildCron = () => {
         // time is HH:MM
         const [hh, mm] = (time || '09:00').split(':');
-        const minute = String(parseInt(mm || '0', 10));
-        const hour = String(parseInt(hh || '0', 10));
+        const baseMinute = parseInt(mm || '0', 10);
+        const baseHour = parseInt(hh || '0', 10);
+
+        // Convert selected local time to UTC so cron fires at the intended user time
+        let minute = baseMinute;
+        let hour = baseHour;
+        const tz = resolveUserTimezone();
+        try {
+            const local = DateTime.fromObject({ hour: baseHour, minute: baseMinute }, { zone: tz || 'UTC' });
+            if (local.isValid) {
+                const utc = local.toUTC();
+                minute = utc.minute;
+                hour = utc.hour;
+            }
+        } catch (err) {
+            minute = baseMinute;
+            hour = baseHour;
+        }
         let dow = '*';
         if (repeat === 'daily') dow = '*';
         else if (repeat === 'weekdays') dow = 'mon-fri';
@@ -499,8 +518,8 @@ const NotificationsSection = () => {
                 job_id: jobId || `cron-${user.id}-${Date.now()}`,
                 cron_expression: cronExpression
             };
-            // include send option (mail | line | both) sourced from profile
-            payload.send_option = (formData && formData.sendOption) ? formData.sendOption : (user && (user.sentOption || (user.hasLineid ? 'both' : 'mail')));
+            // include send option (mail | line | both) sourced from profile/user
+            payload.send_option = user?.sentOption || (user?.hasLineid ? 'both' : 'mail');
             // include range_days when provided and valid
             const rd = parseInt(rangeDays, 10);
             if (!Number.isNaN(rd) && rd > 0) payload.range_days = rd;
