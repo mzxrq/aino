@@ -170,6 +170,16 @@ def _get_ticker_meta(t: str) -> Dict[str, Any]:
             'companyName': company,
             'market': _format_market_label(market, exchange, t)
         }
+        
+        # Try to enrich with companyNameLocal and country from stockList
+        if db is not None:
+            try:
+                doc = db.stockList.find_one({"ticker": t.upper()}, {"companyNameLocal": 1, "country": 1})
+                if doc:
+                    meta['companyNameLocal'] = doc.get('companyNameLocal')
+                    meta['country'] = doc.get('country')
+            except Exception:
+                pass
 
 
         # Save to cache (use existing `cache` collection keyed by ticker_meta::TICKER)
@@ -597,6 +607,8 @@ def _ensure_payload_shape(payload: Dict[str, Any]) -> Dict[str, Any]:
         'price_change': payload.get('price_change'),
         'pct_change': payload.get('pct_change'),
         'companyName': payload.get('companyName'),
+        'companyNameLocal': payload.get('companyNameLocal'),
+        'country': payload.get('country'),
         'market': payload.get('market'),
         'displayTicker': payload.get('displayTicker'),
     }
@@ -719,6 +731,8 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
             else:
                 meta = _get_ticker_meta(t)
                 cached['companyName'] = cached.get('companyName') or meta.get('companyName')
+                cached['companyNameLocal'] = cached.get('companyNameLocal') or meta.get('companyNameLocal')
+                cached['country'] = cached.get('country') or meta.get('country')
                 cached['market'] = cached.get('market') or meta.get('market')
                 # Prefer displayTicker from cache or stockList metadata when available
                 ml_display = cached.get('displayTicker') if isinstance(cached, dict) else None
@@ -806,6 +820,8 @@ def _process_tickers(tickers: List[str], period: str, interval: str, nocache: bo
         payload = _build_chart_response_for_ticker(df, anomalies_df)
         meta = _get_ticker_meta(t)
         payload['companyName'] = payload.get('companyName') or meta.get('companyName')
+        payload['companyNameLocal'] = meta.get('companyNameLocal')
+        payload['country'] = meta.get('country')
         payload['market'] = payload.get('market') or meta.get('market')
         # attach displayTicker when available (marketlists preferred)
         try:
@@ -887,6 +903,8 @@ def search_ticker(query: str) -> List[dict]:
             "ticker": doc.get("ticker"),
             "displayTicker": doc.get("displayTicker") or doc.get("display") or None,
             "name": doc.get("companyName"),
+            "companyNameLocal": doc.get("companyNameLocal"),
+            "country": doc.get("country"),
             "exchange": exchange,
             "market": exchange
         })
@@ -916,6 +934,9 @@ def get_financials(ticker: str, force: Optional[bool] = False):
         yt = yf.Ticker(t)
 
         def df_to_dict_safe(dframe: Any) -> Dict[str, Any]:
+            import numpy as _np
+            import pandas as _pd
+            
             try:
                 if dframe is None:
                     return {}
@@ -937,8 +958,6 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                             raw = dframe.to_dict()
                         except Exception:
                             raw = {}
-                    import numpy as _np
-                    import pandas as _pd
 
                     def make_jsonable(o: Any) -> Any:
                         if isinstance(o, dict):
@@ -1018,7 +1037,7 @@ def get_financials(ticker: str, force: Optional[bool] = False):
                     pass
                 # to_dict() keys
                 try:
-                    if isinstance(val, _pd.DataFrame):
+                    if isinstance(val, _pd.DataFrame): # type: ignore
                         d = val.to_dict()
                         if isinstance(d, dict):
                             return [str(k) for k in list(d.keys())]

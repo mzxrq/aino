@@ -21,6 +21,7 @@
 /* Portal container classes used by PortalDropdown */
 .mode-dropdown,
 .indicators-dropdown,
+.timezone-dropdown,
 .custom-select-portal {
   padding: 22px; /* increased breathing room inside portal */
   border-radius: 14px;
@@ -34,9 +35,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Override padding for timezone dropdown (compact single-line) */
+.timezone-dropdown {
+  padding: 6px 0 !important;
+  min-width: 200px !important;
+  max-width: 240px !important;
+}
+
 /* Custom scrollbar for portal dropdowns (scoped) */
 .mode-dropdown,
 .indicators-dropdown,
+.timezone-dropdown,
 .custom-select-portal {
   --scroll-track: rgba(0,0,0,0.06);
   --scroll-thumb: rgba(0,0,0,0.18);
@@ -48,18 +57,21 @@
 /* WebKit scrollbar */
 .mode-dropdown::-webkit-scrollbar,
 .indicators-dropdown::-webkit-scrollbar,
+.timezone-dropdown::-webkit-scrollbar,
 .custom-select-portal::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 .mode-dropdown::-webkit-scrollbar-track,
 .indicators-dropdown::-webkit-scrollbar-track,
+.timezone-dropdown::-webkit-scrollbar-track,
 .custom-select-portal::-webkit-scrollbar-track {
   background: var(--scroll-track);
   border-radius: 8px;
 }
 .mode-dropdown::-webkit-scrollbar-thumb,
 .indicators-dropdown::-webkit-scrollbar-thumb,
+.timezone-dropdown::-webkit-scrollbar-thumb,
 .custom-select-portal::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 8px;
@@ -68,6 +80,7 @@
 }
 .mode-dropdown::-webkit-scrollbar-thumb:hover,
 .indicators-dropdown::-webkit-scrollbar-thumb:hover,
+.timezone-dropdown::-webkit-scrollbar-thumb:hover,
 .custom-select-portal::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
 }
@@ -79,11 +92,17 @@ html.dark .mode-dropdown,
 .dark .mode-dropdown,
 body.dark .indicators-dropdown,
 .dark .indicators-dropdown,
+body.dark .timezone-dropdown,
+html.dark .timezone-dropdown,
+[data-theme="dark"] .timezone-dropdown,
+.dark .timezone-dropdown,
 body.dark .custom-select-portal,
 .dark .custom-select-portal {
   --scroll-track: rgba(255,255,255,0.04);
   --scroll-thumb: rgba(255,255,255,0.10);
   --scroll-thumb-hover: rgba(255,255,255,0.18);
+  background: #1a1a1a !important;
+  border-color: #333333 !important;
 }
 
 /* Layout helpers and accessibility improvements */

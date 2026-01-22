@@ -2,6 +2,7 @@
 
 # Stock Dashboard — AI Agent Instructions
 
+DO NOT CREATE ANY DOCUMENTATION FILES WITHOUT PRIOR APPROVAL.
 This guide provides essential knowledge to be immediately productive in this multi-service stock market anomaly detection dashboard.
 
 ## Architecture Overview

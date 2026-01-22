@@ -115,6 +115,10 @@ app.use('/node/python-integrate', pythonIntegrateRoutes);
 const notificationLogsRoutes = require('./modules/notification-logs/notification-logs.route');
 app.use('/node/notification_logs', notificationLogsRoutes);
 
+// Financial data routes (income statement, balance sheet, cash flow)
+const financialsRoutes = require('./modules/financials/financials.route');
+app.use('/node/financials', financialsRoutes);
+
 // Admin utility routes (delete-all etc.)
 const adminRoutes = require('./modules/admin/admin.route');
 app.use('/node/admin', adminRoutes);

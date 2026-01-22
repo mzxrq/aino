@@ -188,9 +188,9 @@ const AdminCachePage = () => {
           <p className="admin-subtitle"><Trans>Manage cached chart payloads (chart::ticker::period::interval).</Trans></p>
         </div>
         <div className="admin-actions">
-          <button className="btn btn-primary" onClick={openCreate}>+ <Trans>Create Cache</Trans></button>
+          <button className="btn btn-primary" onClick={openCreate}>{i18n._('+ Create Cache')}</button>
           <button className="btn btn-danger" onClick={async () => {
-            const r = await Swal.fire({ icon: 'warning', title: <Trans>Delete All Cache</Trans>, html: i18n._('<strong><Trans>This will permanently delete ALL cache entries.</Trans></strong><br/><Trans>This action cannot be undone. Are you sure?</Trans>'), showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: <Trans>Yes, delete all</Trans> });
+            const r = await Swal.fire({ icon: 'warning', title: i18n._('Delete All Cache'), html: i18n._('<strong>This will permanently delete ALL cache entries.</strong><br/>This action cannot be undone. Are you sure?'), showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: i18n._('Yes, delete all') });
             if (!r.isConfirmed) return;
             try {
               const res = await fetch(`${API_BASE}/node/admin/delete_all?collection=cache`, { method: 'DELETE' });

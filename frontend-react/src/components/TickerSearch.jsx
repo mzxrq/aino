@@ -7,8 +7,9 @@ import '../css/TickerSearch.css';
  * TickerSearch Component
  * Autocomplete search with global ticker database
  */
-const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = "Search stocks by name or symbol...", showInput = true }, ref) {
+const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, showInput = true }, ref) {
   const { i18n } = useLingui();
+  const defaultPlaceholder = placeholder || i18n._("Search stocks by name or symbol...");
   // Safe translation helper: falls back to raw string if i18n is unavailable
   const tt = (msg) => {
     try {
@@ -313,7 +314,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder = 
             type="text"
             readOnly
             className="ticker-search-input"
-            placeholder={placeholder}
+            placeholder={defaultPlaceholder}
             value={input}
             onFocus={() => openModal()}
             disabled={loading}

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { getFinancialLabel } from '../utils/financialLabels';
 
 // Financial field name translations (from yfinance API)
 const FINANCIAL_FIELD_TRANSLATIONS = {
@@ -40,8 +41,8 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Diluted EPS': '希薄化後EPS',
   'Diluted Average Shares': '希薄化後平均株数',
   'Cost Of Revenue': '売上原価',
-  'asic EPS': '基本EPS',
-  'asic Average Shares': '基本平均株数',
+  'Basic EPS': '基本EPS',
+  'Basic Average Shares': '基本平均株数',
   'Working Capital': '運転資本',
   'Treasury Shares Number': '自己株式数',
   'Tradeand Other Payables Non Current': '長期買掛金及び支払債務',
@@ -53,7 +54,6 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Total Debt': '総債務',
   'Total Capitalization': '総資本',
   'Total Assets': '総資産',
-  'Tangible ook Value': '有形資産価値',
   'Tangible Book Value': '有形帳簿価額',
   'Stockholders Equity': '株主資本',
   'Share Issued': '発行済株式数',
@@ -122,8 +122,115 @@ const FINANCIAL_FIELD_TRANSLATIONS = {
   'Balance Sheet (most recent  periods)': '貸借対照表（最近期）',
 };
 
+// Blacklist of metrics to EXCLUDE (yfinance cruft, duplicates, obscure fields)
+// Show everything else from the database
+const EXCLUDED_METRICS = new Set([
+  // Duplicates/redundant
+  'Write Off',
+  'Total Unusual Items Excluding Goodwill',
+  'Total Unusual Items',
+  'Tax Rate For Calcs',
+  'Tax Effect Of Unusual Items',
+  'Special Income Charges',
+  'Salaries And Wages',
+  'Other Special Charges',
+  'Other Non Interest Expense',
+  'Normalized Income',
+  'Normalized EITDA',
+  'Net Non Operating Interest Income Expense',
+  'Minority Interests',
+  'Minority Interest',
+  'General And Administrative Expense',
+  'Gain On Sale Of Security',
+  'Gain On Sale Of Business',
+  'Net Income From Continuing Operation Net Minority Interest',
+  'Net Income From Continuing And Discontinued Operation',
+  'Net Income Continuous Operations',
+  'Net Income Including Noncontrolling Interests',
+  'Net Income Common Stockholders',
+  
+  // Balance Sheet cruft
+  'Total Tax Payable',
+  'Total Liabilities Net Minority Interest',
+  'Total Equity Gross Minority Interest',
+  'Tangible Book Value',
+  'Share Issued',
+  'Receivables',
+  'Prepaid Assets',
+  'Payables And Accrued Expenses',
+  'Payables',
+  'Other Short Term Investments',
+  'Other Receivables',
+  'Other Properties',
+  'Other Payable',
+  'Other Intangible Assets',
+  'Other Equity Interest',
+  'Other Equity Adjustments',
+  'Other Current Borrowings',
+  'Ordinary Shares Number',
+  'Net Tangible Assets',
+  'Net PPE',
+  'Net Debt',
+  'Machinery Furniture Equipment',
+  'Long Term Equity Investment',
+  'Long Term Capital Lease Obligation',
+  'Line Of Credit',
+  'Leases',
+  'Investments And Advances',
+  'Invested Capital',
+  'Income Tax Payable',
+  'Gross PPE',
+  'Gross Accounts Receivable',
+  'Goodwill And Other Intangible Assets',
+  'Gains Losses Not Affecting Retained Earnings',
+  'Foreign Currency Translation Adjustments',
+  'Employee Benefits',
+  'Derivative Product Liabilities',
+  'Current Notes Payable',
+  'Current Deferred Revenue',
+  'Current Deferred Liabilities',
+  'Current Capital Lease Obligation',
+  'Current Accrued Expenses',
+  'Common Stock Equity',
+  'Commercial Paper',
+  'Cash Financial',
+  'Cash Cash Equivalents And Federal Funds Sold',
+  'Capital Stock',
+  'Capital Lease Obligations',
+  'Buildings And Improvements',
+  'Available For Sale Securities',
+  'Allowance For Doubtful Accounts Receivable',
+  'Additional Paid In Capital',
+  'Accumulated Depreciation',
+  'Accounts Receivable',
+  
+  // Typically redundant with main metrics
+  'Diluted NI Availto Com Stockholders',
+  'Diluted NI Avail to Com Stockholders',
+  'Normalized EITDA',
+  'Interest Income Non Operating',
+  'Other Non Operating Income Expenses',
+  'Other Income Expense',
+  'Operating Revenue', // Usually same as Total Revenue
+  'Reconciled Cost Of Revenue',
+  'Reconciled Depreciation',
+]);
+
+function isImportantMetric(fieldKey) {
+  if (!fieldKey) return false;
+  // Exclude known cruft - show everything else
+  return !EXCLUDED_METRICS.has(fieldKey);
+}
+
 function getLocalizedFieldName(fieldKey, i18n) {
   if (!fieldKey) return '';
+  
+  // Try getFinancialLabel first (uses Lingui i18n with Japanese support)
+  const label = getFinancialLabel(fieldKey);
+  if (label && label !== fieldKey) {
+    return label;
+  }
+  
   const humanized = humanizeLabel(fieldKey);
 
   if (FINANCIAL_FIELD_TRANSLATIONS[humanized]) {
@@ -208,7 +315,8 @@ export default function FinancialsTable({ title, data, compact = false, transpos
     if (!data || typeof data !== 'object') return { columns: [], rows: [] };
     // Data expected as { metricName: { date1: val, date2: val, ... }, ... }
     const colSet = new Set();
-    const metrics = Object.keys(data || {});
+    // Filter to only important metrics from database (exclude yfinance cruft)
+    const metrics = Object.keys(data || {}).filter(m => isImportantMetric(m));
     metrics.forEach(m => {
       const inner = data[m] || {};
       if (inner && typeof inner === 'object') Object.keys(inner).forEach(d=>colSet.add(d));
@@ -226,7 +334,7 @@ export default function FinancialsTable({ title, data, compact = false, transpos
       return v;
     }) }));
     return { columns: cols, rows };
-  }, [data, i18n]);
+  }, [data, i18n.locale]);
 
   if (!rows || rows.length === 0) return <div className="lc-table-empty">No data</div>;
   // Compact mode: show a slim table with only two most recent columns and a curated set of metrics

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import { useAuth } from '../context/useAuth';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { useNavigate } from 'react-router-dom';
@@ -71,16 +72,17 @@ export default function Dashboard() {
   );
 
   // Handle unsubscribe
-    const handleUnsubscribe = async (ticker) => {
+  const { i18n } = useLingui();
+  const handleUnsubscribe = async (ticker) => {
     const display = getDisplayFromRaw(ticker);
     const result = await Swal.fire({
-      title: 'Unsubscribe',
-      text: `Remove ${display} from your watchlist?`,
+      title: i18n._('Unsubscribe'),
+      text: i18n._('Remove') + ` ${display} ` + i18n._('from your watchlist?'),
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Remove'
+      confirmButtonText: i18n._('Remove')
     });
 
     if (!result.isConfirmed) return;

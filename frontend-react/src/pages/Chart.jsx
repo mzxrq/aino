@@ -335,7 +335,26 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     return mapped;
   }, [rawAnomalies, dates, intervalMs, ticker]);
 
-  const companyName = payload.companyName || ticker;
+  // Inline localization helper (same logic as StockList)
+  const localizedName = useMemo(() => {
+    const locale = i18n.locale || 'en';
+    const localePrefix = locale.split('-')[0];
+    const isJa = localePrefix === 'ja' || localePrefix === 'jp';
+    const isTh = localePrefix === 'th';
+    const country = payload.country || '';
+    const companyNameLocal = payload.companyNameLocal || '';
+    const hasLocal = companyNameLocal && companyNameLocal.trim() !== '';
+    
+    if (isJa && (country === 'JP' || ticker.endsWith('.T')) && hasLocal) {
+      return companyNameLocal;
+    }
+    if (isTh && country === 'TH' && hasLocal) {
+      return companyNameLocal;
+    }
+    return payload.companyName || ticker;
+  }, [payload, ticker, i18n.locale]);
+
+  const companyName = localizedName;
   const market = payload.market || '';
 
   const plotRef = useRef(null);

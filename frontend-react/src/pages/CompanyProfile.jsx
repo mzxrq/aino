@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { getLocalizedCompanyName } from '../utils/companyNameUtils';
+import { getFinancialLabel } from '../utils/financialLabels';
 import EchartsCard from '../components/EchartsCard';
 import FinancialsTable from '../components/FinancialsTable';
 import Dialog from '@mui/material/Dialog';
@@ -110,50 +111,50 @@ export default function CompanyProfile() {
 
         try { const c = await fetchJsonWithFallback(`/chart?ticker=${encodeURIComponent(ticker)}&period=3mo&interval=1d`); if (!cancelled) setChartData(c && (c[ticker] || c[Object.keys(c || {})[0]] || c)); } catch (_e) { if (!cancelled) setChartData(null); }
 
+        // Fetch income statement from MongoDB (via Node backend)
         try {
-          const f = await fetchJsonWithFallback(`/financials?ticker=${encodeURIComponent(ticker)}`);
-          if (!cancelled) {
-            setFinancials({ income_stmt: f.income_stmt || {}, balance_sheet: f.balance_sheet || {}, cash_flow: f.cash_flow || f.cashflow || {}, fetched_at: f.fetched_at || f.fetchedAt || null });
-            setHolders({ major: f.major_holders || {}, institutional: f.institutional_holders || {}, mutualfund: f.mutualfund_holders || {} });
-            setInsiders({ purchases: f.insider_purchases || {}, transactions: f.insider_transactions || {}, roster: f.insider_roster_holders || {} });
-            setRecommendations(f.recommendations || {});
-            setSchemas(f.schema || {});
-            // keep financials.news only as fallback; primary news fetched via /py/news
-            if (!Array.isArray(f.news)) {
-              // leave news alone
-            } else if (!f.news || f.news.length === 0) {
-              // nothing
-            } else {
-              // lightweight fallback mapping
-              const mapped = f.news.map(n => ({
-                title: n.title || n.headline || n.summary || '',
-                link: n.link || n.url || (n.canonicalUrl && n.canonicalUrl.url) || '#',
-                pubDate: n.pubDate || n.providerPublishTime || null,
-                source: n.source || (n.provider && n.provider.displayName) || n.publisher || ''
-              }));
-              setNews(mapped);
-                // Cache provider metadata (thumbnail/pubDate) with ticker context so backend top endpoint can serve thumbnails
-                try {
-                  const toCache = mapped.map(a => ({ articleId: a.articleKey || a.link, url: a.link, title: a.title, source: a.source, pubDate: a.pubDate, thumbnail: a.thumbnail, sourceTicker: ticker || null })).filter(x => x.url && x.url !== '#');
-                  if (toCache.length) {
-                    try {
-                      const cacheJson = await fetchWithDedup(`${API_URL}/node/news/views/cache`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: toCache }) });
-                      const map = (cacheJson.items || []).reduce((acc, it) => { if (it && it.articleKey) acc[it.articleKey] = it; return acc; }, {});
-                      mapped.forEach(m => { const key = m.articleKey || m.link; const cached = map[key]; if (cached) { m.cacheId = cached.id; m.thumbnail = m.thumbnail || cached.thumbnail || null; m.pubDate = m.pubDate || cached.pubDate || null; } });
-                    } catch (err) { console.debug('CompanyProfile cache post failed', err); }
-                  }
-                } catch (err) { console.debug('CompanyProfile cache post failed', err); }
-            }
+          const incomeStmtData = await fetchWithDedup(`${API_URL}/node/financials/incomeStmt?ticker=${encodeURIComponent(ticker)}`);
+          // Transform array of documents to table format: { fieldName: { date: value, ... }, ... }
+          const incomeTableFormat = {};
+          if (Array.isArray(incomeStmtData)) {
+            incomeStmtData.forEach(doc => {
+              Object.entries(doc.metrics || {}).forEach(([metricName, value]) => {
+                if (!incomeTableFormat[metricName]) incomeTableFormat[metricName] = {};
+                incomeTableFormat[metricName][doc.fiscalDate] = value;
+              });
+            });
           }
-        } catch (e) { console.warn('financials fetch failed', e); }
+          if (!cancelled) setFinancials(prev => ({ ...prev, income_stmt: incomeTableFormat, fetched_at: new Date().toISOString() }));
+        } catch (e) { console.warn('incomeStmt fetch failed', e); }
 
-        // fetch news via py/news (yfinance)
+        // Fetch balance sheet from MongoDB (via Node backend)
         try {
-          // initial page
+          const balSheetData = await fetchWithDedup(`${API_URL}/node/financials/balSheet?ticker=${encodeURIComponent(ticker)}`);
+          // Transform to table format, combining assets, liabilities, equity sections
+          const balSheetTableFormat = {};
+          if (Array.isArray(balSheetData)) {
+            balSheetData.forEach(doc => {
+              // Flatten nested sections
+              const allMetrics = {
+                ...doc.assets,
+                ...doc.liabilities,
+                ...doc.equity
+              };
+              Object.entries(allMetrics || {}).forEach(([metricName, value]) => {
+                if (!balSheetTableFormat[metricName]) balSheetTableFormat[metricName] = {};
+                balSheetTableFormat[metricName][doc.fiscalDate] = value;
+              });
+            });
+          }
+          if (!cancelled) setFinancials(prev => ({ ...prev, balance_sheet: balSheetTableFormat }));
+        } catch (e) { console.warn('balSheet fetch failed', e); }
+
+        // Fetch news via yfinance
+        try {
           loadNews(1);
         } catch (_e) { console.warn('news fetch failed', _e); }
 
-        // fetch company info (yf.get_info())
+        // Fetch company info from MongoDB or fallback to yfinance
         try {
           const info = await fetchJsonWithFallback(`/company/info?ticker=${encodeURIComponent(ticker)}`);
           if (!cancelled) setCompanyInfo(info || null);
@@ -363,15 +364,15 @@ export default function CompanyProfile() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <h5 style={{ marginTop: 0 }}><Trans>Income Statement</Trans></h5>
-                  <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} transpose={true} />
+                  <FinancialsTable title="Income Statement" data={financials.income_stmt || {}} />
                 </div>
                 <div>
                   <h5 style={{ marginTop: 0 }}><Trans>Balance Sheet</Trans></h5>
-                  <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} transpose={true} />
+                  <FinancialsTable title="Balance Sheet" data={financials.balance_sheet || {}} />
                 </div>
               </div>
             ) : (
-              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} transpose={true} />
+              <FinancialsTable title={finOverlayTitle} data={finOverlayData || {}} />
             )}
           </div>
         </DialogContent>
@@ -450,31 +451,33 @@ export default function CompanyProfile() {
               <table className="">
                 <tbody>
                   <tr>
-                    <strong><Trans>Industry</Trans></strong>
+                    <td><strong>{getFinancialLabel('industry')}</strong></td>
+                    <td>{companyInfo?.industry || meta?.yfinance?.industry || "-"}</td>
                   </tr>
-                  {companyInfo?.industry || meta?.yfinance?.industry || "-"}
                   <tr>
-                    <strong><Trans>Sector</Trans></strong>
+                    <td><strong>{getFinancialLabel('sector')}</strong></td>
+                    <td>{companyInfo?.sector || meta?.yfinance?.sector || "-"}</td>
                   </tr>
-                  {companyInfo?.sector || meta?.yfinance?.sector || "-"}
                   <tr>
-                    <strong><Trans>Website</Trans></strong>
+                    <td><strong>{getFinancialLabel('website')}</strong></td>
+                    <td>
+                      {companyInfo?.website ? (
+                        <a
+                          href={companyInfo.website}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {companyInfo.website}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                   </tr>
-                  {companyInfo?.website ? (
-                    <a
-                      href={companyInfo.website}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {companyInfo.website}
-                    </a>
-                  ) : (
-                    "-"
-                  )}
                   <tr>
-                    <strong><Trans>Phone</Trans></strong>
+                    <td><strong>{getFinancialLabel('phone')}</strong></td>
+                    <td>{companyInfo?.phone || "-"}</td>
                   </tr>
-                  {companyInfo?.phone || "-"}
                 </tbody>
               </table>
               <div className="company-address">
@@ -495,9 +498,9 @@ export default function CompanyProfile() {
                   >
                     <thead>
                       <tr>
-                        <th><Trans>Title</Trans></th>
-                        <th><Trans>Name</Trans></th>
-                        <th><Trans>Fiscal Year</Trans></th>
+                        <th>{getFinancialLabel('title')}</th>
+                        <th>{getFinancialLabel('name')}</th>
+                        <th>{getFinancialLabel('fiscalYear')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -521,18 +524,18 @@ export default function CompanyProfile() {
             </div>
             <div className="financial-tabs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="fin-section">
-                <h5><Trans>Income</Trans></h5>
+                <h5>{getFinancialLabel('incomeStatement')}</h5>
                 {Object.entries(financials.income_stmt || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title={i18n._('Income Statement')} data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
+                <FinancialsTable title={getFinancialLabel('incomeStatement')} data={financials.income_stmt || {}} compact importantMetrics={["totalRevenue", "netIncome", "operatingIncome", "ebitda", "basicEPS"]} />
               </div>
               <div className="fin-section">
-                <h5><Trans>Balance</Trans></h5>
+                <h5>{getFinancialLabel('balanceSheet')}</h5>
                 {Object.entries(financials.balance_sheet || {}).length === 0 && (
                   <div className="lc-table-empty"><Trans>No data</Trans></div>
                 )}
-                <FinancialsTable title={i18n._('Balance Sheet')} data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
+                <FinancialsTable title={getFinancialLabel('balanceSheet')} data={financials.balance_sheet || {}} compact importantMetrics={["totalAssets", "totalLiab", "totalLiabilities", "totalCurrentAssets", "totalCurrentLiabilities"]} />
               </div>
             </div>
           </div>

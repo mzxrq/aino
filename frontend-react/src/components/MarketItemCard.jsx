@@ -1,6 +1,7 @@
 // MarketItemCard.jsx
 import React, { useState, useEffect } from "react";
 import { Trans } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react';
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import "../css/MarketItemCard.css";
@@ -19,7 +20,7 @@ const getCompanyName = (item) => {
     item.raw?.companyName ||
     item.raw?.company ||
     item.raw?.name ||
-    "Unknown Company"
+    'Unknown Company'
   );
 };
 
@@ -57,6 +58,7 @@ const Sparkline = ({ data = [], width = 100, height = 40 }) => {
 };
 
 export default function MarketItemCard({ item }) {
+  const { i18n } = useLingui();
   const [logoError, setLogoError] = useState(false);
   const [sparklineData, setSparklineData] = useState([]);
   const [metadata, setMetadata] = useState(null);
