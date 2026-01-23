@@ -113,17 +113,45 @@
   background-color: #f0fdf9;
 }
 
+.search-item-logo {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.search-logo,
+.search-logo-fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.search-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
 .search-link .ticker {
   font-weight: 700;
   color: #2cc17f;
-  min-width: 70px;
+  font-size: 0.85rem;
 }
 
 .search-link .name {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #6b7280;
-  flex: 1;
-  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-show-more {
@@ -200,6 +228,10 @@ body.dark .search-link:hover {
 
 body.dark .search-link .name {
   color: #d1d5db;
+}
+
+body.dark .search-item-logo {
+  background: #2d343d;
 }
 
 body.dark .search-show-more {

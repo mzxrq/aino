@@ -138,7 +138,7 @@ const AnomalyRow = ({ item, tickerInfoMap, loadingMap, locale, onClick, isMini =
 
         <div className="anomaly-count">
           <span className="count-number">{item.anomalies}</span>
-          <span className="count-text">{isMini ? 'anml' : `Found ${item.anomalies} anomalies`}</span>
+          <span className="count-text">{isMini ? `Found ${item.anomalies} anomalies` : `Found ${item.anomalies} anomalies`}</span>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import '../css/CompanyProfile.css';
 import { AuthContext } from '../context/contextBase';
 import { useLoginPrompt } from '../context/LoginPromptContext';
 import { i18n } from '@lingui/core';
+import Swal from '../utils/muiSwal';
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -71,10 +72,6 @@ export default function CompanyProfile() {
   const [meta, setMeta] = useState({});
   const [chartData, setChartData] = useState(null);
   const [financials, setFinancials] = useState({});
-  const [_holders, setHolders] = useState({});
-  const [_insiders, setInsiders] = useState({});
-  const [_recommendations, setRecommendations] = useState({});
-  const [_schemas, setSchemas] = useState({});
   const [companyInfo, setCompanyInfo] = useState(null);
   const [news, setNews] = useState([]);
   const [newsPage, setNewsPage] = useState(1);
@@ -86,7 +83,8 @@ export default function CompanyProfile() {
   const [timezone, _setTimezone] = useState('UTC');
   const [descExpanded, setDescExpanded] = useState(false);
   const [followed, setFollowed] = useState(false);
-  const { isLoggedIn } = useContext(AuthContext);
+  const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+  const { isLoggedIn, user, token } = useContext(AuthContext);
   const navigate = useNavigate();
   const promptLogin = useLoginPrompt();
   const { i18n: lingui } = useLingui();
@@ -282,14 +280,64 @@ export default function CompanyProfile() {
   const priceChange = (latestPrice != null && prevPrice != null) ? (latestPrice - prevPrice) : null;
   const priceChangePct = (priceChange != null && prevPrice) ? (priceChange / prevPrice) : null;
 
-  function toggleFollow() {
+  useEffect(() => {
+    let mounted = true;
+    async function checkFollowStatus() {
+      if (!user || !token) {
+        if (mounted) setFollowed(false);
+        return;
+      }
+      try {
+        const front = API_URL || (import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050');
+        const res = await fetch(`${front}/node/subscribers/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, ticker })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (mounted) setFollowed(!!j.subscribed);
+      } catch (_e) {
+        if (mounted) setFollowed(false);
+      }
+    }
+    checkFollowStatus();
+    return () => { mounted = false; };
+  }, [user, token, ticker]);
+
+  async function toggleFollow() {
     if (!isLoggedIn) {
       promptLogin({ title: i18n._('Please log in'), text: i18n._('You must be logged in to follow tickers.'), confirmLabel: i18n._('Log in'), cancelLabel: i18n._('Cancel') }).then(ok => {
         if (ok) navigate(`/login?next=/company/${encodeURIComponent(ticker)}`);
       });
       return;
     }
-    setFollowed(f => !f);
+
+    const front = API_URL || (import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050');
+    setIsLoadingFollow(true);
+    try {
+      if (followed) {
+        const res = await fetch(`${front}/node/subscribers/tickers/remove`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] })
+        });
+        if (!res.ok) throw new Error('Failed to unfollow');
+        setFollowed(false);
+      } else {
+        const res = await fetch(`${front}/node/subscribers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: user.id || user._id || user.userId, tickers: [ticker] })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.message || 'Failed to follow');
+        setFollowed(true);
+      }
+    } catch (e) {
+      await Swal.fire({ icon: 'error', title: i18n._('Error'), text: e.message || String(e), confirmButtonColor: '#dc2626' });
+    } finally {
+      setIsLoadingFollow(false);
+    }
   }
 
 

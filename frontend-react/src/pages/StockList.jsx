@@ -156,9 +156,6 @@ const resolveYfTicker = (ticker, country) => {
   return ticker;
 };
 
-  // Which sort keys should be performed server-side (map UI key -> DB field)
-  const serverSortable = { alphabetical: 'companyName', company: 'companyName', exchange: 'primaryExchange' };
-
   const locale = (i18n?.locale || 'en').toLowerCase();
   const localePrefix = locale.split('-')[0];
   const localizedName = (item) => {
@@ -296,7 +293,7 @@ const fetchSearchResults = async (q, pageToLoad = 1) => {
       ticker: r.symbol,
       companyName: r.name || r.symbol,
       companyNameLocal: r.companyNameLocal || '',
-      country: r.country || 'US',
+      country: r.country || '-',
       primaryExchange: r.exchange || '',
       sectorGroup: '',
       logo: '',
@@ -472,53 +469,6 @@ const formatPriceByMarket = (price, country) => {
     }).format(price);
   } catch (e) {
     return `${currency} ${price.toFixed(minimumFractionDigits)}`;
-  }
-};
-
-const toggleFavorite = async (ticker) => {
-  if (!user || !token) {
-    alert("Please log in to use favorites");
-    return;
-  }
-
-  try {
-    const isFav = favoritesSet.has(ticker.toUpperCase());
-    
-    if (isFav) {
-      // Remove favorite
-      const res = await fetch(`${API_URL}/node/favorites/${encodeURIComponent(ticker)}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      const json = await res.json();
-      
-      if (json.success) {
-        setFavoritesSet(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(ticker.toUpperCase());
-          return newSet;
-        });
-      }
-    } else {
-      // Add favorite
-      const res = await fetch(`${API_URL}/node/favorites`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ticker, market: "US" }),
-      });
-      const json = await res.json();
-      
-      if (json.success) {
-        setFavoritesSet(prev => new Set(prev).add(ticker.toUpperCase()));
-      }
-    }
-  } catch (err) {
-    console.error("Error toggling favorite:", err);
   }
 };
 

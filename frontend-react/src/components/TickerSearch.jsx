@@ -18,6 +18,25 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
       return msg;
     }
   };
+
+  // Localized company name helper
+  const localizedName = (item) => {
+    if (!item) return '';
+    const localePrefix = (i18n?.locale || 'en').toLowerCase().split('-')[0];
+    const country = (item.country || '').toUpperCase();
+    const ticker = (item.ticker || item.symbol || '').toUpperCase();
+    
+    // Japanese stocks: check locale=ja AND (country=JP OR ticker ends with .T)
+    if (localePrefix === 'ja' && (country === 'JP' || ticker.endsWith('.T'))) {
+      return item.companyNameLocal || item.name;
+    }
+    // Thai stocks: check locale=th AND (country=TH OR ticker ends with .BK)
+    if (localePrefix === 'th' && (country === 'TH' || ticker.endsWith('.BK'))) {
+      return item.companyNameLocal || item.name;
+    }
+    return item.name;
+  };
+
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [tickers, setTickers] = useState([]);
@@ -140,6 +159,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
   // Server-side modal search results and debounce
   const [modalResults, setModalResults] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
+  const [logoFailCache, setLogoFailCache] = useState(new Set());
   useEffect(() => {
     if (!showModal) return;
     let mounted = true;
@@ -165,20 +185,24 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
     timer = setTimeout(async () => {
       setModalLoading(true);
       try {
-        const front = import.meta.env.VITE_NODE_API_URL || '';
-        const pyDirect = import.meta.env.VITE_LINE_PY_URL || '';
+        const front = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
+        const pyDirect = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
         let url = `${front}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+        console.log('[TickerSearch] Fetching:', url);
         let res;
         try {
           res = await fetch(url);
           if (!res.ok) throw new Error(`status ${res.status}`);
         } catch (err) {
+          console.warn('[TickerSearch] Gateway failed, trying direct:', err.message);
           // fallback to direct python host if gateway not available
           try {
             url = `${pyDirect}/py/chart/ticker?query=${encodeURIComponent(q)}`;
+            console.log('[TickerSearch] Trying direct Python:', url);
             res = await fetch(url);
             if (!res.ok) throw new Error(`fallback status ${res.status}`);
           } catch (err2) {
+            console.error('[TickerSearch] Both endpoints failed, using fallback filter:', err2.message);
             // network error: fallback to client-side filter
             const fb = doFallbackFilter();
             if (mounted) setModalResults(fb);
@@ -187,16 +211,35 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
         }
 
         const json = await res.json();
-        // Normalize server response to { symbol, name, exchange } and prioritize name matches
+        console.log('[TickerSearch] Backend response:', json);
+        // Normalize server response to { symbol, name, exchange, companyNameLocal, country } and prioritize name matches
         if (Array.isArray(json)) {
           const norm = json.map(item => {
-            const rawSym = (item.symbol || item.ticker || item.ticker_symbol || item.code || '').toString();
-            const symbol = rawSym ? rawSym.toUpperCase() : '';
-            const name = item.name || item.company || item.label || item.longName || '';
+            // Python backend returns 'ticker', not 'symbol'
+            const ticker = item.ticker || item.symbol || item.ticker_symbol || item.code || '';
+            const symbol = ticker ? ticker.toString().toUpperCase() : '';
+            const name = item.name || item.companyName || item.company || item.label || item.longName || '';
             const exchange = item.exchange || item.exch || item.market || item.market_code || '';
-            const display = (item.displayTicker || item.display || (symbol ? symbol.split('.')[0] : '')).toString();
-            return { symbol, name, exchange, displayTicker: display };
-          }).filter(x => x.symbol || x.name || x.displayTicker);
+            const displayTicker = item.displayTicker || item.display || '';
+            const display = displayTicker || (symbol ? symbol.split('.')[0] : '');
+            const companyNameLocal = item.companyNameLocal || '';
+            const country = item.country || '';
+            return { 
+              ticker: symbol, 
+              symbol, 
+              name, 
+              exchange, 
+              displayTicker: display,
+              companyNameLocal,
+              country
+            };
+          }).filter(x => x.symbol || x.name);
+          
+          console.log('[TickerSearch] Raw response:', json.length, 'items');
+          console.log('[TickerSearch] After normalization:', norm.length, 'items');
+          if (norm.length === 0 && json.length > 0) {
+            console.warn('[TickerSearch] All items filtered out! Sample raw item:', json[0]);
+          }
 
           // If we have a query, sort so that results with company name matches come first
           if (q) {
@@ -217,11 +260,13 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
 
           if (mounted) setModalResults(norm.slice(0, 400));
         } else {
+          console.warn('[TickerSearch] Response is not an array:', typeof json, json);
           // fallback to client-side if unexpected payload
           const fb = doFallbackFilter();
           if (mounted) setModalResults(fb);
         }
       } catch (e) {
+        console.error('[TickerSearch] Error processing response:', e);
         const fb = doFallbackFilter();
         if (mounted) setModalResults(fb);
       } finally {
@@ -306,7 +351,7 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
   };
 
   return (
-    <div className="ticker-search-container">
+    <div>
       {showInput && (
         <div className="ticker-search-input-wrapper">
           <input
@@ -362,19 +407,29 @@ const TickerSearch = forwardRef(function TickerSearch({ onSelect, placeholder, s
                     modalResults.slice(0, 400).map((t) => {
                       const symbolText = (t.symbol || t.ticker || '').toString().toUpperCase();
                       const exchangeText = (t.exchange || '').toString();
-                      const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
+                      const shouldShowLogo = symbolText && !logoFailCache.has(symbolText);
+                      const logoPath = symbolText ? `/logos/${symbolText}.png` : null;
                       const displayTicker = (t.displayTicker || t.display || symbolText).toString();
+                      const displayName = localizedName(t);
                       return (
                         <button key={`${symbolText}-${exchangeText}`} type="button" className="lc-ticker-search-item" onClick={() => handleModalSelect(t)}>
                           <div className="lc-ticker-search-item-ticker">
-                            {logoUrl ? (
-                              <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            {shouldShowLogo ? (
+                              <img 
+                                src={logoPath} 
+                                alt={`${symbolText} logo`} 
+                                className="ticker-logo" 
+                                onError={(e) => { 
+                                  e.currentTarget.src = '/no-logo.svg';
+                                  setLogoFailCache(prev => new Set(prev).add(symbolText));
+                                }} 
+                              />
                             ) : (
-                              <div className="ticker-logo-placeholder" aria-hidden></div>
+                              <img src="/no-logo.svg" alt="No logo" className="ticker-logo" />
                             )}
-                            <div style={{marginLeft:6, fontWeight:700}}>{displayTicker}</div>
+                            <div style={{marginLeft:4, fontWeight:700}}>{displayTicker}</div>
                           </div>
-                          <div className="lc-ticker-search-item-name">{t.name}</div>
+                          <div className="lc-ticker-search-item-name">{displayName}</div>
                           <div className="lc-ticker-search-item-market">{exchangeText}</div>
                         </button>
                       );

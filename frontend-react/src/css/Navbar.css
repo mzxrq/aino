@@ -542,8 +542,10 @@ body:not(.dark) .logo-img {
   filter: none;
 }
 
+
+
 body:not(.dark) .nav-links {
-  background: linear-gradient(135deg, #f5f7f9 0%, #f5f7f9 100%);
+  /* background: linear-gradient(135deg, #f5f7f9 0%, #f5f7f9 100%);*/
 }
 
 body:not(.dark) .nav-link {

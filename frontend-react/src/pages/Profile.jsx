@@ -688,7 +688,7 @@ const NotificationsSection = () => {
                         </div>
 
                         <div className="form-group">
-                            <button className="btn btn-primary" type="submit" disabled={loadingCron}>{loadingCron ? 'Scheduling…' : 'Schedule'}</button>
+                            <button className="btn btn-write" type="submit" disabled={loadingCron}>{loadingCron ? 'Scheduling…' : 'Schedule'}</button>
                         </div>
 
                         {statusMsg && <div className="message" style={{ marginTop: 8 }}>{statusMsg}</div>}

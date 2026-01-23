@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useNavigate } from "react-router-dom";
 import "../css/Search.css";
 
@@ -7,11 +7,30 @@ export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [logoFailCache] = useState(new Set());
   const containerRef = useRef(null);
   const navigate = useNavigate();
+  const { i18n } = useLingui();
   const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
   const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
   const PY_BASE = `${API_URL}/py`;
+
+  // Localization helper
+  const locale = (i18n?.locale || 'en').toLowerCase();
+  const localePrefix = locale.split('-')[0];
+  const localizedName = (item) => {
+    const hasLocal = item.companyNameLocal && item.companyNameLocal.trim();
+    const isJa = localePrefix === 'ja' || localePrefix === 'jp';
+    const isTh = localePrefix === 'th';
+    const country = (item.country || '').toUpperCase();
+    const ticker = item.ticker || item.symbol || '';
+    
+    if (hasLocal) {
+      if (isJa && (country === 'JP' || ticker.endsWith('.T'))) return item.companyNameLocal.trim();
+      if (isTh && (country === 'TH' || ticker.endsWith('.BK'))) return item.companyNameLocal.trim();
+    }
+    return item.name || item.companyName || ticker;
+  };
   async function fetchPyJson(path, init) {
     try {
       const r = await fetch(`${PY_BASE}${path}`, init);
@@ -34,8 +53,16 @@ export default function Search() {
       try {
         const data = await fetchPyJson(`/chart/ticker?query=${encodeURIComponent(query)}`);
 
-        setResults(data);
-        setShowDropdown(data.length > 0);
+        // Normalize backend response: symbol -> ticker
+        const normalized = Array.isArray(data) ? data.map(item => ({
+          ...item,
+          ticker: item.ticker || item.symbol,
+          name: item.name || item.companyName,
+          companyNameLocal: item.companyNameLocal || ''
+        })) : [];
+
+        setResults(normalized);
+        setShowDropdown(normalized.length > 0);
       } catch (err) {
         console.error(err);
         setResults([]);
@@ -75,24 +102,51 @@ export default function Search() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search ticker..."
+        placeholder={i18n._("Search ticker...")}
         className="search-input"
         onFocus={() => query && results.length && setShowDropdown(true)}
       />
       {showDropdown && (
         <div className="search-dropdown">
           <ul className="search-results-list">
-            {results.slice(0, 5).map((item) => (
-              <li key={item.ticker} className="search-item">
-                <button
-                  className="search-link"
-                  onClick={() => handleResultClick(item.ticker)}
-                >
-                  <span className="ticker">{item.ticker}</span>
-                  <span className="name">{item.name}</span>
-                </button>
-              </li>
-            ))}
+            {results.slice(0, 5).map((item) => {
+              const displayName = localizedName(item);
+              const logoPath = `/logos/${item.ticker}.png`;
+              
+              return (
+                <li key={item.ticker} className="search-item">
+                  <button
+                    className="search-link"
+                    onClick={() => handleResultClick(item.ticker)}
+                  >
+                    <div className="search-item-logo">
+                      {!logoFailCache.has(item.ticker) && (
+                        <img 
+                          src={logoPath} 
+                          alt={item.ticker}
+                          className="search-logo"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            logoFailCache.add(item.ticker);
+                          }}
+                        />
+                      )}
+                      {logoFailCache.has(item.ticker) && (
+                        <img 
+                          src="/no-logo.svg" 
+                          alt="No logo"
+                          className="search-logo-fallback"
+                        />
+                      )}
+                    </div>
+                    <div className="search-item-info">
+                      <span className="ticker">{item.ticker}</span>
+                      <span className="name">{displayName}</span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           {results.length > 0 && (
             <button className="search-show-more" onClick={handleShowMore}>

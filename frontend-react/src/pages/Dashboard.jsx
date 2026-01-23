@@ -108,8 +108,8 @@ export default function Dashboard() {
       
       await Swal.fire({
         icon: 'success',
-        title: 'Removed',
-        text: `${display} removed from watchlist.`,
+        title: <Trans>Removed</Trans>,
+        text: <Trans>{display} removed from watchlist.</Trans>,
         timer: 1200,
         confirmButtonColor: '#00aaff'
       });
@@ -117,8 +117,8 @@ export default function Dashboard() {
       console.error("Unsubscribe error:", err);
       await Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: 'Failed to unsubscribe. Please try again.',
+        title: <Trans>Error</Trans>,
+        text: <Trans>Failed to unsubscribe. Please try again.</Trans>,
         confirmButtonColor: '#dc2626'
       });
     }
@@ -132,7 +132,7 @@ export default function Dashboard() {
     return (
       <div className="dashboard-shell">
         <div className="loading-state">
-          <p>Loading watchlist...</p>
+          <Trans><p>Loading watchlist...</p></Trans>
         </div>
       </div>
     );
@@ -146,14 +146,14 @@ export default function Dashboard() {
           <h1><Trans>My Watchlist</Trans></h1>
           <p className="text-secondary"><Trans>stocks followed</Trans>: {subscriptions.length} {subscriptions.length === 1 ? <Trans>stock</Trans> : <Trans>stocks</Trans>}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/chart')}>+ <Trans>Add Stock</Trans></button>
+        <button className="btn" onClick={() => navigate('/chart')}>+ <Trans>Add Stock</Trans></button>
       </div>
 
       {/* Search/Filter */}
       <div className="dashboard-toolbar">
         <input
           type="text"
-          placeholder="Search by ticker..."
+          placeholder={i18n._('Search by ticker...')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-box"
@@ -165,21 +165,21 @@ export default function Dashboard() {
       {subscriptions.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📊</div>
-          <h2>No stocks yet</h2>
-          <p>Start building your watchlist by exploring the market</p>
-          <button className="btn btn-primary" onClick={() => navigate('/chart')}>Browse Markets</button>
+          <Trans><h2>No stocks yet</h2></Trans>
+          <Trans><p>Start building your watchlist by exploring the market</p></Trans>
+          <button className="btn" onClick={() => navigate('/chart')}><Trans>Browse Markets</Trans></button>
         </div>
       ) : filteredSubscriptions.length === 0 ? (
         <div className="empty-state">
-          <p>No results for "{searchQuery}"</p>
+          <Trans><p>No results for "{searchQuery}"</p></Trans>
         </div>
       ) : (
         <div className="stocks-table">
           <div className="table-header">
-            <div className="col-ticker">Ticker</div>
-            <div className="col-status">Status</div>
-            <div className="col-frequency">Frequency</div>
-            <div className="col-actions">Actions</div>
+            <div className="col-ticker"><Trans>Ticker</Trans></div>
+            <div className="col-status"><Trans>Status</Trans></div>
+            <div className="col-frequency"><Trans>Frequency</Trans></div>
+            <div className="col-actions"><Trans>Actions</Trans></div>
           </div>
           
           {filteredSubscriptions.map(sub => (
@@ -199,14 +199,14 @@ export default function Dashboard() {
                 <button
                   className="btn-icon"
                   onClick={() => handleViewChart(sub.ticker)}
-                  title="View chart"
+                  title={<Trans>View chart</Trans>}
                 >
                   📈
                 </button>
                 <button
                   className="btn-icon danger"
                   onClick={() => handleUnsubscribe(sub.ticker)}
-                  title="Remove from watchlist"
+                  title={<Trans>Remove from watchlist</Trans>}
                 >
                   ✕
                 </button>

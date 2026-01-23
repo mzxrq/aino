@@ -1,13 +1,5 @@
 /* TickerSearch Component Styles */
 
-.ticker-search-container {
-  position: relative;
-  width: 100%;
-  /* Allow the container to flex inside tag-input and avoid overflowing */
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .ticker-search-input-wrapper {
   position: relative;
   display: flex;

@@ -4,6 +4,7 @@ import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
 import { useParams, Link } from 'react-router-dom';
 import * as echarts from 'echarts';
 import FinancialsTable from '../components/FinancialsTable';
+import TickerSearch from '../components/TickerSearch';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -308,8 +309,6 @@ export default function MainChart() {
   const [timezone, setTimezone] = useState('UTC');
   const [financialTab, setFinancialTab] = useState('income');
   // removed unused More menu and lcNews states
-  const [modalResults, setModalResults] = useState([]);
-  const [modalLoading, setModalLoading] = useState(false);
   const [finOverlayOpen, setFinOverlayOpen] = useState(false);
   const [finOverlayTitle, setFinOverlayTitle] = useState('');
   const [finOverlayData, setFinOverlayData] = useState(null);
@@ -341,8 +340,7 @@ export default function MainChart() {
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const indicatorsBtnRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showTickerSearchModal, setShowTickerSearchModal] = useState(false);
-  const [tickerSearchQuery, setTickerSearchQuery] = useState('');
+  const tickerSearchRef = useRef(null);
 
   // Follow state (check whether current user follows this ticker)
   const { user, token } = useAuth();
@@ -419,96 +417,7 @@ export default function MainChart() {
   }
 
   // Preloaded list of interesting stocks
-  const INTERESTING_STOCKS = useMemo(() => [
-    { ticker: 'AAPL', name: 'Apple Inc.', market: 'US' },
-    { ticker: 'MSFT', name: 'Microsoft Corporation', market: 'US' },
-    { ticker: 'GOOGL', name: 'Alphabet Inc.', market: 'US' },
-    { ticker: 'AMZN', name: 'Amazon.com Inc.', market: 'US' },
-    { ticker: 'TSLA', name: 'Tesla Inc.', market: 'US' },
-    { ticker: 'META', name: 'Meta Platforms Inc.', market: 'US' },
-    { ticker: 'NVDA', name: 'NVIDIA Corporation', market: 'US' },
-    { ticker: 'AMD', name: 'Advanced Micro Devices', market: 'US' },
-    { ticker: 'INTC', name: 'Intel Corporation', market: 'US' },
-    { ticker: 'JPM', name: 'JPMorgan Chase', market: 'US' },
-    { ticker: '9020.T', name: 'East Japan Railway', market: 'JP' },
-    { ticker: '6758.T', name: 'Sony Group Corporation', market: 'JP' },
-    { ticker: '7203.T', name: 'Toyota Motor', market: 'JP' },
-    { ticker: '8035.T', name: 'Tokyo Electron', market: 'JP' },
-    { ticker: 'PTTEP.BK', name: 'PTT Exploration', market: 'TH' },
-    { ticker: 'ADVANC.BK', name: 'Advanced Info Service', market: 'TH' },
-    { ticker: 'CPALL.BK', name: 'CP ALL Public', market: 'TH' },
-    { ticker: 'BTS.BK', name: 'Bangkok Mass Transit', market: 'TH' }
-  ], []);
-
-  // removed unused filteredStocks memo
-
-  // Modal server-side search (debounced)
-  useEffect(() => {
-    if (!showTickerSearchModal) return;
-    let mounted = true;
-    let timer = null;
-    const q = tickerSearchQuery && tickerSearchQuery.trim();
-    const doFallbackFilter = () => {
-      if (!q) return [];
-      const lq = q.toLowerCase();
-      return INTERESTING_STOCKS.filter(t => {
-        const symbol = (t.ticker || '').toLowerCase();
-        const name = (t.name || '').toLowerCase();
-        return symbol.includes(lq) || name.includes(lq);
-      }).slice(0, 400);
-    };
-
-    if (!q) {
-      setModalResults([]);
-      setModalLoading(false);
-      return () => {};
-    }
-
-    timer = setTimeout(async () => {
-      setModalLoading(true);
-      try {
-        let url = `${API_URL}/py/chart/ticker?query=${encodeURIComponent(q)}`;
-        let res;
-        try {
-          res = await fetch(url);
-          if (!res.ok) throw new Error(`status ${res.status}`);
-        } catch (_err) {
-          try {
-            url = `${PY_DIRECT}/py/chart/ticker?query=${encodeURIComponent(q)}`;
-            res = await fetch(url);
-            if (!res.ok) throw new Error(`fallback status ${res.status}`);
-          } catch (_err2) {
-            const fb = doFallbackFilter();
-            if (mounted) setModalResults(fb);
-            return;
-          }
-        }
-
-        const json = await res.json();
-        if (Array.isArray(json)) {
-          const norm = json.map(item => {
-            const rawSym = (item.symbol || item.ticker || item.ticker_symbol || item.code || '').toString();
-            const symbol = rawSym ? rawSym.toUpperCase() : '';
-            const name = item.name || item.company || item.label || item.longName || '';
-            const exchange = item.exchange || item.exch || item.market || item.market_code || '';
-            const display = (item.displayTicker || item.display || (symbol ? symbol.split('.')[0] : '')).toString();
-            return { symbol, name, exchange, displayTicker: display };
-          }).filter(x => x.symbol || x.name || x.displayTicker);
-          if (mounted) setModalResults(norm.slice(0, 400));
-        } else {
-          const fb = doFallbackFilter();
-          if (mounted) setModalResults(fb);
-        }
-      } catch (e) {
-        const fb = doFallbackFilter();
-        if (mounted) setModalResults(fb);
-      } finally {
-        if (mounted) setModalLoading(false);
-      }
-    }, 250);
-
-    return () => { mounted = false; if (timer) clearTimeout(timer); };
-  }, [tickerSearchQuery, showTickerSearchModal, INTERESTING_STOCKS]);
+  // removed unused filteredStocks memo and INTERESTING_STOCKS (now handled by TickerSearch component)
 
   useEffect(() => {
     if (!paramTicker) return;
@@ -1533,7 +1442,7 @@ export default function MainChart() {
               <div className="lc-name-wrap">
                 <button
                   className="lc-ticker-name lc-ticker-name-btn"
-                  onClick={() => { setShowTickerSearchModal(true); setSidebarOpen(false); }}
+                  onClick={() => { if (tickerSearchRef.current && typeof tickerSearchRef.current.open === 'function') tickerSearchRef.current.open(); setSidebarOpen(false); }}
                   title="Click to search for another ticker"
                   type="button"
                 >
@@ -1993,114 +1902,15 @@ export default function MainChart() {
 
       {/* Market Selection Modal removed: unused feature */}
 
-      {/* Ticker Search Modal */}
-      {showTickerSearchModal && (
-        <div className="lc-modal-overlay" onClick={() => setShowTickerSearchModal(false)}>
-          <div className="lc-modal-content lc-ticker-search-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-modal-header">
-              <h2>Search Ticker</h2>
-              <button 
-                className="lc-modal-close" 
-                onClick={() => setShowTickerSearchModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lc-modal-body">
-              <div className="lc-ticker-search-input-wrapper">
-                <input
-                  type="text"
-                  className="lc-ticker-search-input"
-                  placeholder="Search by ticker or company name..."
-                  value={tickerSearchQuery}
-                  onChange={(e) => setTickerSearchQuery(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="lc-ticker-search-list">
-                {(!tickerSearchQuery || !tickerSearchQuery.trim()) ? (
-                  // show featured interesting stocks (with logos) and current ticker at top
-                  (() => {
-                    const cur = ticker ? { ticker, name: companyName || ticker, market } : null;
-                    const interesting = INTERESTING_STOCKS.slice();
-                    const list = [];
-                    if (cur) {
-                      const already = interesting.find(s => (s.ticker || '').toUpperCase() === cur.ticker.toUpperCase());
-                      if (!already) list.push({ ticker: cur.ticker, name: cur.name, market: cur.market, isCurrent: true });
-                    }
-                    for (const s of interesting) {
-                      list.push({ ticker: s.ticker, name: s.name, market: s.market, isCurrent: (s.ticker === (ticker || '')) });
-                    }
-                    return list.map((stock, idx) => {
-                      const displayTicker = (stock.ticker || '').toString().toUpperCase();
-                      const logoUrl = displayTicker ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(displayTicker)}?format=png` : null;
-                      return (
-                        <button
-                          key={`feat-${idx}-${displayTicker}`}
-                          className="lc-ticker-search-item"
-                          onClick={() => {
-                            setTicker(stock.ticker);
-                            setCompanyName(stock.name || '');
-                            setCompanyNameLocal('');
-                            setCountry('');
-                            setShowTickerSearchModal(false);
-                            setTickerSearchQuery('');
-                          }}
-                          type="button"
-                        >
-                          <div className="lc-ticker-search-item-ticker">
-                            {logoUrl ? (
-                              <img src={logoUrl} alt={`${displayTicker} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                            ) : (
-                              <div className="ticker-logo-placeholder" aria-hidden></div>
-                            )}
-                            <div style={{ marginLeft: 8, fontWeight: 700 }}>{displayTicker}</div>
-                            {stock.isCurrent && (
-                              <div className="lc-current-badge">current</div>
-                            )}
-                          </div>
-                          <div className="lc-ticker-search-item-name">{stock.name}</div>
-                          <div className="lc-ticker-search-item-market">{stock.market}</div>
-                        </button>
-                      );
-                    });
-                  })()
-                ) : (
-                  // show server-backed modalResults
-                  modalLoading ? (
-                    <div className="ticker-search-loading">Searching...</div>
-                  ) : (
-                    (modalResults && modalResults.length) ? (
-                      modalResults.slice(0,400).map((t, idx) => {
-                        const symbolText = (t.symbol || t.displayTicker || '').toString().toUpperCase();
-                        const exchangeText = (t.exchange || '').toString();
-                        const logoUrl = symbolText ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(symbolText)}?format=png` : null;
-                        const displayTicker = (t.displayTicker || symbolText).toString();
-                        return (
-                          <button key={`res-${idx}-${symbolText}`} type="button" className="lc-ticker-search-item" onClick={() => { setTicker(symbolText); setCompanyName(t.name || ''); setCompanyNameLocal(t.companyNameLocal || ''); setCountry(t.country || ''); setShowTickerSearchModal(false); setTickerSearchQuery(''); }}>
-                            <div className="lc-ticker-search-item-ticker">
-                              {logoUrl ? (
-                                <img src={logoUrl} alt={`${symbolText} logo`} className="ticker-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                              ) : (
-                                <div className="ticker-logo-placeholder" aria-hidden></div>
-                              )}
-                              <div style={{ marginLeft: 6, fontWeight: 700 }}>{displayTicker}</div>
-                            </div>
-                            <div className="lc-ticker-search-item-name">{t.name}</div>
-                            <div className="lc-ticker-search-item-market">{exchangeText}</div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="lc-ticker-search-empty">No results found</div>
-                    )
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* TickerSearch component - modal-based with ref control, no inline input */}
+      <TickerSearch
+        ref={tickerSearchRef}
+        showInput={false}
+        onSelect={(selectedTicker) => {
+          setTicker(selectedTicker);
+        }}
+        placeholder={i18n._("Search stocks by name or symbol...")}
+      />
     </div>
   );
 }

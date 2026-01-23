@@ -5,7 +5,20 @@
       gap: 12px;
       padding: 12px;
       color: var(--text-primary);
-  }
+    }
+    
+    /* MOBILE FIX: Prevent toolbar-right from overlapping toolbar-left */
+    html body .chart-page .chart-toolbar > .chart-toolbar-inner > .toolbar-left {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    
+    html body .chart-page .chart-toolbar > .chart-toolbar-inner > .toolbar-right {
+        flex: 0 0 auto !important;
+        gap: 6px !important;
+        margin-left: 0 !important;
+    }
+}
   
   /* Shared card/toolbar button width variable so mode buttons match across UI */
   :root { --card-btn-w: 100px; }
@@ -8619,4 +8632,29 @@ html body .chart-page .chart-toolbar .toolbar-left .chart-pills.pills-expanded {
           order: 9999 !important;
       }
   }
+}
+
+/* ========== CRITICAL MOBILE FIX - MUST BE LAST TO OVERRIDE ALL DUPLICATES ========== */
+@media (max-width: 768px) {
+    /* Prevent timezone button from covering add button on mobile */
+    html body .chart-page .chart-toolbar > .chart-toolbar-inner > .toolbar-left {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+    
+    html body .chart-page .chart-toolbar > .chart-toolbar-inner > .toolbar-right {
+        flex: 0 0 auto !important;
+        max-width: fit-content !important;
+        gap: 4px !important;
+        margin-left: 0 !important;
+    }
+    
+    /* Ensure toolbar controls don't overlap */
+    html body .chart-page .chart-toolbar > .chart-toolbar-inner {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
 }

@@ -718,6 +718,10 @@ body.dark .officers-table tbody tr:nth-child(even) td {
   background: #252525 !important;
 }
 
+body.dark td { 
+  color: #e0e0e0 !important;
+}
+
 body.dark .officers-table tbody tr:last-child td { 
   border-bottom: none !important;
 }
