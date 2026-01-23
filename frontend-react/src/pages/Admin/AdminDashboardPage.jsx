@@ -22,6 +22,7 @@ const BASE =
 const PY_BASE = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_LINE_PY_URL) || "http://localhost:5000";
 const ENDPOINTS = {
   users: `${BASE}/node/users`,
+  subscribers: `${BASE}/node/subscribers`,
   stockList: `${BASE}/node/stock-list`,
   anomalies: `${BASE}/node/anomalies`,
   cache: `${BASE}/node/cache`,

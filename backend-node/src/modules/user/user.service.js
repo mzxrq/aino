@@ -107,6 +107,25 @@ const registerUser = async (userData) => {
     // 1. Create user entry based on schema
     const userEntry = UserSchema(userData);
 
+    // 1.5 Ensure email/username are unique
+    const uniqueFilters = [];
+    if (userEntry.email) uniqueFilters.push({ email: userEntry.email });
+    if (userEntry.username) uniqueFilters.push({ username: userEntry.username });
+
+    if (uniqueFilters.length) {
+      const conflict = await db
+        .collection(COLLECTION_NAME)
+        .findOne({ $or: uniqueFilters });
+
+      if (conflict) {
+        const conflictField =
+          conflict.email === userEntry.email ? "email" : "username";
+        const err = new Error(`User ${conflictField} already exists`);
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
     // 2. Hash password if provided
     if (userEntry.password) {
       const salt = await bcrypt.genSalt(10);
@@ -121,6 +140,30 @@ const registerUser = async (userData) => {
   } else {
     // 1. Read existing users from file
     const existingUsers = readUser();
+
+    const conflict = existingUsers.find((u) => {
+      const emailMatch =
+        typeof userData.email === "string" &&
+        typeof u.email === "string" &&
+        u.email.toLowerCase() === userData.email.toLowerCase();
+      const usernameMatch =
+        typeof userData.username === "string" &&
+        typeof u.username === "string" &&
+        u.username.toLowerCase() === userData.username.toLowerCase();
+      return emailMatch || usernameMatch;
+    });
+
+    if (conflict) {
+      const conflictField =
+        typeof conflict.email === "string" &&
+        typeof userData.email === "string" &&
+        conflict.email.toLowerCase() === userData.email.toLowerCase()
+          ? "email"
+          : "username";
+      const err = new Error(`User ${conflictField} already exists`);
+      err.statusCode = 409;
+      throw err;
+    }
 
     // 2. Hash password if provided
     const fileUser = { ...userData };
