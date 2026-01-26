@@ -513,7 +513,7 @@ const NotificationsSection = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setStatusMsg('');
-        if (!user || !user.id) return setStatusMsg(i18n.'User not available');
+        if (!user || !user.id) return setStatusMsg('User not available');
 
         const cronExpression = await buildCron();
 
