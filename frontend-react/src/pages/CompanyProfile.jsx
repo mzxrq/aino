@@ -84,7 +84,7 @@ export default function CompanyProfile() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [isLoadingFollow, setIsLoadingFollow] = useState(false);
-  const { isLoggedIn, user, token } = useContext(AuthContext);
+  const { isLoggedIn, user, token, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const promptLogin = useLoginPrompt();
   const { i18n: lingui } = useLingui();
@@ -323,6 +323,15 @@ export default function CompanyProfile() {
         });
         if (!res.ok) throw new Error('Failed to unfollow');
         setFollowed(false);
+        if (typeof setUser === 'function') {
+          try {
+            setUser(prev => {
+              if (!prev) return prev;
+              const favs = Array.isArray(prev.favorites) ? prev.favorites.slice() : [];
+              return { ...prev, favorites: favs.filter(t => t !== ticker) };
+            });
+          } catch (e) { /* ignore setUser errors */ }
+        }
       } else {
         const res = await fetch(`${front}/node/subscribers`, {
           method: 'POST',
@@ -332,6 +341,15 @@ export default function CompanyProfile() {
         const j = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(j.message || 'Failed to follow');
         setFollowed(true);
+        if (typeof setUser === 'function') {
+          try {
+            setUser(prev => {
+              const favs = prev && Array.isArray(prev.favorites) ? prev.favorites.slice() : [];
+              if (!favs.includes(ticker)) favs.push(ticker);
+              return { ...prev, favorites: favs };
+            });
+          } catch (e) { /* ignore setUser errors */ }
+        }
       }
     } catch (e) {
       await Swal.fire({ icon: 'error', title: i18n._('Error'), text: e.message || String(e), confirmButtonColor: '#dc2626' });
@@ -368,11 +386,12 @@ export default function CompanyProfile() {
             onClick={toggleFollow}
             aria-pressed={followed}
             title={followed ? 'Following' : 'Follow'}
+            disabled={isLoadingFollow}
           >
             <span className="icon plus">+</span>
             <span className="icon check">✓</span>
             <span className="icon minus">−</span>
-            <span className="label"><Trans>{followed ? 'Following' : 'Follow'}</Trans></span>
+            <span className="label"><Trans>{isLoadingFollow ? '...' : (followed ? 'Following' : 'Follow')}</Trans></span>
           </button>
         </div>
       </div>

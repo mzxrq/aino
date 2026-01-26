@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Trans } from '@lingui/react/macro';
+import { I18n } from '@lingui/core';
 import { useAuth } from '../context/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
 import { DateTime } from 'luxon';
+import { i18n } from '@lingui/core';
 
 // --- Environment Variables ---
 const NODE_API = API_URL;
@@ -507,7 +509,7 @@ const NotificationsSection = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setStatusMsg('');
-        if (!user || !user.id) return setStatusMsg('User not available');
+        if (!user || !user.id) return setStatusMsg(i18n.'User not available');
 
         const cronExpression = buildCron();
 
@@ -595,33 +597,33 @@ const NotificationsSection = () => {
         <div className="profile-container">
             <div className="profile-content">
                 <div className="profile-section">
-                    <h2>Notifications</h2>
-                    <p style={{ color: 'var(--text-secondary)' }}>Create a scheduled summary — choose day(s) and time, we'll convert to cron.</p>
+                    <h2><Trans>Notifications</Trans></h2>
+                    <p style={{ color: 'var(--text-secondary)' }}><Trans>Create a scheduled summary — choose day(s) and time, we'll convert to cron.</Trans></p>
 
                     <form className="profile-form" onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Job ID (optional)</label>
+                            <label><Trans>Job ID (optional)</Trans></label>
                             <input className="form-input" value={jobId} onChange={(e) => setJobId(e.target.value)} placeholder="daily-summary-<user>" />
                         </div>
 
                         <div className="form-group">
-                            <label>Time</label>
+                            <label><Trans>Time</Trans></label>
                             <input className="form-input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                         </div>
 
                         <div className="form-group">
-                            <label>Repeat</label>
+                            <label><Trans>Repeat</Trans></label>
                             <select className="form-input" value={repeat} onChange={(e) => setRepeat(e.target.value)}>
-                                <option value="daily">Every day</option>
-                                <option value="weekdays">Weekdays (Mon–Fri)</option>
-                                <option value="weekends">Weekends (Sat, Sun)</option>
-                                <option value="custom">Custom days</option>
+                                <option value="daily"><Trans>Every day</Trans></option>
+                                <option value="weekdays"><Trans>Weekdays (Mon–Fri)</Trans></option>
+                                <option value="weekends"><Trans>Weekends (Sat, Sun)</Trans></option>
+                                <option value="custom"><Trans>Custom days</Trans></option>
                             </select>
                         </div>
 
                         {repeat === 'custom' && (
                             <div className="form-group">
-                                <label>Days</label>
+                                <label><Trans>Days</Trans></label>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', alignItems: 'center' }}>
                                     {DAYS.map(d => (
                                         <button
@@ -646,9 +648,9 @@ const NotificationsSection = () => {
                         )}
 
                         <div className="form-group">
-                            <label>Summary range (days) — optional</label>
+                            <label><Trans>Summary range (days) — optional</Trans></label>
                             <input className="form-input" type="number" min={1} value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} placeholder="e.g. 7" />
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 6 }}>If set, this overrides default period and controls how many days of data are included in the summary.</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 6 }}><Trans>If set, this overrides default period and controls how many days of data are included in the summary.</Trans></div>
                         </div>
 
                         {/* Send option moved to Profile Information section */}
@@ -656,9 +658,9 @@ const NotificationsSection = () => {
                         {/* Cron preview intentionally hidden in schedule UI */}
 
                         <div className="form-group">
-                            <label>Existing jobs</label>
+                            <label><Trans>Existing jobs</Trans></label>
                             <div style={{ minHeight: 40 }}>
-                                {loadingJobs ? <div>Loading…</div> : (
+                                {loadingJobs ? <Trans>Loading…</Trans> : (
                                     jobs.length ? (
                                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                                             {jobs.map(j => {
@@ -691,23 +693,23 @@ const NotificationsSection = () => {
                                                         <div style={{ fontSize: '0.9rem' }}>
                                                             <div style={{ fontWeight: 600 }}>{jid}</div>
                                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{expr}</div>
-                                                            {nextRun ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}>Next run: {nextRun} ({user?.timeZone || user?.timezone || 'UTC'})</div> : null}
-                                                            {jobRange ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 4 }}>Range: {String(jobRange)} days</div> : null}
+                                                            {nextRun ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}><Trans>Next run:</Trans> {nextRun} ({user?.timeZone || user?.timezone || 'UTC'})</div> : null}
+                                                            {jobRange ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 4 }}><Trans>Range: {String(jobRange)} days</Trans></div> : null}
                                                         </div>
                                                         <div>
-                                                            <button type="button" className="btn btn-outline" onClick={() => cancelJob(jid)}>Cancel</button>
+                                                            <button type="button" className="btn btn-outline" onClick={() => cancelJob(jid)}><Trans>Cancel</Trans></button>
                                                         </div>
                                                     </li>
                                                 );
                                             })}
                                         </ul>
-                                    ) : <div style={{ color: 'var(--text-secondary)' }}>No scheduled jobs</div>
+                                    ) : <div style={{ color: 'var(--text-secondary)' }}><Trans>No scheduled jobs</Trans></div>
                                 )}
                             </div>
                         </div>
 
                         <div className="form-group">
-                            <button className="btn btn-write" type="submit" disabled={loadingCron}>{loadingCron ? 'Scheduling…' : 'Schedule'}</button>
+                            <button className="btn btn-write" type="submit" disabled={loadingCron}>{loadingCron ? <Trans>Scheduling…</Trans> : <Trans>Schedule</Trans>}</button>
                         </div>
 
                         {statusMsg && <div className="message" style={{ marginTop: 8 }}>{statusMsg}</div>}
@@ -722,8 +724,8 @@ const AppearanceSection = () => (
     <div className="profile-container">
         <div className="profile-content">
             <div className="profile-section">
-                <h2>Appearance</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>Toggle dark mode from the navbar. More appearance options coming soon...</p>
+                <h2><Trans>Appearance</Trans></h2>
+                <p style={{ color: 'var(--text-secondary)' }}><Trans>Toggle dark mode from the navbar.</Trans></p>
             </div>
         </div>
     </div>
