@@ -1,8 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
-import ReactEcharts from 'echarts-for-react';
-import { DateTime } from 'luxon';
+// Lazy-load ECharts runtime and the React wrapper at runtime to keep initial bundle small
+// `echarts` runtime is provided by `../utils/echartsSetup` (registers charts/components)
+
+// Lightweight timezone parsing/formatting helper to avoid bundling luxon
+function formatWithZone(isoString, timezone, fmt) {
+  try {
+    const dt = new Date(isoString);
+    const options = {};
+    if (fmt && fmt.includes('HH')) { options.hour = '2-digit'; options.minute = '2-digit'; options.second = '2-digit'; }
+    if (fmt && fmt.includes('yyyy')) { options.year = 'numeric'; options.month = '2-digit'; options.day = '2-digit'; }
+    if (timezone) options.timeZone = toIana(timezone);
+    return new Intl.DateTimeFormat(undefined, options).format(dt);
+  } catch {
+    return isoString;
+  }
+}
 
 /**
  * EchartsCard: Lightweight, interactive chart card using Apache ECharts
@@ -72,14 +86,11 @@ function toIana(tz) {
 
 // Helper: parse ISO string and convert to target timezone
 function parseToTimezone(isoString, timezone) {
-  try {
-    const iana = toIana(timezone);
-    // Parse ISO string in UTC first, then convert to target timezone
-    const dt = DateTime.fromISO(isoString, { zone: 'UTC' });
-    return dt.isValid ? dt.setZone(iana) : null;
-  } catch {
-    return null;
-  }
+  // Return a small object that mimics DateTime#setZone/toFormat used in code
+  if (!isoString) return null;
+  return {
+    toFormat: (fmt) => formatWithZone(isoString, timezone, fmt)
+  };
 }
 
 // Abbreviate large numbers for readability (e.g., 50000000 -> 50M, 653000 -> 653K)
@@ -159,6 +170,26 @@ export default function EchartsCard({
   bbSigma = '2sigma'
 }) {
   const { i18n } = useLingui();
+  const [ReactEchartsComp, setReactEchartsComp] = useState(null);
+  const [echartsLib, setEchartsLib] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    // Load wrapper and echarts setup in parallel
+    Promise.all([
+      import('echarts-for-react'),
+      import('../utils/echartsSetup')
+    ]).then(([reactEchartsMod, echartsMod]) => {
+      if (!mounted) return;
+      const Comp = reactEchartsMod && (reactEchartsMod.default || reactEchartsMod);
+      const ech = echartsMod && (echartsMod.default || echartsMod);
+      setReactEchartsComp(() => Comp);
+      setEchartsLib(() => ech);
+    }).catch(() => {
+      // ignore - keep placeholders
+    });
+    return () => { mounted = false; };
+  }, []);
   const displayTicker = getDisplayFromRaw(ticker);
   // Normalize chartMode to accept both 'lines' and 'line' (some callers use plural)
   const mode = chartMode === 'lines' ? 'line' : chartMode;
@@ -1313,14 +1344,21 @@ export default function EchartsCard({
         setTooltipPos({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
       }}
     >
-      <ReactEcharts
-        ref={chartRef}
-        option={option}
-        style={{ width: '100%', height: '100%', flex: 1 }}
-        notMerge={true}
-        opts={{ renderer: 'canvas', useDirtyRect: true }}
-        onEvents={onEvents}
-      />
+      {(!ReactEchartsComp || !echartsLib) ? (
+        <div className="echarts-fallback" style={{ minHeight: height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+          Loading chart…
+        </div>
+      ) : (
+        <ReactEchartsComp
+          ref={chartRef}
+          echarts={echartsLib}
+          option={option}
+          style={{ width: '100%', height: '100%', flex: 1 }}
+          notMerge={true}
+          opts={{ renderer: 'canvas', useDirtyRect: true }}
+          onEvents={onEvents}
+        />
+      )}
     </div>
   );
 }

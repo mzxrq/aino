@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
-import { DateTime } from 'luxon';
+// luxon is dynamically imported where needed to reduce initial bundle
 
 // --- Environment Variables ---
 const NODE_API = API_URL;
@@ -472,7 +472,7 @@ const NotificationsSection = () => {
 
     const resolveUserTimezone = () => user?.timeZone || user?.timezone || 'UTC';
 
-    const buildCron = () => {
+    const buildCron = async () => {
         // time is HH:MM
         const [hh, mm] = (time || '09:00').split(':');
         const baseMinute = parseInt(mm || '0', 10);
@@ -483,6 +483,9 @@ const NotificationsSection = () => {
         let hour = baseHour;
         const tz = resolveUserTimezone();
         try {
+            // Dynamically import luxon only when building cron expressions
+            const mod = await import('luxon');
+            const DateTime = mod.DateTime;
             const local = DateTime.fromObject({ hour: baseHour, minute: baseMinute }, { zone: tz || 'UTC' });
             if (local.isValid) {
                 const utc = local.toUTC();
@@ -509,7 +512,7 @@ const NotificationsSection = () => {
         setStatusMsg('');
         if (!user || !user.id) return setStatusMsg('User not available');
 
-        const cronExpression = buildCron();
+        const cronExpression = await buildCron();
 
         setLoadingCron(true);
         try {

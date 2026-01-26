@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
-import { DateTime } from 'luxon';
+import React, { useMemo, useState, useEffect } from 'react';
+// ReactECharts wrapper will be lazy-loaded at runtime to reduce initial bundle size
 
 /**
  * FinancialChartEcharts: A reusable ECharts component for rendering financial candlestick charts
@@ -47,6 +46,36 @@ export default function FinancialChartEcharts({
   width = '100%',
   height = 400
 }) {
+  const [echartsInstance, setEchartsInstance] = useState(null);
+  const [ReactEChartsComp, setReactEChartsComp] = useState(null);
+  const [dateTimeLib, setDateTimeLib] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      import('../utils/echartsSetup'),
+      import('echarts-for-react')
+    ]).then(([echartsMod, reactEchartsMod]) => {
+      if (!mounted) return;
+      const instance = echartsMod && (echartsMod.default || echartsMod);
+      const Comp = reactEchartsMod && (reactEchartsMod.default || reactEchartsMod);
+      if (mounted) {
+        setEchartsInstance(instance);
+        setReactEChartsComp(() => Comp);
+      }
+    }).catch(() => {
+      // swallow errors; chart will show placeholder
+    });
+
+    // also dynamically load luxon's DateTime for formatting
+    import('luxon')
+      .then(mod => {
+        if (mounted && mod && mod.DateTime) setDateTimeLib(mod.DateTime);
+      })
+      .catch(() => {});
+
+    return () => { mounted = false; };
+  }, []);
   const option = useMemo(() => {
     // Prepare x-axis data
     const isIntraday = (period || '').toLowerCase() === '1d';
@@ -372,10 +401,22 @@ export default function FinancialChartEcharts({
     chartMode
   ]);
 
+  // Reserve layout space to avoid layout shifts while echarts loads
+  const wrapperStyle = { width: width, height: height, minHeight: typeof height === 'number' ? height : undefined };
+  // Show placeholder until both echarts runtime and the React wrapper are ready
+  if (!echartsInstance || !ReactEChartsComp) {
+    return (
+      <div style={{ ...wrapperStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#888' }}>Loading chart…</div>
+      </div>
+    );
+  }
+
   return (
-    <ReactECharts
+    <ReactEChartsComp
+      echarts={echartsInstance}
       option={option}
-      style={{ width: width, height: height }}
+      style={wrapperStyle}
       opts={{ renderer: 'canvas' }}
       notMerge={true}
       lazyUpdate={false}

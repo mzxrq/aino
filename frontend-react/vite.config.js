@@ -1,16 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react({
       babel: {
-        plugins: [
-          ['@lingui/babel-plugin-lingui-macro']
-        ]
-      }
-    })
+        plugins: [['@lingui/babel-plugin-lingui-macro']],
+      },
+    }),
   ],
   define: {
     'process.env': JSON.stringify(process.env),
@@ -26,16 +25,12 @@ export default defineConfig({
     },
   },
   server: {
-    hmr: {
-      overlay: false, // disable error overlay that can cause slowdowns
-    },
+    hmr: { overlay: false },
     watch: {
-      usePolling: false, // avoid polling, use native fs events
-      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'], // skip heavy dirs
+      usePolling: false,
+      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
     },
-    fs: {
-      strict: false, // allow serving files outside root if needed
-    },
+    fs: { strict: false },
   },
   optimizeDeps: {
     include: [
@@ -43,26 +38,56 @@ export default defineConfig({
       'react-dom',
       'react-router-dom',
       'echarts',
-      'echarts/core',
-      'echarts/charts',
-      'echarts/components',
-      'echarts/renderers',
       '@lingui/react',
       '@lingui/core',
       'luxon',
     ],
     exclude: ['@vite/client', '@vite/env'],
+    esbuildOptions: {
+      target: 'es2020',
+    },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-echarts': ['echarts', 'echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
-          'vendor-i18n': ['@lingui/react', '@lingui/core', 'luxon'],
-        },
+    target: 'es2020',
+    minify: 'terser',
+    sourcemap: false,
+    cssCodeSplit: true,
+    reportCompressedSize: true,
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        passes: 3,
+        pure_funcs: ['console.info', 'console.debug', 'console.warn'],
       },
+      mangle: true,
+      format: { comments: false },
     },
+
+    // Improve tree-shaking and CJS handling
+    commonjsOptions: {
+      include: /node_modules/,
+      transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      // enable Rollup treeshaking aggressively
+      treeshake: {
+        moduleSideEffects: false
+      },
+      output: {
+manualChunks(id) {
+  if (id.includes('node_modules')) {
+    if (id.includes('echarts')) return 'echarts';
+    if (id.includes('@mui')) return 'mui';
+    // Let Vite handle React and others in the main vendor chunk
+  }
+}
+      },
+      plugins: [
+        visualizer({ filename: 'dist/stats.html', open: false, gzipSize: true })
+      ],
+    },
+
     chunkSizeWarningLimit: 1000,
   },
 })

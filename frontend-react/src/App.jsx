@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 // 1. Import Auth Provider
@@ -7,30 +7,30 @@ import { AuthProvider } from "./context/AuthContext";
 // 2. Import Components
 import Navbar from "./components/Navbar";
 
-// 3. Import Pages
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Chart from "./pages/Chart";
-import LargeChart from "./pages/MainChart";
-import LineCallback from "./pages/LineCallback";
-import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
-import CompanyProfile from "./pages/CompanyProfile";
-import StockList from "./pages/StockList";
+// 3. Import Pages (lazy-loaded where heavy)
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Chart = lazy(() => import("./pages/Chart"));
+const LargeChart = lazy(() => import("./pages/MainChart"));
+const LineCallback = lazy(() => import("./pages/LineCallback"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Profile = lazy(() => import("./pages/Profile"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const StockList = lazy(() => import("./pages/StockList"));
 
 import AdminRoute from "./pages/Admin/AdminRouteGuard";
-import AdminLayout from "../src/layouts/AdminLayout";
-import AnomaliesManagementPage from "./pages/Admin/AdminAnomaliesPage";
-import CacheManagementPage from "./pages/Admin/AdminCachePage";
-import AdminStockList from "./pages/Admin/AdminStockListPage";
-import UsersManagementPage from "./pages/Admin/AdminUsersPage";
-import SubscribersManagementPage from "./pages/Admin/AdminSubscribersPage";
-import AdminDashboardPage from "./pages/Admin/AdminDashboardPage";
-import AdminActivityLogsPage from './pages/Admin/AdminActivityLogsPage';
-import AdminNotificationLogsPage from './pages/Admin/AdminNotificationLogsPage';
-import AdminNodemailerLogsPage from './pages/Admin/AdminNodemailerLogsPage';
-import AdminJobsPage from './pages/Admin/AdminJobsPage';
+const AdminLayout = lazy(() => import("../src/layouts/AdminLayout"));
+const AnomaliesManagementPage = lazy(() => import("./pages/Admin/AdminAnomaliesPage"));
+const CacheManagementPage = lazy(() => import("./pages/Admin/AdminCachePage"));
+const AdminStockList = lazy(() => import("./pages/Admin/AdminStockListPage"));
+const UsersManagementPage = lazy(() => import("./pages/Admin/AdminUsersPage"));
+const SubscribersManagementPage = lazy(() => import("./pages/Admin/AdminSubscribersPage"));
+const AdminDashboardPage = lazy(() => import("./pages/Admin/AdminDashboardPage"));
+const AdminActivityLogsPage = lazy(() => import('./pages/Admin/AdminActivityLogsPage'));
+const AdminNotificationLogsPage = lazy(() => import('./pages/Admin/AdminNotificationLogsPage'));
+const AdminNodemailerLogsPage = lazy(() => import('./pages/Admin/AdminNodemailerLogsPage'));
+const AdminJobsPage = lazy(() => import('./pages/Admin/AdminJobsPage'));
 import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
@@ -85,7 +85,8 @@ function App() {
               background: "transparent",
             }}
           >
-          <Routes>
+          <Suspense fallback={<div className="route-fallback" style={{padding:20, textAlign:'center'}}>Loading…</div>}>
+            <Routes>
             {/* 🔐 ADMIN ONLY */}
             <Route element={<AdminRoute />}>
               <Route element={<AdminLayout />}>
@@ -118,7 +119,8 @@ function App() {
 
             {/* The "invisible" page LINE redirects to */}
             <Route path="/auth/callback" element={<LineCallback />} />
-          </Routes>
+            </Routes>
+          </Suspense>
           </div>
           </div>
         </div>

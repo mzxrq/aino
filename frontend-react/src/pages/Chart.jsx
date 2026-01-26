@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchWithCache } from '../utils/fetchCache';
+import React, { useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react';
 import { Trans } from '@lingui/react/macro';
 import { i18n } from '@lingui/core';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { DateTime } from 'luxon';
 import Swal from '../utils/muiSwal';
 import { useAuth } from '../context/useAuth';
 import '../css/Chart.css';
 import PortalDropdown from '../components/DropdownSelect/PortalDropdown';
 import TimezoneSelect from '../components/TimezoneSelect';
 import TickerSearch from '../components/TickerSearch';
-import EchartsCard from '../components/EchartsCard';
+const EchartsCard = lazy(() => import('../components/EchartsCard'));
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import ChartCardButtons from '../components/ChartCardButtons';
 import { formatTickLabels, buildOrdinalAxis, buildGapConnectors, buildGradientBands, hexToRgba, buildHoverTextForDates, resolvePlotlyColorFallback, findClosestIndex } from '../components/ChartCore';
@@ -387,7 +387,12 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
         if (mounted) setFollowed(false);
       }
     }
-    checkFollowStatus();
+    // Defer this non-critical network call until after initial render / idle time
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => { if (mounted) checkFollowStatus(); }, { timeout: 1000 });
+    } else {
+      setTimeout(() => { if (mounted) checkFollowStatus(); }, 600);
+    }
     return () => { mounted = false; };
   }, [ticker, token, user]);
 
@@ -482,10 +487,9 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
   // market timezone label (GMT offset)
   let gmtLabel = '';
   try {
-    const off = DateTime.now().setZone(toIana(timezone)).offset; // minutes
-    const hrs = off / 60;
-    const sign = hrs >= 0 ? '+' : '-';
-    gmtLabel = `GMT${sign}${Math.abs(hrs)}`;
+    const offHours = getTimezoneOffset(timezone);
+    const sign = offHours >= 0 ? '+' : '-';
+    gmtLabel = `GMT${sign}${Math.abs(offHours)}`;
   } catch { gmtLabel = '' }
 
   // Normalize ISO timestamps returned by the server (some servers use +0000 instead of +00:00)
@@ -501,18 +505,17 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
     // Use payload-provided market_open/market_close if available (ISO strings), otherwise assume open if recent data exists
     try {
       if (payload.market_open && payload.market_close) {
-        const zone = toIana(timezone);
-        const now = DateTime.now().setZone(zone);
-        const openT = DateTime.fromISO(payload.market_open, { zone });
-        const closeT = DateTime.fromISO(payload.market_close, { zone });
+        const openT = Date.parse(payload.market_open);
+        const closeT = Date.parse(payload.market_close);
+        const now = Date.now();
         return now >= openT && now <= closeT;
       }
     } catch { /* ignore */ }
     // fallback: if there's recent data within last 6 hours, treat as open (best-effort)
     if (dates.length) {
-      const last = DateTime.fromISO(dates[dates.length - 1], { zone: 'utc' }).toUTC();
-      const now = DateTime.utc();
-      return (now.toMillis() - last.toMillis()) < (1000 * 60 * 60 * 6);
+      const last = Date.parse(dates[dates.length - 1]);
+      const now = Date.now();
+      return (now - last) < (1000 * 60 * 60 * 6);
     }
     return false;
   })();
@@ -570,7 +573,8 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
           </div>
         ) : (
           <>
-            <EchartsCard
+            <Suspense fallback={<div className="echarts-fallback" style={{minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'}}>Loading chart…</div>}>
+              <EchartsCard
               ticker={ticker}
               dates={dates}
               open={open}
@@ -601,11 +605,15 @@ function TickerCard({ ticker, data, timezone, showBB, showVWAP, showVolume, show
               showSAR={showSAR}
               bbSigma={bbSigma}
             />
-            {lastClose != null && (
-              <div className="badge-overlay" style={{ position: 'absolute', right: 10, top: badgeTopPx != null ? `${badgeTopPx}px` : '50%', transform: 'translateY(-50%)', background: (price_change != null && price_change < 0) ? '#e03b3b' : '#26a69a', color: '#fff', padding: '6px 8px', borderRadius: 8, fontSize: 12 }}>
-                {formatNumber(lastClose)}
-              </div>
-            )}
+            </Suspense>
+            {/* Render badge element always to avoid insertion layout shifts; toggle visibility by class */}
+            <div
+              className={`badge-overlay ${lastClose != null ? 'visible' : 'hidden'}`}
+              style={{ position: 'absolute', right: 10, top: badgeTopPx != null ? `${badgeTopPx}px` : '50%', background: (price_change != null && price_change < 0) ? '#e03b3b' : '#26a69a', color: '#fff', padding: '6px 8px', borderRadius: 8, fontSize: 12 }}
+              aria-hidden={lastClose == null}
+            >
+              {lastClose != null ? formatNumber(lastClose) : '\u00A0'}
+            </div>
           </>
         )}
       </div>
@@ -795,67 +803,55 @@ export default function Chart() {
       }
       
       try {
-        const q = tickers.join(',');
-        const url = `${PY_API}/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
-        let res;
-        let json;
+        // Fetch only the primary ticker first to reduce critical-path latency (improves LCP)
+        const primary = Array.isArray(tickers) && tickers.length ? [tickers[0]] : [];
+        const rest = Array.isArray(tickers) && tickers.length > 1 ? tickers.slice(1) : [];
+
+        const qPrimary = primary.join(',');
+        const urlPrimary = `${PY_API}/chart?ticker=${encodeURIComponent(qPrimary)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+        let jsonPrimary = {};
+
         try {
-          res = await fetch(url);
-          if (!res.ok) throw new Error(`status ${res.status}`);
-          json = await res.json();
+          // Use short TTL cache to avoid duplicate/parallel heavy chart requests
+          jsonPrimary = await fetchWithCache(urlPrimary, { ttl: 30000 });
         } catch (err) {
           try {
-            const fallbackUrl = `${PY_DIRECT}/py/chart?ticker=${encodeURIComponent(q)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
-            const r2 = await fetch(fallbackUrl);
-            if (!r2.ok) throw new Error(`fallback status ${r2.status}`);
-            json = await r2.json();
-            console.warn('Chart: using direct Python fallback', { fallbackUrl });
+            const fallbackUrl = `${PY_DIRECT}/py/chart?ticker=${encodeURIComponent(qPrimary)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+            jsonPrimary = await fetchWithCache(fallbackUrl, { ttl: 30000 });
+            console.warn('Chart: using direct Python fallback for primary', { fallbackUrl });
           } catch (err2) {
             throw err2;
           }
         }
-        
-        // If all requested tickers returned no data, attempt a coarser interval automatically.
-        try {
-          const allEmpty = Array.isArray(tickers) && tickers.length > 0 && tickers.every(t => {
-            const pl = (json && json[t]) || {};
-            return !pl.dates || pl.dates.length === 0;
-          });
 
-          if (allEmpty) {
-            const order = ['1m','2m','5m','15m','30m','1h','1d','1wk','1mo'];
-            const currentIdx = Math.max(0, order.indexOf(enforced));
-            let next = enforced;
-            for (let i = currentIdx + 1; i < order.length; i++) {
-              const candidate = order[i];
-              const allowed = enforceIntervalRules(period, candidate);
-              if (allowed === candidate) { next = candidate; break; }
+        // Set initial data with primary ticker so UI can render quickly
+        setData(jsonPrimary || {});
+
+        // Background fetch for remaining tickers (non-blocking)
+        if (rest.length > 0) {
+          (async () => {
+            try {
+              const qRest = rest.join(',');
+              const urlRest = `${PY_API}/chart?ticker=${encodeURIComponent(qRest)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+              let jsonRest = {};
+              try {
+                jsonRest = await fetchWithCache(urlRest, { ttl: 30000 });
+              } catch (err) {
+                try {
+                  const fallbackRest = `${PY_DIRECT}/py/chart?ticker=${encodeURIComponent(qRest)}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(enforced)}`;
+                  jsonRest = await fetchWithCache(fallbackRest, { ttl: 30000 });
+                } catch (err2) {
+                  console.warn('Chart: background fetch for rest tickers failed', err2);
+                  return;
+                }
+              }
+              // Merge background results into main data store
+              setData(prev => ({ ...(prev || {}), ...(jsonRest || {}) }));
+            } catch (bgErr) {
+              console.debug('Background chart fetch error', bgErr);
             }
-            if (next !== enforced) {
-              // Notify once and retry by updating state; effect will re-fetch.
-              try { await Swal.fire({ icon: 'info', title: 'Switched interval', text: `No data for ${enforced}. Trying ${next} instead.`, timer: 2000, showConfirmButton: false }); } catch {}
-              setInterval(next);
-              setLoading(false);
-              return; // skip setting data for this response
-            }
-          }
-        } catch {}
-        // Temporary debug logging to diagnose period/interval/date-range issues
-        try {
-          console.debug('Chart fetch', { url, requested: { period, interval: enforced, tickers }, returnedKeys: Object.keys(json || {}) });
-          // log per-ticker date counts and first/last ISO strings (if available)
-          for (const t of tickers) {
-            const pl = (json && json[t]) || {};
-            const d = pl.dates || [];
-            if (d && d.length) {
-              console.debug(`chart:${t}`, { count: d.length, first: d[0], last: d[d.length - 1] });
-            } else {
-              console.debug(`chart:${t}`, { count: 0 });
-            }
-          }
-        } catch (e) { console.debug('Chart fetch debug failed', e); }
-        // No client-side anomaly injection: rely on server-side anomaly detection
-        setData(json || {});
+          })();
+        }
       } catch (e) {
         setError(e?.message || 'Failed to load chart data');
       } finally {

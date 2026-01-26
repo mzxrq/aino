@@ -5,6 +5,7 @@ import { useLingui } from '@lingui/react';
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import "../css/MarketItemCard.css";
+import { fetchWithCache } from '../utils/fetchCache';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 
 // Utility function to get company name from various possible fields
@@ -78,17 +79,15 @@ export default function MarketItemCard({ item }) {
 
     const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
     const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
-    const PY_BASE = `${API_URL}/py`;
+    const PY_NODE_PROXY = `${API_URL}/py`;
     async function fetchPyJson(path, init) {
+      const nodeUrl = `${PY_NODE_PROXY}${path}`;
+      const directUrl = `${PY_DIRECT}/py${path}`;
       try {
-        const res = await fetch(`${PY_BASE}${path}`, init);
-        if (res.ok) return await res.json();
-      } catch {
-        // fallback to direct
+        return await fetchWithCache(nodeUrl, { ttl: 30000, fetchOptions: init });
+      } catch (e) {
+        return await fetchWithCache(directUrl, { ttl: 30000, fetchOptions: init });
       }
-      const res2 = await fetch(`${PY_DIRECT}/py${path}`, init);
-      if (!res2.ok) throw new Error(`status ${res2.status}`);
-      return await res2.json();
     }
 
     const fetchData = async () => {

@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Trans } from '@lingui/react/macro';
-import ReactECharts from 'echarts-for-react';
+// Lazy-load ECharts runtime and React wrapper to keep initial bundle small
+const ReactECharts = null;
 import PropTypes from 'prop-types';
 
 const MultiLineChart = ({
@@ -15,6 +16,24 @@ const MultiLineChart = ({
   colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], // Custom colors
   showLegend = true
 }) => {
+
+  const [ReactEChartsComp, setReactEChartsComp] = useState(null);
+  const [echartsLib, setEchartsLib] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      import('echarts-for-react'),
+      import('../utils/echartsSetup')
+    ]).then(([reactEchartsMod, echartsMod]) => {
+      if (!mounted) return;
+      const Comp = reactEchartsMod && (reactEchartsMod.default || reactEchartsMod);
+      const ech = echartsMod && (echartsMod.default || echartsMod);
+      setReactEChartsComp(() => Comp);
+      setEchartsLib(() => ech);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   // detect DOM theme class/attribute so chart updates when app toggles theme
   const domThemeFlag = (typeof document !== 'undefined') && (
@@ -132,12 +151,19 @@ const MultiLineChart = ({
 
   return (
     <div style={{ width, height, position: 'relative' }}>
-      <ReactECharts 
-        option={option} 
-        style={{ width: '100%', height: '100%' }}
-        theme={theme}
-        notMerge={true} // Ensures clean updates when data changes
-      />
+      {ReactEChartsComp && echartsLib ? (
+        <ReactEChartsComp
+          echarts={echartsLib}
+          option={option}
+          style={{ width: '100%', height: '100%' }}
+          theme={theme}
+          notMerge={true}
+        />
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span>Loading chart…</span>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,21 +1,22 @@
-import { useEffect, useMemo, useState, useContext } from 'react';
+import React, { useEffect, useMemo, useState, useContext, Suspense, lazy } from 'react';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getDisplayFromRaw } from '../utils/tickerUtils';
 import { getLocalizedCompanyName } from '../utils/companyNameUtils';
 import { getFinancialLabel } from '../utils/financialLabels';
-import EchartsCard from '../components/EchartsCard';
+const EchartsCard = lazy(() => import('../components/EchartsCard'));
 import FinancialsTable from '../components/FinancialsTable';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
+const Dialog = lazy(() => import('@mui/material/Dialog'));
+const DialogTitle = lazy(() => import('@mui/material/DialogTitle'));
+const DialogContent = lazy(() => import('@mui/material/DialogContent'));
+const DialogActions = lazy(() => import('@mui/material/DialogActions'));
+const Button = lazy(() => import('@mui/material/Button'));
 import '../css/CompanyProfile.css';
 import { AuthContext } from '../context/contextBase';
 import { useLoginPrompt } from '../context/LoginPromptContext';
 import { i18n } from '@lingui/core';
 import Swal from '../utils/muiSwal';
+import { fetchWithCache } from '../utils/fetchCache';
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -25,21 +26,20 @@ const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
 const _inFlightRequests = new Map();
 
 async function fetchJsonWithFallback(path) {
-  // Call Python service directly (default port 5000)
-  const url = `${PY_DIRECT}/py${path}`;
-  // Deduplicate concurrent requests for the same URL
-  if (_inFlightRequests.has(url)) {
-    return _inFlightRequests.get(url);
+  const primary = `${PY_DIRECT}/py${path}`;
+  const nodeProxy = `${API_URL}/py${path}`;
+  try {
+    // Prefer node proxy (if available) with short cache to dedupe
+    return await fetchWithCache(nodeProxy, { ttl: 30000 });
+  } catch (e) {
+    // Fallback to direct Python service
+    try {
+      return await fetchWithCache(primary, { ttl: 30000 });
+    } catch (e2) {
+      // If cache-backed fetch fails, throw to caller
+      throw e2;
+    }
   }
-  const p = (async () => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`status ${res.status}`);
-    return await res.json();
-  })();
-  _inFlightRequests.set(url, p);
-  // Ensure entry is removed when settled so future fresh requests can occur
-  p.finally(() => { try { _inFlightRequests.delete(url); } catch (_) {} });
-  return p;
 }
 
 // Generic fetch helper that deduplicates requests (GET and identical POSTs)
@@ -300,7 +300,12 @@ export default function CompanyProfile() {
         if (mounted) setFollowed(false);
       }
     }
-    checkFollowStatus();
+    // Defer follow-status check until idle to avoid blocking main render
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => { if (mounted) checkFollowStatus(); }, { timeout: 1000 });
+    } else {
+      setTimeout(() => { if (mounted) checkFollowStatus(); }, 600);
+    }
     return () => { mounted = false; };
   }, [user, token, ticker]);
 
@@ -616,7 +621,8 @@ export default function CompanyProfile() {
 
           {loading && !chartData && <div className="muted"><Trans>Loading chart…</Trans></div>}
           {!loading && chartData && (
-            <EchartsCard
+            <Suspense fallback={<div className="echarts-fallback" style={{minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'}}>Loading chart…</div>}>
+              <EchartsCard
               ticker={ticker}
               dates={dates}
               open={open}
@@ -631,6 +637,7 @@ export default function CompanyProfile() {
               height={320}
               showVolume
             />
+            </Suspense>
           )}
 
           <div className="card news" style={{ marginTop: 12 }}>
