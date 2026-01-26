@@ -46,7 +46,12 @@ export default function FollowableChartCard({
         if (mounted) setFollowed(false);
       }
     }
-    checkFollowStatus();
+    // Defer this non-critical network call until after initial render / idle
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => { if (mounted) checkFollowStatus(); }, { timeout: 1000 });
+    } else {
+      setTimeout(() => { if (mounted) checkFollowStatus(); }, 600);
+    }
     return () => {
       mounted = false;
     };

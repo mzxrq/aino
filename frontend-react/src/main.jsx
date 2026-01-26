@@ -45,36 +45,51 @@ const initializeI18n = async () => {
   }
 };
 
-// Initialize i18n before rendering
-await initializeI18n();
+// Start the app: setup fetch override, render React and register service worker
+function startApp() {
+  try {
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = new Headers(init && init.headers ? init.headers : {});
+        if (token) headers.set('Authorization', `Bearer ${token}`);
+        init = { ...(init || {}), headers };
+      } catch (e) {
+        // ignore errors accessing localStorage or Headers
+      }
+      return _origFetch(input, init);
+    };
+  } catch (e) {
+    // environment may not allow overriding fetch; ignore
+  }
 
-// Inject Authorization header from localStorage into all fetch requests
-// Ensures frontend GETs (and other requests) include the Bearer token automatically.
-try {
-  const _origFetch = window.fetch.bind(window);
-  window.fetch = (input, init = {}) => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = new Headers(init && init.headers ? init.headers : {});
-      if (token) headers.set('Authorization', `Bearer ${token}`);
-      init = { ...(init || {}), headers };
-    } catch (e) {
-      // ignore errors accessing localStorage or Headers
-    }
-    return _origFetch(input, init);
-  };
-} catch (e) {
-  // environment may not allow overriding fetch; ignore
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <I18nProvider i18n={i18n}>
+        <BrowserRouter>
+          <LoginPromptProvider>
+            <App />
+          </LoginPromptProvider>
+        </BrowserRouter>
+      </I18nProvider>
+    </React.StrictMode>,
+  )
+
+  // Register service worker to cache external logos (improves repeat-visit caching)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        console.log('ServiceWorker registration successful with scope: ', reg.scope);
+      }).catch((err) => {
+        console.warn('ServiceWorker registration failed:', err);
+      });
+    });
+  }
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <I18nProvider i18n={i18n}>
-      <BrowserRouter>
-        <LoginPromptProvider>
-          <App />
-        </LoginPromptProvider>
-      </BrowserRouter>
-    </I18nProvider>
-  </React.StrictMode>,
-)
+// Initialize i18n before starting the app; if initialization fails, still start the app.
+initializeI18n().then(() => startApp()).catch((err) => {
+  console.error('i18n initialization failed, starting app anyway:', err);
+  startApp();
+});

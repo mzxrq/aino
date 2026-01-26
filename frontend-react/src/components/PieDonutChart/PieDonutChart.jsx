@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLingui } from '@lingui/react';
 import ReactECharts from 'echarts-for-react';
+import echarts from '../../utils/echartsSetup';
 import PropTypes from 'prop-types';
 
 const PieDonutChart = ({ data = [], title = '', height = '300px', width = '300px', colors }) => {
@@ -35,7 +36,7 @@ const PieDonutChart = ({ data = [], title = '', height = '300px', width = '300px
 
   return (
     <div style={{ width, height }}>
-      <ReactECharts option={option} style={{ width: '100%', height: '100%' }} notMerge={true} />
+      <ReactECharts echarts={echarts} option={option} style={{ width: '100%', height: '100%' }} notMerge={true} />
     </div>
   );
 };

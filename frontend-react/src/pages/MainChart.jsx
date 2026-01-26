@@ -14,7 +14,8 @@ import { getDisplayFromRaw } from '../utils/tickerUtils';
 import '../css/MainChart.css';
 import { useAuth } from '../context/useAuth';
 import Swal from '../utils/muiSwal';
-import { DateTime } from 'luxon';
+import { fetchWithCache } from '../utils/fetchCache';
+// Use native Date parsing for simple market open/close checks to avoid bundling luxon here
 
 const API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5050';
 const PY_DIRECT = import.meta.env.VITE_LINE_PY_URL || 'http://localhost:5000';
@@ -36,9 +37,15 @@ const MARKET_CURRENCIES = {
 async function fetchJsonWithFallback(path, init) {
   // path should start with '/'
   const fallback = `${PY_DIRECT}/py${path}`;
-  const res2 = await fetch(fallback, init);
-  if (!res2.ok) throw new Error(`Request failed: ${res2.status}`);
-  return await res2.json();
+  // Use short in-memory cache for these potentially heavy chart requests
+  try {
+    return await fetchWithCache(fallback, { ttl: 30000, fetchOptions: init });
+  } catch (e) {
+    // If cached fetch fails, fall back to direct fetch attempt
+    const res2 = await fetch(fallback, init);
+    if (!res2.ok) throw new Error(`Request failed: ${res2.status}`);
+    return await res2.json();
+  }
 }
 
 // Deduplicating fetch helper for Node API calls (GET + identical POSTs)
@@ -374,7 +381,12 @@ export default function MainChart() {
         if (mounted) setFollowed(false);
       }
     }
-    checkFollowStatus();
+    // Defer this non-critical network call to avoid blocking LCP
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => { if (mounted) checkFollowStatus(); }, { timeout: 1000 });
+    } else {
+      setTimeout(() => { if (mounted) checkFollowStatus(); }, 600);
+    }
     return () => { mounted = false; };
   }, [ticker, token, user]);
 
@@ -606,18 +618,18 @@ export default function MainChart() {
     try {
       if (payload.market_open && payload.market_close) {
         const zone = timezone || 'UTC';
-        const now = DateTime.now().setZone(zone);
-        const openT = DateTime.fromISO(payload.market_open, { zone });
-        const closeT = DateTime.fromISO(payload.market_close, { zone });
+        const openT = Date.parse(payload.market_open);
+        const closeT = Date.parse(payload.market_close);
+        const now = Date.now();
         return now >= openT && now <= closeT;
       }
     } catch (e) { /* ignore */ }
     // fallback: if there's recent data within last 6 hours, treat as open
     if (dates.length) {
       try {
-        const last = DateTime.fromISO(dates[dates.length - 1], { zone: 'utc' }).toUTC();
-        const now = DateTime.utc();
-        return (now.toMillis() - last.toMillis()) < (1000 * 60 * 60 * 6);
+        const last = Date.parse(dates[dates.length - 1]);
+        const now = Date.now();
+        return (now - last) < (1000 * 60 * 60 * 6);
       } catch (e) { /* ignore */ }
     }
     return false;

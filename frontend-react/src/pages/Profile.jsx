@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
 import '../css/Profile.css';
 import { API_URL } from '../context/envConfig';
+<<<<<<< HEAD
 import { DateTime } from 'luxon';
 import { i18n } from '@lingui/core';
 

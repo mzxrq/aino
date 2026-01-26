@@ -1,4 +1,22 @@
-import { DateTime } from 'luxon';
+// Lightweight date helpers to avoid bundling luxon in the main bundle
+function parseIsoToMillis(s) {
+  const t = Date.parse(s);
+  return isNaN(t) ? 0 : t;
+}
+
+function formatWithZone(dateStr, tz, fmt) {
+  try {
+    const dt = new Date(dateStr);
+    // Use Intl.DateTimeFormat when timeZone is available
+    const options = {};
+    if (fmt && fmt.includes('HH')) { options.hour = '2-digit'; options.minute = '2-digit'; }
+    if (fmt && fmt.includes('yyyy')) { options.year = 'numeric'; options.month = '2-digit'; options.day = '2-digit'; }
+    if (tz) options.timeZone = tz;
+    return new Intl.DateTimeFormat(undefined, options).format(dt);
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 // Format tick labels for Plotly axes
 export function formatTickLabels(dates, tz, maxTicks = 8) {
@@ -8,14 +26,13 @@ export function formatTickLabels(dates, tz, maxTicks = 8) {
   const vals = [];
   const txt = [];
   for (let i = 0; i < total; i += step) {
-    const d = DateTime.fromISO(dates[i], { zone: 'utc' }).setZone(tz);
     vals.push(dates[i]);
-    txt.push(d.toFormat('yyyy-LL-dd HH:mm'));
+    txt.push(formatWithZone(dates[i], tz, 'yyyy-LL-dd HH:mm'));
   }
   const last = dates[total - 1];
   if (vals[vals.length - 1] !== last) {
     vals.push(last);
-    txt.push(DateTime.fromISO(last, { zone: 'utc' }).setZone(tz).toFormat('yyyy-LL-dd HH:mm'));
+    txt.push(formatWithZone(last, tz, 'yyyy-LL-dd HH:mm'));
   }
   return { tickvals: vals, ticktext: txt };
 }
@@ -43,8 +60,8 @@ export function buildGapConnectors(dates, closes, axisX, interval) {
   const threshold = Math.max(expected * 3, 1000 * 60 * 30);
   const out = [];
   for (let i = 0; i < dates.length - 1; i++) {
-    const a = DateTime.fromISO(dates[i], { zone: 'utc' }).toMillis();
-    const b = DateTime.fromISO(dates[i+1], { zone: 'utc' }).toMillis();
+    const a = parseIsoToMillis(dates[i]);
+    const b = parseIsoToMillis(dates[i+1]);
     if ((b - a) > threshold) {
       const x0 = axisX ? axisX[i] : dates[i];
       const x1 = axisX ? axisX[i+1] : dates[i+1];
@@ -116,9 +133,7 @@ export function buildHoverTextForDates(dates, tz, period) {
   else if (p === '5d') fmt = 'LL-dd HH:mm';
   else if (p === '1mo' || p === '6mo') fmt = 'LL-dd';
   else if (p === '1y' || p === '5y') fmt = 'yyyy-LL';
-  return dates.map(d => {
-    try { return DateTime.fromISO(d, { zone: 'utc' }).setZone(tz).toFormat(fmt); } catch { return d; }
-  });
+  return dates.map(d => formatWithZone(d, tz, fmt));
 }
 
 export function resolvePlotlyColorFallback() {
@@ -140,13 +155,13 @@ export function findClosestIndex(dates, target, maxDeltaMs = Number.POSITIVE_INF
   // UTC for a stable comparison regardless of timezone suffix format.
   try {
     if (!dates || !dates.length || !target) return -1;
-    const tms = DateTime.fromISO(target, { zone: 'utc' }).toMillis();
+    const tms = parseIsoToMillis(target);
     if (!isFinite(tms)) return -1;
     let bestIdx = -1;
     let bestDiff = Number.POSITIVE_INFINITY;
     for (let i = 0; i < dates.length; i++) {
       try {
-        const dms = DateTime.fromISO(dates[i], { zone: 'utc' }).toMillis();
+        const dms = parseIsoToMillis(dates[i]);
         if (!isFinite(dms)) continue;
         const diff = Math.abs(dms - tms);
         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
