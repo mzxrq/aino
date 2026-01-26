@@ -475,7 +475,7 @@ const NotificationsSection = () => {
 
     const resolveUserTimezone = () => user?.timeZone || user?.timezone || 'UTC';
 
-    const buildCron = () => {
+    const buildCron = async () => {
         // time is HH:MM
         const [hh, mm] = (time || '09:00').split(':');
         const baseMinute = parseInt(mm || '0', 10);
@@ -486,6 +486,9 @@ const NotificationsSection = () => {
         let hour = baseHour;
         const tz = resolveUserTimezone();
         try {
+            // Dynamically import luxon only when building cron expressions
+            const mod = await import('luxon');
+            const DateTime = mod.DateTime;
             const local = DateTime.fromObject({ hour: baseHour, minute: baseMinute }, { zone: tz || 'UTC' });
             if (local.isValid) {
                 const utc = local.toUTC();
@@ -512,7 +515,7 @@ const NotificationsSection = () => {
         setStatusMsg('');
         if (!user || !user.id) return setStatusMsg(i18n.'User not available');
 
-        const cronExpression = buildCron();
+        const cronExpression = await buildCron();
 
         setLoadingCron(true);
         try {
