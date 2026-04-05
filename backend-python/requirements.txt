@@ -15,4 +15,4 @@ python-multipart
 passlib[bcrypt]
 httpx
 python-jose
-apischeduler
+apscheduler
